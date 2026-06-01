@@ -181,7 +181,9 @@ ytdlpPlugin.resolve = async function(url, options) {
     skipDownload: true,
     simulate: true,
     forceIpv4: true,
-    extractorArgs: 'youtubetab:skip=authcheck'
+    extractorArgs: 'youtubetab:skip=authcheck',
+    retries: 1,
+    socketTimeout: 5
   };
 
   // If cookies.txt exists, pass it explicitly via command line
@@ -242,7 +244,9 @@ ytdlpPlugin.getStreamURL = async function(song) {
     simulate: true,
     format: "ba/ba*",
     forceIpv4: true,
-    extractorArgs: 'youtubetab:skip=authcheck'
+    extractorArgs: 'youtubetab:skip=authcheck',
+    retries: 1,
+    socketTimeout: 5
   };
 
   const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
@@ -354,6 +358,23 @@ for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'))) {
     client.on(event.name, (...args) => event.execute(...args, client));
   }
 }
+
+// Track and debug voice connection states
+const { getVoiceConnection } = require('@discordjs/voice');
+client.on('voiceStateUpdate', (oldState, newState) => {
+  const guildId = oldState.guild.id;
+  const connection = getVoiceConnection(guildId);
+  if (connection && !connection.listenerAdded) {
+    connection.listenerAdded = true;
+    console.log(`🔊 [Voice Connection] Found connection for guild: ${guildId}. Attaching stateChange tracker.`);
+    connection.on('stateChange', (oldVoiceState, newVoiceState) => {
+      console.log(`🔊 [Voice Connection] State changed from "${oldVoiceState.status}" to "${newVoiceState.status}"`);
+      if (newVoiceState.status === 'disconnected') {
+        console.log(`❌ [Voice Connection] Disconnected.`);
+      }
+    });
+  }
+});
 
 // DisTube Events
 const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed } = require('./utils/embeds');
