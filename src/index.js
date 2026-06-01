@@ -376,6 +376,12 @@ client.on('voiceStateUpdate', (oldState, newState) => {
   }
 });
 
+client.on('debug', (info) => {
+  if (info.includes('voice') || info.includes('Voice') || info.includes('packet') || info.includes('Gateway') || info.includes('Heartbeat')) {
+    console.log(`🤖 [Discord Debug] ${info}`);
+  }
+});
+
 // DisTube Events
 const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed } = require('./utils/embeds');
 
