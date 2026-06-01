@@ -72,6 +72,78 @@ const loadedCookies = setupCookies();
 const ytPlugin = new YouTubePlugin({ cookies: loadedCookies });
 const ytdlpPlugin = new YtDlpPlugin({ update: false });
 
+const { Song, Playlist } = require('distube');
+const { json: ytdlpJson } = require('@distube/yt-dlp');
+
+// Helper to convert yt-dlp info to DisTube Song
+function createYtDlpSong(plugin, info, options) {
+  return new Song({
+    plugin,
+    source: info.extractor,
+    playFromSource: true,
+    id: info.id,
+    name: info.title || info.fulltitle,
+    url: info.webpage_url || info.original_url,
+    isLive: info.is_live,
+    thumbnail: info.thumbnail || info.thumbnails?.[0]?.url,
+    duration: info.is_live ? 0 : info.duration,
+    uploader: {
+      name: info.uploader,
+      url: info.uploader_url
+    },
+    views: info.view_count,
+    likes: info.like_count,
+    dislikes: info.dislike_count,
+    reposts: info.repost_count,
+    ageRestricted: Boolean(info.age_limit) && info.age_limit >= 18
+  }, options);
+}
+
+// Override ytdlpPlugin.resolve to avoid passing deprecated --no-call-home option
+ytdlpPlugin.resolve = async function(url, options) {
+  const info = await ytdlpJson(url, {
+    dumpSingleJson: true,
+    noWarnings: true,
+    preferFreeFormats: true,
+    skipDownload: true,
+    simulate: true
+  }).catch((e2) => {
+    throw new Error(`${e2.stderr || e2}`);
+  });
+
+  if (Array.isArray(info.entries)) {
+    if (info.entries.length === 0) throw new Error("The playlist is empty");
+    return new Playlist({
+      source: info.extractor,
+      songs: info.entries.map((i) => createYtDlpSong(this, i, options)),
+      id: info.id.toString(),
+      name: info.title,
+      url: info.webpage_url,
+      thumbnail: info.thumbnails?.[0]?.url
+    }, options);
+  }
+  return createYtDlpSong(this, info, options);
+};
+
+// Override ytdlpPlugin.getStreamURL to avoid passing deprecated --no-call-home option
+ytdlpPlugin.getStreamURL = async function(song) {
+  if (!song.url) {
+    throw new Error("Cannot get stream URL from invalid song.");
+  }
+  const info = await ytdlpJson(song.url, {
+    dumpSingleJson: true,
+    noWarnings: true,
+    preferFreeFormats: true,
+    skipDownload: true,
+    simulate: true,
+    format: "ba/ba*"
+  }).catch((e2) => {
+    throw new Error(`${e2.stderr || e2}`);
+  });
+  if (Array.isArray(info.entries)) throw new Error("Cannot get stream URL of an entire playlist");
+  return info.url;
+};
+
 // Bypass ytdl-core stream extractor and use highly robust yt-dlp instead
 ytPlugin.getStreamURL = async function(song) {
   return ytdlpPlugin.getStreamURL(song);
@@ -86,6 +158,7 @@ ytPlugin.resolve = async function(url, options) {
 ytPlugin.getRelatedSongs = function() {
   return [];
 };
+
 
 // Bypass broken ytsr search library and use highly robust yt-dlp search instead
 ytPlugin.searchSong = async function(query, options) {
