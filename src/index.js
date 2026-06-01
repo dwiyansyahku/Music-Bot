@@ -101,15 +101,23 @@ function createYtDlpSong(plugin, info, options) {
 
 // Override ytdlpPlugin.resolve to avoid passing deprecated --no-call-home option
 ytdlpPlugin.resolve = async function(url, options) {
-  const info = await ytdlpJson(url, {
+  const flags = {
     dumpSingleJson: true,
     noWarnings: true,
     preferFreeFormats: true,
     skipDownload: true,
     simulate: true
-  }).catch((e2) => {
+  };
+
+  // Limit playlist extraction to prevent hanging/rate-limiting on large playlists or Mixes
+  if (url.includes('list=')) {
+    flags.playlistEnd = 25;
+  }
+
+  const info = await ytdlpJson(url, flags).catch((e2) => {
     throw new Error(`${e2.stderr || e2}`);
   });
+
 
   if (Array.isArray(info.entries)) {
     if (info.entries.length === 0) throw new Error("The playlist is empty");
