@@ -36,8 +36,21 @@ function setupCookies() {
 
   // 1. Try to load from environment variable YT_COOKIES
   if (process.env.YT_COOKIES) {
+    let rawCookies = process.env.YT_COOKIES.trim();
     try {
-      cookies = JSON.parse(process.env.YT_COOKIES);
+      // Robust cleanup: if wrapped in outer quotes, strip them
+      if (rawCookies.startsWith('"') && rawCookies.endsWith('"')) {
+        rawCookies = rawCookies.substring(1, rawCookies.length - 1);
+      } else if (rawCookies.startsWith("'") && rawCookies.endsWith("'")) {
+        rawCookies = rawCookies.substring(1, rawCookies.length - 1);
+      }
+      
+      // Unescape escaped double quotes (\") and newlines (\n) if present
+      rawCookies = rawCookies.replace(/\\"/g, '"')
+                             .replace(/\\n/g, '\n')
+                             .replace(/\\\\/g, '\\');
+
+      cookies = JSON.parse(rawCookies);
       console.log('✅ [Cookies Helper] Loaded cookies from YT_COOKIES environment variable');
     } catch (err) {
       console.error('⚠️ [Cookies Helper] Failed to parse YT_COOKIES environment variable:', err.message);
