@@ -99,4 +99,13 @@ function createProgressBar(current, total, size = 15) {
   return '▓'.repeat(progress) + '░'.repeat(size - progress);
 }
 
-module.exports = { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, queueEmbed, formatDuration, getSourceEmoji };
+function autoplayEmbed(lastSongName) {
+  return new EmbedBuilder()
+    .setColor(0x9B59B6)
+    .setTitle('🔄 Autoplay Mencari Lagu...')
+    .setDescription(`Antrian habis! Sedang mencari lagu serupa dengan:\n> **${lastSongName}**`)
+    .setFooter({ text: 'Matikan autoplay dengan /autoplay' })
+    .setTimestamp();
+}
+
+module.exports = { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, queueEmbed, autoplayEmbed, formatDuration, getSourceEmoji };

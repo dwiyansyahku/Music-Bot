@@ -10,8 +10,8 @@ const skip = {
     checkVoiceChannel(interaction);
     const queue = checkQueue(interaction, client);
     if (!queue) return;
-    if (queue.songs.length <= 1) {
-      await interaction.reply('⚠️ Tidak ada lagu selanjutnya! Gunakan `/stop` untuk berhenti.');
+    if (queue.songs.length <= 1 && !queue.autoplay) {
+      await interaction.reply('⚠️ Tidak ada lagu selanjutnya! Gunakan `/stop` untuk berhenti, atau aktifkan `/autoplay` agar bot otomatis cari lagu.');
       return;
     }
     await queue.skip();

@@ -398,10 +398,15 @@ client.on('debug', (info) => {
 });
 
 // DisTube Events
-const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed } = require('./utils/embeds');
+const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, autoplayEmbed } = require('./utils/embeds');
+
+// Track lagu terakhir per guild untuk fitur autoplay
+const lastSongPerGuild = new Map();
 
 client.distube
   .on('playSong', (queue, song) => {
+    // Simpan lagu yang sedang diputar sebagai "lagu terakhir" untuk autoplay
+    lastSongPerGuild.set(queue.id, { name: song.name, uploader: song.uploader?.name });
     queue.textChannel?.send({ embeds: [nowPlayingEmbed(song, queue)] });
   })
   .on('addSong', (queue, song) => {
@@ -422,8 +427,37 @@ client.distube
     queue.autoplay = false;
     console.log(`🤖 [Autoplay] Antrean diinisialisasi untuk server: ${queue.textChannel?.guild?.name}`);
   })
-  .on('finish', (queue) => {
-    queue.textChannel?.send('✅ **Antrean lagu telah selesai!** Bot tetap standby 24/7 di voice channel.');
+  .on('finish', async (queue) => {
+    if (!queue.autoplay) {
+      queue.textChannel?.send('✅ **Antrean lagu telah selesai!** Bot tetap standby 24/7 di voice channel.');
+      return;
+    }
+
+    // Autoplay aktif — cari lagu serupa
+    const lastSong = lastSongPerGuild.get(queue.id);
+    if (!lastSong) {
+      queue.textChannel?.send('✅ **Antrean selesai.** Autoplay tidak bisa menemukan referensi lagu terakhir.');
+      return;
+    }
+
+    // Buat query pencarian: "nama lagu artis mix" untuk hasil yang relevan
+    const artist = lastSong.uploader ? `${lastSong.uploader} ` : '';
+    const searchQuery = `${artist}${lastSong.name} mix`;
+    console.log(`🔄 [Autoplay] Antrian habis, mencari lagu serupa: "${searchQuery}"`);
+
+    queue.textChannel?.send({ embeds: [autoplayEmbed(lastSong.name)] });
+
+    try {
+      const voiceChannel = queue.voice;
+      await client.distube.play(voiceChannel, `ytsearch1:${searchQuery}`, {
+        textChannel: queue.textChannel,
+        skip: false,
+      });
+      console.log(`✅ [Autoplay] Berhasil mengantri lagu autoplay untuk: "${searchQuery}"`);
+    } catch (err) {
+      console.error(`❌ [Autoplay] Gagal mencari lagu serupa:`, err.message);
+      queue.textChannel?.send(`⚠️ **Autoplay gagal** mencari lagu serupa: ${err.message?.slice(0, 100)}`);
+    }
   })
   .on('disconnect', (queue) => {
     queue.textChannel?.send('👋 **Bot terputus dari voice channel.**');
