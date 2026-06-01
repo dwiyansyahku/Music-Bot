@@ -397,7 +397,11 @@ client.distube
   })
   .on('error', (error, queue) => {
     console.error('DisTube Error:', error);
-    queue?.textChannel?.send(`❌ **Error:** ${error.message?.slice(0, 200)}`).catch(() => {});
+    let msg = `❌ **Error:** ${error.message?.slice(0, 200)}`;
+    if (error.message?.includes('connect to the voice channel') || error.message?.includes('VOICE_CONNECT_FAILED')) {
+      msg += `\n💡 *Tips: Koneksi suara ke Discord gagal. Jika Anda mengetes di laptop, kemungkinan besar ISP/antivirus Anda memblokir lalu lintas UDP Discord. Jika di Railway/hosting, coba ubah "Region Override" pada Voice Channel di Discord ke region lain (seperti Singapore atau India).*`;
+    }
+    queue?.textChannel?.send(msg).catch(() => {});
   })
   .on('initQueue', (queue) => {
     queue.autoplay = false;
