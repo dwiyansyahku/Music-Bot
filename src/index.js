@@ -195,10 +195,25 @@ ytdlpPlugin.resolve = async function(url, options) {
     console.log('ℹ️ [ytdlpPlugin.resolve] No cookies.txt found, resolving without cookies.');
   }
 
-  // Limit playlist extraction to prevent hanging/rate-limiting on large playlists or Mixes
-  if (url.includes('list=')) {
+  // YouTube Mix/playlist handling
+  // If URL has both v= (video ID) and list= (playlist/mix), strip list= so only the single
+  // video is resolved. This prevents 30s+ extraction of 25 playlist items which causes
+  // voice connection timeout. Users can pass a pure playlist URL to get the full queue.
+  if (url.includes('list=') && (url.includes('v=') || url.includes('youtu.be/'))) {
+    try {
+      const urlObj = new URL(url);
+      urlObj.searchParams.delete('list');
+      urlObj.searchParams.delete('start_radio');
+      urlObj.searchParams.delete('index');
+      url = urlObj.toString();
+      console.log(`🎯 [ytdlpPlugin.resolve] Stripped playlist from Mix URL, resolving single video: "${url}"`);
+    } catch (_) {
+      // If URL parsing fails, fall back to original
+    }
+  } else if (url.includes('list=')) {
+    // Pure playlist URL (no v=) — extract up to 25 items
     flags.playlistEnd = 25;
-    console.log('📜 [ytdlpPlugin.resolve] Detected playlist/Mix, limiting extraction to 25 items.');
+    console.log('📜 [ytdlpPlugin.resolve] Detected pure playlist URL, limiting extraction to 25 items.');
   }
 
   console.log('⚡ [ytdlpPlugin.resolve] Executing yt-dlp process...');
