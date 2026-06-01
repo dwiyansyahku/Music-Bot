@@ -1,3 +1,6 @@
+const path = require('path');
+process.env.YTDLP_DIR = path.join(process.cwd(), 'bin');
+
 const { YouTubePlugin } = require('@distube/youtube');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { setupCookies } = require('./src/utils/cookies');

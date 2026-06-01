@@ -3,3 +3,5 @@ node_modules/
 *.log
 cookies.json
 cookies.txt
+bin/*.conf
+bin/*.txt

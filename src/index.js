@@ -73,7 +73,78 @@ const ytPlugin = new YouTubePlugin({ cookies: loadedCookies });
 const ytdlpPlugin = new YtDlpPlugin({ update: false });
 
 const { Song, Playlist } = require('distube');
-const { json: ytdlpJson } = require('@distube/yt-dlp');
+const { spawn } = require('child_process');
+
+function formatFlags(flags) {
+  const args = [];
+  for (const [key, value] of Object.entries(flags)) {
+    const flagName = '--' + key.replace(/([A-Z])/g, '-$1').toLowerCase();
+    if (value === true) {
+      args.push(flagName);
+    } else if (value !== false && value !== null && value !== undefined) {
+      args.push(flagName);
+      args.push(String(value));
+    }
+  }
+  return args;
+}
+
+function customYtdlpJson(url, flags, timeoutMs = 25000) {
+  const ytdlpDir = process.env.YTDLP_DIR || path.join(process.cwd(), 'bin');
+  const ytdlpFilename = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+  const ytdlpPath = path.join(ytdlpDir, ytdlpFilename);
+  
+  const cmdArgs = [url].concat(formatFlags(flags)).filter(Boolean);
+  
+  return new Promise((resolve, reject) => {
+    console.log(`⚡ [customYtdlpJson] Spawning: "${ytdlpPath}" ${cmdArgs.join(' ')}`);
+    const proc = spawn(ytdlpPath, cmdArgs);
+    
+    let stdout = '';
+    let stderr = '';
+    
+    const timeout = setTimeout(() => {
+      console.warn(`⚠️ [customYtdlpJson] Process timed out after ${timeoutMs}ms. Killing process pid: ${proc.pid}`);
+      proc.kill('SIGKILL');
+      reject(new Error(`yt-dlp resolution timed out after ${timeoutMs / 1000} seconds.`));
+    }, timeoutMs);
+    
+    proc.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    
+    proc.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    
+    proc.on('close', (code) => {
+      clearTimeout(timeout);
+      if (code === 0) {
+        try {
+          const firstBrace = stdout.indexOf('{');
+          const firstBracket = stdout.indexOf('[');
+          let startIndex = -1;
+          if (firstBrace !== -1 && firstBracket !== -1) {
+            startIndex = Math.min(firstBrace, firstBracket);
+          } else {
+            startIndex = firstBrace !== -1 ? firstBrace : firstBracket;
+          }
+          const cleanOutput = startIndex !== -1 ? stdout.slice(startIndex) : stdout;
+          resolve(JSON.parse(cleanOutput));
+        } catch (err) {
+          reject(new Error(`JSON Parse Error: ${err.message}. Original Output: ${stdout}`));
+        }
+      } else {
+        reject(new Error(stderr.trim() || stdout.trim() || `Process exited with code ${code}`));
+      }
+    });
+    
+    proc.on('error', (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+  });
+}
 
 // Helper to convert yt-dlp info to DisTube Song
 function createYtDlpSong(plugin, info, options) {
@@ -101,26 +172,46 @@ function createYtDlpSong(plugin, info, options) {
 
 // Override ytdlpPlugin.resolve to avoid passing deprecated --no-call-home option
 ytdlpPlugin.resolve = async function(url, options) {
+  console.log(`🌐 [ytdlpPlugin.resolve] Starting resolution for URL: "${url}"`);
+  
   const flags = {
     dumpSingleJson: true,
     noWarnings: true,
     preferFreeFormats: true,
     skipDownload: true,
-    simulate: true
+    simulate: true,
+    forceIpv4: true,
+    extractorArgs: 'youtubetab:skip=authcheck'
   };
+
+  // If cookies.txt exists, pass it explicitly via command line
+  const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+  if (fs.existsSync(cookiesTxtPath)) {
+    flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+    console.log(`🍪 [ytdlpPlugin.resolve] Passing cookies file: "${flags.cookies}"`);
+  } else {
+    console.log('ℹ️ [ytdlpPlugin.resolve] No cookies.txt found, resolving without cookies.');
+  }
 
   // Limit playlist extraction to prevent hanging/rate-limiting on large playlists or Mixes
   if (url.includes('list=')) {
     flags.playlistEnd = 25;
+    console.log('📜 [ytdlpPlugin.resolve] Detected playlist/Mix, limiting extraction to 25 items.');
   }
 
-  const info = await ytdlpJson(url, flags).catch((e2) => {
+  console.log('⚡ [ytdlpPlugin.resolve] Executing yt-dlp process...');
+  const startTime = Date.now();
+  
+  const info = await customYtdlpJson(url, flags).catch((e2) => {
+    console.error(`❌ [ytdlpPlugin.resolve] Execution failed after ${Date.now() - startTime}ms. Error:`, e2.stderr || e2);
     throw new Error(`${e2.stderr || e2}`);
   });
 
+  console.log(`✅ [ytdlpPlugin.resolve] Execution completed successfully in ${Date.now() - startTime}ms`);
 
   if (Array.isArray(info.entries)) {
     if (info.entries.length === 0) throw new Error("The playlist is empty");
+    console.log(`🎵 [ytdlpPlugin.resolve] Resolved as playlist with ${info.entries.length} songs`);
     return new Playlist({
       source: info.extractor,
       songs: info.entries.map((i) => createYtDlpSong(this, i, options)),
@@ -130,6 +221,8 @@ ytdlpPlugin.resolve = async function(url, options) {
       thumbnail: info.thumbnails?.[0]?.url
     }, options);
   }
+  
+  console.log(`🎵 [ytdlpPlugin.resolve] Resolved as single song: "${info.title || info.fulltitle}"`);
   return createYtDlpSong(this, info, options);
 };
 
@@ -138,16 +231,36 @@ ytdlpPlugin.getStreamURL = async function(song) {
   if (!song.url) {
     throw new Error("Cannot get stream URL from invalid song.");
   }
-  const info = await ytdlpJson(song.url, {
+  
+  console.log(`🌐 [ytdlpPlugin.getStreamURL] Fetching stream URL for: "${song.name}" (${song.url})`);
+  
+  const flags = {
     dumpSingleJson: true,
     noWarnings: true,
     preferFreeFormats: true,
     skipDownload: true,
     simulate: true,
-    format: "ba/ba*"
-  }).catch((e2) => {
+    format: "ba/ba*",
+    forceIpv4: true,
+    extractorArgs: 'youtubetab:skip=authcheck'
+  };
+
+  const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+  if (fs.existsSync(cookiesTxtPath)) {
+    flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+    console.log(`🍪 [ytdlpPlugin.getStreamURL] Passing cookies file: "${flags.cookies}"`);
+  }
+
+  console.log('⚡ [ytdlpPlugin.getStreamURL] Executing yt-dlp process...');
+  const startTime = Date.now();
+
+  const info = await customYtdlpJson(song.url, flags).catch((e2) => {
+    console.error(`❌ [ytdlpPlugin.getStreamURL] Execution failed after ${Date.now() - startTime}ms. Error:`, e2.stderr || e2);
     throw new Error(`${e2.stderr || e2}`);
   });
+
+  console.log(`✅ [ytdlpPlugin.getStreamURL] Stream URL fetched successfully in ${Date.now() - startTime}ms`);
+  
   if (Array.isArray(info.entries)) throw new Error("Cannot get stream URL of an entire playlist");
   return info.url;
 };
