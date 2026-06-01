@@ -71,6 +71,16 @@ ytPlugin.getStreamURL = async function(song) {
   return ytdlpPlugin.getStreamURL(song);
 };
 
+// Bypass ytdl-core metadata extractor and use highly robust yt-dlp instead
+ytPlugin.resolve = async function(url, options) {
+  return ytdlpPlugin.resolve(url, options);
+};
+
+// Disable ytdl-core related songs to prevent 429 rate limit errors
+ytPlugin.getRelatedSongs = function() {
+  return [];
+};
+
 // Bypass broken ytsr search library and use highly robust yt-dlp search instead
 ytPlugin.searchSong = async function(query, options) {
   try {
