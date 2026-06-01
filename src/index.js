@@ -47,16 +47,7 @@ const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { YtDlpPlugin, download: downloadYtDlp } = require('@distube/yt-dlp');
 const { YouTubePlugin } = require('@distube/youtube');
 
-if (process.platform === 'linux') {
-  process.env.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
-  console.log('🐧 [OS Detection] Linux detected. Using standalone yt-dlp_linux binary (no Python 3 required).');
-}
 
-// Download the binary at startup to ensure it is the standalone build
-console.log('⏳ Checking and downloading yt-dlp binary...');
-downloadYtDlp()
-  .then((version) => console.log(`✅ yt-dlp binary ready (version: ${version})`))
-  .catch((err) => console.error('⚠️ Failed to download/update yt-dlp binary:', err.message));
 
 
 const client = new Client({
@@ -197,12 +188,30 @@ client.distube
     queue.textChannel?.send('🎵 **Voice channel kosong.** Bot tetap standby di sini.');
   });
 
-if (!process.env.DISCORD_TOKEN) {
-  console.error('❌ DISCORD_TOKEN tidak ditemukan di .env!');
-  process.exit(1);
+async function start() {
+  if (process.platform === 'linux') {
+    process.env.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
+    console.log('🐧 [OS Detection] Linux detected. Using standalone yt-dlp_linux binary (no Python 3 required).');
+  }
+
+  console.log('⏳ Ensuring yt-dlp binary is downloaded and ready...');
+  try {
+    const version = await downloadYtDlp();
+    console.log(`✅ yt-dlp binary ready (version: ${version})`);
+  } catch (err) {
+    console.error('⚠️ Failed to download/update yt-dlp binary:', err.message);
+  }
+
+  if (!process.env.DISCORD_TOKEN) {
+    console.error('❌ DISCORD_TOKEN tidak ditemukan di .env!');
+    process.exit(1);
+  }
+
+  console.log('🤖 Logging in to Discord...');
+  client.login(process.env.DISCORD_TOKEN).catch(err => {
+    console.error('❌ Login gagal:', err.message);
+    process.exit(1);
+  });
 }
 
-client.login(process.env.DISCORD_TOKEN).catch(err => {
-  console.error('❌ Login gagal:', err.message);
-  process.exit(1);
-});
+start();
