@@ -2,6 +2,10 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
+// Set YTDLP_DIR to point to committed standalone binaries inside bin/
+process.env.YTDLP_DIR = path.join(process.cwd(), 'bin');
+
+
 // Automatically find yt-dlp and ffmpeg in WinGet Packages and add them to PATH
 const wingetPackagesPath = 'C:\\Users\\ASUS\\AppData\\Local\\Microsoft\\WinGet\\Packages';
 if (fs.existsSync(wingetPackagesPath)) {
@@ -44,7 +48,7 @@ const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
-const { YtDlpPlugin, download: downloadYtDlp } = require('@distube/yt-dlp');
+const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { YouTubePlugin } = require('@distube/youtube');
 
 
@@ -188,30 +192,13 @@ client.distube
     queue.textChannel?.send('🎵 **Voice channel kosong.** Bot tetap standby di sini.');
   });
 
-async function start() {
-  if (process.platform === 'linux') {
-    process.env.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
-    console.log('🐧 [OS Detection] Linux detected. Using standalone yt-dlp_linux binary (no Python 3 required).');
-  }
-
-  console.log('⏳ Ensuring yt-dlp binary is downloaded and ready...');
-  try {
-    const version = await downloadYtDlp();
-    console.log(`✅ yt-dlp binary ready (version: ${version})`);
-  } catch (err) {
-    console.error('⚠️ Failed to download/update yt-dlp binary:', err.message);
-  }
-
-  if (!process.env.DISCORD_TOKEN) {
-    console.error('❌ DISCORD_TOKEN tidak ditemukan di .env!');
-    process.exit(1);
-  }
-
-  console.log('🤖 Logging in to Discord...');
-  client.login(process.env.DISCORD_TOKEN).catch(err => {
-    console.error('❌ Login gagal:', err.message);
-    process.exit(1);
-  });
+if (!process.env.DISCORD_TOKEN) {
+  console.error('❌ DISCORD_TOKEN tidak ditemukan di .env!');
+  process.exit(1);
 }
 
-start();
+console.log('🤖 Logging in to Discord...');
+client.login(process.env.DISCORD_TOKEN).catch(err => {
+  console.error('❌ Login gagal:', err.message);
+  process.exit(1);
+});

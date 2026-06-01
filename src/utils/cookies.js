@@ -72,15 +72,9 @@ function setupCookies() {
   }
 
   // Find the yt-dlp package bin directory
-  let ytDlpBinDir;
-  try {
-    const packagePath = require.resolve('@distube/yt-dlp');
-    ytDlpBinDir = path.join(path.dirname(packagePath), '..', 'bin');
-  } catch (err) {
-    ytDlpBinDir = path.join(process.cwd(), 'node_modules', '@distube', 'yt-dlp', 'bin');
-  }
-
+  const ytDlpBinDir = path.join(process.cwd(), 'bin');
   const confPath = path.join(ytDlpBinDir, 'yt-dlp.conf');
+
 
   if (cookies && Array.isArray(cookies) && cookies.length > 0) {
     try {
