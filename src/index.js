@@ -59,8 +59,11 @@ const client = new Client({
 
 client.commands = new Collection();
 
+const { setupCookies } = require('./utils/cookies');
+const loadedCookies = setupCookies();
+
 // Plugins - yt-dlp handles YouTube and 1000+ other sites
-const ytPlugin = new YouTubePlugin();
+const ytPlugin = new YouTubePlugin({ cookies: loadedCookies });
 const ytdlpPlugin = new YtDlpPlugin({ update: false });
 
 // Bypass ytdl-core stream extractor and use highly robust yt-dlp instead

@@ -1,47 +1,56 @@
-const { DisTube } = require('distube');
 const { YouTubePlugin } = require('@distube/youtube');
-const { Client, GatewayIntentBits } = require('discord.js');
+const { YtDlpPlugin } = require('@distube/yt-dlp');
+const { setupCookies } = require('./src/utils/cookies');
+require('dotenv').config();
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
-});
+// Initialize cookies helper
+const loadedCookies = setupCookies();
 
-const distube = new DisTube(client, {
-  plugins: [new YouTubePlugin()],
-});
+// Initialize Plugins
+const plugin = new YouTubePlugin({ cookies: loadedCookies });
+const ytdlpPlugin = new YtDlpPlugin({ update: false });
 
-distube.on('error', (err) => {
-  console.error('DisTube Error:', err);
-});
+// Bypass ytdl-core stream extractor and use highly robust yt-dlp instead
+plugin.getStreamURL = async function(song) {
+  return ytdlpPlugin.getStreamURL(song);
+};
+
+// Bypass broken ytsr search library and use highly robust yt-dlp search instead
+plugin.searchSong = async function(query, options) {
+  try {
+    console.log(`🔍 [yt-dlp Search] Searching for: "${query}"`);
+    const resolved = await ytdlpPlugin.resolve(`ytsearch1:${query}`, options);
+    if (resolved && Array.isArray(resolved.songs)) {
+      return resolved.songs[0] || null;
+    }
+    return resolved;
+  } catch (err) {
+    console.error('⚠️ [yt-dlp Search] Error:', err.message);
+    return null;
+  }
+};
 
 async function run() {
-  console.log('Searching for "domba kuring dj"...');
   try {
-    const res = await distube.search('domba kuring dj', { limit: 1 });
-    console.log('Search result found:', res[0].name, 'ID:', res[0].id);
-    console.log('URL:', res[0].url);
-    
-    // Now let's try to get stream info or play it (this would fail without a voice connection, but we can check if it gets formats)
-    console.log('Resolving song...');
-    const song = res[0];
-    // Check if plugin can validate it
-    const plugin = distube.plugins.find(p => p.validate(song.url));
-    console.log('Validating plugin found:', plugin ? plugin.constructor.name : 'None');
-    
-    if (plugin) {
-      console.log('Resolving song via plugin...');
-      const resolved = await plugin.resolve(song.url, { member: {}, textChannel: {} });
-      console.log('Resolved successfully! Stream URL exists:', resolved.streamURL ? 'Yes' : 'No');
+    const query = 'beauty and the beat';
+    console.log(`🔍 [Test] Searching for: "${query}"`);
+    const searchResult = await plugin.searchSong(query, { member: {}, textChannel: {} });
+    if (searchResult) {
+      console.log('✅ [Test] Search success!');
+      console.log(`🎵 Found Song: "${searchResult.name}"`);
+      console.log(`🔗 URL: ${searchResult.url}`);
+      
+      console.log('🔍 [Test] Extracting stream URL for search result...');
+      const streamURL = await plugin.getStreamURL(searchResult);
+      console.log('✅ [Test] Stream URL extracted successfully!');
+      console.log(`🔗 Stream URL starts with: ${streamURL.substring(0, 60)}...`);
+    } else {
+      console.log('❌ [Test] Search returned no results.');
     }
   } catch (err) {
-    console.error('Test failed with error:', err);
+    console.error('❌ [Test] Failed with error:', err);
   }
   process.exit(0);
 }
 
-client.once('ready', () => {
-  run();
-});
-
-// Since we don't login, we can just run the function directly
 run();
