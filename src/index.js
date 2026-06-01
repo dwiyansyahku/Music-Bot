@@ -44,8 +44,19 @@ const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
-const { YtDlpPlugin } = require('@distube/yt-dlp');
+const { YtDlpPlugin, download: downloadYtDlp } = require('@distube/yt-dlp');
 const { YouTubePlugin } = require('@distube/youtube');
+
+if (process.platform === 'linux') {
+  process.env.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
+  console.log('🐧 [OS Detection] Linux detected. Using standalone yt-dlp_linux binary (no Python 3 required).');
+}
+
+// Download the binary at startup to ensure it is the standalone build
+console.log('⏳ Checking and downloading yt-dlp binary...');
+downloadYtDlp()
+  .then((version) => console.log(`✅ yt-dlp binary ready (version: ${version})`))
+  .catch((err) => console.error('⚠️ Failed to download/update yt-dlp binary:', err.message));
 
 
 const client = new Client({
