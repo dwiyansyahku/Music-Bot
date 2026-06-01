@@ -384,6 +384,12 @@ client.distube
   })
   .on('empty', (queue) => {
     queue.textChannel?.send('🎵 **Voice channel kosong.** Bot tetap standby di sini.');
+  })
+  .on('ffmpegDebug', (message) => {
+    console.log(`🔊 [FFmpeg Debug] ${message}`);
+  })
+  .on('debug', (message) => {
+    console.log(`🤖 [DisTube Debug] ${message}`);
   });
 
 if (!process.env.DISCORD_TOKEN) {
