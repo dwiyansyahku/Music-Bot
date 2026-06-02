@@ -389,7 +389,6 @@ client.distube = new DisTube(client, {
   nsfw: false,
   emitAddSongWhenCreatingQueue: true,
   emitAddListWhenCreatingQueue: true,
-  ffmpeg: { path: require('@ffmpeg-installer/ffmpeg').path },
 });
 
 // Load Commands
