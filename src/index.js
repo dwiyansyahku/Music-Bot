@@ -389,7 +389,7 @@ client.distube = new DisTube(client, {
   nsfw: false,
   emitAddSongWhenCreatingQueue: true,
   emitAddListWhenCreatingQueue: true,
-  ffmpeg: { path: require('ffmpeg-static') },
+  ffmpeg: process.platform === 'win32' ? { path: require('ffmpeg-static') } : undefined,
 });
 
 // Load Commands
