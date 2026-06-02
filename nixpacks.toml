@@ -1,4 +1,5 @@
 providers = ["node"]
 
 [phases.setup]
-aptPkgs = ["...", "ffmpeg"]
+nixPkgs = ["...", "ffmpeg"]
+aptPkgs = ["ffmpeg"]
