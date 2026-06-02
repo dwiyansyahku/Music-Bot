@@ -62,10 +62,34 @@ const stop = {
     .setDescription('Stop musik dan keluarkan bot dari voice channel'),
   async execute(interaction, client) {
     checkVoiceChannel(interaction);
-    const queue = checkQueue(interaction, client);
-    if (!queue) return;
-    await queue.stop();
-    await interaction.reply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');
+    const queue = client.distube.getQueue(interaction.guild.id);
+    client.stay247?.delete(interaction.guild.id); // Disable 24/7 mode if user explicitly asks to stop/leave
+
+    if (queue) {
+      await queue.stop();
+      if (queue.voice) queue.voice.leave();
+      await interaction.reply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');
+    } else {
+      const voice = client.distube.voices.get(interaction.guild.id);
+      if (voice) {
+        voice.leave();
+        await interaction.reply('👋 **Bot keluar dari voice channel.**');
+      } else {
+        const botVoiceChannel = interaction.guild.members.me?.voice?.channel;
+        if (botVoiceChannel) {
+          const { getVoiceConnection } = require('@discordjs/voice');
+          const connection = getVoiceConnection(interaction.guild.id);
+          if (connection) {
+            connection.destroy();
+          } else {
+            interaction.guild.members.me.voice.disconnect();
+          }
+          await interaction.reply('👋 **Bot dipaksa keluar dari voice channel.**');
+        } else {
+          await interaction.reply('❌ Bot tidak ada di voice channel!');
+        }
+      }
+    }
   },
 };
 

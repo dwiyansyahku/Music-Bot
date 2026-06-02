@@ -26,14 +26,9 @@ module.exports = {
           return message.reply('❌ Tuliskan judul lagu atau URL setelah command! Contoh: `qp never gonna give you up`');
         }
 
-        let playQuery = query;
-        if (!query.startsWith('http://') && !query.startsWith('https://') && !query.startsWith('spotify:') && !query.startsWith('soundcloud:')) {
-          playQuery = `ytsearch1:${query}`;
-        }
-
         const searchingMsg = await message.reply(`🔍 Mencari: **${query}**...`);
         try {
-          await client.distube.play(voiceChannel, playQuery, {
+          await client.distube.play(voiceChannel, query, {
             member: message.member,
             textChannel: message.channel,
             message,
@@ -55,8 +50,8 @@ module.exports = {
         const queue = checkQueue(message, client);
         if (!queue) return;
 
-        if (queue.songs.length <= 1) {
-          return message.reply('⚠️ Tidak ada lagu selanjutnya! Gunakan `qstop` atau `qleave` untuk berhenti.');
+        if (queue.songs.length <= 1 && !queue.autoplay) {
+          return message.reply('⚠️ Tidak ada lagu selanjutnya! Gunakan `qstop` atau aktifkan `qautoplay` agar bot otomatis cari lagu.');
         }
 
         try {
@@ -69,15 +64,33 @@ module.exports = {
         break;
       }
 
+      case 'j':
+      case 'join': {
+        const voiceChannel = checkVoiceChannel(message);
+        if (!voiceChannel) return;
+
+        try {
+          await client.distube.voices.join(voiceChannel);
+          await message.reply(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`);
+        } catch (error) {
+          console.error('Error joining voice channel:', error);
+          await message.reply(`❌ Gagal bergabung ke voice channel: ${error.message}`);
+        }
+        break;
+      }
+
       case 'stop':
       case 'leave': {
         const voiceChannel = checkVoiceChannel(message);
         if (!voiceChannel) return;
 
         const queue = client.distube.getQueue(message.guild.id);
+        client.stay247?.delete(message.guild.id); // Disable 24/7 mode if user explicitly asks to stop/leave
+
         if (queue) {
           try {
             await queue.stop();
+            if (queue.voice) queue.voice.leave();
             await message.reply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');
           } catch (error) {
             console.error(error);
@@ -90,9 +103,28 @@ module.exports = {
             voice.leave();
             await message.reply('👋 **Bot keluar dari voice channel.**');
           } else {
-            await message.reply('❌ Bot tidak ada di voice channel!');
+            const botVoiceChannel = message.guild.members.me?.voice?.channel;
+            if (botVoiceChannel) {
+              const { getVoiceConnection } = require('@discordjs/voice');
+              const connection = getVoiceConnection(message.guild.id);
+              if (connection) {
+                connection.destroy();
+              } else {
+                message.guild.members.me.voice.disconnect();
+              }
+              await message.reply('👋 **Bot dipaksa keluar dari voice channel.**');
+            } else {
+              await message.reply('❌ Bot tidak ada di voice channel!');
+            }
           }
         }
+        break;
+      }
+
+      case 'ping': {
+        const sent = await message.reply('Pinging...');
+        const latency = sent.createdTimestamp - message.createdTimestamp;
+        await sent.edit(`🏓 Pong!\nLatency: **${latency}ms**\nAPI Latency: **${Math.round(client.ws.ping)}ms**`);
         break;
       }
 
@@ -101,36 +133,41 @@ module.exports = {
         const helpEmbed = new EmbedBuilder()
           .setColor(0x1DB954)
           .setTitle('🎵 Discord Music Bot — Bantuan & Informasi')
-          .setDescription('Bot musik Discord menggunakan prefix teks **q** (tanpa slash `/`).')
+          .setDescription('Bot musik Discord yang berjalan menggunakan prefix teks **q** (tanpa slash `/`).')
           .addFields(
             {
-              name: '📝 Deskripsi Bot',
-              value: 'Bot musik premium yang mendukung pemutaran lagu dari YouTube, Spotify, SoundCloud, dan berbagai platform lainnya secara lancar dan berkualitas tinggi.'
-            },
-            {
-              name: '👤 Pembuat (Author)',
-              value: 'Dibuat dengan ❤️ menggunakan **discord.js** & **DisTube**.'
-            },
-            {
-              name: '🎵 Daftar Perintah (Prefix: `q`)',
+              name: '🎵 Perintah Utama',
               value: [
-                '**`qp [judul/url]`** — Putar lagu atau playlist',
-                '**`qs` / `qskip`** — Skip ke lagu berikutnya',
-                '**`qstop` / `qleave`** — Stop musik & bot keluar dari voice channel',
-                '**`qpause`** — Pause lagu yang sedang diputar',
-                '**`qresume`** — Lanjutkan lagu yang di-pause',
-                '**`qq` / `qqueue` [halaman]** — Lihat antrian lagu',
-                '**`qnp` / `qnowplaying`** — Info lagu yang sedang diputar',
-                '**`qvol [0-100]`** — Atur volume musik',
-                '**`qloop [off/song/queue]`** — Atur mode loop',
-                '**`qautoplay` / `qap`** — Aktifkan/matikan autoplay lagu otomatis',
-                '**`qshuffle`** — Acak antrian lagu',
-                '**`qremove [nomor]`** — Hapus lagu dari antrian',
-                '**`qclear`** — Hapus semua antrian lagu'
+                '`qp [judul/url]` — Putar lagu atau playlist',
+                '`qj` / `qjoin` — Panggil bot ke voice channel',
+                '`qnp` / `nowplaying` — Info lagu yang sedang diputar',
+                '`qq` / `queue [hal]` — Lihat antrian lagu',
+              ].join('\n')
+            },
+            {
+              name: '⏯️ Kontrol Pemutaran',
+              value: [
+                '`qpause` — Pause lagu',
+                '`qresume` — Lanjutkan lagu',
+                '`qs` / `qskip` — Skip ke lagu berikutnya',
+                '`qstop` / `qleave` — Stop musik & bot keluar dari voice channel',
+                '`qap` / `qautoplay` — Aktifkan/matikan fitur lagu otomatis',
+              ].join('\n')
+            },
+            {
+              name: '🎛️ Pengaturan & Lainnya',
+              value: [
+                '`qvol [0-100]` — Atur volume musik',
+                '`qloop [off/song/queue]` — Atur mode loop',
+                '`qshuffle` — Acak urutan antrian',
+                '`qremove [nomor]` — Hapus lagu dari antrian',
+                '`qclear` — Hapus semua daftar antrian',
+                '`qping` — Cek status & latency bot',
+                '`qhelp` — Tampilkan menu ini',
               ].join('\n')
             }
           )
-          .setFooter({ text: 'Gunakan command dengan menulis langsung di chat server!' })
+          .setFooter({ text: 'Created by Biru TAMVAN | Discord Music Bot' })
           .setTimestamp();
 
         await message.reply({ embeds: [helpEmbed] });
@@ -236,11 +273,18 @@ module.exports = {
 
         const loopArg = args[0]?.toLowerCase();
         let mode;
-        if (loopArg === 'off' || loopArg === '0') mode = 0;
-        else if (loopArg === 'song' || loopArg === '1') mode = 1;
-        else if (loopArg === 'queue' || loopArg === '2') mode = 2;
-        else {
-          return message.reply('⚠️ Mode loop tidak valid! Gunakan: `qloop off`, `qloop song`, atau `qloop queue`.');
+        
+        if (!loopArg) {
+          // If no argument is provided, cycle through modes: 0 (Off) -> 1 (Song) -> 2 (Queue) -> 0 (Off)
+          mode = queue.repeatMode === 0 ? 1 : queue.repeatMode === 1 ? 2 : 0;
+        } else if (loopArg === 'off' || loopArg === '0') {
+          mode = 0;
+        } else if (loopArg === 'song' || loopArg === '1') {
+          mode = 1;
+        } else if (loopArg === 'queue' || loopArg === '2') {
+          mode = 2;
+        } else {
+          return message.reply('⚠️ Mode loop tidak valid! Gunakan: `qloop off`, `qloop song`, `qloop queue`, atau ketik `qloop` saja untuk mengganti mode.');
         }
 
         try {

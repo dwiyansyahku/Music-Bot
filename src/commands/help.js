@@ -14,7 +14,7 @@ module.exports = {
         {
           name: '🎵 Perintah Utama',
           value: [
-            '`/play [query/url]` — Putar lagu atau playlist',
+            '`/qp [query/url]` — Putar lagu atau playlist',
             '`/nowplaying` — Info lagu yang sedang diputar',
             '`/queue [halaman]` — Lihat antrian lagu',
           ].join('\n'),
@@ -22,21 +22,21 @@ module.exports = {
         {
           name: '⏯️ Kontrol Pemutaran',
           value: [
-            '`/pause` — Pause lagu',
-            '`/resume` — Lanjutkan lagu',
-            '`/skip` — Skip ke lagu berikutnya',
-            '`/stop` — Stop dan keluar dari voice channel',
-            '`/seek [detik]` — Lompat ke waktu tertentu',
+            '`qpause` — Pause lagu',
+            '`qresume` — Lanjutkan lagu',
+            '`qskip` — Skip ke lagu berikutnya',
+            '`qstop` — Stop dan keluar dari voice channel',
+            '`qseek [detik]` — Lompat ke waktu tertentu',
           ].join('\n'),
         },
         {
           name: '⚙️ Pengaturan',
           value: [
-            '`/volume [0-100]` — Atur volume',
-            '`/loop [off/song/queue]` — Mode loop',
-            '`/shuffle` — Acak antrian',
-            '`/remove [nomor]` — Hapus lagu dari antrian',
-            '`/clearqueue` — Hapus semua antrian',
+            '`qvol [0-100]` — Atur volume',
+            '`qloop [off/song/queue]` — Mode loop',
+            '`qshuffle` — Acak antrian',
+            '`qremove [nomor]` — Hapus lagu dari antrian',
+            '`qclearqueue` — Hapus semua antrian',
           ].join('\n'),
         },
         {
@@ -46,14 +46,14 @@ module.exports = {
         {
           name: '💡 Contoh Penggunaan',
           value: [
-            '`/play Never Gonna Give You Up`',
-            '`/play https://open.spotify.com/track/...`',
-            '`/play https://www.youtube.com/watch?v=...`',
-            '`/play https://soundcloud.com/...`',
+            '`qp DJ Domba Kuring`',
+            '`qp https://open.spotify.com/track/...`',
+            '`qp https://www.youtube.com/watch?v=...`',
+            '`qp https://soundcloud.com/...`',
           ].join('\n'),
         }
       )
-      .setFooter({ text: 'Discord Music Bot | Made with ❤️ using DisTube' })
+      .setFooter({ text: 'Discord Music Bot | Made QUMPRUY | https://discord.gg/qPYxhRzBzB' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

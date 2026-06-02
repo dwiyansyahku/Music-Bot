@@ -5,6 +5,14 @@ const path = require('path');
 // Set YTDLP_DIR to point to committed standalone binaries inside bin/
 process.env.YTDLP_DIR = path.join(process.cwd(), 'bin');
 
+// Anti-crash handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
 
 // Automatically find yt-dlp and ffmpeg in WinGet Packages and add them to PATH
 const wingetPackagesPath = 'C:\\Users\\ASUS\\AppData\\Local\\Microsoft\\WinGet\\Packages';
@@ -89,7 +97,7 @@ function formatFlags(flags) {
   return args;
 }
 
-function customYtdlpJson(url, flags, timeoutMs = 25000) {
+function customYtdlpJson(url, flags, timeoutMs = 120000) {
   const ytdlpDir = process.env.YTDLP_DIR || path.join(process.cwd(), 'bin');
   const ytdlpFilename = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
   const ytdlpPath = path.join(ytdlpDir, ytdlpFilename);
@@ -150,11 +158,11 @@ function customYtdlpJson(url, flags, timeoutMs = 25000) {
 function createYtDlpSong(plugin, info, options) {
   return new Song({
     plugin,
-    source: info.extractor,
+    source: info.extractor || 'youtube',
     playFromSource: true,
     id: info.id,
     name: info.title || info.fulltitle,
-    url: info.webpage_url || info.original_url,
+    url: info.webpage_url || info.original_url || info.url || `https://www.youtube.com/watch?v=${info.id}`,
     isLive: info.is_live,
     thumbnail: info.thumbnail || info.thumbnails?.[0]?.url,
     duration: info.is_live ? 0 : info.duration,
@@ -196,24 +204,12 @@ ytdlpPlugin.resolve = async function(url, options) {
   }
 
   // YouTube Mix/playlist handling
-  // If URL has both v= (video ID) and list= (playlist/mix), strip list= so only the single
-  // video is resolved. This prevents 30s+ extraction of 25 playlist items which causes
-  // voice connection timeout. Users can pass a pure playlist URL to get the full queue.
-  if (url.includes('list=') && (url.includes('v=') || url.includes('youtu.be/'))) {
-    try {
-      const urlObj = new URL(url);
-      urlObj.searchParams.delete('list');
-      urlObj.searchParams.delete('start_radio');
-      urlObj.searchParams.delete('index');
-      url = urlObj.toString();
-      console.log(`🎯 [ytdlpPlugin.resolve] Stripped playlist from Mix URL, resolving single video: "${url}"`);
-    } catch (_) {
-      // If URL parsing fails, fall back to original
-    }
-  } else if (url.includes('list=')) {
-    // Pure playlist URL (no v=) — extract up to 25 items
-    flags.playlistEnd = 25;
-    console.log('📜 [ytdlpPlugin.resolve] Detected pure playlist URL, limiting extraction to 25 items.');
+  // If a URL contains a playlist, we limit extraction to 50 items to prevent massive delays
+  // (which could cause timeout errors).
+  if (url.includes('list=')) {
+    flags.playlistEnd = 50;
+    flags.flatPlaylist = true;
+    console.log(`📜 [ytdlpPlugin.resolve] Detected playlist URL, using flat-playlist and limiting extraction to 50 items. URL: ${url}`);
   }
 
   console.log('⚡ [ytdlpPlugin.resolve] Executing yt-dlp process...');
@@ -294,10 +290,54 @@ ytPlugin.resolve = async function(url, options) {
   return ytdlpPlugin.resolve(url, options);
 };
 
-// Disable ytdl-core related songs to prevent 429 rate limit errors
-ytPlugin.getRelatedSongs = function() {
+// Custom autoplay: when queue.autoplay = true, search for a related song via yt-dlp.
+// IMPORTANT: songs are created with song.plugin = ytdlpPlugin (via createYtDlpSong),
+// so DisTube calls ytdlpPlugin.getRelatedSongs — we must override BOTH plugins.
+async function autoplaySearch(song) {
+  // Get the queue safely
+  let queue = null;
+  try {
+    queue = client.distube.getQueue(song) || client.distube.getQueue(song.member?.guild?.id);
+    if (!queue && client.distube.queues?.collection) {
+      queue = [...client.distube.queues.collection.values()][0];
+    }
+  } catch (err) {
+    console.error('⚠️ [Autoplay] Failed to fetch queue:', err.message);
+  }
+
+  if (!queue?.autoplay) {
+    console.log('🔕 [Autoplay] getRelatedSongs dipanggil tapi autoplay off — skip.');
+    return [];
+  }
+
+  const artist = song.uploader?.name || song.name.split(' ')[0] || 'popular';
+  const searchQuery = `${artist} music track`;
+  console.log(`🔄 [Autoplay] Mencari lagu serupa: "${searchQuery}"`);
+
+  try {
+    const resolved = await ytdlpPlugin.resolve(`ytsearch5:${searchQuery}`, {});
+    if (resolved && resolved.songs && resolved.songs.length > 0) {
+      // Filter out the currently playing song
+      const availableSongs = resolved.songs.filter(s => s.url !== song.url && s.name !== song.name);
+      
+      if (availableSongs.length > 0) {
+        // Pick a random song from the search results to provide variety
+        const randomSong = availableSongs[Math.floor(Math.random() * availableSongs.length)];
+        console.log(`✅ [Autoplay] Lagu serupa ditemukan: "${randomSong.name}"`);
+        return [randomSong];
+      }
+    } else if (resolved && !resolved.songs) {
+      // Fallback if it somehow resolved as a single song
+      return [resolved];
+    }
+  } catch (err) {
+    console.error('❌ [Autoplay] Gagal cari lagu serupa:', err.message);
+  }
   return [];
-};
+}
+
+ytPlugin.getRelatedSongs = autoplaySearch;
+ytdlpPlugin.getRelatedSongs = autoplaySearch;
 
 
 // Bypass broken ytsr search library and use highly robust yt-dlp search instead
@@ -340,6 +380,8 @@ if (hasSpotifyCreds) {
   console.log('✅ Spotify plugin aktif (auto-credentials)');
 }
 
+client.stay247 = new Set();
+
 client.distube = new DisTube(client, {
   plugins,
   emitNewSongOnly: false,
@@ -378,6 +420,25 @@ for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'))) {
 const { getVoiceConnection } = require('@discordjs/voice');
 client.on('voiceStateUpdate', (oldState, newState) => {
   const guildId = oldState.guild.id;
+
+  // 24/7 Enforcer: If the bot itself disconnects (or gets kicked) and 24/7 is enabled, force it to rejoin!
+  if (oldState.id === client.user.id && oldState.channelId && !newState.channelId) {
+    if (client.stay247 && client.stay247.has(guildId)) {
+      console.log(`♻️ [24/7 Enforcer] Bot terputus dari voice channel di guild ${guildId}. Memaksa masuk kembali...`);
+      setTimeout(() => {
+        if (client.stay247.has(guildId)) {
+          const channelToJoin = oldState.channel || client.channels.cache.get(oldState.channelId);
+          if (channelToJoin) {
+            client.distube.voices.join(channelToJoin).catch(console.error);
+          } else {
+            console.log(`♻️ [24/7 Enforcer] Channel ID ${oldState.channelId} tidak ditemukan (mungkin dihapus oleh bot TempVoice). Menonaktifkan 24/7 untuk guild ini.`);
+            client.stay247.delete(guildId);
+          }
+        }
+      }, 2000); // Wait 2s to avoid API spam if the disconnection was violent
+    }
+  }
+
   const connection = getVoiceConnection(guildId);
   if (connection && !connection.listenerAdded) {
     connection.listenerAdded = true;
@@ -427,43 +488,56 @@ client.distube
     queue.autoplay = false;
     console.log(`🤖 [Autoplay] Antrean diinisialisasi untuk server: ${queue.textChannel?.guild?.name}`);
   })
-  .on('finish', async (queue) => {
+  .on('finish', (queue) => {
+    // Autoplay dihandle oleh getRelatedSongs — ini hanya fallback saat autoplay off
     if (!queue.autoplay) {
-      queue.textChannel?.send('✅ **Antrean lagu telah selesai!** Bot tetap standby 24/7 di voice channel.');
-      return;
-    }
+      const lastUser = queue.previousSongs && queue.previousSongs.length > 0 
+        ? queue.previousSongs[queue.previousSongs.length - 1].user 
+        : null;
 
-    // Autoplay aktif — cari lagu serupa
-    const lastSong = lastSongPerGuild.get(queue.id);
-    if (!lastSong) {
-      queue.textChannel?.send('✅ **Antrean selesai.** Autoplay tidak bisa menemukan referensi lagu terakhir.');
-      return;
-    }
-
-    // Buat query pencarian: "nama lagu artis mix" untuk hasil yang relevan
-    const artist = lastSong.uploader ? `${lastSong.uploader} ` : '';
-    const searchQuery = `${artist}${lastSong.name} mix`;
-    console.log(`🔄 [Autoplay] Antrian habis, mencari lagu serupa: "${searchQuery}"`);
-
-    queue.textChannel?.send({ embeds: [autoplayEmbed(lastSong.name)] });
-
-    try {
-      const voiceChannel = queue.voice;
-      await client.distube.play(voiceChannel, `ytsearch1:${searchQuery}`, {
-        textChannel: queue.textChannel,
-        skip: false,
-      });
-      console.log(`✅ [Autoplay] Berhasil mengantri lagu autoplay untuk: "${searchQuery}"`);
-    } catch (err) {
-      console.error(`❌ [Autoplay] Gagal mencari lagu serupa:`, err.message);
-      queue.textChannel?.send(`⚠️ **Autoplay gagal** mencari lagu serupa: ${err.message?.slice(0, 100)}`);
+      if (client.stay247 && client.stay247.has(queue.textChannel?.guild?.id)) {
+        if (lastUser) {
+          queue.textChannel?.send(`✅ Halo <@${lastUser.id}>, **antrean lagu telah selesai!** Bot tetap standby di voice channel (Mode 24/7).`);
+        } else {
+          queue.textChannel?.send('✅ **Antrean lagu telah selesai!** Bot tetap standby di voice channel (Mode 24/7).');
+        }
+      } else {
+        queue.textChannel?.send('✅ **Antrean lagu telah selesai!** Bot akan keluar dalam 2 menit jika tidak ada lagu baru.');
+        setTimeout(() => {
+          if (queue.voice && !queue.playing && client.stay247 && !client.stay247.has(queue.textChannel?.guild?.id)) {
+            const lastUser = queue.previousSongs && queue.previousSongs.length > 0 
+              ? queue.previousSongs[queue.previousSongs.length - 1].user 
+              : null;
+            
+            queue.voice.leave();
+            
+            if (lastUser) {
+              queue.textChannel?.send(`👋 Halo <@${lastUser.id}>, bot telah keluar dari voice channel karena antrean lagu sudah habis dan tidak ada lagu baru.`);
+            } else {
+              queue.textChannel?.send('👋 Bot telah keluar dari voice channel karena antrean lagu sudah habis.');
+            }
+          }
+        }, 120000);
+      }
     }
   })
   .on('disconnect', (queue) => {
     queue.textChannel?.send('👋 **Bot terputus dari voice channel.**');
   })
   .on('empty', (queue) => {
-    queue.textChannel?.send('🎵 **Voice channel kosong.** Bot tetap standby di sini.');
+    if (client.stay247 && client.stay247.has(queue.textChannel?.guild?.id)) {
+      queue.textChannel?.send('🎵 **Voice channel kosong.** Bot tetap standby di sini (Mode 24/7).');
+    } else {
+      queue.textChannel?.send('🎵 **Voice channel kosong.** Bot akan keluar dalam 1 menit.');
+      setTimeout(() => {
+        const guild = queue.textChannel?.guild;
+        const voiceChannel = guild?.members.me?.voice?.channel;
+        if (voiceChannel && voiceChannel.members.filter(m => !m.user.bot).size === 0 && client.stay247 && !client.stay247.has(guild.id)) {
+          if (queue.voice) queue.voice.leave();
+          queue.textChannel?.send('👋 **Bot keluar dari voice channel karena kosong.**');
+        }
+      }, 60000);
+    }
   })
   .on('ffmpegDebug', (message) => {
     console.log(`🔊 [FFmpeg Debug] ${message}`);
