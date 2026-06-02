@@ -297,8 +297,25 @@ async function autoplaySearch(song) {
   // Get the queue safely
   let queue = null;
   try {
-    queue = client.distube.getQueue(song) || client.distube.getQueue(song.member?.guild?.id);
+    const guildId = song.member?.guild?.id || 
+                    song.metadata?.message?.guild?.id || 
+                    song.metadata?.interaction?.guild?.id || 
+                    song.guildId;
+    
+    if (guildId) {
+      queue = client.distube.getQueue(guildId);
+    }
+    
+    // If not found, try searching in active queues for a queue containing this song
     if (!queue && client.distube.queues?.collection) {
+      queue = [...client.distube.queues.collection.values()].find(q => 
+        q.songs.some(s => s.id === song.id) || 
+        q.previousSongs.some(s => s.id === song.id)
+      );
+    }
+    
+    // Fallback: if there is only one active queue, use it
+    if (!queue && client.distube.queues?.collection && client.distube.queues.collection.size === 1) {
       queue = [...client.distube.queues.collection.values()][0];
     }
   } catch (err) {
@@ -381,6 +398,7 @@ if (hasSpotifyCreds) {
 }
 
 client.stay247 = new Set();
+client.autoplaySettings = new Map();
 
 client.distube = new DisTube(client, {
   plugins,
@@ -484,8 +502,10 @@ client.distube
     queue?.textChannel?.send(msg).catch(() => {});
   })
   .on('initQueue', (queue) => {
-    queue.autoplay = false;
-    console.log(`🤖 [Autoplay] Antrean diinisialisasi untuk server: ${queue.textChannel?.guild?.name}`);
+    const guildId = queue.textChannel?.guild?.id;
+    const persistentAutoplay = client.autoplaySettings?.get(guildId) || false;
+    queue.autoplay = persistentAutoplay;
+    console.log(`🤖 [Autoplay] Antrean diinisialisasi untuk server: ${queue.textChannel?.guild?.name}. Autoplay: ${persistentAutoplay}`);
   })
   .on('finish', (queue) => {
     // Autoplay dihandle oleh getRelatedSongs — ini hanya fallback saat autoplay off

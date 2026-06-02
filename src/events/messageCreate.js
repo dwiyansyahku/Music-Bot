@@ -300,15 +300,33 @@ module.exports = {
 
       case 'ap':
       case 'autoplay': {
-        const voiceChannel = checkVoiceChannel(message);
-        if (!voiceChannel) return;
+        if (!client.autoplaySettings) {
+          client.autoplaySettings = new Map();
+        }
 
-        const queue = checkQueue(message, client);
-        if (!queue) return;
+        const guildId = message.guild.id;
+        const queue = client.distube.getQueue(guildId);
+
+        // Jika antrean sedang aktif, pastikan pengguna berada di voice channel yang sama
+        if (queue) {
+          if (!checkVoiceChannel(message)) return;
+        }
 
         try {
-          queue.autoplay = !queue.autoplay;
-          const status = queue.autoplay ? '✅ **Autoplay diaktifkan!** Bot akan otomatis mencari dan memutar lagu rekomendasi setelah antrean selesai.' : '🚫 **Autoplay dimatikan.**';
+          let isOn;
+          if (queue) {
+            queue.autoplay = !queue.autoplay;
+            isOn = queue.autoplay;
+            client.autoplaySettings.set(guildId, isOn);
+          } else {
+            const current = client.autoplaySettings.get(guildId) || false;
+            isOn = !current;
+            client.autoplaySettings.set(guildId, isOn);
+          }
+
+          const status = isOn 
+            ? '✅ **Autoplay diaktifkan!** Bot akan otomatis mencari dan memutar lagu rekomendasi setelah antrean selesai.' 
+            : '🚫 **Autoplay dimatikan.**';
           await message.reply(status);
         } catch (error) {
           console.error(error);
