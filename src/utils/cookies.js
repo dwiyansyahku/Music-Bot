@@ -50,7 +50,12 @@ function setupCookies() {
                              .replace(/\\n/g, '\n')
                              .replace(/\\\\/g, '\\');
 
-      cookies = JSON.parse(rawCookies);
+      let parsed = JSON.parse(rawCookies);
+      // If user accidentally pasted [[{...}]], flatten it
+      if (Array.isArray(parsed) && Array.isArray(parsed[0])) {
+        parsed = parsed.flat();
+      }
+      cookies = parsed;
       console.log('✅ [Cookies Helper] Loaded cookies from YT_COOKIES environment variable');
     } catch (err) {
       console.error('⚠️ [Cookies Helper] Failed to parse YT_COOKIES environment variable:', err.message);
