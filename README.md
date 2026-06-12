@@ -2,6 +2,8 @@
 
 Bot musik Discord yang support **YouTube**, **Spotify**, **SoundCloudck**, dan banyak platform lain. Bisa berjalan **24/7** di server/VPS!
 
+> **Projek ini dibuat dan dikembangkan oleh [Dwiyansyah Oktavyudi](https://github.com/dwiyansyahku) ([GitHub](https://github.com/dwiyansyahku) | [LinkedIn](https://www.linkedin.com/in/dwiyansyah/)).**
+
 ---
 
 ## ✨ Fitur
@@ -189,6 +191,10 @@ Semua perintah ditulis langsung di chat server menggunakan awalan `q` (tidak men
 
 ---
 
-## 📝 Lisensi
+## 📝 Lisensi & Hak Cipta
 
-MIT License — Bebas digunakan dan dimodifikasi!
+Projek ini dideklarasikan di bawah **MIT License**. Hak cipta © 2026 **Dwiyansyah Oktavyudi**.
+
+Hubungi pembuat via [GitHub](https://github.com/dwiyansyahku) | [LinkedIn](https://www.linkedin.com/in/dwiyansyah/).
+
+Lihat file [LICENSE](LICENSE) untuk informasi selengkapnya.

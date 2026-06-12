@@ -53,7 +53,7 @@ module.exports = {
           ].join('\n'),
         }
       )
-      .setFooter({ text: 'Discord Music Bot | Made QUMPRUY | https://discord.gg/qPYxhRzBzB' })
+      .setFooter({ text: 'Discord Music Bot | Made by Dwiyansyah Oktavyudi | https://github.com/dwiyansyahku' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

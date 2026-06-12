@@ -167,7 +167,7 @@ module.exports = {
               ].join('\n')
             }
           )
-          .setFooter({ text: 'Created by Biru TAMVAN | Discord Music Bot' })
+          .setFooter({ text: 'Created by Dwiyansyah Oktavyudi | Discord Music Bot' })
           .setTimestamp();
 
         await message.reply({ embeds: [helpEmbed] });
