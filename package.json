@@ -2,7 +2,7 @@
   "name": "discord-music-bot",
   "version": "1.0.0",
   "description": "Discord Music Bot - YouTube, Spotify, SoundCloud support",
-  "author": "Dwiyansyah Oktavyudi <dwiyanstar@gmail.com> (https://github.com/dwiyansyahku)",
+  "author": "Dwiyansyah Oktavyudi (https://github.com/dwiyansyahku)",
   "license": "MIT",
   "main": "src/index.js",
   "scripts": {
