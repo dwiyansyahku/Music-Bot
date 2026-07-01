@@ -98,9 +98,11 @@ function formatFlags(flags) {
 }
 
 function customYtdlpJson(url, flags, timeoutMs = 120000) {
-  const ytdlpDir = process.env.YTDLP_DIR || path.join(process.cwd(), 'bin');
-  const ytdlpFilename = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-  const ytdlpPath = path.join(ytdlpDir, ytdlpFilename);
+  // Gunakan executable global 'yt-dlp' hasil pip3 di Linux (Railway),
+  // sedangkan di Windows gunakan bin/yt-dlp.exe local.
+  const ytdlpPath = process.platform === 'win32'
+    ? path.join(process.cwd(), 'bin', 'yt-dlp.exe')
+    : 'yt-dlp';
   
   const cmdArgs = [url].concat(formatFlags(flags)).filter(Boolean);
   
