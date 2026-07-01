@@ -522,14 +522,39 @@ const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, autoplayEmbed } 
 // Track lagu terakhir per guild untuk fitur autoplay
 const lastSongPerGuild = new Map();
 
+// Track pesan "Now Playing" per guild agar bisa di-edit (tidak kirim baru tiap ganti lagu)
+client._nowPlayingMsg = new Map();
+
+// Helper: edit pesan NowPlaying jika ada, atau kirim baru jika tidak ada/dihapus
+async function updateNowPlayingMsg(queue, embedData) {
+  const guildId = queue.id;
+  const existing = client._nowPlayingMsg.get(guildId);
+
+  if (existing) {
+    try {
+      await existing.edit({ embeds: [embedData] });
+      return; // Berhasil edit, selesai
+    } catch {
+      // Pesan sudah dihapus atau tidak bisa diedit — kirim baru
+      client._nowPlayingMsg.delete(guildId);
+    }
+  }
+
+  // Kirim pesan baru dan simpan referensinya
+  const newMsg = await queue.textChannel?.send({ embeds: [embedData] }).catch(() => null);
+  if (newMsg) client._nowPlayingMsg.set(guildId, newMsg);
+}
+
 client.distube
-  .on('playSong', (queue, song) => {
+  .on('playSong', async (queue, song) => {
     // Play berhasil — hapus tracking notifikasi (tidak perlu di-cleanup)
     client._playNotifications?.delete(queue.id);
     // Simpan lagu yang sedang diputar sebagai "lagu terakhir" untuk autoplay
     lastSongPerGuild.set(queue.id, { name: song.name, uploader: song.uploader?.name });
-    queue.textChannel?.send({ embeds: [nowPlayingEmbed(song, queue)] });
+    // Edit pesan NowPlaying yang sama, jangan kirim baru
+    await updateNowPlayingMsg(queue, nowPlayingEmbed(song, queue));
   })
+
   .on('addSong', (queue, song) => {
     queue.textChannel?.send({ embeds: [addedToQueueEmbed(song, queue)] })
       .then(msg => {
@@ -562,41 +587,44 @@ client.distube
     queue.autoplay = persistentAutoplay;
     console.log(`🤖 [Autoplay] Antrean diinisialisasi untuk server: ${queue.textChannel?.guild?.name}. Autoplay: ${persistentAutoplay}`);
   })
-  .on('finish', (queue) => {
+  .on('finish', async (queue) => {
+    // Bersihkan pesan NowPlaying — antrean selesai
+    const npMsg = client._nowPlayingMsg.get(queue.id);
+    if (npMsg) {
+      npMsg.edit({ embeds: [], content: '✅ **Antrean lagu telah selesai.**' }).catch(() => {});
+      client._nowPlayingMsg.delete(queue.id);
+    }
+
     // Autoplay dihandle oleh getRelatedSongs — ini hanya fallback saat autoplay off
     if (!queue.autoplay) {
-      const lastUser = queue.previousSongs && queue.previousSongs.length > 0 
-        ? queue.previousSongs[queue.previousSongs.length - 1].user 
+      const lastUser = queue.previousSongs && queue.previousSongs.length > 0
+        ? queue.previousSongs[queue.previousSongs.length - 1].user
         : null;
 
       if (client.stay247 && client.stay247.has(queue.textChannel?.guild?.id)) {
-        if (lastUser) {
-          queue.textChannel?.send(`✅ Halo <@${lastUser.id}>, **antrean lagu telah selesai!** Bot tetap standby di voice channel (Mode 24/7).`);
-        } else {
-          queue.textChannel?.send('✅ **Antrean lagu telah selesai!** Bot tetap standby di voice channel (Mode 24/7).');
-        }
+        const mention = lastUser ? `<@${lastUser.id}>, ` : '';
+        queue.textChannel?.send(`✅ ${mention}**Antrean lagu telah selesai!** Bot tetap standby di voice channel (Mode 24/7).`);
       } else {
         queue.textChannel?.send('✅ **Antrean lagu telah selesai!** Bot akan keluar dalam 2 menit jika tidak ada lagu baru.');
         setTimeout(() => {
           if (queue.voice && !queue.playing && client.stay247 && !client.stay247.has(queue.textChannel?.guild?.id)) {
-            const lastUser = queue.previousSongs && queue.previousSongs.length > 0 
-              ? queue.previousSongs[queue.previousSongs.length - 1].user 
-              : null;
-            
             queue.voice.leave();
-            
-            if (lastUser) {
-              queue.textChannel?.send(`👋 Halo <@${lastUser.id}>, bot telah keluar dari voice channel karena antrean lagu sudah habis dan tidak ada lagu baru.`);
-            } else {
-              queue.textChannel?.send('👋 Bot telah keluar dari voice channel karena antrean lagu sudah habis.');
-            }
+            const mention = lastUser ? `<@${lastUser.id}>, ` : '';
+            queue.textChannel?.send(`👋 ${mention}Bot telah keluar dari voice channel karena antrean lagu sudah habis.`);
           }
         }, 120000);
       }
     }
   })
   .on('disconnect', (queue) => {
-    queue.textChannel?.send('👋 **Bot terputus dari voice channel.**');
+    // Update/hapus pesan NowPlaying saat bot disconnect
+    const npMsg = client._nowPlayingMsg.get(queue.id);
+    if (npMsg) {
+      npMsg.edit({ embeds: [], content: '👋 **Bot terputus dari voice channel.**' }).catch(() => {});
+      client._nowPlayingMsg.delete(queue.id);
+    } else {
+      queue.textChannel?.send('👋 **Bot terputus dari voice channel.**');
+    }
   })
   .on('empty', (queue) => {
     if (client.stay247 && client.stay247.has(queue.textChannel?.guild?.id)) {
