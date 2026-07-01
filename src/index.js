@@ -303,7 +303,7 @@ ytdlpPlugin.getStreamURL = async function(song) {
     verbose: true,     // Enable verbose debug logging
     skipDownload: true,
     simulate: true,
-    format: "ba[protocol=https]/ba",
+    format: "ba[protocol=https]/ba/ba*",
     forceIpv4: true,
     extractorArgs: 'youtubetab:skip=authcheck',
     retries: 1,
@@ -464,7 +464,6 @@ if (process.env.YT_COOKIES) {
     rawCookies = rawCookies.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
     const cookiesArray = JSON.parse(rawCookies);
     const cookiePairs = cookiesArray
-      .filter(c => !c.name.endsWith('TS') && !c.name.endsWith('CC'))
       .map(c => `${c.name}=${c.value}`);
     if (cookiePairs.length > 0) {
       ffmpegHeaders = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36\r\nCookie: ${cookiePairs.join('; ')}\r\n`;
