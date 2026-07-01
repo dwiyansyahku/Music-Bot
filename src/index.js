@@ -164,12 +164,13 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     const hasCookies = flags && flags.cookies;
     
     // Check if error is related to cookies being invalid, rotated, or blocked
-    const isCookieError = errText.includes('cookies') || 
-                          errText.includes('rotated') || 
-                          errText.includes('Sign in') || 
-                          errText.includes('confirm you\'re not a bot') ||
-                          errText.includes('LOGIN_REQUIRED') ||
-                          errText.includes('LOGIN_INFO');
+    const errLower = errText.toLowerCase();
+    const isCookieError = errLower.includes('cookie') || 
+                          errLower.includes('rotate') || 
+                          errLower.includes('sign in') || 
+                          errLower.includes('bot') || 
+                          errLower.includes('login') ||
+                          errLower.includes('confirm');
                           
     if (hasCookies && isCookieError) {
       console.warn(`⚠️ [Cookies Fallback] Cookies failed or were rejected by YouTube: ${errText.slice(0, 200)}...`);
