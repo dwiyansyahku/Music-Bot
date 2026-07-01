@@ -195,6 +195,7 @@ ytdlpPlugin.resolve = async function(url, options) {
     retries: 1,
     socketTimeout: 5,
     noPlaylist: true,  // Default: jangan expand playlist, main 1 video saja
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
   };
 
   // If cookies.txt exists, pass it explicitly via command line
@@ -302,11 +303,12 @@ ytdlpPlugin.getStreamURL = async function(song) {
     verbose: true,     // Enable verbose debug logging
     skipDownload: true,
     simulate: true,
-    format: "ba/ba*",
+    format: "ba[protocol=https]/ba",
     forceIpv4: true,
     extractorArgs: 'youtubetab:skip=authcheck',
     retries: 1,
-    socketTimeout: 5
+    socketTimeout: 5,
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
   };
 
   const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
