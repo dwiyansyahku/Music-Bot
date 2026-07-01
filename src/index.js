@@ -485,7 +485,7 @@ if (ffmpegHeaders) {
   distubeOptions.ffmpeg = {
     args: {
       input: {
-        '-headers': ffmpegHeaders
+        'headers': ffmpegHeaders
       }
     }
   };
