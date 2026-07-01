@@ -10,6 +10,9 @@ module.exports = {
     const voiceChannel = checkVoiceChannel(interaction);
     if (!voiceChannel) return;
 
+    // Defer early to prevent interaction timeout and avoid double-acknowledge errors
+    await interaction.deferReply();
+
     if (!client.stay247) {
       client.stay247 = new Set();
     }
@@ -26,6 +29,11 @@ module.exports = {
         await client.distube.voices.join(voiceChannel);
       } catch (err) {
         console.error('Error joining voice channel:', err);
+        // Revert 24/7 state and inform the user — return early to prevent further replies
+        client.stay247.delete(guildId);
+        return interaction.editReply({
+          content: `❌ Gagal bergabung ke voice channel: ${err.message}`,
+        });
       }
     }
 
@@ -41,6 +49,6 @@ module.exports = {
       .setFooter({ text: `Diubah oleh ${interaction.member?.displayName || 'Unknown'}` })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
   },
 };
