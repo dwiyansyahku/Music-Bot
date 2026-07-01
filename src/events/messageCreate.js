@@ -84,37 +84,47 @@ module.exports = {
         const voiceChannel = checkVoiceChannel(message);
         if (!voiceChannel) return;
 
+        // Guard: pastikan hanya 1 reply yang terkirim
+        let hasReplied = false;
+        const safeReply = async (msg) => {
+          if (hasReplied) return;
+          hasReplied = true;
+          await message.reply(msg).catch(() => {});
+        };
+
+        client.stay247?.delete(message.guild.id);
+
         const queue = client.distube.getQueue(message.guild.id);
-        client.stay247?.delete(message.guild.id); // Disable 24/7 mode if user explicitly asks to stop/leave
 
         if (queue) {
           try {
             await queue.stop();
-            if (queue.voice) queue.voice.leave();
-            await message.reply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');
+            // DisTube otomatis leave setelah stop, tapi kita paksa juga untuk safety
+            const disTubeVoice = client.distube.voices.get(message.guild.id);
+            if (disTubeVoice) disTubeVoice.leave();
+            await safeReply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');
           } catch (error) {
             console.error(error);
-            await message.reply(`❌ Error: ${error.message}`);
+            await safeReply(`❌ Error: ${error.message}`);
           }
         } else {
-          // If no queue, check if bot is in a voice channel in this guild
-          const voice = client.distube.voices.get(message.guild.id);
-          if (voice) {
-            voice.leave();
-            await message.reply('👋 **Bot keluar dari voice channel.**');
+          // Tidak ada queue — coba keluar via DisTube voices
+          const disTubeVoice = client.distube.voices.get(message.guild.id);
+          if (disTubeVoice) {
+            disTubeVoice.leave();
+            await safeReply('👋 **Bot keluar dari voice channel.**');
           } else {
-            const botVoiceChannel = message.guild.members.me?.voice?.channel;
-            if (botVoiceChannel) {
-              const { getVoiceConnection } = require('@discordjs/voice');
-              const connection = getVoiceConnection(message.guild.id);
-              if (connection) {
-                connection.destroy();
-              } else {
-                message.guild.members.me.voice.disconnect();
-              }
-              await message.reply('👋 **Bot dipaksa keluar dari voice channel.**');
+            // Fallback: gunakan @discordjs/voice langsung
+            const { getVoiceConnection } = require('@discordjs/voice');
+            const connection = getVoiceConnection(message.guild.id);
+            if (connection) {
+              connection.destroy();
+              await safeReply('👋 **Bot keluar dari voice channel.**');
+            } else if (message.guild.members.me?.voice?.channel) {
+              await message.guild.members.me.voice.disconnect().catch(() => {});
+              await safeReply('👋 **Bot keluar dari voice channel.**');
             } else {
-              await message.reply('❌ Bot tidak ada di voice channel!');
+              await safeReply('❌ Bot tidak ada di voice channel!');
             }
           }
         }
