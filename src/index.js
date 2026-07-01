@@ -302,7 +302,7 @@ ytdlpPlugin.getStreamURL = async function(song) {
     verbose: true,     // Enable verbose debug logging
     skipDownload: true,
     simulate: true,
-    format: "ba/ba*",
+    format: "ba[protocol^=http]/ba",
     forceIpv4: true,
     extractorArgs: 'youtubetab:skip=authcheck',
     retries: 1,
