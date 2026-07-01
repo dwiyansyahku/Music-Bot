@@ -27,18 +27,37 @@ module.exports = {
         }
 
         const searchingMsg = await message.reply(`🔍 Mencari: **${query}**...`);
+
+        // Inisialisasi tracker notifikasi untuk guild ini
+        if (!client._playNotifications) client._playNotifications = new Map();
+        client._playNotifications.set(message.guild.id, []);
+
         try {
           await client.distube.play(voiceChannel, query, {
             member: message.member,
             textChannel: message.channel,
             message,
           });
-          // Delete searching message on success to prevent double responses since playSong/addSong will send embeds
+          // Hapus pesan "mencari..." jika berhasil — embed playSong/addSong sudah menggantikannya
           await searchingMsg.delete().catch(() => {});
+          client._playNotifications.delete(message.guild.id);
         } catch (error) {
           console.error(error);
+
+          // Jika voice gagal connect, hapus notifikasi addSong/addList yang terlanjur terkirim
+          const isVoiceFail = error.errorCode === 'VOICE_CONNECT_FAILED' ||
+                              error.message?.includes('Cannot connect to the voice channel');
+          if (isVoiceFail) {
+            const notifications = client._playNotifications?.get(message.guild.id) || [];
+            for (const msg of notifications) msg.delete().catch(() => {});
+            // Hentikan queue yang terbentuk sebagian
+            client.distube.getQueue(message.guild.id)?.stop().catch(() => {});
+          }
+          client._playNotifications.delete(message.guild.id);
+
           await searchingMsg.edit(`❌ Error: ${error.message}`).catch(() => {});
         }
+
         break;
       }
 

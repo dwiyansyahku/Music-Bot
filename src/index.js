@@ -203,13 +203,36 @@ ytdlpPlugin.resolve = async function(url, options) {
     console.log('ℹ️ [ytdlpPlugin.resolve] No cookies.txt found, resolving without cookies.');
   }
 
-  // YouTube Mix/playlist handling
-  // If a URL contains a playlist, we limit extraction to 50 items to prevent massive delays
-  // (which could cause timeout errors).
+  // Smart playlist detection:
+  // - list=PL...  → user-created playlist (fetch up to 50 items)
+  // - list=RD/LL/WL/FL... with video ID → YouTube Mix/auto-generated (play single video only)
   if (url.includes('list=')) {
-    flags.playlistEnd = 50;
-    flags.flatPlaylist = true;
-    console.log(`📜 [ytdlpPlugin.resolve] Detected playlist URL, using flat-playlist and limiting extraction to 50 items. URL: ${url}`);
+    try {
+      const parsedUrl = new URL(url);
+      const listParam = parsedUrl.searchParams.get('list');
+      const videoId = parsedUrl.searchParams.get('v') ||
+                      url.match(/youtu\.be\/([^?&#]+)/)?.[1];
+
+      if (listParam && listParam.startsWith('PL')) {
+        // User-created playlist — fetch up to 50 items
+        flags.playlistEnd = 50;
+        flags.flatPlaylist = true;
+        console.log(`📜 [ytdlpPlugin.resolve] User playlist detected (${listParam}), limiting to 50 items.`);
+      } else if (listParam && videoId) {
+        // YouTube Mix / Radio / auto-generated — strip list param, play single video
+        url = `https://www.youtube.com/watch?v=${videoId}`;
+        console.log(`🎵 [ytdlpPlugin.resolve] YouTube Mix detected (${listParam}), playing single video: ${videoId}`);
+      } else {
+        // Unknown list type without a clear video ID — treat as playlist
+        flags.playlistEnd = 50;
+        flags.flatPlaylist = true;
+        console.log(`📜 [ytdlpPlugin.resolve] Unknown playlist type (${listParam}), limiting to 50 items.`);
+      }
+    } catch {
+      // URL parse failed — fall back to safe playlist limit
+      flags.playlistEnd = 50;
+      flags.flatPlaylist = true;
+    }
   }
 
   console.log('⚡ [ytdlpPlugin.resolve] Executing yt-dlp process...');
@@ -483,15 +506,29 @@ const lastSongPerGuild = new Map();
 
 client.distube
   .on('playSong', (queue, song) => {
+    // Play berhasil — hapus tracking notifikasi (tidak perlu di-cleanup)
+    client._playNotifications?.delete(queue.id);
     // Simpan lagu yang sedang diputar sebagai "lagu terakhir" untuk autoplay
     lastSongPerGuild.set(queue.id, { name: song.name, uploader: song.uploader?.name });
     queue.textChannel?.send({ embeds: [nowPlayingEmbed(song, queue)] });
   })
   .on('addSong', (queue, song) => {
-    queue.textChannel?.send({ embeds: [addedToQueueEmbed(song, queue)] });
+    queue.textChannel?.send({ embeds: [addedToQueueEmbed(song, queue)] })
+      .then(msg => {
+        // Track pesan ini agar bisa dihapus jika play gagal (VOICE_CONNECT_FAILED)
+        const tracked = client._playNotifications?.get(queue.id);
+        if (Array.isArray(tracked)) tracked.push(msg);
+      })
+      .catch(() => {});
   })
   .on('addList', (queue, playlist) => {
-    queue.textChannel?.send({ embeds: [addedPlaylistEmbed(playlist, queue)] });
+    queue.textChannel?.send({ embeds: [addedPlaylistEmbed(playlist, queue)] })
+      .then(msg => {
+        // Track pesan ini agar bisa dihapus jika play gagal (VOICE_CONNECT_FAILED)
+        const tracked = client._playNotifications?.get(queue.id);
+        if (Array.isArray(tracked)) tracked.push(msg);
+      })
+      .catch(() => {});
   })
   .on('error', (error, queue) => {
     console.error('DisTube Error:', error);
