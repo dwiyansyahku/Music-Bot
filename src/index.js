@@ -450,6 +450,7 @@ if (hasSpotifyCreds) {
 
 client.stay247 = new Set();
 client.autoplaySettings = new Map();
+client.emptyTimeouts = new Map();
 
 // Build headers for FFmpeg from YT_COOKIES to bypass 403 Forbidden on HLS segments
 let ffmpegHeaders = '';
@@ -523,6 +524,64 @@ for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'))) {
 const { getVoiceConnection } = require('@discordjs/voice');
 client.on('voiceStateUpdate', (oldState, newState) => {
   const guildId = oldState.guild.id;
+
+  // If the bot itself leaves, clear any pending empty timeouts
+  if (oldState.id === client.user.id && !newState.channelId) {
+    if (client.emptyTimeouts && client.emptyTimeouts.has(guildId)) {
+      clearTimeout(client.emptyTimeouts.get(guildId));
+      client.emptyTimeouts.delete(guildId);
+    }
+  }
+
+  // Empty Channel Handler:
+  const botVoiceChannel = oldState.guild.members.me?.voice?.channel;
+  if (botVoiceChannel) {
+    const nonBotMembers = botVoiceChannel.members.filter(m => !m.user.bot);
+    const is247 = client.stay247 && client.stay247.has(guildId);
+    
+    if (nonBotMembers.size === 0) {
+      if (!is247) {
+        if (!client.emptyTimeouts.has(guildId)) {
+          const queue = client.distube.getQueue(guildId);
+          if (queue && queue.textChannel) {
+            queue.textChannel.send('🎵 **Voice channel kosong.** Bot akan keluar dalam 1 menit.').catch(() => {});
+          }
+          
+          const timeout = setTimeout(async () => {
+            const currentChannel = oldState.guild.members.me?.voice?.channel;
+            if (currentChannel) {
+              const currentNonBots = currentChannel.members.filter(m => !m.user.bot);
+              const stillNot247 = !client.stay247?.has(guildId);
+              if (currentNonBots.size === 0 && stillNot247) {
+                const currentQueue = client.distube.getQueue(guildId);
+                if (currentQueue) {
+                  await currentQueue.stop().catch(() => {});
+                  if (currentQueue.textChannel) {
+                    currentQueue.textChannel.send('👋 **Bot keluar dari voice channel karena kosong.**').catch(() => {});
+                  }
+                }
+                const disTubeVoice = client.distube.voices.get(guildId);
+                if (disTubeVoice) disTubeVoice.leave();
+              }
+            }
+            client.emptyTimeouts.delete(guildId);
+          }, 60000);
+          
+          client.emptyTimeouts.set(guildId, timeout);
+        }
+      }
+    } else {
+      if (client.emptyTimeouts.has(guildId)) {
+        clearTimeout(client.emptyTimeouts.get(guildId));
+        client.emptyTimeouts.delete(guildId);
+        
+        const queue = client.distube.getQueue(guildId);
+        if (queue && queue.textChannel) {
+          queue.textChannel.send('🎵 **User bergabung kembali.** Otomatis keluar dibatalkan.').catch(() => {});
+        }
+      }
+    }
+  }
 
   // 24/7 Enforcer: If the bot itself disconnects (or gets kicked) and 24/7 is enabled, force it to rejoin!
   if (oldState.id === client.user.id && oldState.channelId && !newState.channelId) {
