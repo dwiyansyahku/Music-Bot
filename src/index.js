@@ -203,37 +203,55 @@ ytdlpPlugin.resolve = async function(url, options) {
     console.log('ℹ️ [ytdlpPlugin.resolve] No cookies.txt found, resolving without cookies.');
   }
 
-  // Smart playlist detection:
-  // - list=PL...  → user-created playlist (fetch up to 50 items)
-  // - list=RD/LL/WL/FL... with video ID → YouTube Mix/auto-generated (play single video only)
+  // Smart playlist detection berdasarkan jenis URL YouTube:
+  //
+  // PLAYLIST (fetch banyak lagu):
+  //   - list=PL...              → playlist buatan user
+  //   - list=... + start_radio=1 → user aktif memulai radio/mix (e.g. list=RDMM&start_radio=1)
+  //
+  // SINGLE VIDEO (strip list=, main 1 lagu):
+  //   - list=RD{videoId}       → YouTube auto-append mix ID saat copy link (tanpa start_radio)
+  //   - list=LL/WL/FL/...      → liked/watch later/favorites, ada videoId di URL
+  //
+  // Contoh:
+  //   https://youtu.be/Az94B3MNHBU?list=RDAz94B3MNHBU          → single video ✅
+  //   https://youtube.com/watch?v=X&list=RDMM&start_radio=1    → playlist/mix ✅
+  //   https://youtube.com/watch?v=X&list=PLxxxxxxxx             → user playlist ✅
   if (url.includes('list=')) {
     try {
       const parsedUrl = new URL(url);
       const listParam = parsedUrl.searchParams.get('list');
       const videoId = parsedUrl.searchParams.get('v') ||
                       url.match(/youtu\.be\/([^?&#]+)/)?.[1];
+      const isStartRadio = parsedUrl.searchParams.get('start_radio') === '1';
 
       if (listParam && listParam.startsWith('PL')) {
-        // User-created playlist — fetch up to 50 items
+        // Playlist buatan user (e.g. PLxxxxxx) — fetch hingga 50 lagu
         flags.playlistEnd = 50;
         flags.flatPlaylist = true;
-        console.log(`📜 [ytdlpPlugin.resolve] User playlist detected (${listParam}), limiting to 50 items.`);
-      } else if (listParam && videoId) {
-        // YouTube Mix / Radio / auto-generated — strip list param, play single video
+        console.log(`📜 [ytdlpPlugin.resolve] User playlist (${listParam}), limit 50 items.`);
+      } else if (isStartRadio) {
+        // User aktif mulai radio/mix (start_radio=1) — fetch sebagai playlist
+        flags.playlistEnd = 50;
+        flags.flatPlaylist = true;
+        console.log(`📻 [ytdlpPlugin.resolve] Radio/Mix aktif (${listParam}, start_radio=1), fetch as playlist.`);
+      } else if (videoId) {
+        // list= auto-ditambahkan YouTube saat copy link — strip, main 1 lagu saja
         url = `https://www.youtube.com/watch?v=${videoId}`;
-        console.log(`🎵 [ytdlpPlugin.resolve] YouTube Mix detected (${listParam}), playing single video: ${videoId}`);
+        console.log(`🎵 [ytdlpPlugin.resolve] Auto-appended list= stripped (${listParam}), single video: ${videoId}`);
       } else {
-        // Unknown list type without a clear video ID — treat as playlist
+        // Tidak ada videoId dan bukan kondisi di atas — treat sebagai playlist
         flags.playlistEnd = 50;
         flags.flatPlaylist = true;
-        console.log(`📜 [ytdlpPlugin.resolve] Unknown playlist type (${listParam}), limiting to 50 items.`);
+        console.log(`📜 [ytdlpPlugin.resolve] Unknown playlist type (${listParam}), limit 50 items.`);
       }
     } catch {
-      // URL parse failed — fall back to safe playlist limit
+      // URL parse gagal — fallback aman
       flags.playlistEnd = 50;
       flags.flatPlaylist = true;
     }
   }
+
 
   console.log('⚡ [ytdlpPlugin.resolve] Executing yt-dlp process...');
   const startTime = Date.now();
