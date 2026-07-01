@@ -302,7 +302,7 @@ ytdlpPlugin.getStreamURL = async function(song) {
     verbose: true,     // Enable verbose debug logging
     skipDownload: true,
     simulate: true,
-    format: "ba[protocol=https]/ba[protocol=http]/ba",
+    format: "ba/ba*",
     forceIpv4: true,
     extractorArgs: 'youtubetab:skip=authcheck',
     retries: 1,
@@ -449,14 +449,50 @@ if (hasSpotifyCreds) {
 client.stay247 = new Set();
 client.autoplaySettings = new Map();
 
-client.distube = new DisTube(client, {
+// Build headers for FFmpeg from YT_COOKIES to bypass 403 Forbidden on HLS segments
+let ffmpegHeaders = '';
+if (process.env.YT_COOKIES) {
+  try {
+    let rawCookies = process.env.YT_COOKIES.trim();
+    if (rawCookies.startsWith('"') && rawCookies.endsWith('"')) {
+      rawCookies = rawCookies.substring(1, rawCookies.length - 1);
+    } else if (rawCookies.startsWith("'") && rawCookies.endsWith("'")) {
+      rawCookies = rawCookies.substring(1, rawCookies.length - 1);
+    }
+    rawCookies = rawCookies.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+    const cookiesArray = JSON.parse(rawCookies);
+    const cookiePairs = cookiesArray
+      .filter(c => !c.name.endsWith('TS') && !c.name.endsWith('CC'))
+      .map(c => `${c.name}=${c.value}`);
+    if (cookiePairs.length > 0) {
+      ffmpegHeaders = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36\r\nCookie: ${cookiePairs.join('; ')}\r\n`;
+    }
+  } catch (err) {
+    console.error('⚠️ [FFmpeg Helper] Gagal memformat cookies untuk FFmpeg headers:', err.message);
+  }
+}
+
+const distubeOptions = {
   plugins,
   emitNewSongOnly: false,
   joinNewVoiceChannel: true,
   nsfw: false,
   emitAddSongWhenCreatingQueue: true,
   emitAddListWhenCreatingQueue: true,
-});
+};
+
+if (ffmpegHeaders) {
+  distubeOptions.ffmpeg = {
+    args: {
+      input: {
+        '-headers': ffmpegHeaders
+      }
+    }
+  };
+  console.log('✅ [FFmpeg Helper] Konfigurasi header HTTP (User-Agent + Cookies) dipasang untuk bypass 403 Forbidden');
+}
+
+client.distube = new DisTube(client, distubeOptions);
 
 // Load Commands
 const commandsPath = path.join(__dirname, 'commands');
