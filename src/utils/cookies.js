@@ -14,6 +14,11 @@ function jsonToNetscape(cookiesArray) {
   for (const cookie of cookiesArray) {
     if (!cookie.domain || !cookie.name) continue;
 
+    // Skip unstable/frequently rotated session cookies (TS and CC) to prevent session invalidation
+    if (cookie.name.endsWith('TS') || cookie.name.endsWith('CC')) {
+      continue;
+    }
+
     const domain = cookie.domain;
     const flag = domain.startsWith('.') ? 'TRUE' : 'FALSE';
     const pathVal = cookie.path || '/';
