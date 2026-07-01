@@ -69,8 +69,10 @@ module.exports = {
                               lastError?.message?.includes('Cannot connect to the voice channel');
           const errMsg = isVoiceFail
             ? `❌ Gagal terhubung ke voice channel setelah ${MAX_RETRIES + 1}x percobaan.\n💡 Coba ubah **Region Override** voice channel ke **Singapore** di Discord (Settings → Edit Channel → Region Override).`
-            : `❌ Error: ${lastError?.message}`;
-          await searchingMsg.edit(errMsg).catch(() => {});
+            : `❌ Error: ${lastError?.message?.slice(0, 1500)}`;
+          await searchingMsg.edit(errMsg).catch((err) => {
+            console.error('Failed to edit search message with error info:', err);
+          });
         }
 
         break;
