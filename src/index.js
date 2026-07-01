@@ -185,7 +185,6 @@ ytdlpPlugin.resolve = async function(url, options) {
   const flags = {
     dumpSingleJson: true,
     noWarnings: true,
-    preferFreeFormats: true,
     skipDownload: true,
     simulate: true,
     forceIpv4: true,
@@ -297,7 +296,6 @@ ytdlpPlugin.getStreamURL = async function(song) {
   const flags = {
     dumpSingleJson: true,
     noWarnings: true,
-    preferFreeFormats: true,
     skipDownload: true,
     simulate: true,
     format: "ba/ba*",
