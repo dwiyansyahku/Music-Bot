@@ -191,7 +191,8 @@ ytdlpPlugin.resolve = async function(url, options) {
     forceIpv4: true,
     extractorArgs: 'youtubetab:skip=authcheck',
     retries: 1,
-    socketTimeout: 5
+    socketTimeout: 5,
+    noPlaylist: true,  // Default: jangan expand playlist, main 1 video saja
   };
 
   // If cookies.txt exists, pass it explicitly via command line
@@ -227,26 +228,31 @@ ytdlpPlugin.resolve = async function(url, options) {
 
       if (listParam && listParam.startsWith('PL')) {
         // Playlist buatan user (e.g. PLxxxxxx) — fetch hingga 50 lagu
+        flags.noPlaylist = false;    // Izinkan expand playlist
         flags.playlistEnd = 50;
         flags.flatPlaylist = true;
         console.log(`📜 [ytdlpPlugin.resolve] User playlist (${listParam}), limit 50 items.`);
       } else if (isStartRadio) {
         // User aktif mulai radio/mix (start_radio=1) — fetch sebagai playlist
+        flags.noPlaylist = false;    // Izinkan expand mix
         flags.playlistEnd = 50;
         flags.flatPlaylist = true;
-        console.log(`📻 [ytdlpPlugin.resolve] Radio/Mix aktif (${listParam}, start_radio=1), fetch as playlist.`);
+        console.log(`📣 [ytdlpPlugin.resolve] Radio/Mix aktif (${listParam}, start_radio=1), fetch as playlist.`);
       } else if (videoId) {
         // list= auto-ditambahkan YouTube saat copy link — strip, main 1 lagu saja
+        // noPlaylist tetap true (default) untuk memastikan yt-dlp tidak expand
         url = `https://www.youtube.com/watch?v=${videoId}`;
         console.log(`🎵 [ytdlpPlugin.resolve] Auto-appended list= stripped (${listParam}), single video: ${videoId}`);
       } else {
-        // Tidak ada videoId dan bukan kondisi di atas — treat sebagai playlist
+        // Tidak ada videoId — treat sebagai playlist
+        flags.noPlaylist = false;
         flags.playlistEnd = 50;
         flags.flatPlaylist = true;
         console.log(`📜 [ytdlpPlugin.resolve] Unknown playlist type (${listParam}), limit 50 items.`);
       }
     } catch {
       // URL parse gagal — fallback aman
+      flags.noPlaylist = false;
       flags.playlistEnd = 50;
       flags.flatPlaylist = true;
     }
@@ -522,56 +528,40 @@ const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, autoplayEmbed } 
 // Track lagu terakhir per guild untuk fitur autoplay
 const lastSongPerGuild = new Map();
 
-// Track pesan "Now Playing" per guild agar bisa di-edit (tidak kirim baru tiap ganti lagu)
-client._nowPlayingMsg = new Map();
-
-// Helper: edit pesan NowPlaying jika ada, atau kirim baru jika tidak ada/dihapus
-async function updateNowPlayingMsg(queue, embedData) {
-  const guildId = queue.id;
-  const existing = client._nowPlayingMsg.get(guildId);
-
-  if (existing) {
-    try {
-      await existing.edit({ embeds: [embedData] });
-      return; // Berhasil edit, selesai
-    } catch {
-      // Pesan sudah dihapus atau tidak bisa diedit — kirim baru
-      client._nowPlayingMsg.delete(guildId);
-    }
-  }
-
-  // Kirim pesan baru dan simpan referensinya
-  const newMsg = await queue.textChannel?.send({ embeds: [embedData] }).catch(() => null);
-  if (newMsg) client._nowPlayingMsg.set(guildId, newMsg);
-}
-
 client.distube
   .on('playSong', async (queue, song) => {
-    // Play berhasil — hapus tracking notifikasi (tidak perlu di-cleanup)
-    client._playNotifications?.delete(queue.id);
     // Simpan lagu yang sedang diputar sebagai "lagu terakhir" untuk autoplay
     lastSongPerGuild.set(queue.id, { name: song.name, uploader: song.uploader?.name });
-    // Edit pesan NowPlaying yang sama, jangan kirim baru
-    await updateNowPlayingMsg(queue, nowPlayingEmbed(song, queue));
-  })
 
+    const embed = nowPlayingEmbed(song, queue);
+
+    // Edit pesan NowPlaying yang sama (persistent) — simpan referensi di queue object
+    if (queue._nowPlayingMsg) {
+      try {
+        await queue._nowPlayingMsg.edit({ embeds: [embed] });
+        return;
+      } catch {
+        // Pesan dihapus atau tidak bisa diedit — kirim baru
+        queue._nowPlayingMsg = null;
+      }
+    }
+
+    // Kirim pesan baru dan simpan referensinya
+    queue._nowPlayingMsg = await queue.textChannel?.send({ embeds: [embed] }).catch(() => null);
+  })
   .on('addSong', (queue, song) => {
-    queue.textChannel?.send({ embeds: [addedToQueueEmbed(song, queue)] })
-      .then(msg => {
-        // Track pesan ini agar bisa dihapus jika play gagal (VOICE_CONNECT_FAILED)
-        const tracked = client._playNotifications?.get(queue.id);
-        if (Array.isArray(tracked)) tracked.push(msg);
-      })
-      .catch(() => {});
+    // Hanya tampilkan notifikasi jika lagu ditambahkan ke antrian yang SUDAH BERJALAN
+    // (queue.songs.length > 1 artinya sudah ada lagu yang sedang diputar)
+    if (queue.songs.length > 1) {
+      queue.textChannel?.send({ embeds: [addedToQueueEmbed(song, queue)] }).catch(() => {});
+    }
   })
   .on('addList', (queue, playlist) => {
-    queue.textChannel?.send({ embeds: [addedPlaylistEmbed(playlist, queue)] })
-      .then(msg => {
-        // Track pesan ini agar bisa dihapus jika play gagal (VOICE_CONNECT_FAILED)
-        const tracked = client._playNotifications?.get(queue.id);
-        if (Array.isArray(tracked)) tracked.push(msg);
-      })
-      .catch(() => {});
+    // Hanya tampilkan notifikasi jika playlist ditambahkan ke antrian yang SUDAH BERJALAN
+    // (queue.songs.length > playlist.songs.length artinya ada lagu lain sebelumnya)
+    if (queue.songs.length > playlist.songs.length) {
+      queue.textChannel?.send({ embeds: [addedPlaylistEmbed(playlist, queue)] }).catch(() => {});
+    }
   })
   .on('error', (error, queue) => {
     console.error('DisTube Error:', error);
@@ -588,14 +578,12 @@ client.distube
     console.log(`🤖 [Autoplay] Antrean diinisialisasi untuk server: ${queue.textChannel?.guild?.name}. Autoplay: ${persistentAutoplay}`);
   })
   .on('finish', async (queue) => {
-    // Bersihkan pesan NowPlaying — antrean selesai
-    const npMsg = client._nowPlayingMsg.get(queue.id);
-    if (npMsg) {
-      npMsg.edit({ embeds: [], content: '✅ **Antrean lagu telah selesai.**' }).catch(() => {});
-      client._nowPlayingMsg.delete(queue.id);
+    // Update pesan NowPlaying — antrean selesai
+    if (queue._nowPlayingMsg) {
+      queue._nowPlayingMsg.edit({ embeds: [], content: '✅ **Antrean lagu telah selesai.**' }).catch(() => {});
+      queue._nowPlayingMsg = null;
     }
 
-    // Autoplay dihandle oleh getRelatedSongs — ini hanya fallback saat autoplay off
     if (!queue.autoplay) {
       const lastUser = queue.previousSongs && queue.previousSongs.length > 0
         ? queue.previousSongs[queue.previousSongs.length - 1].user
@@ -617,11 +605,9 @@ client.distube
     }
   })
   .on('disconnect', (queue) => {
-    // Update/hapus pesan NowPlaying saat bot disconnect
-    const npMsg = client._nowPlayingMsg.get(queue.id);
-    if (npMsg) {
-      npMsg.edit({ embeds: [], content: '👋 **Bot terputus dari voice channel.**' }).catch(() => {});
-      client._nowPlayingMsg.delete(queue.id);
+    if (queue._nowPlayingMsg) {
+      queue._nowPlayingMsg.edit({ embeds: [], content: '👋 **Bot terputus dari voice channel.**' }).catch(() => {});
+      queue._nowPlayingMsg = null;
     } else {
       queue.textChannel?.send('👋 **Bot terputus dari voice channel.**');
     }
