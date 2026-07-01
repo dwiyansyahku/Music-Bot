@@ -28,22 +28,49 @@ module.exports = {
 
         const searchingMsg = await message.reply(`🔍 Mencari: **${query}**...`);
 
-        try {
-          await client.distube.play(voiceChannel, query, {
-            member: message.member,
-            textChannel: message.channel,
-            message,
-          });
-          // Hapus pesan "mencari..." jika berhasil — embed playSong sudah menggantikannya
-          await searchingMsg.delete().catch(() => {});
-        } catch (error) {
-          console.error(error);
-          // Hentikan queue yang mungkin terbentuk sebagian saat voice gagal connect
-          if (error.errorCode === 'VOICE_CONNECT_FAILED' ||
-              error.message?.includes('Cannot connect to the voice channel')) {
+        const MAX_RETRIES = 2;  // Total percobaan: 1 + 2 retry = 3x
+        let lastError = null;
+        let success = false;
+
+        for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+          try {
+            await client.distube.play(voiceChannel, query, {
+              member: message.member,
+              textChannel: message.channel,
+              message,
+            });
+            // Berhasil — hapus pesan "mencari..."
+            await searchingMsg.delete().catch(() => {});
+            success = true;
+            break;
+          } catch (error) {
+            lastError = error;
+            const isVoiceFail = error.errorCode === 'VOICE_CONNECT_FAILED' ||
+                                error.message?.includes('Cannot connect to the voice channel');
+
+            // Bersihkan queue yang terbentuk sebagian
             client.distube.getQueue(message.guild.id)?.stop().catch(() => {});
+
+            if (isVoiceFail && attempt <= MAX_RETRIES) {
+              // Masih ada retry tersisa — informasikan user lalu tunggu
+              console.warn(`⚠️ [Voice] VOICE_CONNECT_FAILED (attempt ${attempt}/${MAX_RETRIES + 1}), retrying in 3s...`);
+              await searchingMsg.edit(`⏳ Koneksi voice gagal, mencoba lagi (${attempt}/${MAX_RETRIES})...`).catch(() => {});
+              await new Promise(r => setTimeout(r, 3000));
+            } else {
+              // Semua retry habis atau bukan voice error
+              console.error(error);
+              break;
+            }
           }
-          await searchingMsg.edit(`❌ Error: ${error.message}`).catch(() => {});
+        }
+
+        if (!success) {
+          const isVoiceFail = lastError?.errorCode === 'VOICE_CONNECT_FAILED' ||
+                              lastError?.message?.includes('Cannot connect to the voice channel');
+          const errMsg = isVoiceFail
+            ? `❌ Gagal terhubung ke voice channel setelah ${MAX_RETRIES + 1}x percobaan.\n💡 Coba ubah **Region Override** voice channel ke **Singapore** di Discord (Settings → Edit Channel → Region Override).`
+            : `❌ Error: ${lastError?.message}`;
+          await searchingMsg.edit(errMsg).catch(() => {});
         }
 
         break;
@@ -77,12 +104,29 @@ module.exports = {
         const voiceChannel = checkVoiceChannel(message);
         if (!voiceChannel) return;
 
-        try {
-          await client.distube.voices.join(voiceChannel);
-          await message.reply(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`);
-        } catch (error) {
-          console.error('Error joining voice channel:', error);
-          await message.reply(`❌ Gagal bergabung ke voice channel: ${error.message}`);
+        const MAX_JOIN_RETRIES = 2;
+        let joinMsg = await message.reply('⏳ Mencoba bergabung ke voice channel...');
+        let joined = false;
+
+        for (let attempt = 1; attempt <= MAX_JOIN_RETRIES + 1; attempt++) {
+          try {
+            await client.distube.voices.join(voiceChannel);
+            await joinMsg.edit(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`);
+            joined = true;
+            break;
+          } catch (error) {
+            const isVoiceFail = error.errorCode === 'VOICE_CONNECT_FAILED' ||
+                                error.message?.includes('Cannot connect to the voice channel');
+            if (isVoiceFail && attempt <= MAX_JOIN_RETRIES) {
+              console.warn(`⚠️ [Join] VOICE_CONNECT_FAILED (attempt ${attempt}/${MAX_JOIN_RETRIES + 1}), retrying...`);
+              await joinMsg.edit(`⏳ Koneksi gagal, mencoba lagi (${attempt}/${MAX_JOIN_RETRIES})...`).catch(() => {});
+              await new Promise(r => setTimeout(r, 3000));
+            } else {
+              console.error('Error joining voice channel:', error);
+              await joinMsg.edit(`❌ Gagal bergabung ke voice channel setelah ${attempt}x percobaan: ${error.message}`).catch(() => {});
+              break;
+            }
+          }
         }
         break;
       }
