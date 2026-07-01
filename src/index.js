@@ -97,7 +97,7 @@ function formatFlags(flags) {
   return args;
 }
 
-function customYtdlpJson(url, flags, timeoutMs = 120000) {
+function executeYtdlpRaw(url, flags, timeoutMs = 120000) {
   // Gunakan executable global 'yt-dlp' hasil pip3 di Linux (Railway),
   // sedangkan di Windows gunakan bin/yt-dlp.exe local.
   const ytdlpPath = process.platform === 'win32'
@@ -107,14 +107,14 @@ function customYtdlpJson(url, flags, timeoutMs = 120000) {
   const cmdArgs = [url].concat(formatFlags(flags)).filter(Boolean);
   
   return new Promise((resolve, reject) => {
-    console.log(`⚡ [customYtdlpJson] Spawning: "${ytdlpPath}" ${cmdArgs.join(' ')}`);
+    console.log(`⚡ [executeYtdlpRaw] Spawning: "${ytdlpPath}" ${cmdArgs.join(' ')}`);
     const proc = spawn(ytdlpPath, cmdArgs);
     
     let stdout = '';
     let stderr = '';
     
     const timeout = setTimeout(() => {
-      console.warn(`⚠️ [customYtdlpJson] Process timed out after ${timeoutMs}ms. Killing process pid: ${proc.pid}`);
+      console.warn(`⚠️ [executeYtdlpRaw] Process timed out after ${timeoutMs}ms. Killing process pid: ${proc.pid}`);
       proc.kill('SIGKILL');
       reject(new Error(`yt-dlp resolution timed out after ${timeoutMs / 1000} seconds.`));
     }, timeoutMs);
@@ -154,6 +154,35 @@ function customYtdlpJson(url, flags, timeoutMs = 120000) {
       reject(err);
     });
   });
+}
+
+async function customYtdlpJson(url, flags, timeoutMs = 120000) {
+  try {
+    return await executeYtdlpRaw(url, flags, timeoutMs);
+  } catch (err) {
+    const errText = err.message || '';
+    const hasCookies = flags && flags.cookies;
+    
+    // Check if error is related to cookies being invalid, rotated, or blocked
+    const isCookieError = errText.includes('cookies') || 
+                          errText.includes('rotated') || 
+                          errText.includes('Sign in') || 
+                          errText.includes('confirm you\'re not a bot') ||
+                          errText.includes('LOGIN_REQUIRED') ||
+                          errText.includes('LOGIN_INFO');
+                          
+    if (hasCookies && isCookieError) {
+      console.warn(`⚠️ [Cookies Fallback] Cookies failed or were rejected by YouTube: ${errText.slice(0, 200)}...`);
+      console.warn('⚠️ [Cookies Fallback] Retrying execution WITHOUT cookies...');
+      
+      const newFlags = { ...flags };
+      delete newFlags.cookies;
+      
+      return await executeYtdlpRaw(url, newFlags, timeoutMs);
+    }
+    
+    throw err;
+  }
 }
 
 // Helper to convert yt-dlp info to DisTube Song
