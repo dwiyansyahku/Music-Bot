@@ -19,13 +19,6 @@ function jsonToNetscape(cookiesArray) {
   for (const cookie of cookiesArray) {
     if (!cookie.domain || !cookie.name) continue;
 
-    // Skip unstable/frequently rotated session cookies (TS and CC) to prevent session invalidation
-    if (cookie.name.endsWith('TS') || cookie.name.endsWith('CC')) {
-      skippedCount++;
-      skippedNames.push(cookie.name);
-      continue;
-    }
-
     savedCount++;
     savedNames.push(cookie.name);
 
@@ -39,7 +32,7 @@ function jsonToNetscape(cookiesArray) {
 
     output += `${domain}\t${flag}\t${pathVal}\t${secure}\t${expiry}\t${name}\t${value}\n`;
   }
-  console.log(`ℹ️ [Cookies Helper] Cookies processed: Saved ${savedCount} (${savedNames.join(', ')}), Skipped ${skippedCount} (${skippedNames.join(', ')})`);
+  console.log(`ℹ️ [Cookies Helper] Cookies processed: Saved ${savedCount} (${savedNames.join(', ')})`);
   return output;
 }
 
