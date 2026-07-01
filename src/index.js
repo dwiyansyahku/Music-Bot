@@ -191,7 +191,7 @@ ytdlpPlugin.resolve = async function(url, options) {
     skipDownload: true,
     simulate: true,
     forceIpv4: true,
-    extractorArgs: 'youtube:player_client=tv_embedded,youtubetab:skip=authcheck',
+    extractorArgs: 'youtubetab:skip=authcheck',
     retries: 1,
     socketTimeout: 5,
     noPlaylist: true,  // Default: jangan expand playlist, main 1 video saja
@@ -302,9 +302,9 @@ ytdlpPlugin.getStreamURL = async function(song) {
     verbose: true,     // Enable verbose debug logging
     skipDownload: true,
     simulate: true,
-    format: "ba[protocol^=http]/ba",
+    format: "ba[protocol=https]/ba[protocol=http]/ba",
     forceIpv4: true,
-    extractorArgs: 'youtube:player_client=tv_embedded,youtubetab:skip=authcheck',
+    extractorArgs: 'youtubetab:skip=authcheck',
     retries: 1,
     socketTimeout: 5
   };
