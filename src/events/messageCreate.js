@@ -226,6 +226,7 @@ module.exports = {
                 '`qshuffle` — Acak urutan antrian',
                 '`qremove [nomor]` — Hapus lagu dari antrian',
                 '`qclear` — Hapus semua daftar antrian',
+                '`q247` — Aktifkan/matikan mode 24/7',
                 '`qping` — Cek status & latency bot',
                 '`qhelp` — Tampilkan menu ini',
               ].join('\n')
@@ -487,6 +488,46 @@ module.exports = {
           console.error(error);
           await message.reply(`❌ Error: ${error.message}`);
         }
+        break;
+      }
+
+      case '247': {
+        const voiceChannel = checkVoiceChannel(message);
+        if (!voiceChannel) return;
+
+        if (!client.stay247) {
+          client.stay247 = new Set();
+        }
+
+        const guildId = message.guild.id;
+        const is247 = client.stay247.has(guildId);
+
+        if (is247) {
+          client.stay247.delete(guildId);
+        } else {
+          client.stay247.add(guildId);
+          try {
+            await client.distube.voices.join(voiceChannel);
+          } catch (err) {
+            console.error('Error joining voice channel:', err);
+            client.stay247.delete(guildId);
+            return message.reply(`❌ Gagal bergabung ke voice channel: ${err.message}`);
+          }
+        }
+
+        const newState = !is247;
+        const embed = new EmbedBuilder()
+          .setColor(newState ? 0x1DB954 : 0xFF6B6B)
+          .setTitle(newState ? '🟢 Mode 24/7 Aktif' : '🔴 Mode 24/7 Nonaktif')
+          .setDescription(
+            newState
+              ? 'Bot akan tetap stay di voice channel walaupun tidak ada orang atau lagu yang diputar.'
+              : 'Bot akan keluar dari voice channel saat tidak ada orang atau saat antrean lagu selesai.'
+          )
+          .setFooter({ text: `Diubah oleh ${message.member?.displayName || 'Unknown'}` })
+          .setTimestamp();
+
+        await message.reply({ embeds: [embed] });
         break;
       }
 
