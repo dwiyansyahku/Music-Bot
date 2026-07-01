@@ -184,7 +184,8 @@ ytdlpPlugin.resolve = async function(url, options) {
   
   const flags = {
     dumpSingleJson: true,
-    noWarnings: true,
+    noWarnings: false, // Set to false to see warnings in debug
+    verbose: true,     // Enable verbose debug logging
     skipDownload: true,
     simulate: true,
     forceIpv4: true,
@@ -295,7 +296,8 @@ ytdlpPlugin.getStreamURL = async function(song) {
   
   const flags = {
     dumpSingleJson: true,
-    noWarnings: true,
+    noWarnings: false, // Set to false to see warnings in debug
+    verbose: true,     // Enable verbose debug logging
     skipDownload: true,
     simulate: true,
     format: "ba/ba*",
