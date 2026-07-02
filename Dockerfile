@@ -6,6 +6,7 @@ RUN apt-get update && \
     pip3 install -U --no-cache-dir pip && \
     pip3 install -U --no-cache-dir "yt-dlp[default]" && \
     pip3 install -U --no-cache-dir "yt-dlp-youtube-oauth2" && \
+    pip3 uninstall -y bgutil-ytdlp-pot-provider || true && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
