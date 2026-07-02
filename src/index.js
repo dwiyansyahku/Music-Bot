@@ -497,7 +497,7 @@ client.autoplaySettings = new Map();
 client.emptyTimeouts = new Map();
 
 // Build headers for FFmpeg from YT_COOKIES to bypass 403 Forbidden on HLS segments
-// Build global HTTP options for FFmpeg from YT_COOKIES to bypass 403 Forbidden on HLS segments
+// Build global HTTP headers for FFmpeg from YT_COOKIES to bypass 403 Forbidden on HLS segments
 let ffmpegInputArgs = {};
 if (process.env.YT_COOKIES) {
   try {
@@ -513,10 +513,7 @@ if (process.env.YT_COOKIES) {
       .map(c => `${c.name}=${c.value}`);
     if (cookiePairs.length > 0) {
       ffmpegInputArgs = {
-        'user_agent': USER_AGENT,
-        'referer': 'https://www.youtube.com/',
-        'cookies': cookiePairs.join('; '),
-        'headers': `Cookie: ${cookiePairs.join('; ')}\r\nOrigin: https://www.youtube.com\r\n`
+        'headers': `User-Agent: ${USER_AGENT}\r\nCookie: ${cookiePairs.join('; ')}\r\nOrigin: https://www.youtube.com\r\nReferer: https://www.youtube.com/\r\n`
       };
     }
   } catch (err) {
@@ -539,7 +536,7 @@ if (Object.keys(ffmpegInputArgs).length > 0) {
       input: ffmpegInputArgs
     }
   };
-  console.log('✅ [FFmpeg Helper] Konfigurasi input FFmpeg (user_agent, referer, cookies, Origin) aktif untuk bypass HLS 403');
+  console.log('✅ [FFmpeg Helper] Konfigurasi header HTTP (User-Agent, Cookie, Origin, Referer) dipasang untuk bypass HLS 403');
 }
 
 client.distube = new DisTube(client, distubeOptions);
