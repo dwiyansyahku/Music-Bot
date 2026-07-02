@@ -86,6 +86,7 @@ function startProxyServer() {
         sleepInterval: 1,
         maxSleepInterval: 3,
         userAgent: USER_AGENT,
+        jsRuntimes: 'node',
         output: '-'
       };
 
@@ -311,6 +312,7 @@ ytdlpPlugin.resolve = async function(url, options) {
     sleepInterval: 1,
     maxSleepInterval: 3,
     noPlaylist: true,
+    jsRuntimes: 'node',
     userAgent: USER_AGENT
   };
 

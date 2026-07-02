@@ -2,7 +2,7 @@
 
 # Start the bgutil companion server in the background
 cd /opt/bgutil/server
-npm start &
+node build/main.js &
 
 # Wait for the companion server to start up
 sleep 3
