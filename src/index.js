@@ -60,6 +60,81 @@ const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { YouTubePlugin } = require('@distube/youtube');
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
+const http = require('http');
+
+let proxyServerPort = 0;
+
+function startProxyServer() {
+  const server = http.createServer((req, res) => {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+    if (parsedUrl.pathname === '/stream') {
+      const videoUrl = parsedUrl.searchParams.get('url');
+      if (!videoUrl) {
+        res.writeHead(400);
+        return res.end('Missing url parameter');
+      }
+
+      console.log(`🔌 [Proxy Server] Streaming: "${videoUrl}"`);
+      
+      const flags = {
+        format: "ba/ba*",
+        forceIpv4: true,
+        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web',
+        retries: 3,
+        fragmentRetries: 3,
+        socketTimeout: 15,
+        sleepInterval: 1,
+        maxSleepInterval: 3,
+        userAgent: USER_AGENT,
+        output: '-'
+      };
+
+      const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+      if (fs.existsSync(cookiesTxtPath)) {
+        flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+      }
+
+      const args = formatFlags(flags);
+      args.push(videoUrl);
+
+      res.writeHead(200, {
+        'Content-Type': 'audio/webm',
+        'Transfer-Encoding': 'chunked'
+      });
+
+      const ytdlpPath = process.platform === 'win32'
+        ? path.join(process.cwd(), 'bin', 'yt-dlp.exe')
+        : 'yt-dlp';
+
+      const ytdlpProcess = spawn(ytdlpPath, args);
+
+      ytdlpProcess.stdout.pipe(res);
+
+      ytdlpProcess.stderr.on('data', (data) => {
+        const msg = data.toString();
+        if (msg.includes('ERROR:')) {
+          console.error(`❌ [Proxy Server] yt-dlp error: ${msg.trim()}`);
+        }
+      });
+
+      req.on('close', () => {
+        console.log(`🔌 [Proxy Server] Connection closed for: "${videoUrl}"`);
+        ytdlpProcess.kill();
+      });
+    } else {
+      res.writeHead(404);
+      res.end('Not found');
+    }
+  });
+
+  server.listen(0, '127.0.0.1', () => {
+    proxyServerPort = server.address().port;
+    console.log(`🔌 [Proxy Server] Local stream proxy running on http://127.0.0.1:${proxyServerPort}`);
+  });
+}
+
+startProxyServer();
+
 
 const client = new Client({
   intents: [
@@ -336,43 +411,8 @@ ytdlpPlugin.getStreamURL = async function(song) {
     throw new Error("Cannot get stream URL from invalid song.");
   }
   
-  console.log(`🌐 [ytdlpPlugin.getStreamURL] Fetching stream URL for: "${song.name}" (${song.url})`);
-  
-  const flags = {
-    dumpSingleJson: true,
-    noWarnings: false,
-    verbose: true,
-    skipDownload: true,
-    simulate: true,
-    format: "ba/ba*",
-    forceIpv4: true,
-    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web',
-    retries: 3,
-    fragmentRetries: 3,
-    socketTimeout: 15,
-    sleepInterval: 1,
-    maxSleepInterval: 3,
-    userAgent: USER_AGENT
-  };
-
-  const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-  if (fs.existsSync(cookiesTxtPath)) {
-    flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
-    console.log(`🍪 [ytdlpPlugin.getStreamURL] Passing cookies file: "${flags.cookies}"`);
-  }
-
-  console.log('⚡ [ytdlpPlugin.getStreamURL] Executing yt-dlp process...');
-  const startTime = Date.now();
-
-  const info = await customYtdlpJson(song.url, flags).catch((e2) => {
-    console.error(`❌ [ytdlpPlugin.getStreamURL] Execution failed after ${Date.now() - startTime}ms. Error:`, e2.stderr || e2);
-    throw new Error(`${e2.stderr || e2}`);
-  });
-
-  console.log(`✅ [ytdlpPlugin.getStreamURL] Stream URL fetched successfully in ${Date.now() - startTime}ms`);
-  
-  if (Array.isArray(info.entries)) throw new Error("Cannot get stream URL of an entire playlist");
-  return info.url;
+  console.log(`🔌 [ytdlpPlugin.getStreamURL] Proxying stream for "${song.name}" via local server port ${proxyServerPort}`);
+  return `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}`;
 };
 
 // Bypass ytdl-core stream extractor and use highly robust yt-dlp instead
