@@ -78,7 +78,6 @@ function startProxyServer() {
       
       const flags = {
         format: "ba[protocol^=http]",
-        forceIpv4: true,
         extractorArgs: 'youtubetab:skip=authcheck',
         retries: 3,
         fragmentRetries: 3,
@@ -304,7 +303,6 @@ ytdlpPlugin.resolve = async function(url, options) {
     verbose: true,
     skipDownload: true,
     simulate: true,
-    forceIpv4: true,
     extractorArgs: 'youtubetab:skip=authcheck',
     retries: 3,
     fragmentRetries: 3,
