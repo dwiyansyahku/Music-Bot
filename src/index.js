@@ -345,7 +345,9 @@ ytdlpPlugin.getStreamURL = async function(song) {
     verbose: true,
     skipDownload: true,
     simulate: true,
-    format: "ba[protocol=https]/ba/ba*",
+    // Hindari HLS (m3u8) — FFmpeg tidak bisa download HLS segment YouTube (403 Forbidden)
+    // Prefer direct webm/m4a stream yang bisa diakses tanpa cookies per-segment
+    format: "ba[protocol!=m3u8][protocol!=m3u8_native][ext=webm]/ba[protocol!=m3u8][protocol!=m3u8_native][ext=m4a]/ba[protocol!=m3u8][protocol!=m3u8_native]/ba[ext=webm]/ba[ext=m4a]/ba",
     forceIpv4: true,
     extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web;youtube:po_token=web+MnKI',
     retries: 3,
