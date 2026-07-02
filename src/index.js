@@ -511,7 +511,7 @@ if (process.env.YT_COOKIES) {
     const cookiePairs = cookiesArray
       .map(c => `${c.name}=${c.value}`);
     if (cookiePairs.length > 0) {
-      ffmpegHeaders = `User-Agent: ${USER_AGENT}\r\nCookie: ${cookiePairs.join('; ')}\r\n`;
+      ffmpegHeaders = `User-Agent: ${USER_AGENT}\r\nCookie: ${cookiePairs.join('; ')}\r\nOrigin: https://www.youtube.com\r\nReferer: https://www.youtube.com/\r\n`;
     }
   } catch (err) {
     console.error('⚠️ [FFmpeg Helper] Gagal memformat cookies untuk FFmpeg headers:', err.message);
