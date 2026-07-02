@@ -77,7 +77,7 @@ function startProxyServer() {
       console.log(`🔌 [Proxy Server] Streaming: "${videoUrl}"`);
       
       const flags = {
-        format: "ba/ba*",
+        format: "ba[protocol^=http]",
         forceIpv4: true,
         extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web',
         retries: 3,
