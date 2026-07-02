@@ -90,9 +90,15 @@ function startProxyServer() {
         output: '-'
       };
 
-      const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-      if (fs.existsSync(cookiesTxtPath)) {
-        flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+      const isAgeRestricted = parsedUrl.searchParams.get('ageRestricted') === 'true';
+      if (isAgeRestricted) {
+        const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+        if (fs.existsSync(cookiesTxtPath)) {
+          flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+          console.log(`🍪 [Proxy Server] Video is age-restricted, passing cookies file: "${flags.cookies}"`);
+        }
+      } else {
+        console.log(`ℹ️ [Proxy Server] Video is not age-restricted, streaming without cookies.`);
       }
 
       const args = formatFlags(flags);
@@ -407,14 +413,14 @@ ytdlpPlugin.resolve = async function(url, options) {
   return createYtDlpSong(this, info, options);
 };
 
-// Override ytdlpPlugin.getStreamURL to avoid passing deprecated --no-call-home option
 ytdlpPlugin.getStreamURL = async function(song) {
   if (!song.url) {
     throw new Error("Cannot get stream URL from invalid song.");
   }
   
-  console.log(`🔌 [ytdlpPlugin.getStreamURL] Proxying stream for "${song.name}" via local server port ${proxyServerPort}`);
-  return `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}`;
+  const ageRestrictedParam = song.ageRestricted ? '&ageRestricted=true' : '';
+  console.log(`🔌 [ytdlpPlugin.getStreamURL] Proxying stream for "${song.name}" via local server port ${proxyServerPort} (ageRestricted: ${Boolean(song.ageRestricted)})`);
+  return `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}${ageRestrictedParam}`;
 };
 
 // Bypass ytdl-core stream extractor and use highly robust yt-dlp instead
