@@ -1,7 +1,7 @@
 const { ActivityType } = require('discord.js');
 
 module.exports = {
-  name: 'clientReady',
+  name: 'ready',
   once: true,
   execute(client) {
     console.log(`\n🎵 ================================`);
