@@ -79,26 +79,20 @@ function startProxyServer() {
       const flags = {
         format: "ba[protocol^=http]",
         forceIpv4: true,
-        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=web_embedded,web_music,ios',
+        extractorArgs: 'youtubetab:skip=authcheck',
         retries: 3,
         fragmentRetries: 3,
         socketTimeout: 15,
         sleepInterval: 1,
         maxSleepInterval: 3,
-        userAgent: USER_AGENT,
         jsRuntimes: 'node',
         output: '-'
       };
 
-      const isAgeRestricted = parsedUrl.searchParams.get('ageRestricted') === 'true';
-      if (isAgeRestricted) {
-        const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-        if (fs.existsSync(cookiesTxtPath)) {
-          flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
-          console.log(`🍪 [Proxy Server] Video is age-restricted, passing cookies file: "${flags.cookies}"`);
-        }
-      } else {
-        console.log(`ℹ️ [Proxy Server] Video is not age-restricted, streaming without cookies.`);
+      const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+      if (fs.existsSync(cookiesTxtPath)) {
+        flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+        console.log(`🍪 [Proxy Server] Passing cookies file: "${flags.cookies}"`);
       }
 
       const args = formatFlags(flags);
@@ -311,15 +305,14 @@ ytdlpPlugin.resolve = async function(url, options) {
     skipDownload: true,
     simulate: true,
     forceIpv4: true,
-    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=web_embedded,web_music,ios',
+    extractorArgs: 'youtubetab:skip=authcheck',
     retries: 3,
     fragmentRetries: 3,
     socketTimeout: 15,
     sleepInterval: 1,
     maxSleepInterval: 3,
     noPlaylist: true,
-    jsRuntimes: 'node',
-    userAgent: USER_AGENT
+    jsRuntimes: 'node'
   };
 
   // If cookies.txt exists, pass it explicitly via command line
