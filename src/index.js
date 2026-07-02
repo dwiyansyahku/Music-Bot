@@ -59,8 +59,7 @@ const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { YouTubePlugin } = require('@distube/youtube');
 
-
-
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
 
 const client = new Client({
   intents: [
@@ -237,7 +236,7 @@ ytdlpPlugin.resolve = async function(url, options) {
     sleepInterval: 1,
     maxSleepInterval: 3,
     noPlaylist: true,
-    userAgent: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+    userAgent: USER_AGENT
   };
 
   // If cookies.txt exists, pass it explicitly via command line
@@ -345,9 +344,7 @@ ytdlpPlugin.getStreamURL = async function(song) {
     verbose: true,
     skipDownload: true,
     simulate: true,
-    // Hindari HLS (m3u8) — FFmpeg tidak bisa download HLS segment YouTube (403 Forbidden)
-    // Prefer direct webm/m4a stream yang bisa diakses tanpa cookies per-segment
-    format: "ba[protocol!=m3u8][protocol!=m3u8_native][ext=webm]/ba[protocol!=m3u8][protocol!=m3u8_native][ext=m4a]/ba[protocol!=m3u8][protocol!=m3u8_native]/ba[ext=webm]/ba[ext=m4a]/ba",
+    format: "ba/ba*",
     forceIpv4: true,
     extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web',
     retries: 3,
@@ -355,7 +352,7 @@ ytdlpPlugin.getStreamURL = async function(song) {
     socketTimeout: 15,
     sleepInterval: 1,
     maxSleepInterval: 3,
-    userAgent: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+    userAgent: USER_AGENT
   };
 
   const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
@@ -514,7 +511,7 @@ if (process.env.YT_COOKIES) {
     const cookiePairs = cookiesArray
       .map(c => `${c.name}=${c.value}`);
     if (cookiePairs.length > 0) {
-      ffmpegHeaders = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36\r\nCookie: ${cookiePairs.join('; ')}\r\n`;
+      ffmpegHeaders = `User-Agent: ${USER_AGENT}\r\nCookie: ${cookiePairs.join('; ')}\r\n`;
     }
   } catch (err) {
     console.error('⚠️ [FFmpeg Helper] Gagal memformat cookies untuk FFmpeg headers:', err.message);
