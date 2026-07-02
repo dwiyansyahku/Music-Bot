@@ -1,8 +1,7 @@
 FROM node:22-bookworm-slim
 
-# Install system dependencies including ffmpeg and python (needed for yt-dlp)
 RUN apt-get update && \
-    apt-get install -y ffmpeg python3 python3-pip && \
+    apt-get install -y ffmpeg python3 python3-pip git && \
     pip3 install -U --break-system-packages --no-cache-dir pip && \
     pip3 install -U --break-system-packages --no-cache-dir "yt-dlp[default]" && \
     pip3 install -U --break-system-packages --no-cache-dir "yt-dlp-youtube-oauth2" && \
@@ -11,12 +10,16 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Install Node dependencies
+# Clone & build bgutil provider server (companion server, bukan cuma plugin python)
+RUN git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /opt/bgutil && \
+    cd /opt/bgutil/server && \
+    npm install && npx tsc
+
+WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
-
-# Copy application code
 COPY . .
 
-# Run the bot
-CMD ["npm", "start"]
+COPY start.sh ./
+RUN chmod +x start.sh
+CMD ["./start.sh"]
