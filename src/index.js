@@ -516,7 +516,7 @@ if (process.env.YT_COOKIES) {
         'user_agent': USER_AGENT,
         'referer': 'https://www.youtube.com/',
         'cookies': cookiePairs.join('; '),
-        'headers': 'Origin: https://www.youtube.com\r\n'
+        'headers': `Cookie: ${cookiePairs.join('; ')}\r\nOrigin: https://www.youtube.com\r\n`
       };
     }
   } catch (err) {

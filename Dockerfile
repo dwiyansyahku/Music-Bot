@@ -1,4 +1,4 @@
-FROM node:22-bullseye-slim
+FROM node:22-bookworm-slim
 
 # Install system dependencies including ffmpeg and python (needed for yt-dlp)
 RUN apt-get update && \
