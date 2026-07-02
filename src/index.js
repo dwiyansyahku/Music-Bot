@@ -163,23 +163,32 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     const errText = err.message || '';
     const hasCookies = flags && flags.cookies;
     
-    // Check if error is related to cookies being invalid, rotated, or blocked
     const errLower = errText.toLowerCase();
-    const isCookieError = errLower.includes('cookie') || 
-                          errLower.includes('rotate') || 
-                          errLower.includes('sign in') || 
-                          errLower.includes('bot') || 
-                          errLower.includes('login') ||
-                          errLower.includes('confirm');
+    
+    // Hanya hapus cookies jika error memang karena auth/cookie tidak valid
+    // JANGAN hapus cookies untuk 429 (rate limit) atau UNPLAYABLE (IP block)
+    // karena menghapus cookies justru memperburuk situasi
+    const isAuthError = (errLower.includes('sign in') || errLower.includes('login_required') ||
+                         errLower.includes('confirm you\'re not a bot') ||
+                         errLower.includes('this video is only available')) &&
+                        !errLower.includes('429') &&
+                        !errLower.includes('too many requests') &&
+                        !errLower.includes('unplayable') &&
+                        !errLower.includes('page needs to be reloaded');
                           
-    if (hasCookies && isCookieError) {
-      console.warn(`⚠️ [Cookies Fallback] Cookies failed or were rejected by YouTube: ${errText.slice(0, 200)}...`);
-      console.warn('⚠️ [Cookies Fallback] Retrying execution WITHOUT cookies...');
+    if (hasCookies && isAuthError) {
+      console.warn(`⚠️ [Cookies Fallback] Cookies tidak valid, retry tanpa cookies: ${errText.slice(0, 200)}...`);
       
       const newFlags = { ...flags };
       delete newFlags.cookies;
       
       return await executeYtdlpRaw(url, newFlags, timeoutMs);
+    }
+    
+    if (errLower.includes('429') || errLower.includes('too many requests')) {
+      console.warn('⚠️ [Rate Limit] YouTube 429 terdeteksi. Tunggu 3 detik lalu retry...');
+      await new Promise(r => setTimeout(r, 3000));
+      return await executeYtdlpRaw(url, flags, timeoutMs);
     }
     
     throw err;
@@ -216,16 +225,19 @@ ytdlpPlugin.resolve = async function(url, options) {
   
   const flags = {
     dumpSingleJson: true,
-    noWarnings: false, // Set to false to see warnings in debug
-    verbose: true,     // Enable verbose debug logging
+    noWarnings: false,
+    verbose: true,
     skipDownload: true,
     simulate: true,
     forceIpv4: true,
-    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=android,web',
-    retries: 1,
-    socketTimeout: 5,
-    noPlaylist: true,  // Default: jangan expand playlist, main 1 video saja
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web',
+    retries: 3,
+    fragmentRetries: 3,
+    socketTimeout: 15,
+    sleepInterval: 1,
+    maxSleepInterval: 3,
+    noPlaylist: true,
+    userAgent: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
   };
 
   // If cookies.txt exists, pass it explicitly via command line
@@ -329,16 +341,19 @@ ytdlpPlugin.getStreamURL = async function(song) {
   
   const flags = {
     dumpSingleJson: true,
-    noWarnings: false, // Set to false to see warnings in debug
-    verbose: true,     // Enable verbose debug logging
+    noWarnings: false,
+    verbose: true,
     skipDownload: true,
     simulate: true,
     format: "ba[protocol=https]/ba/ba*",
     forceIpv4: true,
-    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=android,web',
-    retries: 1,
-    socketTimeout: 5,
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web',
+    retries: 3,
+    fragmentRetries: 3,
+    socketTimeout: 15,
+    sleepInterval: 1,
+    maxSleepInterval: 3,
+    userAgent: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
   };
 
   const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
