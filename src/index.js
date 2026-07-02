@@ -79,7 +79,7 @@ function startProxyServer() {
       const flags = {
         format: "ba[protocol^=http]",
         forceIpv4: true,
-        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web',
+        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=web_embedded,web_music,ios',
         retries: 3,
         fragmentRetries: 3,
         socketTimeout: 15,
@@ -304,7 +304,7 @@ ytdlpPlugin.resolve = async function(url, options) {
     skipDownload: true,
     simulate: true,
     forceIpv4: true,
-    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=ios,android,web',
+    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=web_embedded,web_music,ios',
     retries: 3,
     fragmentRetries: 3,
     socketTimeout: 15,
