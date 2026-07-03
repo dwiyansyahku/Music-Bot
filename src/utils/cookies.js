@@ -45,6 +45,8 @@ function setupCookies() {
 
   // 1. Try to load from environment variable YT_COOKIES
   if (process.env.YT_COOKIES) {
+    console.log(`🔍 [Cookies Helper] YT_COOKIES raw length: ${process.env.YT_COOKIES.length}`);
+    console.log(`🔍 [Cookies Helper] YT_COOKIES raw start: "${process.env.YT_COOKIES.substring(0, 60)}"`);
     let rawCookies = process.env.YT_COOKIES.trim();
     try {
       // Robust recursive cleanup: strip outer quotes and YT_COOKIES= prefix in any order
