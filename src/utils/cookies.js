@@ -47,6 +47,11 @@ function setupCookies() {
   if (process.env.YT_COOKIES) {
     let rawCookies = process.env.YT_COOKIES.trim();
     try {
+      // Strip YT_COOKIES= prefix if user accidentally pasted it in the value field
+      if (rawCookies.startsWith('YT_COOKIES=')) {
+        rawCookies = rawCookies.substring('YT_COOKIES='.length).trim();
+      }
+
       // Robust cleanup: if wrapped in outer quotes, strip them
       if (rawCookies.startsWith('"') && rawCookies.endsWith('"')) {
         rawCookies = rawCookies.substring(1, rawCookies.length - 1);
