@@ -47,17 +47,22 @@ function setupCookies() {
   if (process.env.YT_COOKIES) {
     let rawCookies = process.env.YT_COOKIES.trim();
     try {
-      // Strip YT_COOKIES= prefix if user accidentally pasted it in the value field
-      if (rawCookies.startsWith('YT_COOKIES=')) {
-        rawCookies = rawCookies.substring('YT_COOKIES='.length).trim();
-      }
-
-      // Robust cleanup: if wrapped in outer quotes, strip them
-      if (rawCookies.startsWith('"') && rawCookies.endsWith('"')) {
-        rawCookies = rawCookies.substring(1, rawCookies.length - 1);
-      } else if (rawCookies.startsWith("'") && rawCookies.endsWith("'")) {
-        rawCookies = rawCookies.substring(1, rawCookies.length - 1);
-      }
+      // Robust recursive cleanup: strip outer quotes and YT_COOKIES= prefix in any order
+      let cleaned = false;
+      do {
+        cleaned = false;
+        rawCookies = rawCookies.trim();
+        if (rawCookies.startsWith('"') && rawCookies.endsWith('"')) {
+          rawCookies = rawCookies.substring(1, rawCookies.length - 1);
+          cleaned = true;
+        } else if (rawCookies.startsWith("'") && rawCookies.endsWith("'")) {
+          rawCookies = rawCookies.substring(1, rawCookies.length - 1);
+          cleaned = true;
+        } else if (rawCookies.startsWith('YT_COOKIES=')) {
+          rawCookies = rawCookies.substring('YT_COOKIES='.length);
+          cleaned = true;
+        }
+      } while (cleaned);
       
       // Unescape escaped double quotes (\") and newlines (\n) if present
       rawCookies = rawCookies.replace(/\\"/g, '"')
