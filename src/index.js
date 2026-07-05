@@ -142,10 +142,12 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers, // Required for guildMemberAdd event (welcome feature)
   ],
 });
 
 client.commands = new Collection();
+client.welcomeSettings = new Map(); // Per-guild welcome channel config: { channelId, enabled }
 
 const { setupCookies } = require('./utils/cookies');
 const loadedCookies = setupCookies();
