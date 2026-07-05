@@ -40,6 +40,27 @@ module.exports = {
           ].join('\n'),
         },
         {
+          name: '🛠️ Moderasi',
+          value: [
+            '`/qclear amount [jumlah]` — Hapus sejumlah pesan (1-100)',
+            '`/qclear amount [jumlah] [channel]` — Hapus pesan di channel tertentu',
+            '`/qclear all` — Hapus semua pesan di channel saat ini',
+            '`/qclear all [channel]` — Hapus semua pesan di channel tertentu',
+            '> ⚠️ Butuh izin **Manage Messages**',
+          ].join('\n'),
+        },
+        {
+          name: '👋 Sambutan Member',
+          value: [
+            '`/qwelcome setchannel [#channel]` — Set channel untuk pesan sambutan',
+            '`/qwelcome enable` — Aktifkan fitur sambutan',
+            '`/qwelcome disable` — Matikan fitur sambutan',
+            '`/qwelcome status` — Lihat status & channel yang diatur',
+            '`/qwelcome test` — Preview pesan sambutan sekarang',
+            '> ⚠️ Butuh izin **Manage Server**',
+          ].join('\n'),
+        },
+        {
           name: '🔗 Platform yang Didukung',
           value: '🔴 YouTube & YouTube Music\n🟢 Spotify (lagu, album, playlist)\n🟠 SoundCloud\n🌐 Dan banyak platform lain via yt-dlp!',
         },

@@ -60,6 +60,11 @@ module.exports = {
           name: '📅 Join Discord',
           value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
           inline: true,
+        },
+        {
+          name: '📌 More Info',
+          value: `[Klik di sini buat info lebih lanjut! 👀](https://discord.com/channels/1396245234693963878/1489575354778648586)`,
+          inline: false,
         }
       )
       .setFooter({
