@@ -44,13 +44,16 @@ function checkQueue(context, client) {
 
 /**
  * Cek apakah user adalah owner bot (secara dinamis dari Discord API / env)
- * @param {import('discord.js').CommandInteraction} interaction
+ * @param {import('discord.js').CommandInteraction|import('discord.js').Message} context
  * @param {import('discord.js').Client} client
  * @returns {Promise<boolean>}
  */
-async function isBotOwner(interaction, client) {
+async function isBotOwner(context, client) {
+  const userId = context.user ? context.user.id : context.author ? context.author.id : null;
+  if (!userId) return false;
+
   // Cek override via env
-  if (process.env.OWNER_ID && interaction.user.id === process.env.OWNER_ID) {
+  if (process.env.OWNER_ID && userId === process.env.OWNER_ID) {
     return true;
   }
 
@@ -61,9 +64,9 @@ async function isBotOwner(interaction, client) {
     const owner = client.application.owner;
     if (owner.members) {
       // Jika owner berbentuk Developer Team
-      return owner.members.has(interaction.user.id);
+      return owner.members.has(userId);
     }
-    return owner.id === interaction.user.id;
+    return owner.id === userId;
   } catch (err) {
     console.error('[Helper] Gagal mengambil data owner bot:', err);
     return false;

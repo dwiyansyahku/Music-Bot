@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { checkVoiceChannel, checkQueue } = require('../utils/helpers');
+const { checkVoiceChannel, checkQueue, isBotOwner } = require('../utils/helpers');
 
 module.exports = {
   name: 'messageCreate',
@@ -492,6 +492,11 @@ module.exports = {
       }
 
       case '247': {
+        const isOwner = await isBotOwner(message, client);
+        if (!isOwner) {
+          return message.reply('❌ Perintah ini hanya bisa digunakan oleh Owner bot!');
+        }
+
         const voiceChannel = checkVoiceChannel(message);
         if (!voiceChannel) return;
 
