@@ -1,14 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
 
-// Kumpulan welcome GIF (random tiap ada member baru)
-const WELCOME_GIFS = [
-  'https://media.tenor.com/ypA_veH6aogAAAAC/welcome-hi.gif',
-  'https://media.tenor.com/jHEQTpIjJo0AAAAC/hi-wave.gif',
-  'https://media.tenor.com/cFdCCXRNEd8AAAAC/hello-there-wave.gif',
-  'https://media.tenor.com/0K7WbXxZnJoAAAAC/hello-wave.gif',
-  'https://media.tenor.com/y8UVqflMWMcAAAAC/hello-hi.gif',
-];
-
 // Kumpulan kalimat sambutan gaul (random tiap ada member baru)
 const WELCOME_MESSAGES = [
   (name, server) => `Yooo **${name}** finally joined **${server}**! 🔥\nGlad you're here, gaskeunnn~ 🚀`,
@@ -16,6 +7,16 @@ const WELCOME_MESSAGES = [
   (name, server) => `Waduh ada **${name}** nyasar ke **${server}**! 👀\nYa udah, welcome! Semoga betah di sini bro/sis 🎉`,
   (name, server) => `Ayooo **${name}** udah join **${server}**! 🥳\nSiap-siap have fun bareng kita semua ngabbb~ 💫`,
   (name, server) => `Hai **${name}**! You made it to **${server}** 🎊\nSelamat datang, jangan lupa say hi! 👋`,
+  (name, server) => `Welcome home, **${name}**! 🏠✨\nEnjoy your stay di **${server}**, semoga betah ya! 🙌`,
+  (name, server) => `Akhirnya yang ditunggu-tunggu dateng juga! Selamat datang **${name}** di **${server}**! 🌟`,
+  (name, server) => `Hello **${name}**! Baru landing di **${server}** nih? ✈️\nYuk langsung kenalan sama yang lain di chatroom! ☕`,
+  (name, server) => `Welcome **${name}** to the club! 🎧🔥\nLet's make some good memories here in **${server}**! ⚡`,
+  (name, server) => `Eh, ada member baru! Welcome **${name}** di **${server}**! 💫\nSering-sering mampir dan ngobrol yaa~`,
+  (name, server) => `Warmest welcome to **${name}**! 🤗\nSelamat bergabung di keluarga besar **${server}**! ❤️`,
+  (name, server) => `Look who just joined! It's **${name}**! 🤩✨\nWelcome to **${server}**, let's hang out! 🎮`,
+  (name, server) => `Selamat datang **${name}**! Semoga **${server}** bisa jadi tempat seru buat kamu ya! 🚀🌈`,
+  (name, server) => `Yuhuu **${name}** is here! 🥳🎉\nWelcome to **${server}**, have a great time! ✨`,
+  (name, server) => `Welcome aboard, **${name}**! 🚢✨\nSelamat menjelajahi **${server}**, enjoy the vibe! 🍃`,
 ];
 
 module.exports = {
@@ -32,8 +33,6 @@ module.exports = {
     const memberCount = guild.memberCount;
     const avatarURL = member.user.displayAvatarURL({ dynamic: true, size: 256 });
 
-    // Pilih GIF & pesan secara random
-    const randomGif = WELCOME_GIFS[Math.floor(Math.random() * WELCOME_GIFS.length)];
     const randomMsg = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)];
 
     // Warna random yang vibe banget
@@ -43,28 +42,22 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(randomColor)
       .setAuthor({
-        name: `✨ New member alert!`,
+        name: `👤 NEW MEMBER`,
         iconURL: avatarURL,
       })
-      .setTitle(`👋 Heyy, ${member.user.username}!`)
-      .setDescription(randomMsg(member.user.username, guild.name))
+      .setTitle(`👋 Welcome, ${member.user.username}!`)
+      .setDescription(`${randomMsg(member.user.username, guild.name)}\n\n📌 Silakan baca info & peraturan di <#1489575354778648586>!`)
       .setThumbnail(avatarURL)
-      .setImage(randomGif)
       .addFields(
         {
-          name: '🪪 Member ke-',
+          name: '🪪 Member Ke',
           value: `**#${memberCount}**`,
           inline: true,
         },
         {
-          name: '📅 Join Discord',
+          name: '📅 Akun Dibuat',
           value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
           inline: true,
-        },
-        {
-          name: '📌 More Info',
-          value: `[Klik di sini buat info lebih lanjut! 👀](https://discord.com/channels/1396245234693963878/1489575354778648586)`,
-          inline: false,
         }
       )
       .setFooter({
@@ -75,7 +68,7 @@ module.exports = {
 
     try {
       await channel.send({
-        content: `🎊 yo yo yo, sambut <@${member.user.id}> yang baru join! **gass~** 🔥`,
+        content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server.`,
         embeds: [embed],
       });
     } catch (err) {
