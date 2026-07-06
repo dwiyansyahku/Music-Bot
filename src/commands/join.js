@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { checkVoiceChannel } = require('../utils/helpers');
 
 module.exports = {
@@ -15,7 +15,7 @@ module.exports = {
       await interaction.reply(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`);
     } catch (error) {
       console.error('Error joining voice channel:', error);
-      await interaction.reply({ content: `❌ Gagal bergabung ke voice channel: ${error.message}`, ephemeral: true });
+      await interaction.reply({ content: `❌ Gagal bergabung ke voice channel: ${error.message}`, flags: MessageFlags.Ephemeral });
     }
   },
 };

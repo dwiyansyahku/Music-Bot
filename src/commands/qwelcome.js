@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
 
 // Sama persis dengan yang di guildMemberAdd.js supaya preview konsisten
 const WELCOME_GIFS = [
@@ -72,7 +72,7 @@ const qwelcome = {
       if (!botPerms.has(PermissionFlagsBits.SendMessages) || !botPerms.has(PermissionFlagsBits.EmbedLinks)) {
         return interaction.reply({
           content: `❌ Bot tidak punya izin **Send Messages** atau **Embed Links** di <#${channel.id}>!`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -88,7 +88,7 @@ const qwelcome = {
             .setDescription(`Pesan sambutan akan dikirim ke <#${channel.id}> saat ada member baru bergabung.`)
             .setFooter({ text: 'Fitur sambutan otomatis aktif!' })
         ],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -97,14 +97,14 @@ const qwelcome = {
       if (!config.channelId) {
         return interaction.reply({
           content: '❌ Belum ada channel yang diatur! Gunakan `/qwelcome setchannel` dulu.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
       config.enabled = true;
       client.welcomeSettings.set(guildId, config);
       return interaction.reply({
         content: `✅ Fitur sambutan **diaktifkan**! Pesan akan dikirim ke <#${config.channelId}>.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -114,7 +114,7 @@ const qwelcome = {
       client.welcomeSettings.set(guildId, config);
       return interaction.reply({
         content: '🔕 Fitur sambutan **dimatikan**. Tidak ada pesan sambutan yang akan dikirim.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -137,7 +137,7 @@ const qwelcome = {
         )
         .setFooter({ text: 'Gunakan /qwelcome setchannel untuk mengubah channel.' });
 
-      return interaction.reply({ embeds: [statusEmbed], ephemeral: true });
+      return interaction.reply({ embeds: [statusEmbed], flags: MessageFlags.Ephemeral });
     }
 
     // === TEST (Preview) ===
@@ -145,7 +145,7 @@ const qwelcome = {
       if (!config.channelId) {
         return interaction.reply({
           content: '❌ Belum ada channel yang diatur! Gunakan `/qwelcome setchannel` dulu.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -153,7 +153,7 @@ const qwelcome = {
       if (!channel) {
         return interaction.reply({
           content: '❌ Channel sambutan tidak ditemukan! Mungkin sudah dihapus. Atur ulang dengan `/qwelcome setchannel`.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -207,7 +207,7 @@ const qwelcome = {
 
       return interaction.reply({
         content: `✅ Preview sambutan berhasil dikirim ke <#${channel.id}>!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

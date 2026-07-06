@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 
 const clear = {
   data: new SlashCommandBuilder()
@@ -43,7 +43,7 @@ const clear = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
       return interaction.reply({
         content: '❌ Kamu tidak punya izin **Manage Messages** untuk menggunakan perintah ini!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -60,7 +60,7 @@ const clear = {
     if (!validTypes.includes(targetChannel.type)) {
       return interaction.reply({
         content: `❌ Channel <#${targetChannel.id}> tidak mendukung fitur hapus pesan!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -70,11 +70,11 @@ const clear = {
     if (!botPerms.has(PermissionFlagsBits.ManageMessages) || !botPerms.has(PermissionFlagsBits.ReadMessageHistory)) {
       return interaction.reply({
         content: `❌ Bot tidak punya izin **Manage Messages** atau **Read Message History** di <#${targetChannel.id}>!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       if (subcommand === 'amount') {
