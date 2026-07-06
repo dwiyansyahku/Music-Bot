@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
+const { isBotOwner } = require('../utils/helpers');
 
 const WELCOME_MESSAGES = [
   (name, server) => `Yooo **${name}** finally joined **${server}**! 🔥\nGlad you're here, gaskeunnn~ 🚀`,
@@ -57,6 +58,15 @@ const qwelcome = {
     ),
 
   async execute(interaction, client) {
+    // Cek apakah user adalah owner bot
+    const isOwner = await isBotOwner(interaction, client);
+    if (!isOwner) {
+      return interaction.reply({
+        content: '❌ Perintah ini hanya bisa digunakan oleh Owner bot!',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;
 

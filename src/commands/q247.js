@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { checkVoiceChannel } = require('../utils/helpers');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { checkVoiceChannel, isBotOwner } = require('../utils/helpers');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -7,6 +7,15 @@ module.exports = {
     .setDescription('Toggle mode 24/7 (bot akan stay di voice channel walaupun kosong)'),
 
   async execute(interaction, client) {
+    // Cek apakah user adalah owner bot
+    const isOwner = await isBotOwner(interaction, client);
+    if (!isOwner) {
+      return interaction.reply({
+        content: '❌ Perintah ini hanya bisa digunakan oleh Owner bot!',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
     const voiceChannel = checkVoiceChannel(interaction);
     if (!voiceChannel) return;
 

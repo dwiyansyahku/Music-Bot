@@ -42,4 +42,32 @@ function checkQueue(context, client) {
   return queue;
 }
 
-module.exports = { checkVoiceChannel, checkQueue };
+/**
+ * Cek apakah user adalah owner bot (secara dinamis dari Discord API / env)
+ * @param {import('discord.js').CommandInteraction} interaction
+ * @param {import('discord.js').Client} client
+ * @returns {Promise<boolean>}
+ */
+async function isBotOwner(interaction, client) {
+  // Cek override via env
+  if (process.env.OWNER_ID && interaction.user.id === process.env.OWNER_ID) {
+    return true;
+  }
+
+  try {
+    if (!client.application.owner) {
+      await client.application.fetch();
+    }
+    const owner = client.application.owner;
+    if (owner.members) {
+      // Jika owner berbentuk Developer Team
+      return owner.members.has(interaction.user.id);
+    }
+    return owner.id === interaction.user.id;
+  } catch (err) {
+    console.error('[Helper] Gagal mengambil data owner bot:', err);
+    return false;
+  }
+}
+
+module.exports = { checkVoiceChannel, checkQueue, isBotOwner };
