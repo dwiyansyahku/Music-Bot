@@ -179,11 +179,10 @@ module.exports = {
         lastBirthdayCheck = birthdayKey;
 
         const { BIRTHDAY_WISHES } = require('../commands/birthday');
-        const birthdaysData = storage.read('birthdays');
         const settings = storage.read('settings');
 
-        for (const [guildId, members] of Object.entries(birthdaysData)) {
-          const channelId = settings[guildId]?.birthday?.channelId;
+        for (const [guildId, guildSettings] of Object.entries(settings)) {
+          const channelId = guildSettings?.birthday?.channelId;
           if (!channelId) continue;
 
           const guild = client.guilds.cache.get(guildId);
@@ -192,29 +191,42 @@ module.exports = {
           const channel = await guild.channels.fetch(channelId).catch(() => null);
           if (!channel) continue;
 
-          for (const [userId, data] of Object.entries(members)) {
-            if (data.day !== currentDay || data.month !== currentMonth) continue;
+          try {
+            // Fetch all members in the guild to check their creation dates
+            const members = await guild.members.fetch();
+            for (const member of members.values()) {
+              if (member.user.bot) continue;
 
-            const member = await guild.members.fetch(userId).catch(() => null);
-            if (!member) continue;
+              const createdAt = member.user.createdAt;
+              const bdayDay = createdAt.getDate();
+              const bdayMonth = createdAt.getMonth() + 1;
 
-            const wish = BIRTHDAY_WISHES[Math.floor(Math.random() * BIRTHDAY_WISHES.length)];
-            const { EmbedBuilder } = require('discord.js');
+              if (bdayDay === currentDay && bdayMonth === currentMonth) {
+                // Akun berulang tahun hari ini! Hitung umur akun
+                const age = nowWIB.getUTCFullYear() - createdAt.getFullYear();
+                if (age <= 0) continue; // Akun baru dibuat tahun ini, tidak dihitung anniversary
 
-            const embed = new EmbedBuilder()
-              .setColor(0xFF69B4)
-              .setTitle('🎂 SELAMAT ULANG TAHUN! 🎉')
-              .setDescription(`${wish(member.displayName)}\n\n🎊 Semua warga server ikut merayakan hari spesial kamu! 🥳`)
-              .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
-              .setFooter({ text: guild.name, iconURL: guild.iconURL({ dynamic: true }) || undefined })
-              .setTimestamp();
+                const wish = BIRTHDAY_WISHES[Math.floor(Math.random() * BIRTHDAY_WISHES.length)];
+                const { EmbedBuilder } = require('discord.js');
 
-            await channel.send({
-              content: `🎉 <@${userId}> 🎂`,
-              embeds: [embed],
-            }).catch(err => console.error(`[Birthday] Gagal kirim:`, err.message));
+                const embed = new EmbedBuilder()
+                  .setColor(0xFF69B4)
+                  .setTitle('🎂 HAPPY DISCORD ANNIVERSARY! 🎉')
+                  .setDescription(`${wish(member.user.username, age)}\n\n🎊 Rayakan hari jadi akun Discord-nya bersama di server! 🥳`)
+                  .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+                  .setFooter({ text: `${guild.name} • Akun dibuat pada ${createdAt.toLocaleDateString('id-ID')}`, iconURL: guild.iconURL({ dynamic: true }) || undefined })
+                  .setTimestamp();
 
-            console.log(`🎂 [Birthday] Ucapan ultah terkirim untuk ${member.user.tag} di ${guild.name}`);
+                await channel.send({
+                  content: `🎉 <@${member.id}> 🎂`,
+                  embeds: [embed],
+                }).catch(err => console.error(`[Birthday Scheduler] Gagal mengirim ucapan:`, err.message));
+
+                console.log(`🎂 [Birthday] Ucapan anniversary terkirim untuk ${member.user.tag} (Umur: ${age} tahun) di ${guild.name}`);
+              }
+            }
+          } catch (fetchErr) {
+            console.error(`[Birthday Scheduler] Gagal fetch member di guild ${guild.name}:`, fetchErr.message);
           }
         }
       }

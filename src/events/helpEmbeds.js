@@ -176,13 +176,13 @@ function buildHelpEmbed(category, client) {
             ].join('\n'),
           },
           {
-            name: '🎂 Ulang Tahun `/birthday`',
+            name: '🎂 Discord Anniversary `/birthday`',
             value: [
-              '`/birthday set [hari] [bulan]` — Daftarkan ultahmu',
-              '`/birthday view @user` — Lihat ultah seseorang',
-              '`/birthday list` — Daftar semua ultah server',
-              '`/birthday remove` — Hapus data ultahmu',
+              '`/birthday view @user` — Lihat ultah akun Discord seseorang',
+              '`/birthday list` — 10 Discord Anniversary terdekat di server',
               '`/birthday setchannel #channel` — Set channel pengumuman *(Owner only)*',
+              '',
+              '> Fitur ini otomatis merayakan hari pembuatan akun Discord semua member tanpa perlu registrasi!',
             ].join('\n'),
           },
           {
