@@ -149,6 +149,7 @@ const client = new Client({
 
 client.commands = new Collection();
 client.welcomeSettings = new Map(); // Per-guild welcome channel config: { channelId, enabled }
+client.morningSettings = new Map(); // Per-guild morning reminder config: { channelId, enabled, hour, minute }
 
 const { setupCookies } = require('./utils/cookies');
 const loadedCookies = setupCookies();
