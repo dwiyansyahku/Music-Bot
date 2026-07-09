@@ -124,10 +124,14 @@ const mod = {
       try {
         if (warnCount >= 8) {
           await targetMember.ban({ reason: `Auto-ban: ${warnCount} warn terkumpul` });
-          autoPunish = `🔨 **AUTO BAN** — ${warnCount} warn terkumpul!`;
+          autoPunish = `🔨 **AUTO BAN PERMANENT** — ${warnCount} warn terkumpul!`;
         } else if (warnCount >= 5) {
-          await targetMember.kick(`Auto-kick: ${warnCount} warn terkumpul`);
-          autoPunish = `👢 **AUTO KICK** — ${warnCount} warn terkumpul!`;
+          if (targetMember.voice.channelId) {
+            await targetMember.voice.disconnect(`Auto-kick voice: ${warnCount} warn terkumpul`);
+            autoPunish = `👢 **AUTO KICK DARI VOICE** — ${warnCount} warn terkumpul!`;
+          } else {
+            autoPunish = `👢 **AUTO KICK DARI VOICE** — (Target tidak sedang di Voice Channel)`;
+          }
         } else if (warnCount >= 3) {
           await targetMember.timeout(3 * 60 * 60 * 1000, `Auto-mute: ${warnCount} warn terkumpul`);
           autoPunish = `🔇 **AUTO MUTE 3 JAM** — ${warnCount} warn terkumpul!`;
