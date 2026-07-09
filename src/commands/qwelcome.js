@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
 const { isBotOwner } = require('../utils/helpers');
+const { saveGuildSetting } = require('../utils/storage');
 
 const WELCOME_MESSAGES = [
   (name, server) => `Yooo **${name}** finally joined **${server}**! 🔥\nGlad you're here, gaskeunnn~ 🚀`,
@@ -91,6 +92,7 @@ const qwelcome = {
       config.channelId = channel.id;
       config.enabled = true;
       client.welcomeSettings.set(guildId, config);
+      saveGuildSetting(guildId, 'welcome', config);
 
       return interaction.reply({
         embeds: [
@@ -114,6 +116,7 @@ const qwelcome = {
       }
       config.enabled = true;
       client.welcomeSettings.set(guildId, config);
+      saveGuildSetting(guildId, 'welcome', config);
       return interaction.reply({
         content: `✅ Fitur sambutan **diaktifkan**! Pesan akan dikirim ke <#${config.channelId}>.`,
         flags: MessageFlags.Ephemeral,
@@ -124,6 +127,7 @@ const qwelcome = {
     if (sub === 'disable') {
       config.enabled = false;
       client.welcomeSettings.set(guildId, config);
+      saveGuildSetting(guildId, 'welcome', config);
       return interaction.reply({
         content: '🔕 Fitur sambutan **dimatikan**. Tidak ada pesan sambutan yang akan dikirim.',
         flags: MessageFlags.Ephemeral,

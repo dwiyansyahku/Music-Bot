@@ -1,5 +1,5 @@
 /**
- * Cek apakah user ada di voice channel yang sama dengan bot
+ * Cek apakah user ada di voice channel dan bot punya izin untuk join
  */
 function checkVoiceChannel(context) {
   const member = context.member;
@@ -8,8 +8,8 @@ function checkVoiceChannel(context) {
   const isInteraction = typeof context.isChatInputCommand === 'function';
 
   if (!voiceChannel) {
-    const replyOptions = { content: '❌ Kamu harus masuk ke **Voice Channel** dulu!' };
-    if (isInteraction) replyOptions.ephemeral = true;
+    const replyOptions = { content: '❌ Kamu harus masuk ke **Voice Channel** dulu!', ephemeral: true };
+    if (!isInteraction) delete replyOptions.ephemeral;
     context.reply(replyOptions);
     return null;
   }
@@ -17,8 +17,24 @@ function checkVoiceChannel(context) {
   // Cek apakah bot sudah di voice channel lain
   const botVoice = context.guild.members.me?.voice?.channel;
   if (botVoice && botVoice.id !== voiceChannel.id) {
-    const replyOptions = { content: `❌ Bot sedang digunakan di <#${botVoice.id}>!` };
-    if (isInteraction) replyOptions.ephemeral = true;
+    const replyOptions = { content: `❌ Bot sedang digunakan di <#${botVoice.id}>! Tunggu giliran atau gunakan channel yang sama.`, ephemeral: true };
+    if (!isInteraction) delete replyOptions.ephemeral;
+    context.reply(replyOptions);
+    return null;
+  }
+
+  // Cek permission bot di voice channel
+  const { PermissionFlagsBits } = require('discord.js');
+  const botPerms = voiceChannel.permissionsFor(context.guild.members.me);
+  if (!botPerms.has(PermissionFlagsBits.Connect)) {
+    const replyOptions = { content: `❌ Bot tidak punya izin **Connect** di <#${voiceChannel.id}>!`, ephemeral: true };
+    if (!isInteraction) delete replyOptions.ephemeral;
+    context.reply(replyOptions);
+    return null;
+  }
+  if (!botPerms.has(PermissionFlagsBits.Speak)) {
+    const replyOptions = { content: `❌ Bot tidak punya izin **Speak** di <#${voiceChannel.id}>!`, ephemeral: true };
+    if (!isInteraction) delete replyOptions.ephemeral;
     context.reply(replyOptions);
     return null;
   }

@@ -150,6 +150,7 @@ const client = new Client({
 client.commands = new Collection();
 client.welcomeSettings = new Map(); // Per-guild welcome channel config: { channelId, enabled }
 client.morningSettings = new Map(); // Per-guild morning reminder config: { channelId, enabled, hour, minute }
+client.nightSettings = new Map();   // Per-guild night reminder config: { channelId, enabled, hour, minute }
 
 const { setupCookies } = require('./utils/cookies');
 const loadedCookies = setupCookies();
@@ -589,7 +590,16 @@ client.distube = new DisTube(client, distubeOptions);
 const commandsPath = path.join(__dirname, 'commands');
 for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'))) {
   const mod = require(path.join(commandsPath, file));
-  const cmds = Array.isArray(mod) ? mod : [mod];
+  // Support: single export, array export, dan named object export { cmd1, cmd2 }
+  const rawCmds = Array.isArray(mod) ? mod : [mod];
+  // Flatten named object exports (e.g., { birthday: {...}, ... })
+  const cmds = rawCmds.flatMap(item => {
+    if (item && item.data) return [item]; // standard single command
+    if (item && typeof item === 'object') {
+      return Object.values(item).filter(v => v && v.data && v.execute);
+    }
+    return [];
+  });
   for (const cmd of cmds) {
     if (cmd.data && cmd.execute) {
       client.commands.set(cmd.data.name, cmd);

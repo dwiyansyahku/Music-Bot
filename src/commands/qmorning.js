@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
 const { isBotOwner } = require('../utils/helpers');
+const { saveGuildSetting } = require('../utils/storage');
 
 const qmorning = {
   data: new SlashCommandBuilder()
@@ -96,6 +97,7 @@ const qmorning = {
       config.channelId = channel.id;
       config.enabled = true;
       client.morningSettings.set(guildId, config);
+      saveGuildSetting(guildId, 'morning', config);
 
       return interaction.reply({
         embeds: [
@@ -117,6 +119,7 @@ const qmorning = {
       config.hour = hour;
       config.minute = minute;
       client.morningSettings.set(guildId, config);
+      saveGuildSetting(guildId, 'morning', config);
 
       return interaction.reply({
         embeds: [
@@ -140,6 +143,7 @@ const qmorning = {
       }
       config.enabled = true;
       client.morningSettings.set(guildId, config);
+      saveGuildSetting(guildId, 'morning', config);
       return interaction.reply({
         content: `✅ Fitur selamat pagi **diaktifkan**! Pesan akan dikirim setiap hari pukul **${String(config.hour).padStart(2, '0')}:${String(config.minute).padStart(2, '0')} WIB** ke <#${config.channelId}>.`,
         flags: MessageFlags.Ephemeral,
@@ -150,6 +154,7 @@ const qmorning = {
     if (sub === 'disable') {
       config.enabled = false;
       client.morningSettings.set(guildId, config);
+      saveGuildSetting(guildId, 'morning', config);
       return interaction.reply({
         content: '🔕 Fitur selamat pagi **dimatikan**.',
         flags: MessageFlags.Ephemeral,

@@ -2,6 +2,9 @@ const { ActivityType, REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { buildMorningMessage } = require('../utils/morningMessage');
+const { buildNightMessage } = require('../utils/nightMessage');
+const { loadAllSettings } = require('../utils/storage');
+const storage = require('../utils/storage');
 
 module.exports = {
   name: 'clientReady',
@@ -12,6 +15,11 @@ module.exports = {
     console.log(`📊 Melayani ${client.guilds.cache.size} server`);
     console.log(`🎵 ================================\n`);
 
+    // =============================================
+    // LOAD SETTINGS dari JSON ke client Maps
+    // =============================================
+    loadAllSettings(client);
+
     // Auto-deploy slash commands saat bot start
     try {
       const commands = [];
@@ -21,6 +29,12 @@ module.exports = {
         const cmds = Array.isArray(mod) ? mod : [mod];
         for (const cmd of cmds) {
           if (cmd.data) commands.push(cmd.data.toJSON());
+          // Tangani export object {birthday, ...}
+          if (!cmd.data && typeof cmd === 'object') {
+            for (const val of Object.values(cmd)) {
+              if (val && val.data) commands.push(val.data.toJSON());
+            }
+          }
         }
       }
 
@@ -37,7 +51,6 @@ module.exports = {
       { name: '🎶 qhelp untuk bantuan', type: ActivityType.Listening },
       { name: `${client.guilds.cache.size} server`, type: ActivityType.Watching },
     ];
-
     let i = 0;
     setInterval(() => {
       client.user.setActivity(activities[i % activities.length].name, {
@@ -47,55 +60,167 @@ module.exports = {
     }, 15000);
 
     // =============================================
-    // SCHEDULER: Selamat Pagi + Reminder Rules
-    // Cek setiap menit, kirim sesuai jam WIB yang dikonfigurasi
+    // MASTER SCHEDULER — cek setiap menit (WIB)
     // =============================================
     if (!client.morningSettings) client.morningSettings = new Map();
+    if (!client.nightSettings) client.nightSettings = new Map();
 
-    // Simpan flag agar tidak double-send di menit yang sama (per guild)
-    const lastSentMorning = new Map(); // guildId -> "HH:MM" string terakhir dikirim
+    const lastSentMorning = new Map();
+    const lastSentNight = new Map();
+    const lastSentAnnounce = new Map(); // key: `${guildId}_${id}`
+    let lastBirthdayCheck = ''; // "DD-MM" string
 
     setInterval(async () => {
-      if (!client.morningSettings || client.morningSettings.size === 0) return;
-
-      // Waktu sekarang dalam WIB (UTC+7)
+      // ====== Hitung waktu WIB sekarang ======
       const nowUTC = new Date();
-      const wibOffset = 7 * 60; // menit
+      const wibOffset = 7 * 60;
       const nowWIB = new Date(nowUTC.getTime() + wibOffset * 60 * 1000);
       const currentHour = nowWIB.getUTCHours();
       const currentMinute = nowWIB.getUTCMinutes();
       const currentTimeKey = `${currentHour}:${String(currentMinute).padStart(2, '0')}`;
+      const currentDay = nowWIB.getUTCDate();
+      const currentMonth = nowWIB.getUTCMonth() + 1;
+      const birthdayKey = `${currentDay}-${currentMonth}`;
 
+      // ====== 1. MORNING SCHEDULER ======
       for (const [guildId, config] of client.morningSettings.entries()) {
         if (!config.enabled || !config.channelId) continue;
-
-        // Cek apakah jam & menit cocok dengan jadwal
         if (config.hour !== currentHour || config.minute !== currentMinute) continue;
-
-        // Hindari double-send di menit yang sama
         if (lastSentMorning.get(guildId) === currentTimeKey) continue;
 
         try {
           const guild = client.guilds.cache.get(guildId);
           if (!guild) continue;
 
-          const channel = guild.channels.cache.get(config.channelId);
+          const channel = await guild.channels.fetch(config.channelId).catch(() => null);
           if (!channel) {
-            console.warn(`[Morning] Channel ${config.channelId} tidak ditemukan di guild ${guildId}`);
+            console.warn(`[Morning] ⚠️ Channel ${config.channelId} tidak ditemukan di guild ${guild.name}. Auto-disable.`);
+            config.enabled = false;
+            client.morningSettings.set(guildId, config);
+            storage.saveGuildSetting(guildId, 'morning', config);
             continue;
           }
 
           const { content, embeds } = buildMorningMessage(guild);
           await channel.send({ content, embeds });
-
           lastSentMorning.set(guildId, currentTimeKey);
-          console.log(`☀️ [Morning] Pesan selamat pagi dikirim ke guild: ${guild.name} (${currentTimeKey} WIB)`);
+          console.log(`☀️ [Morning] Terkirim ke ${guild.name} (${currentTimeKey} WIB)`);
         } catch (err) {
           console.error(`[Morning] Gagal kirim ke guild ${guildId}:`, err.message);
         }
       }
+
+      // ====== 2. NIGHT SCHEDULER ======
+      for (const [guildId, config] of client.nightSettings.entries()) {
+        if (!config.enabled || !config.channelId) continue;
+        if (config.hour !== currentHour || config.minute !== currentMinute) continue;
+        if (lastSentNight.get(guildId) === currentTimeKey) continue;
+
+        try {
+          const guild = client.guilds.cache.get(guildId);
+          if (!guild) continue;
+
+          const channel = await guild.channels.fetch(config.channelId).catch(() => null);
+          if (!channel) {
+            console.warn(`[Night] ⚠️ Channel ${config.channelId} tidak ditemukan di guild ${guild.name}. Auto-disable.`);
+            config.enabled = false;
+            client.nightSettings.set(guildId, config);
+            storage.saveGuildSetting(guildId, 'night', config);
+            continue;
+          }
+
+          const { content, embeds } = buildNightMessage(guild);
+          await channel.send({ content, embeds });
+          lastSentNight.set(guildId, currentTimeKey);
+          console.log(`🌙 [Night] Terkirim ke ${guild.name} (${currentTimeKey} WIB)`);
+        } catch (err) {
+          console.error(`[Night] Gagal kirim ke guild ${guildId}:`, err.message);
+        }
+      }
+
+      // ====== 3. ANNOUNCEMENT SCHEDULER ======
+      const allAnnouncements = storage.read('announcements');
+      for (const [guildId, list] of Object.entries(allAnnouncements)) {
+        if (!Array.isArray(list)) continue;
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) continue;
+
+        for (const announcement of list) {
+          if (announcement.hour !== currentHour || announcement.minute !== currentMinute) continue;
+          const key = `${guildId}_${announcement.id}`;
+          if (lastSentAnnounce.get(key) === currentTimeKey) continue;
+
+          try {
+            const channel = await guild.channels.fetch(announcement.channelId).catch(() => null);
+            if (!channel) {
+              console.warn(`[Announce] ⚠️ Channel ${announcement.channelId} tidak ditemukan. Skip.`);
+              continue;
+            }
+
+            const { EmbedBuilder } = require('discord.js');
+            const embed = new EmbedBuilder()
+              .setColor(0x5865F2)
+              .setTitle('📢 Pengumuman Terjadwal')
+              .setDescription(announcement.pesan)
+              .setFooter({ text: `${guild.name} • Pengumuman Otomatis`, iconURL: guild.iconURL({ dynamic: true }) || undefined })
+              .setTimestamp();
+
+            await channel.send({ embeds: [embed] });
+            lastSentAnnounce.set(key, currentTimeKey);
+            console.log(`📢 [Announce] Terkirim ke ${guild.name} (${currentTimeKey} WIB)`);
+          } catch (err) {
+            console.error(`[Announce] Gagal kirim ke guild ${guildId}:`, err.message);
+          }
+        }
+      }
+
+      // ====== 4. BIRTHDAY SCHEDULER (cek sekali per hari jam 00:01 WIB) ======
+      if (currentHour === 0 && currentMinute === 1 && lastBirthdayCheck !== birthdayKey) {
+        lastBirthdayCheck = birthdayKey;
+
+        const { BIRTHDAY_WISHES } = require('../commands/birthday');
+        const birthdaysData = storage.read('birthdays');
+        const settings = storage.read('settings');
+
+        for (const [guildId, members] of Object.entries(birthdaysData)) {
+          const channelId = settings[guildId]?.birthday?.channelId;
+          if (!channelId) continue;
+
+          const guild = client.guilds.cache.get(guildId);
+          if (!guild) continue;
+
+          const channel = await guild.channels.fetch(channelId).catch(() => null);
+          if (!channel) continue;
+
+          for (const [userId, data] of Object.entries(members)) {
+            if (data.day !== currentDay || data.month !== currentMonth) continue;
+
+            const member = await guild.members.fetch(userId).catch(() => null);
+            if (!member) continue;
+
+            const wish = BIRTHDAY_WISHES[Math.floor(Math.random() * BIRTHDAY_WISHES.length)];
+            const { EmbedBuilder } = require('discord.js');
+
+            const embed = new EmbedBuilder()
+              .setColor(0xFF69B4)
+              .setTitle('🎂 SELAMAT ULANG TAHUN! 🎉')
+              .setDescription(`${wish(member.displayName)}\n\n🎊 Semua warga server ikut merayakan hari spesial kamu! 🥳`)
+              .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+              .setFooter({ text: guild.name, iconURL: guild.iconURL({ dynamic: true }) || undefined })
+              .setTimestamp();
+
+            await channel.send({
+              content: `🎉 <@${userId}> 🎂`,
+              embeds: [embed],
+            }).catch(err => console.error(`[Birthday] Gagal kirim:`, err.message));
+
+            console.log(`🎂 [Birthday] Ucapan ultah terkirim untuk ${member.user.tag} di ${guild.name}`);
+          }
+        }
+      }
+
     }, 60 * 1000); // cek setiap 60 detik
 
-    console.log('☀️ [Morning Scheduler] Morning reminder scheduler aktif!');
+    console.log('✅ [Schedulers] Morning, Night, Announce, Birthday schedulers aktif!');
   },
 };

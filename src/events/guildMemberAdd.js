@@ -22,12 +22,22 @@ const WELCOME_MESSAGES = [
 module.exports = {
   name: 'guildMemberAdd',
   async execute(member, client) {
-    // Ambil setting welcome untuk guild ini
     const config = client.welcomeSettings?.get(member.guild.id);
     if (!config || !config.channelId || !config.enabled) return;
 
-    const channel = member.guild.channels.cache.get(config.channelId);
-    if (!channel) return;
+    // Coba fetch channel — handle kalau channel sudah dihapus
+    const channel = await member.guild.channels.fetch(config.channelId).catch(() => null);
+    if (!channel) {
+      console.warn(`[Welcome] ⚠️ Channel ${config.channelId} tidak ditemukan di guild ${member.guild.name}. Auto-disable welcome.`);
+      config.enabled = false;
+      client.welcomeSettings.set(member.guild.id, config);
+      // Persist disable ke storage
+      try {
+        const { saveGuildSetting } = require('../utils/storage');
+        saveGuildSetting(member.guild.id, 'welcome', config);
+      } catch { /* storage mungkin belum tersedia */ }
+      return;
+    }
 
     const guild = member.guild;
     const memberCount = guild.memberCount;
@@ -35,7 +45,6 @@ module.exports = {
 
     const randomMsg = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)];
 
-    // Warna random yang vibe banget
     const colors = [0x5865F2, 0xFF6B6B, 0xFFD93D, 0x6BCB77, 0x4D96FF];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
@@ -76,3 +85,4 @@ module.exports = {
     }
   },
 };
+

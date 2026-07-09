@@ -1,82 +1,67 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder, EmbedBuilder,
+  ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder,
+} = require('discord.js');
+const { buildHelpEmbed, OWNER } = require('../events/helpEmbeds');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('help')
     .setDescription('Tampilkan semua command yang tersedia'),
 
-  async execute(interaction) {
-    const embed = new EmbedBuilder()
-      .setColor(0x1DB954)
-      .setTitle('🎵 Discord Music Bot — Bantuan')
-      .setDescription('Bot musik yang support YouTube, Spotify, SoundCloud, dan banyak lagi!')
-      .addFields(
-        {
-          name: '🎵 Perintah Utama',
-          value: [
-            '`/qp [query/url]` — Putar lagu atau playlist',
-            '`/nowplaying` — Info lagu yang sedang diputar',
-            '`/queue [halaman]` — Lihat antrian lagu',
-          ].join('\n'),
-        },
-        {
-          name: '⏯️ Kontrol Pemutaran',
-          value: [
-            '`qpause` — Pause lagu',
-            '`qresume` — Lanjutkan lagu',
-            '`qskip` — Skip ke lagu berikutnya',
-            '`qstop` — Stop dan keluar dari voice channel',
-            '`qseek [detik]` — Lompat ke waktu tertentu',
-          ].join('\n'),
-        },
-        {
-          name: '⚙️ Pengaturan',
-          value: [
-            '`qvol [0-100]` — Atur volume',
-            '`qloop [off/song/queue]` — Mode loop',
-            '`qshuffle` — Acak antrian',
-            '`qremove [nomor]` — Hapus lagu dari antrian',
-            '`qclearqueue` — Hapus semua antrian',
-          ].join('\n'),
-        },
-        {
-          name: '🛠️ Moderasi',
-          value: [
-            '`/qclear amount [jumlah]` — Hapus sejumlah pesan (1-100)',
-            '`/qclear amount [jumlah] [channel]` — Hapus pesan di channel tertentu',
-            '`/qclear all` — Hapus semua pesan di channel saat ini',
-            '`/qclear all [channel]` — Hapus semua pesan di channel tertentu',
-            '> ⚠️ Butuh izin **Manage Messages**',
-          ].join('\n'),
-        },
-        {
-          name: '👋 Sambutan Member',
-          value: [
-            '`/qwelcome setchannel [#channel]` — Set channel untuk pesan sambutan',
-            '`/qwelcome enable` — Aktifkan fitur sambutan',
-            '`/qwelcome disable` — Matikan fitur sambutan',
-            '`/qwelcome status` — Lihat status & channel yang diatur',
-            '`/qwelcome test` — Preview pesan sambutan sekarang',
-            '> ⚠️ Butuh izin **Manage Server**',
-          ].join('\n'),
-        },
-        {
-          name: '🔗 Platform yang Didukung',
-          value: '🔴 YouTube & YouTube Music\n🟢 Spotify (lagu, album, playlist)\n🟠 SoundCloud\n🌐 Dan banyak platform lain via yt-dlp!',
-        },
-        {
-          name: '💡 Contoh Penggunaan',
-          value: [
-            '`qp DJ Domba Kuring`',
-            '`qp https://open.spotify.com/track/...`',
-            '`qp https://www.youtube.com/watch?v=...`',
-            '`qp https://soundcloud.com/...`',
-          ].join('\n'),
-        }
-      )
-      .setFooter({ text: 'Discord Music Bot | Made by Dwiyansyah Oktavyudi | https://github.com/dwiyansyahku' })
-      .setTimestamp();
+  async execute(interaction, client) {
+    // Ambil avatar owner dari Discord jika bisa
+    let ownerAvatarURL = null;
+    try {
+      await client.application.fetch();
+      const owner = client.application.owner;
+      if (owner && !owner.members) {
+        ownerAvatarURL = owner.displayAvatarURL?.({ dynamic: true, size: 128 }) || null;
+      }
+    } catch { /* ignore */ }
 
-    await interaction.reply({ embeds: [embed] });
+    const homeEmbed = buildHelpEmbed('home', client);
+    if (ownerAvatarURL) {
+      homeEmbed.setThumbnail(ownerAvatarURL);
+    }
+
+    // Select menu untuk navigasi kategori
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId('help_category')
+      .setPlaceholder('📂 Pilih kategori command...')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('🏠 Home')
+          .setDescription('Halaman utama & info bot')
+          .setValue('home')
+          .setDefault(true),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('🎵 Musik')
+          .setDescription('Putar lagu dari YouTube, Spotify, dan lebih banyak lagi')
+          .setValue('music'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('🛡️ Moderasi')
+          .setDescription('Warn, mute, kick, ban — sistem moderasi lengkap')
+          .setValue('mod'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('🌅 Harian & Jadwal')
+          .setDescription('Reminder pagi, malam, ulang tahun, pengumuman')
+          .setValue('daily'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('🎉 Fun')
+          .setDescription('Poll & voting interaktif')
+          .setValue('fun'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('⚙️ Settings')
+          .setDescription('Konfigurasi welcome, bot, dan utilitas lainnya')
+          .setValue('settings'),
+      );
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+    await interaction.reply({
+      embeds: [homeEmbed],
+      components: [row],
+    });
   },
 };
