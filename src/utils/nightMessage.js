@@ -1,7 +1,3 @@
-// ================================
-// Kumpulan quotes dan sapaan untuk MALAM HARI
-// ================================
-
 const NIGHT_QUOTES = [
   // — Santai & Reflektif Indo —
   { text: '"Malam adalah waktu terbaik buat refleksi — apa aja yang udah lo lakuin hari ini?" 🌙', author: 'Unknown' },
@@ -24,6 +20,12 @@ const NIGHT_QUOTES = [
   { text: '"Setiap malam adalah kesempatan buat reset pikiran dan hati." 🔄', author: 'Unknown' },
   { text: '"Mimpi indah itu reward buat yang udah berjuang seharian." 💭', author: 'Unknown' },
   { text: '"Jangan tidur dengan hati yang berat. Maafkan, lepaskan, istirahatkan." 🕊️', author: 'Unknown' },
+  { text: '"Rasa lelah malam ini adalah bukti nyata dari perjuanganmu hari ini." 💪', author: 'Unknown' },
+  { text: '"Gelapnya malam takkan pernah abadi, esok fajar kembali menyinari." 🌅', author: 'Unknown' },
+  { text: '"Tarik napas dalam-dalam, hembuskan. Malam ini biarkan dirimu beristirahat." 🧘', author: 'Unknown' },
+  { text: '"Kasur adalah tempat terbaik untuk melarikan diri dari kepenatan dunia." 🛌', author: 'Unknown' },
+  { text: '"Jangan bandingkan prosesmu dengan orang lain sebelum tidur. Fokus pada dirimu sendiri." 🎯', author: 'Unknown' },
+  { text: '"Malam yang sunyi adalah teman terbaik untuk menjernihkan pikiran yang kusut." 🍃', author: 'Unknown' },
 
   // — Inspiratif English —
   { text: '"The night is the hardest time to be alive, but it makes the dawn all the sweeter." 🌄', author: 'Patti Smith' },
@@ -36,6 +38,11 @@ const NIGHT_QUOTES = [
   { text: '"A day without a grateful moment is a day wasted." 🌻', author: 'Unknown' },
   { text: '"Take rest; a field that has rested gives a bountiful crop." 🌾', author: 'Ovid' },
   { text: '"Be grateful for what you already have while you pursue your goals." 💛', author: 'Roy Bennett' },
+  { text: '"Never go to sleep with anger in your heart. Lay it down and find peace." ✨', author: 'Unknown' },
+  { text: '"Starry skies are reminders that beauty exists even in the dark." 🌌', author: 'Unknown' },
+  { text: '"Night is to see the dreams and day is to make them alive." 💭', author: 'Unknown' },
+  { text: '"The best bridge between despair and hope is a good night\'s sleep." 🌉', author: 'E. Joseph Cossman' },
+  { text: '"As the night gets dark, let your worries fade. Sleep peacefully." 💤', author: 'Unknown' },
 
   // — Lucu & Santai —
   { text: '"Selamat malam! Tolong matiin gadget lo dan istirahat. Bot ini pun butuh tidur." 😂', author: 'Unknown' },
@@ -46,6 +53,14 @@ const NIGHT_QUOTES = [
   { text: '"Selamat malam! Semoga mimpi lo lebih indah dari FYP lo malam ini." 🛏️', author: 'Unknown' },
   { text: '"Reminder: waktu tidur bukan buang-buang waktu. Itu namanya self-care." 💆', author: 'Unknown' },
   { text: '"Hari udah kelar. Lo udah survive. Itu cukup hebat." 🎖️', author: 'Unknown' },
+  { text: '"Begadang tidak akan menyelesaikan masalah, kecuali masalah lo adalah ingin ngantuk di siang hari." 🦉', author: 'Unknown' },
+  { text: '"Mimpi indah itu gratis, jadi mimpilah setinggi langit. Kalau jatuh kan cuma di kasur." 🛏️', author: 'Unknown' },
+  { text: '"Tidurlah. Besok pagi musuh lo (alarm) sudah bersiap-siap untuk berteriak." ⏰', author: 'Unknown' },
+  { text: '"Selamat malam! Semoga besok kuota internet lo bertambah secara ajaib." 🌐', author: 'Unknown' },
+  { text: '"Tidur sekarang, karena bermimpi kaya raya itu lebih gampang daripada nyari duit beneran." 💸', author: 'Unknown' },
+  { text: '"Malam telah tiba, singkirkan beban pikiran, mari kita selimutan." 🛌', author: 'Unknown' },
+  { text: '"Kasur lo kangen tuh, jangan diduain sama HP mulu." 📱', author: 'Unknown' },
+  { text: '"Selamat malam buat lo yang masih nungguin chat yang nggak kunjung dibales." 💔', author: 'Unknown' },
 ];
 
 const NIGHT_GREETINGS = [
@@ -64,6 +79,21 @@ const NIGHT_GREETINGS = [
   '🦉 **Selamat malam!** Kalau masih melek, at least jangan scroll sendirian — share ke chat!',
   '🌑 **Malam~** Apapun yang terjadi hari ini, lo udah lakuin yang terbaik. Bangga sama lo!',
   '🎇 **Selamat malam, bestie!** Tutup hari ini dengan senyum dan rasa syukur ya!',
+  '🌜 **Halo gengs malam!** Rehat dulu yuk, simpan semua urusan kerjaan/tugas buat besok!',
+  '✨ **Good night, warga Discord!** Dingin-dingin gini enaknya langsung tarik selimut sih.',
+  '🦉 **Malam para kalong server!** Meskipun malam adalah dunia kalian, tetep jangan lupa merem ya.',
+  '🍵 **Malam semuanya!** Semoga malam ini memberikan ketenangan yang luar biasa buat kalian.',
+  '💤 **Heii kawan!** Matikan layarmu, pejamkan matamu, dan rasakan kehangatan kasurmu.',
+  '🛌 **Heyy, selamat tidur!** Semoga mimpi kalian malam ini sangat indah sampai malas bangun.',
+  '🌙 **Selamat malam bestie-bestieku!** Terima kasih buat tawa dan ceritanya hari ini.',
+  '🌌 **Malam guys!** Langit malam ini indah banget, seindah tidur nyenyak tanpa gangguan.',
+  '🌛 **Selamat tidur semuanya!** Besok kita bangun dengan senyuman baru, oke?',
+  '⭐ **Night night!** Semoga malaikat tidur menjagamu malam ini. Sleep well!',
+  '🌈 **Malam warga!** Tutup bukumu, matikan tokomu, saatnya istirahat malam ini.',
+  '😴 **Selamat tidur para pejuang!** Lelah hari ini akan terbayar dengan segar esok pagi.',
+  '🌃 **Selamat istirahat semuanya!** Lepaskan semua kepenatan, mari kita tenggelam dalam mimpi.',
+  '🕯️ **Malam gaes!** Jangan lupa matikan lampu biar tidurnya makin nyenyak dan rileks.',
+  '🌠 **Good night everyone!** Waktunya mengistirahatkan tubuh dan pikiranmu yang hebat itu.',
 ];
 
 // ================================
