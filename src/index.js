@@ -52,7 +52,8 @@ if (fs.existsSync(wingetPackagesPath)) {
 }
 
 
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, PermissionFlagsBits } = require('discord.js');
+const storage = require('./utils/storage');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
@@ -623,6 +624,42 @@ for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'))) {
 const { getVoiceConnection } = require('@discordjs/voice');
 client.on('voiceStateUpdate', (oldState, newState) => {
   const guildId = oldState.guild.id;
+
+  // =============================================
+  // ENFORCE JAIL VOICE RULES
+  // =============================================
+  if (newState.channelId) {
+    const settings = storage.read('settings');
+    const jailConfig = settings[guildId]?.jail;
+
+    if (jailConfig && jailConfig.voiceChannelId) {
+      const jailedData = storage.read('jail');
+      const guildJails = jailedData[guildId] || {};
+      const isJailed = !!guildJails[newState.id];
+
+      if (isJailed) {
+        // Tahanan coba masuk VC lain -> seret balik ke VC penjara!
+        if (newState.channelId !== jailConfig.voiceChannelId) {
+          const member = newState.member;
+          if (member) {
+            member.voice.setChannel(jailConfig.voiceChannelId).catch(err => {
+              console.error(`[Jail Enforcer] Gagal menyeret balik ${member.user.tag} ke VC penjara:`, err.message);
+            });
+          }
+        }
+      } else {
+        // Warga biasa coba masuk VC penjara -> tendang keluar dari voice!
+        if (newState.channelId === jailConfig.voiceChannelId) {
+          const hasModPerms = newState.member?.permissions.has(PermissionFlagsBits.ModerateMembers);
+          if (!hasModPerms) {
+            newState.disconnect('Bukan narapidana atau moderator/admin!').catch(err => {
+              console.error(`[Jail Enforcer] Gagal menendang user non-jail dari VC penjara:`, err.message);
+            });
+          }
+        }
+      }
+    }
+  }
 
   // If the bot itself leaves, clear any pending empty timeouts
   if (oldState.id === client.user.id && !newState.channelId) {

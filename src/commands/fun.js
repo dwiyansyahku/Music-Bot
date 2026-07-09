@@ -91,7 +91,10 @@ const fun = {
         .setDescription('Setup role dan channel untuk fitur jail (Admin only)')
         .addRoleOption(opt => opt.setName('role').setDescription('Role penjara (buat dulu di server settings!)').setRequired(true))
         .addChannelOption(opt =>
-          opt.setName('channel').setDescription('Channel penjara').addChannelTypes(ChannelType.GuildText).setRequired(true)
+          opt.setName('channel').setDescription('Channel text penjara').addChannelTypes(ChannelType.GuildText).setRequired(true)
+        )
+        .addChannelOption(opt =>
+          opt.setName('voice').setDescription('Channel voice penjara').addChannelTypes(ChannelType.GuildVoice).setRequired(true)
         )
     )
 
@@ -155,10 +158,11 @@ const fun = {
 
       const role = interaction.options.getRole('role');
       const channel = interaction.options.getChannel('channel');
+      const voiceChannel = interaction.options.getChannel('voice');
 
       const settings = storage.read('settings');
       if (!settings[guildId]) settings[guildId] = {};
-      settings[guildId].jail = { roleId: role.id, channelId: channel.id };
+      settings[guildId].jail = { roleId: role.id, channelId: channel.id, voiceChannelId: voiceChannel.id };
       storage.write('settings', settings);
 
       return interaction.reply({
@@ -169,12 +173,14 @@ const fun = {
             .addFields(
               { name: '⛓️ Role Penjara', value: `<@&${role.id}>`, inline: true },
               { name: '🏛️ Channel Penjara', value: `<#${channel.id}>`, inline: true },
+              { name: '🔊 Voice Penjara', value: `<#${voiceChannel.id}>`, inline: true },
             )
             .setDescription(
               '✅ Setup berhasil! Pastikan:\n' +
               '1. Role penjara punya permission **Send Messages = OFF** di semua channel normal\n' +
               '2. Role penjara punya permission **Send Messages = ON** di channel penjara\n' +
-              '3. Bot punya permission **Manage Roles** dan rolenya lebih tinggi dari role penjara'
+              '3. Bot punya permission **Manage Roles** dan **Move Members** di server ini\n' +
+              '4. Role bot lebih tinggi dari role penjara'
             )
             .setFooter({ text: 'Gunakan /fun jail @user untuk memenjarakan member!' }),
         ],
@@ -237,6 +243,13 @@ const fun = {
         const randomNick = JAIL_NICKNAMES[Math.floor(Math.random() * JAIL_NICKNAMES.length)];
         const oldNick = targetMember.displayName;
         await targetMember.setNickname(randomNick).catch(() => {});
+
+        // Otomatis tarik ke voice channel penjara jika dia ada di voice channel mana pun
+        if (targetMember.voice.channelId && jailConfig.voiceChannelId) {
+          await targetMember.voice.setChannel(jailConfig.voiceChannelId).catch(err => {
+            console.error(`[Jail] Gagal memindahkan ${targetUser.tag} ke voice penjara:`, err.message);
+          });
+        }
       } catch (err) {
         return interaction.reply({ content: `❌ Gagal jail: ${err.message}\nPastikan role bot lebih tinggi dari target!`, flags: MessageFlags.Ephemeral });
       }
