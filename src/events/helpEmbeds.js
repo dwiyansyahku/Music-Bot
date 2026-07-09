@@ -121,8 +121,8 @@ function buildHelpEmbed(category, client) {
             name: '🤖 Auto-Punish (Berdasarkan Jumlah Warn)',
             value: [
               '`3x Warn` → 🔇 Auto mute 3 jam',
-              '`5x Warn` → 👢 Auto kick dari server',
-              '`8x Warn` → 🔨 Auto ban permanent',
+              '`5x Warn` → 👢 Auto kick dari voice',
+              '`8x Warn` → 🔨 Auto ban permanent and kick server',
             ].join('\n'),
           },
           {

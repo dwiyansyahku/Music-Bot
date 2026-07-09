@@ -212,15 +212,15 @@ function buildMorningMessage(guild) {
         value: '> Pelanggaran rules akan dikenakan: **Warn → Mute → Timeout → Kick → Ban**\n\n' +
                '> 📌 **Sistem Warn:**\n' +
                '> • **3x Warn** → Mute 3 jam\n' +
-               '> • **5x Warn** → Kick\n' +
-               '> • **8x Warn** → Permanent Ban 🔨',
+               '> • **5x Warn** → Kick dari voice\n' +
+               '> • **8x Warn** → Kick and Permanent Ban 🔨',
       },
     )
     .setFooter({
       text: '🚀 Break the rules = Get punished. Stay cool & enjoy the server!',
     });
 
-  const content = `<@&438949811408863243> ☀️ **Selamat pagi, geng!** Jangan lupa baca reminder rules hari ini ya~`;
+  const content = `<@&1396396538686607410> ☀️ **Selamat pagi, geng!** Jangan lupa baca reminder rules hari ini ya~`;
 
   return { content, embeds: [morningEmbed, rulesEmbed] };
 }
