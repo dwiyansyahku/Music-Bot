@@ -66,6 +66,51 @@ const NIGHT_GREETINGS = [
   '🎇 **Selamat malam, bestie!** Tutup hari ini dengan senyum dan rasa syukur ya!',
 ];
 
+// ================================
+// Callout lucu buat yang belum tidur
+// ================================
+const SLEEP_CALLOUTS = [
+  // Gamer
+  '🎮 **Buat yang lagi gaming:** "One more game" lo udah ke-47 kali. Matiin konsol/PC lo sekarang juga, champ.',
+  '🎮 **Gamer gang:** Server bisa nunggu, rank bisa nunggu. Mata lo nggak bisa. LOG OUT SEKARANG.',
+  '🎮 **Buat yang lagi ranked:** Kalah? Tidur. Menang? Tetap tidur. Besok main lagi dengan kepala segar.',
+  '🎮 **Oi gamer!** Lo tau nggak, tidur itu kayak save game. Kalau lo nggak save, progress lo ilang semua besok.',
+  '🎮 **Buat yang "bentar lagi boss mati":** Bro, boss itu respawn. Tidur lo nggak. Pergi tidur.',
+  '🎮 **Mobile legend / Valorant gang:** Toksik di game boleh, tapi jangan toksik sama kesehatan lo sendiri. Tidur gih.',
+
+  // Nugas / Mahasiswa
+  '📚 **Buat yang nugas:** Deadline jam 8 pagi itu masih bisa dikerjain jam 6 pagi. Tapi sekarang? Tidur dulu 4 jam masih menang.',
+  '📚 **Mahasiswa mode aktif:** Nugas sambil rebahan di kasur = tidur nggak sengaja dalam 10 menit. Lo tau itu. Aku tau itu. Tidur aja.',
+  '📚 **Pejuang tugas:** Otak yang lelah itu kayak laptop 2% baterai. Nggak ada yang bisa dikerjain dengan bener. Charge dulu.',
+  '📚 **Buat yang zoom-in ke materi:** Kalau lo udah baca kalimat yang sama 5 kali dan tetep nggak ngerti — tandanya otak lo minta istirahat.',
+  '📚 **Skripsi gang:** Bab 3 bisa dikerjain besok. Lingkaran hitam di bawah mata lo nggak bisa ditutup besok. Tidur sekarang.',
+
+  // Gibah / Scroll medsos
+  '📱 **Buat yang lagi scroll TikTok/IG:** Lo udah masuk FYP jam 3 pagi. Konten yang lo tonton sekarang bukan untuk manusia — itu untuk zombie. TUTUP HP.',
+  '🗣️ **Gossip gang:** Gibah yang lo lakuin malem ini bisa dilanjut besok. Orang yang lo gibah juga udah tidur btw.',
+  '📱 **Buat yang lagi doomscrolling:** Lo lagi baca berita jam segini? Dunia tetap kacau besok pagi. Informasi itu bisa nunggu, tidur lo nggak.',
+  '🗣️ **Gibah squad:** Update drama server bisa lo cek besok. Sekarang tutup Discord dan tidur. *ini bukan request, ini perintah.*',
+  '📱 **Buat yang stalking seseorang:** HENTIKAN. Tidur. Besok stalking lagi boleh. (Jangan sih tapi)',
+
+  // Ngoding
+  '💻 **Buat yang ngoding:** Bug itu nggak akan kelar kalau lo capek. Tidur, besok lo liat kodenya dan langsung nemu masalahnya dalam 5 menit.',
+  '💻 **Developer gang:** "Just one more feature" = 3 jam ngulik stackoverflow. Lo tau itu. Commit dulu, push, terus tidur.',
+  '💻 **Coder yang lagi error:** Error 500 jam segini? Itu bukan masalah kodenya — itu masalah lo yang kurang tidur. Git stash, tidur.',
+  '💻 **Buat yang debug sampai malam:** Otak manusia itu bukan compiler. Ada batas prosesnya. Matiin laptop, tidur, besok fresh.',
+  '💻 **Stack overflow reader:** Kalau lo udah scroll 10 halaman SO dan belum ketemu jawaban, itu tanda dari alam: TIDUR.',
+
+  // Nonton / Streaming
+  '🎬 **Buat yang nonton Netflix/film:** "Episode terakhir" itu bohong. Lo udah bilang itu 5 episode yang lalu. MATIKAN.',
+  '🎬 **Anime/series gang:** Cliffhanger itu memang didesain buat bikin lo nggak bisa stop. Tapi lo lebih kuat dari itu. Pause. Tidur.',
+  '🎬 **Buat yang marathon film:** Lo lagi di season 3 jam 2 pagi? Karakter fiktif itu nggak butuh lo. Tapi badan lo butuh tidur.',
+
+  // Random / General
+  '😴 **Buat yang masih melek nggak jelas:** Lo nggak tau mau ngapain tapi nggak bisa tidur juga? Itu namanya overtired. Matiin layar, pejamkan mata.',
+  '🌙 **Buat yang "nggak ngantuk":** Lo nggak ngantuk karena paparan cahaya HP bikin otak lo mikir masih siang. Matiin HP 15 menit, dijamin ngantuk.',
+  '😂 **Buat siapapun yang baca ini jam 12+:** Hai. Kamu tau kamu harusnya udah tidur. Aku tau kamu tau. Sekarang pergi tidur.',
+  '🦥 **Untuk semua warga malam:** Lo semua pada sama aja. Nggak ada yang mau tidur tapi semua capek. Solusinya satu: TIDUR.',
+];
+
 const { EmbedBuilder } = require('discord.js');
 
 /**
@@ -81,6 +126,8 @@ function buildNightMessage(guild) {
   const nightColors = [0x2C2F33, 0x3B4270, 0x4B3F72, 0x1A1A2E, 0x16213E];
   const randomColor = nightColors[Math.floor(Math.random() * nightColors.length)];
 
+  const randomCallout = SLEEP_CALLOUTS[Math.floor(Math.random() * SLEEP_CALLOUTS.length)];
+
   const nightEmbed = new EmbedBuilder()
     .setColor(randomColor)
     .setTitle('🌙 Selamat Malam, Warga Server!')
@@ -91,6 +138,10 @@ function buildNightMessage(guild) {
       `Jangan lupa istirahat ya~ Besok kita ketemu lagi dengan semangat baru! 🌅\n` +
       `*And then ALWAYS NAFAS MANUAL YAGESYA :v*`
     )
+    .addFields({
+      name: '😴 Pesan Khusus Buat Lo Yang Masih Melek:',
+      value: randomCallout,
+    })
     .setThumbnail(guild.iconURL({ dynamic: true }) || null)
     .setFooter({
       text: `${guild.name} • Sweet dreams! 🌙`,
@@ -103,4 +154,4 @@ function buildNightMessage(guild) {
   return { content, embeds: [nightEmbed] };
 }
 
-module.exports = { buildNightMessage, NIGHT_QUOTES, NIGHT_GREETINGS };
+module.exports = { buildNightMessage, NIGHT_QUOTES, NIGHT_GREETINGS, SLEEP_CALLOUTS };

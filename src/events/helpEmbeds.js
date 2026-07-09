@@ -4,7 +4,7 @@ const { EmbedBuilder } = require('discord.js');
 const OWNER = {
   name: 'Dwiyansyah Oktavyudi',
   github: 'https://github.com/dwiyansyahku',
-  tag: 'dwiyansyahku',
+  tag: '<@&1396396538686607410>',
 };
 
 const CATEGORIES = {
@@ -200,24 +200,41 @@ function buildHelpEmbed(category, client) {
     case 'fun':
       return new EmbedBuilder()
         .setColor(0xFF6B6B)
-        .setTitle('🎉 Command Fun')
+        .setTitle('🎉 Command Fun & Usilan')
+        .setDescription('Semua command di bawah **hanya bisa diakses Moderator/Admin**. Gunakan dengan bijak (atau jangan — terserah 😈)')
         .addFields(
           {
             name: '📊 Poll / Vote `/poll`',
             value: [
               '`/poll [pertanyaan] [opsi1] [opsi2]` — Buat poll 2 pilihan',
-              '`/poll [pertanyaan] [opsi1] [opsi2] [opsi3]` — 3 pilihan',
-              '`/poll [pertanyaan] [opsi1] [opsi2] [opsi3] [opsi4]` — 4 pilihan',
-              '',
-              'Bot akan otomatis menambahkan reaksi 🇦 🇧 🇨 🇩 ke pesan poll.',
+              '`/poll [pertanyaan] [opsi1] [opsi2] [opsi3] [opsi4]` — Hingga 4 pilihan',
+              'Bot otomatis tambah reaksi 🇦 🇧 🇨 🇩',
             ].join('\n'),
           },
           {
-            name: '💡 Contoh',
-            value: '`/poll "Mau ngapain hari ini?" "Ngegame" "Nonton" "Tidur"`',
+            name: '🔒 Sistem Jail `/fun jail`',
+            value: [
+              '`/fun jailsetup [role] [channel]` — Setup jail *(Admin only)*',
+              '`/fun jail @user [menit] [alasan]` — Masukkan member ke penjara',
+              '`/fun bail @user` — Bebaskan lebih awal',
+              '`/fun jailstatus @user` — Cek status penjara member',
+              '',
+              '> Member yang di-jail kehilangan akses semua channel & hanya bisa chat di #penjara. Auto-bebas setelah waktu habis.',
+            ].join('\n'),
+          },
+          {
+            name: '😂 Usilan `/fun`',
+            value: [
+              '`/fun roast @user` — Kirim roast lucu ke target',
+              '`/fun wanted @user [kejahatan]` — Buat poster WANTED keren',
+              '`/fun rename @user [nama?]` — Ganti nickname jadi nama lucu (nama random kalau dikosongkan)',
+              '`/fun fakequote @user [teks]` — Buat quote palsu seolah dari member itu',
+              '`/fun say [pesan] [#channel?]` — Bot ngomong atas nama lo',
+            ].join('\n'),
           }
         )
-        .setFooter({ text: 'QUMPRUY Bot • Fun' });
+        .setFooter({ text: 'QUMPRUY Bot • Fun & Usilan • Mod/Admin only' });
+
 
     case 'settings':
       return new EmbedBuilder()
