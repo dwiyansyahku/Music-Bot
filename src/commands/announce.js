@@ -2,7 +2,7 @@ const {
   SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder,
   ChannelType, MessageFlags,
 } = require('discord.js');
-const { isBotOwner } = require('../utils/helpers');
+const { isOwnerOrMod, replyNoAccess } = require('../utils/helpers');
 const storage = require('../utils/storage');
 
 // ID counter sederhana untuk jadwal pengumuman
@@ -14,7 +14,7 @@ const announce = {
   data: new SlashCommandBuilder()
     .setName('announce')
     .setDescription('Kirim atau jadwalkan pengumuman ke channel tertentu')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addSubcommand(sub =>
       sub
         .setName('send')
@@ -59,10 +59,7 @@ const announce = {
     ),
 
   async execute(interaction, client) {
-    const isOwner = await isBotOwner(interaction, client);
-    if (!isOwner) {
-      return interaction.reply({ content: '❌ Perintah ini hanya bisa digunakan oleh Owner bot!', flags: MessageFlags.Ephemeral });
-    }
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccess(interaction);
 
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;

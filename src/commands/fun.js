@@ -2,6 +2,7 @@ const {
   SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder,
   MessageFlags, ChannelType,
 } = require('discord.js');
+const { isOwnerOrMod, isBotOwner, replyNoAccess } = require('../utils/helpers');
 const storage = require('../utils/storage');
 
 // ================================
@@ -145,6 +146,8 @@ const fun = {
     ),
 
   async execute(interaction, client) {
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccess(interaction);
+
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;
 
@@ -152,8 +155,9 @@ const fun = {
     // JAIL SETUP
     // ─────────────────────────────────────
     if (sub === 'jailsetup') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return interaction.reply({ content: '❌ Hanya Administrator yang bisa setup jail!', flags: MessageFlags.Ephemeral });
+      const ownerCheck = await isBotOwner(interaction, client);
+      if (!ownerCheck && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return interaction.reply({ content: '❌ Hanya **Administrator** atau **Owner Bot** yang bisa setup jail!', flags: MessageFlags.Ephemeral });
       }
 
       const role = interaction.options.getRole('role');

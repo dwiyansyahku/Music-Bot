@@ -1,12 +1,12 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
-const { isBotOwner } = require('../utils/helpers');
+const { isOwnerOrMod, replyNoAccess } = require('../utils/helpers');
 const { saveGuildSetting } = require('../utils/storage');
 
 const qmorning = {
   data: new SlashCommandBuilder()
     .setName('qmorning')
     .setDescription('Setting fitur selamat pagi + reminder rules otomatis')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addSubcommand(sub =>
       sub
         .setName('setchannel')
@@ -62,13 +62,7 @@ const qmorning = {
     ),
 
   async execute(interaction, client) {
-    const isOwner = await isBotOwner(interaction, client);
-    if (!isOwner) {
-      return interaction.reply({
-        content: '❌ Perintah ini hanya bisa digunakan oleh Owner bot!',
-        flags: MessageFlags.Ephemeral,
-      });
-    }
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccess(interaction);
 
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;

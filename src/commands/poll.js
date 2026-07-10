@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
+const { isOwnerOrMod, replyNoAccess } = require('../utils/helpers');
 
 // Emoji reaksi untuk opsi poll
 const EMOJI_OPTIONS = ['🇦', '🇧', '🇨', '🇩'];
@@ -22,9 +23,12 @@ const poll = {
     )
     .addStringOption(opt =>
       opt.setName('opsi4').setDescription('Pilihan keempat (opsional)').setRequired(false).setMaxLength(100)
-    ),
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction, client) {
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccess(interaction);
+
     const pertanyaan = interaction.options.getString('pertanyaan');
 
     const opsiRaw = [

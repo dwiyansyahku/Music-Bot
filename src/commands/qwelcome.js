@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
-const { isBotOwner } = require('../utils/helpers');
+const { isOwnerOrMod, replyNoAccess } = require('../utils/helpers');
 const { saveGuildSetting } = require('../utils/storage');
 
 const WELCOME_MESSAGES = [
@@ -24,7 +24,7 @@ const qwelcome = {
   data: new SlashCommandBuilder()
     .setName('qwelcome')
     .setDescription('Setting pesan sambutan untuk member baru')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addSubcommand(sub =>
       sub
         .setName('setchannel')
@@ -59,14 +59,7 @@ const qwelcome = {
     ),
 
   async execute(interaction, client) {
-    // Cek apakah user adalah owner bot
-    const isOwner = await isBotOwner(interaction, client);
-    if (!isOwner) {
-      return interaction.reply({
-        content: '❌ Perintah ini hanya bisa digunakan oleh Owner bot!',
-        flags: MessageFlags.Ephemeral,
-      });
-    }
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccess(interaction);
 
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;

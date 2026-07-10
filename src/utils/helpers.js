@@ -89,4 +89,36 @@ async function isBotOwner(context, client) {
   }
 }
 
-module.exports = { checkVoiceChannel, checkQueue, isBotOwner };
+/**
+ * Cek apakah user adalah owner bot ATAU punya permission Moderate Members (Moderator).
+ * Owner bot selalu diizinkan, terlepas dari role hierarchy di server.
+ * @param {import('discord.js').CommandInteraction} interaction
+ * @param {import('discord.js').Client} client
+ * @returns {Promise<boolean>}
+ */
+async function isOwnerOrMod(interaction, client) {
+  // Cek owner dulu — owner selalu bisa, apapun rolenya
+  const owner = await isBotOwner(interaction, client);
+  if (owner) return true;
+
+  // Cek permission Moderate Members (standar moderator Discord)
+  const { PermissionFlagsBits } = require('discord.js');
+  return !!interaction.member?.permissions?.has(PermissionFlagsBits.ModerateMembers);
+}
+
+/**
+ * Reply dengan pesan "Akses Ditolak" yang konsisten di seluruh bot
+ * @param {import('discord.js').CommandInteraction} interaction
+ */
+async function replyNoAccess(interaction) {
+  const { EmbedBuilder, MessageFlags } = require('discord.js');
+  const embed = new EmbedBuilder()
+    .setColor(0xED4245)
+    .setTitle('🚫 Akses Ditolak')
+    .setDescription('Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator** server.')
+    .setFooter({ text: 'Hubungi admin jika kamu merasa ini adalah kesalahan.' });
+
+  return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+}
+
+module.exports = { checkVoiceChannel, checkQueue, isBotOwner, isOwnerOrMod, replyNoAccess };
