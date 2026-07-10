@@ -74,11 +74,15 @@ const mod = {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+    // Cek apakah user adalah owner bot (untuk bypass hierarchy check)
+    const isCallerOwner = await isBotOwner(interaction, client);
+
     // Helper: cek apakah target bisa di-moderasi
     function canModerate(targetMember) {
       if (targetMember.id === interaction.user.id) return '❌ Kamu tidak bisa moderasi dirimu sendiri!';
       if (targetMember.id === client.user.id) return '❌ Kamu tidak bisa moderasi bot!';
-      if (targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
+      // Owner bot bypass role hierarchy check
+      if (!isCallerOwner && targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
         return '❌ Kamu tidak bisa moderasi member yang rolenya sama atau lebih tinggi dari kamu!';
       }
       return null;

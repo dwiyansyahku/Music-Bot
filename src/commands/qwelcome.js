@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
 const { isBotOwner, replyNoAccess } = require('../utils/helpers');
 const { saveGuildSetting } = require('../utils/storage');
+const storage = require('../utils/storage');
 
 const WELCOME_MESSAGES = [
   (name, server) => `Yooo **${name}** finally joined **${server}**! 🔥\nGlad you're here, gaskeunnn~ 🚀`,
@@ -56,6 +57,18 @@ const qwelcome = {
       sub
         .setName('status')
         .setDescription('Lihat status & konfigurasi sambutan saat ini')
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('setrules')
+        .setDescription('Atur channel peraturan yang dicantumkan di pesan sambutan')
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Channel peraturan server')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(true)
+        )
     ),
 
   async execute(interaction, client) {
@@ -123,6 +136,26 @@ const qwelcome = {
       saveGuildSetting(guildId, 'welcome', config);
       return interaction.reply({
         content: '🔕 Fitur sambutan **dimatikan**. Tidak ada pesan sambutan yang akan dikirim.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    // === STATUS ===
+    if (sub === 'setrules') {
+      const rulesChannel = interaction.options.getChannel('channel');
+      const guildSettings = storage.read('settings');
+      if (!guildSettings[guildId]) guildSettings[guildId] = {};
+      guildSettings[guildId].rulesChannelId = rulesChannel.id;
+      storage.write('settings', guildSettings);
+
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle('✅ Channel Peraturan Diatur!')
+            .setDescription(`Pesan sambutan sekarang akan mention <#${rulesChannel.id}> sebagai channel peraturan.`)
+            .setFooter({ text: 'Berlaku untuk semua pesan welcome baru.' })
+        ],
         flags: MessageFlags.Ephemeral,
       });
     }

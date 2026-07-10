@@ -48,6 +48,14 @@ module.exports = {
     const colors = [0x5865F2, 0xFF6B6B, 0xFFD93D, 0x6BCB77, 0x4D96FF];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
+    // Cek apakah ada channel rules yang dikonfigurasi di storage
+    const storage = require('../utils/storage');
+    const guildSettings = storage.read('settings');
+    const rulesChannelId = guildSettings[guild.id]?.rulesChannelId ?? null;
+    const rulesText = rulesChannelId
+      ? `📌 Silakan baca info & peraturan di <#${rulesChannelId}>!`
+      : `📌 Jangan lupa baca peraturan server ya!`;
+
     const embed = new EmbedBuilder()
       .setColor(randomColor)
       .setAuthor({
@@ -55,7 +63,7 @@ module.exports = {
         iconURL: avatarURL,
       })
       .setTitle(`👋 Welcome, ${member.user.username}!`)
-      .setDescription(`${randomMsg(member.user.username, guild.name)}\n\n📌 Silakan baca info & peraturan di <#1489575354778648586>!`)
+      .setDescription(`${randomMsg(member.user.username, guild.name)}\n\n${rulesText}`)
       .setThumbnail(avatarURL)
       .addFields(
         {

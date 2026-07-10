@@ -144,7 +144,8 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers, // Required for guildMemberAdd event (welcome feature)
+    GatewayIntentBits.GuildMembers,   // Required for guildMemberAdd event (welcome feature)
+    GatewayIntentBits.GuildPresences, // Required for online status in /userinfo
   ],
 });
 
