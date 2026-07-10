@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { isOwnerOrMod, replyNoAccess } = require('../utils/helpers');
+const { isOwnerOrMod, replyNoAccessMod } = require('../utils/helpers');
 
 // Emoji reaksi untuk opsi poll
 const EMOJI_OPTIONS = ['🇦', '🇧', '🇨', '🇩'];
@@ -27,7 +27,7 @@ const poll = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction, client) {
-    if (!await isOwnerOrMod(interaction, client)) return replyNoAccess(interaction);
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccessMod(interaction);
 
     const pertanyaan = interaction.options.getString('pertanyaan');
 

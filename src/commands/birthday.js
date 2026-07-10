@@ -1,7 +1,7 @@
 const {
   SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags, ChannelType,
 } = require('discord.js');
-const { isOwnerOrMod, replyNoAccess } = require('../utils/helpers');
+const { isBotOwner, replyNoAccess } = require('../utils/helpers');
 const storage = require('../utils/storage');
 
 // Daftar ucapan ulang tahun akun Discord random
@@ -159,7 +159,7 @@ const birthday = {
 
     // === SET CHANNEL ===
     if (sub === 'setchannel') {
-      if (!await isOwnerOrMod(interaction, client)) return replyNoAccess(interaction);
+      if (!await isBotOwner(interaction, client)) return replyNoAccess(interaction);
 
       const channel = interaction.options.getChannel('channel');
       const guildSettings = storage.read('settings');

@@ -2,7 +2,7 @@ const {
   SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder,
   MessageFlags, ChannelType,
 } = require('discord.js');
-const { isOwnerOrMod, isBotOwner, replyNoAccess } = require('../utils/helpers');
+const { isOwnerOrMod, isBotOwner, replyNoAccessMod } = require('../utils/helpers');
 const storage = require('../utils/storage');
 
 // ================================
@@ -146,7 +146,7 @@ const fun = {
     ),
 
   async execute(interaction, client) {
-    if (!await isOwnerOrMod(interaction, client)) return replyNoAccess(interaction);
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccessMod(interaction);
 
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;

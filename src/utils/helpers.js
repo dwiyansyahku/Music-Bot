@@ -107,7 +107,7 @@ async function isOwnerOrMod(interaction, client) {
 }
 
 /**
- * Reply dengan pesan "Akses Ditolak" yang konsisten di seluruh bot
+ * Reply "Akses Ditolak" — khusus untuk command owner-only
  * @param {import('discord.js').CommandInteraction} interaction
  */
 async function replyNoAccess(interaction) {
@@ -115,10 +115,25 @@ async function replyNoAccess(interaction) {
   const embed = new EmbedBuilder()
     .setColor(0xED4245)
     .setTitle('🚫 Akses Ditolak')
-    .setDescription('Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator** server.')
-    .setFooter({ text: 'Hubungi admin jika kamu merasa ini adalah kesalahan.' });
+    .setDescription('Perintah ini hanya bisa digunakan oleh **Owner Bot**.')
+    .setFooter({ text: 'Ini adalah perintah eksklusif owner bot.' });
 
   return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
-module.exports = { checkVoiceChannel, checkQueue, isBotOwner, isOwnerOrMod, replyNoAccess };
+/**
+ * Reply "Akses Ditolak" — untuk command owner-or-moderator
+ * @param {import('discord.js').CommandInteraction} interaction
+ */
+async function replyNoAccessMod(interaction) {
+  const { EmbedBuilder, MessageFlags } = require('discord.js');
+  const embed = new EmbedBuilder()
+    .setColor(0xED4245)
+    .setTitle('🚫 Akses Ditolak')
+    .setDescription('Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator** server.')
+    .setFooter({ text: 'Kamu membutuhkan permission Moderate Members atau status Owner Bot.' });
+
+  return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+}
+
+module.exports = { checkVoiceChannel, checkQueue, isBotOwner, isOwnerOrMod, replyNoAccess, replyNoAccessMod };
