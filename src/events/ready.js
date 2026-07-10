@@ -158,10 +158,12 @@ module.exports = {
             }
 
             const { EmbedBuilder } = require('discord.js');
+            // Konversi \n literal menjadi newline nyata
+            const pesanDisplay = announcement.pesan.replace(/\\n/g, '\n');
             const embed = new EmbedBuilder()
               .setColor(0x5865F2)
               .setTitle('📢 Pengumuman Terjadwal')
-              .setDescription(announcement.pesan)
+              .setDescription(pesanDisplay)
               .setFooter({ text: `${guild.name} • Pengumuman Otomatis`, iconURL: guild.iconURL({ dynamic: true }) || undefined })
               .setTimestamp();
 

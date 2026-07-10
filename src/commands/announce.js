@@ -23,7 +23,7 @@ const announce = {
           opt.setName('channel').setDescription('Channel tujuan').addChannelTypes(ChannelType.GuildText).setRequired(true)
         )
         .addStringOption(opt =>
-          opt.setName('pesan').setDescription('Isi pengumuman').setRequired(true).setMaxLength(2000)
+          opt.setName('pesan').setDescription('Isi pengumuman. Gunakan \\n untuk baris baru.').setRequired(true).setMaxLength(2000)
         )
         .addBooleanOption(opt =>
           opt.setName('ping').setDescription('Ping @everyone? (default: tidak)').setRequired(false)
@@ -43,7 +43,7 @@ const announce = {
           opt.setName('channel').setDescription('Channel tujuan').addChannelTypes(ChannelType.GuildText).setRequired(true)
         )
         .addStringOption(opt =>
-          opt.setName('pesan').setDescription('Isi pengumuman').setRequired(true).setMaxLength(2000)
+          opt.setName('pesan').setDescription('Isi pengumuman. Gunakan \\n untuk baris baru.').setRequired(true).setMaxLength(2000)
         )
         .addIntegerOption(opt =>
           opt.setName('jam').setDescription('Jam pengiriman (0-23, WIB)').setRequired(true).setMinValue(0).setMaxValue(23)
@@ -103,10 +103,13 @@ const announce = {
         }
       }
 
+      // Konversi \n literal menjadi newline nyata agar user bisa buat baris baru di slash command
+      const pesanFormatted = pesan.replace(/\\n/g, '\n');
+
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
         .setTitle('📢 Pengumuman')
-        .setDescription(pesan)
+        .setDescription(pesanFormatted)
         .setFooter({
           text: `Diumumkan oleh ${interaction.user.tag}`,
           iconURL: interaction.user.displayAvatarURL({ dynamic: true }),
@@ -153,8 +156,12 @@ const announce = {
       }
 
       const id = generateId();
+      // Simpan pesan asli (dengan \n literal) agar bisa dikonversi saat dikirim
       allAnnouncements[guildId].push({ id, channelId: channel.id, pesan, hour: jam, minute: menit, imageUrl: gambarUrl || null });
       storage.write('announcements', allAnnouncements);
+
+      // Tampilkan preview pesan dengan newline yang sudah dikonversi
+      const pesanPreview = pesan.replace(/\\n/g, '\n');
 
       return interaction.reply({
         embeds: [
@@ -165,7 +172,7 @@ const announce = {
               { name: '📢 Channel', value: `<#${channel.id}>`, inline: true },
               { name: '🕐 Jam (WIB)', value: `**${String(jam).padStart(2, '0')}:${String(menit).padStart(2, '0')}**`, inline: true },
               { name: '🆔 ID Jadwal', value: `\`${id}\``, inline: true },
-              { name: '💬 Pesan', value: pesan.length > 100 ? pesan.slice(0, 100) + '...' : pesan },
+              { name: '💬 Pesan', value: pesanPreview.length > 100 ? pesanPreview.slice(0, 100) + '...' : pesanPreview },
               ...(gambarUrl ? [{ name: '🖼️ Gambar', value: gambarUrl.length > 60 ? gambarUrl.slice(0, 60) + '...' : gambarUrl }] : []),
             )
             .setFooter({ text: 'Gunakan /announce remove <id> untuk menghapus jadwal.' }),
