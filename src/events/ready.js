@@ -165,6 +165,8 @@ module.exports = {
               .setFooter({ text: `${guild.name} • Pengumuman Otomatis`, iconURL: guild.iconURL({ dynamic: true }) || undefined })
               .setTimestamp();
 
+            if (announcement.imageUrl) embed.setImage(announcement.imageUrl);
+
             await channel.send({ embeds: [embed] });
             lastSentAnnounce.set(key, currentTimeKey);
             console.log(`📢 [Announce] Terkirim ke ${guild.name} (${currentTimeKey} WIB)`);

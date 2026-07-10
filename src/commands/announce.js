@@ -28,6 +28,12 @@ const announce = {
         .addBooleanOption(opt =>
           opt.setName('ping').setDescription('Ping @everyone? (default: tidak)').setRequired(false)
         )
+        .addStringOption(opt =>
+          opt.setName('gambar').setDescription('URL gambar yang ditampilkan di pengumuman (opsional)').setRequired(false)
+        )
+        .addAttachmentOption(opt =>
+          opt.setName('upload').setDescription('Upload gambar langsung dari perangkatmu (opsional)').setRequired(false)
+        )
     )
     .addSubcommand(sub =>
       sub
@@ -44,6 +50,9 @@ const announce = {
         )
         .addIntegerOption(opt =>
           opt.setName('menit').setDescription('Menit pengiriman (0-59)').setRequired(false).setMinValue(0).setMaxValue(59)
+        )
+        .addStringOption(opt =>
+          opt.setName('gambar').setDescription('URL gambar yang ditampilkan di pengumuman (opsional)').setRequired(false)
         )
     )
     .addSubcommand(sub =>
@@ -69,10 +78,29 @@ const announce = {
       const channel = interaction.options.getChannel('channel');
       const pesan = interaction.options.getString('pesan');
       const ping = interaction.options.getBoolean('ping') ?? false;
+      const gambarUrl = interaction.options.getString('gambar') ?? null;
+      const uploadAttachment = interaction.options.getAttachment('upload') ?? null;
 
       const botPerms = channel.permissionsFor(interaction.guild.members.me);
       if (!botPerms.has(PermissionFlagsBits.SendMessages)) {
         return interaction.reply({ content: `❌ Bot tidak punya izin kirim pesan di <#${channel.id}>!`, flags: MessageFlags.Ephemeral });
+      }
+
+      // Tentukan URL gambar yang akan dipakai: upload attachment lebih prioritas dari URL
+      let finalImageUrl = null;
+      if (uploadAttachment) {
+        if (uploadAttachment.contentType?.startsWith('image/')) {
+          finalImageUrl = uploadAttachment.url;
+        } else {
+          return interaction.reply({ content: '❌ File yang diupload harus berupa gambar (jpg, png, gif, webp)!', flags: MessageFlags.Ephemeral });
+        }
+      } else if (gambarUrl) {
+        try {
+          new URL(gambarUrl);
+          finalImageUrl = gambarUrl;
+        } catch {
+          return interaction.reply({ content: '❌ URL gambar tidak valid! Pastikan URL diawali dengan https://', flags: MessageFlags.Ephemeral });
+        }
       }
 
       const embed = new EmbedBuilder()
@@ -84,6 +112,8 @@ const announce = {
           iconURL: interaction.user.displayAvatarURL({ dynamic: true }),
         })
         .setTimestamp();
+
+      if (finalImageUrl) embed.setImage(finalImageUrl);
 
       await channel.send({
         content: ping ? '@everyone' : undefined,
@@ -102,6 +132,14 @@ const announce = {
       const pesan = interaction.options.getString('pesan');
       const jam = interaction.options.getInteger('jam');
       const menit = interaction.options.getInteger('menit') ?? 0;
+      const gambarUrl = interaction.options.getString('gambar') ?? null;
+
+      // Validasi URL gambar jika ada
+      if (gambarUrl) {
+        try { new URL(gambarUrl); } catch {
+          return interaction.reply({ content: '❌ URL gambar tidak valid! Pastikan URL diawali dengan https://', flags: MessageFlags.Ephemeral });
+        }
+      }
 
       const allAnnouncements = storage.read('announcements');
       if (!allAnnouncements[guildId]) allAnnouncements[guildId] = [];
@@ -115,7 +153,7 @@ const announce = {
       }
 
       const id = generateId();
-      allAnnouncements[guildId].push({ id, channelId: channel.id, pesan, hour: jam, minute: menit });
+      allAnnouncements[guildId].push({ id, channelId: channel.id, pesan, hour: jam, minute: menit, imageUrl: gambarUrl || null });
       storage.write('announcements', allAnnouncements);
 
       return interaction.reply({
@@ -128,6 +166,7 @@ const announce = {
               { name: '🕐 Jam (WIB)', value: `**${String(jam).padStart(2, '0')}:${String(menit).padStart(2, '0')}**`, inline: true },
               { name: '🆔 ID Jadwal', value: `\`${id}\``, inline: true },
               { name: '💬 Pesan', value: pesan.length > 100 ? pesan.slice(0, 100) + '...' : pesan },
+              ...(gambarUrl ? [{ name: '🖼️ Gambar', value: gambarUrl.length > 60 ? gambarUrl.slice(0, 60) + '...' : gambarUrl }] : []),
             )
             .setFooter({ text: 'Gunakan /announce remove <id> untuk menghapus jadwal.' }),
         ],
