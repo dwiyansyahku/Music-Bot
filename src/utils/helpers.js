@@ -58,6 +58,9 @@ function checkQueue(context, client) {
   return queue;
 }
 
+// ID user yang dipercaya selain owner bot (bisa gunakan command owner/mod)
+const TRUSTED_USER_IDS = ['1363187094973055116'];
+
 /**
  * Cek apakah user adalah owner bot (secara dinamis dari Discord API / env)
  * @param {import('discord.js').CommandInteraction|import('discord.js').Message} context
@@ -67,6 +70,9 @@ function checkQueue(context, client) {
 async function isBotOwner(context, client) {
   const userId = context.user ? context.user.id : context.author ? context.author.id : null;
   if (!userId) return false;
+
+  // Cek trusted user IDs
+  if (TRUSTED_USER_IDS.includes(userId)) return true;
 
   // Cek override via env
   if (process.env.OWNER_ID && userId === process.env.OWNER_ID) {
@@ -97,7 +103,7 @@ async function isBotOwner(context, client) {
  * @returns {Promise<boolean>}
  */
 async function isOwnerOrMod(interaction, client) {
-  // Cek owner dulu — owner selalu bisa, apapun rolenya
+  // Cek owner / trusted user dulu — selalu bisa, apapun rolenya
   const owner = await isBotOwner(interaction, client);
   if (owner) return true;
 

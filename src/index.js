@@ -724,17 +724,65 @@ client.on('voiceStateUpdate', (oldState, newState) => {
   if (oldState.id === client.user.id && oldState.channelId && !newState.channelId) {
     if (client.stay247 && client.stay247.has(guildId)) {
       console.log(`♻️ [24/7 Enforcer] Bot terputus dari voice channel di guild ${guildId}. Memaksa masuk kembali...`);
-      setTimeout(() => {
-        if (client.stay247.has(guildId)) {
-          const channelToJoin = oldState.channel || client.channels.cache.get(oldState.channelId);
-          if (channelToJoin) {
-            client.distube.voices.join(channelToJoin).catch(console.error);
-          } else {
-            console.log(`♻️ [24/7 Enforcer] Channel ID ${oldState.channelId} tidak ditemukan (mungkin dihapus oleh bot TempVoice). Menonaktifkan 24/7 untuk guild ini.`);
-            client.stay247.delete(guildId);
-          }
+
+      // Inisialisasi retry counter per guild
+      if (!client._enforcerRetries) client._enforcerRetries = new Map();
+      const retryCount = client._enforcerRetries.get(guildId) || 0;
+
+      if (retryCount >= 3) {
+        console.warn(`♻️ [24/7 Enforcer] Sudah gagal 3x di guild ${guildId}. Menonaktifkan 24/7 sementara agar tidak spam.`);
+        client.stay247.delete(guildId);
+        client._enforcerRetries.delete(guildId);
+        // Kirim notif ke text channel jika ada queue
+        const queueForNotif = client.distube.getQueue(guildId);
+        if (queueForNotif?.textChannel) {
+          queueForNotif.textChannel.send('⚠️ **24/7 dinonaktifkan otomatis** karena bot gagal reconnect 3x berturut-turut. Gunakan `/q247` untuk mengaktifkan kembali.').catch(() => {});
         }
-      }, 2000); // Wait 2s to avoid API spam if the disconnection was violent
+        return;
+      }
+
+      // Delay 5 detik sebelum reconnect untuk menghindari API spam
+      setTimeout(async () => {
+        if (!client.stay247.has(guildId)) return; // Sudah dinonaktifkan saat delay
+
+        const channelToJoin = oldState.channel || client.channels.cache.get(oldState.channelId);
+        if (!channelToJoin) {
+          console.log(`♻️ [24/7 Enforcer] Channel ${oldState.channelId} tidak ditemukan (mungkin dihapus). Menonaktifkan 24/7 untuk guild ini.`);
+          client.stay247.delete(guildId);
+          client._enforcerRetries.delete(guildId);
+          return;
+        }
+
+        // Cek apakah ada user (non-bot) di channel sebelum masuk
+        const humanMembers = channelToJoin.members?.filter(m => !m.user.bot);
+        if (!humanMembers || humanMembers.size === 0) {
+          console.log(`♻️ [24/7 Enforcer] Channel ${channelToJoin.name} kosong (tidak ada user). Menunggu user bergabung...`);
+          // Reset retry counter karena ini bukan kegagalan koneksi, tapi memang kosong
+          client._enforcerRetries.set(guildId, 0);
+          return;
+        }
+
+        try {
+          await client.distube.voices.join(channelToJoin);
+          console.log(`♻️ [24/7 Enforcer] Berhasil reconnect ke ${channelToJoin.name} di guild ${guildId}.`);
+          client._enforcerRetries.set(guildId, 0); // Reset counter setelah berhasil
+        } catch (err) {
+          const attempt = (client._enforcerRetries.get(guildId) || 0) + 1;
+          client._enforcerRetries.set(guildId, attempt);
+          if (err.errorCode === 'VOICE_CONNECT_FAILED') {
+            console.warn(`♻️ [24/7 Enforcer] Gagal reconnect (percobaan ${attempt}/3) ke guild ${guildId}: VOICE_CONNECT_FAILED — timeout 30s.`);
+          } else {
+            console.warn(`♻️ [24/7 Enforcer] Gagal reconnect (percobaan ${attempt}/3) ke guild ${guildId}:`, err.message);
+          }
+          // Reset retry counter setelah 2 menit agar tidak terblokir permanen
+          setTimeout(() => {
+            if ((client._enforcerRetries.get(guildId) || 0) > 0) {
+              client._enforcerRetries.set(guildId, 0);
+              console.log(`♻️ [24/7 Enforcer] Retry counter di-reset untuk guild ${guildId}.`);
+            }
+          }, 2 * 60 * 1000);
+        }
+      }, 5000); // Tunggu 5 detik sebelum coba reconnect
     }
   }
 
