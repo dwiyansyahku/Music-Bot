@@ -264,7 +264,7 @@ const fun = {
       const releaseTime = Date.now() + durasi * 60 * 1000;
       jailData[guildId][targetUser.id] = {
         originalRoles,
-        originalNick: targetMember.displayName,
+        originalNick: targetMember.nickname || null,
         releaseTime,
         reason: alasan,
         jailedBy: interaction.user.tag,
