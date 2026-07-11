@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
-const { isBotOwner, replyNoAccess } = require('../utils/helpers');
+const { isOwnerOrMod, replyNoAccessMod } = require('../utils/helpers');
 const { saveGuildSetting } = require('../utils/storage');
 
 const qmorning = {
@@ -41,14 +41,10 @@ const qmorning = {
         )
     )
     .addSubcommand(sub =>
-      sub
-        .setName('enable')
-        .setDescription('Aktifkan fitur selamat pagi harian')
+      sub.setName('enable').setDescription('Aktifkan fitur selamat pagi harian')
     )
     .addSubcommand(sub =>
-      sub
-        .setName('disable')
-        .setDescription('Matikan fitur selamat pagi harian')
+      sub.setName('disable').setDescription('Matikan fitur selamat pagi harian')
     )
     .addSubcommand(sub =>
       sub
@@ -62,7 +58,7 @@ const qmorning = {
     ),
 
   async execute(interaction, client) {
-    if (!await isBotOwner(interaction, client)) return replyNoAccess(interaction);
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccessMod(interaction);
 
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;

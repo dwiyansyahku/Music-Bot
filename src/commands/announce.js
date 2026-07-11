@@ -2,7 +2,7 @@ const {
   SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder,
   ChannelType, MessageFlags,
 } = require('discord.js');
-const { isBotOwner, replyNoAccess } = require('../utils/helpers');
+const { isOwnerOrMod, replyNoAccessMod } = require('../utils/helpers');
 const storage = require('../utils/storage');
 
 // ID counter sederhana untuk jadwal pengumuman
@@ -26,7 +26,7 @@ const announce = {
           opt.setName('pesan').setDescription('Isi pengumuman. Gunakan \\n untuk baris baru.').setRequired(true).setMaxLength(2000)
         )
         .addBooleanOption(opt =>
-          opt.setName('ping').setDescription('Ping @everyone? (default: tidak)').setRequired(false)
+          opt.setName('ping').setDescription('Ping role Pengumuman? (default: tidak)').setRequired(false)
         )
         .addStringOption(opt =>
           opt.setName('gambar').setDescription('URL gambar yang ditampilkan di pengumuman (opsional)').setRequired(false)
@@ -68,7 +68,7 @@ const announce = {
     ),
 
   async execute(interaction, client) {
-    if (!await isBotOwner(interaction, client)) return replyNoAccess(interaction);
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccessMod(interaction);
 
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;
@@ -119,7 +119,7 @@ const announce = {
       if (finalImageUrl) embed.setImage(finalImageUrl);
 
       await channel.send({
-        content: ping ? '@everyone' : undefined,
+        content: ping ? '<@&1396396538686607410>' : undefined,
         embeds: [embed],
       });
 

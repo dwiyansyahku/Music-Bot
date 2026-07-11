@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
-const { isBotOwner, replyNoAccess } = require('../utils/helpers');
+const { isOwnerOrMod, replyNoAccessMod } = require('../utils/helpers');
 const { saveGuildSetting } = require('../utils/storage');
 
 const qnight = {
@@ -54,7 +54,7 @@ const qnight = {
     ),
 
   async execute(interaction, client) {
-    if (!await isBotOwner(interaction, client)) return replyNoAccess(interaction);
+    if (!await isOwnerOrMod(interaction, client)) return replyNoAccessMod(interaction);
 
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;

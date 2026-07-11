@@ -107,6 +107,12 @@ async function isOwnerOrMod(interaction, client) {
   const owner = await isBotOwner(interaction, client);
   if (owner) return true;
 
+  // Cek role moderator khusus
+  const MOD_ROLE_ID = '1396257049884622899';
+  if (interaction.member?.roles?.cache?.has(MOD_ROLE_ID)) {
+    return true;
+  }
+
   // Cek permission Moderate Members (standar moderator Discord)
   const { PermissionFlagsBits } = require('discord.js');
   return !!interaction.member?.permissions?.has(PermissionFlagsBits.ModerateMembers);

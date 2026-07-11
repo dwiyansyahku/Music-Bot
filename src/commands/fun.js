@@ -240,22 +240,24 @@ const fun = {
         return interaction.reply({ content: `❌ <@${targetUser.id}> sudah ada di penjara!`, flags: MessageFlags.Ephemeral });
       }
 
+      let roleChangeSuccess = true;
       try {
         // Hapus semua role, kasih role penjara
         await targetMember.roles.set([jailRole.id]);
-        // Ganti nickname
-        const randomNick = JAIL_NICKNAMES[Math.floor(Math.random() * JAIL_NICKNAMES.length)];
-        const oldNick = targetMember.displayName;
-        await targetMember.setNickname(randomNick).catch(() => {});
-
-        // Otomatis tarik ke voice channel penjara jika dia ada di voice channel mana pun
-        if (targetMember.voice.channelId && jailConfig.voiceChannelId) {
-          await targetMember.voice.setChannel(jailConfig.voiceChannelId).catch(err => {
-            console.error(`[Jail] Gagal memindahkan ${targetUser.tag} ke voice penjara:`, err.message);
-          });
-        }
       } catch (err) {
-        return interaction.reply({ content: `❌ Gagal jail: ${err.message}\nPastikan role bot lebih tinggi dari target!`, flags: MessageFlags.Ephemeral });
+        roleChangeSuccess = false;
+        console.warn(`[Jail] Gagal mengubah role untuk ${targetUser.tag} karena hirarki role Discord:`, err.message);
+      }
+
+      // Ganti nickname
+      const randomNick = JAIL_NICKNAMES[Math.floor(Math.random() * JAIL_NICKNAMES.length)];
+      await targetMember.setNickname(randomNick).catch(() => {});
+
+      // Otomatis tarik ke voice channel penjara jika dia ada di voice channel mana pun
+      if (targetMember.voice.channelId && jailConfig.voiceChannelId) {
+        await targetMember.voice.setChannel(jailConfig.voiceChannelId).catch(err => {
+          console.error(`[Jail] Gagal memindahkan ${targetUser.tag} ke voice penjara:`, err.message);
+        });
       }
 
       // Simpan data jail ke storage
@@ -266,6 +268,7 @@ const fun = {
         releaseTime,
         reason: alasan,
         jailedBy: interaction.user.tag,
+        roleChangeSuccess, // simpan status keberhasilan ubah role
       };
       storage.write('jail', jailData);
 
@@ -291,11 +294,17 @@ const fun = {
         embeds: [jailEmbed],
       });
 
+      // Deskripsi pengumuman jail
+      let announceDescription = `<@${targetUser.id}> telah dijebloskan ke penjara!\n**Tuduhan:** ${alasan}\n**Bebas:** <t:${Math.floor(releaseTime / 1000)}:R>`;
+      if (!roleChangeSuccess) {
+        announceDescription += `\n\n⚠️ *Catatan: Bot tidak punya izin mengubah role target (hirarki lebih tinggi), namun status jail & voice jail tetap aktif!*`;
+      }
+
       // Umumkan di channel saat ini
       const announceEmbed = new EmbedBuilder()
         .setColor(0xED4245)
         .setTitle('🚨 PENANGKAPAN BERHASIL!')
-        .setDescription(`<@${targetUser.id}> telah dijebloskan ke penjara!\n**Tuduhan:** ${alasan}\n**Bebas:** <t:${Math.floor(releaseTime / 1000)}:R>`)
+        .setDescription(announceDescription)
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
         .setFooter({ text: `Dijebloskan oleh ${interaction.user.tag}` })
         .setTimestamp();

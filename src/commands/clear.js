@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
-const { isBotOwner, replyNoAccess } = require('../utils/helpers');
+const { isOwnerOrMod } = require('../utils/helpers');
 
 const clear = {
   data: new SlashCommandBuilder()
@@ -40,11 +40,11 @@ const clear = {
   async execute(interaction, client) {
     const subcommand = interaction.options.getSubcommand();
 
-    // Cek permission user — owner bot selalu diizinkan
-    const isOwner = await isBotOwner(interaction, client);
-    if (!isOwner && !interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+    // Cek permission user — owner bot / moderator selalu diizinkan
+    const isAllowed = await isOwnerOrMod(interaction, client);
+    if (!isAllowed && !interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
       return interaction.reply({
-        content: '❌ Kamu tidak punya izin **Manage Messages** untuk menggunakan perintah ini!',
+        content: '❌ Kamu tidak punya izin **Manage Messages** atau status Moderator untuk menggunakan perintah ini!',
         flags: MessageFlags.Ephemeral,
       });
     }
