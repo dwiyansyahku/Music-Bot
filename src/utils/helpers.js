@@ -148,4 +148,76 @@ async function replyNoAccessMod(interaction) {
   return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
-module.exports = { checkVoiceChannel, checkQueue, isBotOwner, isOwnerOrMod, replyNoAccess, replyNoAccessMod };
+/**
+ * Update visibilitas channel penjara (text & voice) berdasarkan keberadaan tahanan.
+ * Jika ada tahanan -> channel ditampilkan ke @everyone.
+ * Jika tidak ada tahanan -> channel disembunyikan dari @everyone.
+ * @param {import('discord.js').Guild} guild
+ */
+async function updateJailVisibility(guild) {
+  const storage = require('./storage');
+  const { PermissionFlagsBits } = require('discord.js');
+  
+  const settings = storage.read('settings');
+  const jailConfig = settings[guild.id]?.jail;
+  if (!jailConfig) return;
+
+  const jailData = storage.read('jail');
+  const guildJails = jailData[guild.id] || {};
+  const hasPrisoners = Object.keys(guildJails).length > 0;
+
+  // Dapatkan channel text dan voice
+  const textChannel = jailConfig.channelId ? await guild.channels.fetch(jailConfig.channelId).catch(() => null) : null;
+  const voiceChannel = jailConfig.voiceChannelId ? await guild.channels.fetch(voiceChannelId => {}).catch(() => null) || await guild.channels.fetch(jailConfig.voiceChannelId).catch(() => null) : null;
+
+  if (textChannel) {
+    if (hasPrisoners) {
+      // Tampilkan channel text untuk @everyone (tapi tidak bisa kirim pesan, hanya lihat)
+      await textChannel.permissionOverwrites.edit(guild.roles.everyone, {
+        ViewChannel: true,
+        SendMessages: false
+      }).catch(err => console.error(`[Jail Overwrite] Gagal set text show:`, err.message));
+      
+      // Berikan izin View & Send untuk role penjara khusus
+      const jailRole = guild.roles.cache.get(jailConfig.roleId);
+      if (jailRole) {
+        await textChannel.permissionOverwrites.edit(jailRole, {
+          ViewChannel: true,
+          SendMessages: true
+        }).catch(err => console.error(`[Jail Overwrite] Gagal set jailRole text perms:`, err.message));
+      }
+    } else {
+      // Sembunyikan channel text dari @everyone
+      await textChannel.permissionOverwrites.edit(guild.roles.everyone, {
+        ViewChannel: false
+      }).catch(err => console.error(`[Jail Overwrite] Gagal set text hide:`, err.message));
+    }
+  }
+
+  if (voiceChannel) {
+    if (hasPrisoners) {
+      // Tampilkan channel voice untuk @everyone (tapi tidak bisa connect)
+      await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, {
+        ViewChannel: true,
+        Connect: false
+      }).catch(err => console.error(`[Jail Overwrite] Gagal set voice show:`, err.message));
+      
+      // Berikan izin View & Connect untuk role penjara khusus
+      const jailRole = guild.roles.cache.get(jailConfig.roleId);
+      if (jailRole) {
+        await voiceChannel.permissionOverwrites.edit(jailRole, {
+          ViewChannel: true,
+          Connect: true,
+          Speak: true
+        }).catch(err => console.error(`[Jail Overwrite] Gagal set jailRole voice perms:`, err.message));
+      }
+    } else {
+      // Sembunyikan channel voice dari @everyone
+      await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, {
+        ViewChannel: false
+      }).catch(err => console.error(`[Jail Overwrite] Gagal set voice hide:`, err.message));
+    }
+  }
+}
+
+module.exports = { checkVoiceChannel, checkQueue, isBotOwner, isOwnerOrMod, replyNoAccess, replyNoAccessMod, updateJailVisibility };

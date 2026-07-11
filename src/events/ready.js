@@ -271,6 +271,8 @@ module.exports = {
 
               delete currentJailData[guildId][userId];
               storage.write('jail', currentJailData);
+              const { updateJailVisibility } = require('../utils/helpers');
+              await updateJailVisibility(guild).catch(() => {});
 
               if (jailChannel) {
                 const { EmbedBuilder } = require('discord.js');
@@ -299,6 +301,10 @@ module.exports = {
             setTimeout(releaseUser, timeLeft);
           }
         }
+        
+        // Set visibilitas awal pada boot
+        const { updateJailVisibility } = require('../utils/helpers');
+        await updateJailVisibility(guild).catch(() => {});
       }
       if (jailCount > 0) {
         console.log(`✅ [Jail Startup] Berhasil memproses ${jailCount} tahanan aktif.`);

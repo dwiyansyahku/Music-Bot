@@ -2,7 +2,7 @@ const {
   SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder,
   MessageFlags, ChannelType,
 } = require('discord.js');
-const { isOwnerOrMod, isBotOwner, replyNoAccessMod } = require('../utils/helpers');
+const { isOwnerOrMod, isBotOwner, replyNoAccessMod, updateJailVisibility } = require('../utils/helpers');
 const storage = require('../utils/storage');
 
 // ================================
@@ -46,13 +46,7 @@ const JAIL_VERDICTS = [
 // Nickname jail random
 // ================================
 const JAIL_NICKNAMES = [
-  '🔒 Narapidana',
-  '⛓️ Tahanan Server',
-  '🚔 Buronan Tertangkap',
-  '🏴‍☠️ Si Bandel',
-  '🔗 Orang Tersangka',
-  '😈 Biangkerok',
-  '🚨 Pesakitan',
+  '🔒 Di HITAMKAN OLEH ATMIN'
 ];
 
 const fun = {
@@ -271,6 +265,7 @@ const fun = {
         roleChangeSuccess, // simpan status keberhasilan ubah role
       };
       storage.write('jail', jailData);
+      await updateJailVisibility(interaction.guild);
 
       // Verdict random
       const verdict = JAIL_VERDICTS[Math.floor(Math.random() * JAIL_VERDICTS.length)];
@@ -325,6 +320,7 @@ const fun = {
 
           delete currentJailData[guildId][targetUser.id];
           storage.write('jail', currentJailData);
+          await updateJailVisibility(interaction.guild);
 
           const freeEmbed = new EmbedBuilder()
             .setColor(0x57F287)
@@ -365,6 +361,7 @@ const fun = {
 
       delete jailData[guildId][targetUser.id];
       storage.write('jail', jailData);
+      await updateJailVisibility(interaction.guild);
 
       const freeEmbed = new EmbedBuilder()
         .setColor(0x57F287)
