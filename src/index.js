@@ -651,7 +651,11 @@ client.on('voiceStateUpdate', (oldState, newState) => {
       } else {
         // Warga biasa coba masuk VC penjara -> tendang keluar dari voice!
         if (newState.channelId === jailConfig.voiceChannelId) {
-          const hasModPerms = newState.member?.permissions.has(PermissionFlagsBits.ModerateMembers);
+          const MOD_ROLE_ID = '1396257049884622899';
+          const TRUSTED_USER_IDS = ['1363187094973055116'];
+          const hasModPerms = newState.member?.permissions.has(PermissionFlagsBits.ModerateMembers) ||
+                              newState.member?.roles.cache.has(MOD_ROLE_ID) ||
+                              TRUSTED_USER_IDS.includes(newState.member?.id);
           if (!hasModPerms) {
             newState.disconnect('Bukan narapidana atau moderator/admin!').catch(err => {
               console.error(`[Jail Enforcer] Gagal menendang user non-jail dari VC penjara:`, err.message);
