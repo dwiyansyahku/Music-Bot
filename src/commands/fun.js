@@ -102,6 +102,23 @@ const fun = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('roast_add')
+        .setDescription('Tambah kalimat roast custom (gunakan {name} untuk nama target)')
+        .addStringOption(opt => opt.setName('teks').setDescription('Teks kalimat roast').setRequired(true).setMaxLength(250))
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('roast_list')
+        .setDescription('Lihat daftar kalimat roast custom di server ini')
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('roast_remove')
+        .setDescription('Hapus kalimat roast custom')
+        .addIntegerOption(opt => opt.setName('index').setDescription('Nomor index kalimat (lihat di /fun roast_list)').setRequired(true).setMinValue(1))
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('wanted')
         .setDescription('Buat poster WANTED untuk seorang member')
         .addUserOption(opt => opt.setName('user').setDescription('Target wanted poster').setRequired(true))
@@ -316,6 +333,13 @@ const fun = {
           if (memberToFree) {
             await memberToFree.roles.set(currentJailData[guildId][targetUser.id].originalRoles || []).catch(() => {});
             await memberToFree.setNickname(currentJailData[guildId][targetUser.id].originalNick || null).catch(() => {});
+            
+            // Putuskan koneksi voice jika dia ada di voice channel penjara
+            const settings = storage.read('settings');
+            const jailConfig = settings[guildId]?.jail;
+            if (memberToFree.voice.channelId === jailConfig?.voiceChannelId) {
+              await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => {});
+            }
           }
 
           delete currentJailData[guildId][targetUser.id];
@@ -351,12 +375,18 @@ const fun = {
 
       const data = jailData[guildId][targetUser.id];
       const settings = storage.read('settings');
-      const jailChannelId = settings[guildId]?.jail?.channelId;
+      const jailConfig = settings[guildId]?.jail;
+      const jailChannelId = jailConfig?.channelId;
 
       const memberToFree = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (memberToFree) {
         await memberToFree.roles.set(data.originalRoles || []).catch(() => {});
         await memberToFree.setNickname(data.originalNick || null).catch(() => {});
+        
+        // Putuskan koneksi voice jika dia ada di voice channel penjara
+        if (memberToFree.voice.channelId === jailConfig?.voiceChannelId) {
+          await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => {});
+        }
       }
 
       delete jailData[guildId][targetUser.id];
@@ -422,17 +452,87 @@ const fun = {
         });
       }
 
-      const roast = ROASTS[Math.floor(Math.random() * ROASTS.length)];
+      // Cari roast dari custom roasts
+      const settings = storage.read('settings');
+      const customRoasts = settings[guildId]?.customRoasts || [];
+      let roastText = '';
+
+      if (customRoasts.length > 0) {
+        const rawRoast = customRoasts[Math.floor(Math.random() * customRoasts.length)];
+        roastText = rawRoast.replace(/{name}/g, targetUser.username);
+      } else {
+        const roastFn = ROASTS[Math.floor(Math.random() * ROASTS.length)];
+        roastText = roastFn(targetUser.username);
+      }
 
       const embed = new EmbedBuilder()
         .setColor(0xFF6B6B)
         .setTitle('🔥 ROAST SESSION!')
-        .setDescription(`<@${targetUser.id}>\n\n*"${roast(targetUser.username)}"*`)
+        .setDescription(`<@${targetUser.id}>\n\n*"${roastText}"*`)
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
         .setFooter({ text: `Disponsori oleh ${interaction.user.tag} • Ini cuma bercanda ya!`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });
+    }
+
+    if (sub === 'roast_add') {
+      const teks = interaction.options.getString('teks');
+      const settings = storage.read('settings');
+      if (!settings[guildId]) settings[guildId] = {};
+      if (!settings[guildId].customRoasts) settings[guildId].customRoasts = [];
+
+      settings[guildId].customRoasts.push(teks);
+      storage.write('settings', settings);
+
+      return interaction.reply({
+        content: `✅ Berhasil menambahkan kalimat roast custom baru!\n> *"${teks}"*`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    if (sub === 'roast_list') {
+      const settings = storage.read('settings');
+      const customRoasts = settings[guildId]?.customRoasts || [];
+
+      if (customRoasts.length === 0) {
+        return interaction.reply({
+          content: '📋 Belum ada kalimat roast custom di server ini. Gunakan `/fun roast_add` untuk menambahkan!',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0xFF6B6B)
+        .setTitle('📋 Daftar Roast Custom Server')
+        .setDescription(
+          customRoasts.map((r, i) => `**${i + 1}.** ${r}`).join('\n')
+        )
+        .setFooter({ text: 'Gunakan /fun roast_remove <index> untuk menghapus.' });
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    if (sub === 'roast_remove') {
+      const index = interaction.options.getInteger('index') - 1; // Konversi ke 0-indexed
+      const settings = storage.read('settings');
+      const customRoasts = settings[guildId]?.customRoasts || [];
+
+      if (index < 0 || index >= customRoasts.length) {
+        return interaction.reply({
+          content: `❌ Nomor index \`${index + 1}\` tidak valid! Silakan cek daftar dengan \`/fun roast_list\`.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const removed = customRoasts.splice(index, 1)[0];
+      settings[guildId].customRoasts = customRoasts;
+      storage.write('settings', settings);
+
+      return interaction.reply({
+        content: `✅ Berhasil menghapus kalimat roast:\n> *"${removed}"*`,
+        flags: MessageFlags.Ephemeral
+      });
     }
 
     // ─────────────────────────────────────

@@ -267,6 +267,12 @@ module.exports = {
               if (member) {
                 await member.roles.set(data.originalRoles || []).catch(() => {});
                 await member.setNickname(data.originalNick || null).catch(() => {});
+                
+                // Putuskan koneksi voice jika dia ada di voice channel penjara
+                const jailConfig = settings[guildId]?.jail;
+                if (member.voice.channelId === jailConfig?.voiceChannelId) {
+                  await member.voice.disconnect('Bebas dari penjara!').catch(() => {});
+                }
               }
 
               delete currentJailData[guildId][userId];
