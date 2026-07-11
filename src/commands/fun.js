@@ -274,7 +274,8 @@ const fun = {
       if (!jailRole) return interaction.reply({ content: '❌ Role penjara tidak ditemukan! Cek konfigurasi dengan `/fun jailsetup`.', flags: MessageFlags.Ephemeral });
       if (!jailChannel) return interaction.reply({ content: '❌ Channel penjara tidak ditemukan!', flags: MessageFlags.Ephemeral });
 
-      // Simpan role asli member sebelum di-jail
+      // Simpan data asli member sebelum di-jail
+      const originalNick = targetMember.nickname || null;
       const originalRoles = targetMember.roles.cache
         .filter(r => r.id !== interaction.guild.id) // hapus @everyone
         .map(r => r.id);
@@ -314,7 +315,7 @@ const fun = {
       const releaseTime = Date.now() + durasi * 60 * 1000;
       jailData[guildId][targetUser.id] = {
         originalRoles,
-        originalNick: targetMember.nickname || null,
+        originalNick,
         originalVoiceChannelId, // simpan ID voice channel asli!
         releaseTime,
         reason: alasan,
