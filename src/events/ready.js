@@ -268,10 +268,21 @@ module.exports = {
                 await member.roles.set(data.originalRoles || []).catch(() => {});
                 await member.setNickname(data.originalNick || null).catch(() => {});
                 
-                // Putuskan koneksi voice jika dia ada di voice channel penjara
+                // Kembalikan ke voice channel asal jika ada, jika tidak ada/tidak valid putuskan koneksi voice
                 const jailConfig = settings[guildId]?.jail;
                 if (member.voice.channelId === jailConfig?.voiceChannelId) {
-                  await member.voice.disconnect('Bebas dari penjara!').catch(() => {});
+                  let movedBack = false;
+                  if (data.originalVoiceChannelId) {
+                    const origChannel = await guild.channels.fetch(data.originalVoiceChannelId).catch(() => null);
+                    if (origChannel) {
+                      await member.voice.setChannel(origChannel).then(() => {
+                        movedBack = true;
+                      }).catch(() => {});
+                    }
+                  }
+                  if (!movedBack) {
+                    await member.voice.disconnect('Bebas dari penjara!').catch(() => {});
+                  }
                 }
               }
 

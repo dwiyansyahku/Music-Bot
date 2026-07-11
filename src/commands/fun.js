@@ -81,7 +81,7 @@ const JAIL_VERDICTS = [
 // Nickname jail random
 // ================================
 const JAIL_NICKNAMES = [
-  '🔒 Di HITAMKAN OLEH ATMIN'
+  'Di HITAMKAN OLEH ATMIN'
 ];
 
 const fun = {
@@ -297,13 +297,17 @@ const fun = {
 
       // Ganti nickname
       const randomNick = JAIL_NICKNAMES[Math.floor(Math.random() * JAIL_NICKNAMES.length)];
-      await targetMember.setNickname(randomNick).catch(() => {});
+      await targetMember.setNickname(randomNick).catch(() => { });
 
       // Otomatis tarik ke voice channel penjara jika dia ada di voice channel mana pun
-      if (targetMember.voice.channelId && jailConfig.voiceChannelId) {
-        await targetMember.voice.setChannel(jailConfig.voiceChannelId).catch(err => {
-          console.error(`[Jail] Gagal memindahkan ${targetUser.tag} ke voice penjara:`, err.message);
-        });
+      let originalVoiceChannelId = null;
+      if (targetMember.voice.channelId) {
+        originalVoiceChannelId = targetMember.voice.channelId;
+        if (jailConfig.voiceChannelId) {
+          await targetMember.voice.setChannel(jailConfig.voiceChannelId).catch(err => {
+            console.error(`[Jail] Gagal memindahkan ${targetUser.tag} ke voice penjara:`, err.message);
+          });
+        }
       }
 
       // Simpan data jail ke storage
@@ -311,6 +315,7 @@ const fun = {
       jailData[guildId][targetUser.id] = {
         originalRoles,
         originalNick: targetMember.nickname || null,
+        originalVoiceChannelId, // simpan ID voice channel asli!
         releaseTime,
         reason: alasan,
         jailedBy: interaction.user.tag,
@@ -366,17 +371,27 @@ const fun = {
 
           const memberToFree = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
           if (memberToFree) {
-            await memberToFree.roles.set(currentJailData[guildId][targetUser.id].originalRoles || []).catch(() => {});
-            await memberToFree.setNickname(currentJailData[guildId][targetUser.id].originalNick || null).catch(() => {});
-            
-            // Putuskan koneksi voice jika dia ada di voice channel penjara
+            await memberToFree.roles.set(currentJailData[guildId][targetUser.id].originalRoles || []).catch(() => { });
+            await memberToFree.setNickname(currentJailData[guildId][targetUser.id].originalNick || null).catch(() => { });
+            // Kembalikan ke voice channel asal jika ada, jika tidak ada/tidak valid putuskan koneksi voice
             const settings = storage.read('settings');
             const jailConfig = settings[guildId]?.jail;
+            const data = currentJailData[guildId][targetUser.id];
             if (memberToFree.voice.channelId === jailConfig?.voiceChannelId) {
-              await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => {});
+              let movedBack = false;
+              if (data.originalVoiceChannelId) {
+                const origChannel = await memberToFree.guild.channels.fetch(data.originalVoiceChannelId).catch(() => null);
+                if (origChannel) {
+                  await memberToFree.voice.setChannel(origChannel).then(() => {
+                    movedBack = true;
+                  }).catch(() => {});
+                }
+              }
+              if (!movedBack) {
+                await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => { });
+              }
             }
           }
-
           delete currentJailData[guildId][targetUser.id];
           storage.write('jail', currentJailData);
           await updateJailVisibility(interaction.guild);
@@ -415,12 +430,23 @@ const fun = {
 
       const memberToFree = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (memberToFree) {
-        await memberToFree.roles.set(data.originalRoles || []).catch(() => {});
-        await memberToFree.setNickname(data.originalNick || null).catch(() => {});
-        
-        // Putuskan koneksi voice jika dia ada di voice channel penjara
+        await memberToFree.roles.set(data.originalRoles || []).catch(() => { });
+        await memberToFree.setNickname(data.originalNick || null).catch(() => { });
+
+        // Kembalikan ke voice channel asal jika ada, jika tidak ada/tidak valid putuskan koneksi voice
         if (memberToFree.voice.channelId === jailConfig?.voiceChannelId) {
-          await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => {});
+          let movedBack = false;
+          if (data.originalVoiceChannelId) {
+            const origChannel = await memberToFree.guild.channels.fetch(data.originalVoiceChannelId).catch(() => null);
+            if (origChannel) {
+              await memberToFree.voice.setChannel(origChannel).then(() => {
+                movedBack = true;
+              }).catch(() => {});
+            }
+          }
+          if (!movedBack) {
+            await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => { });
+          }
         }
       }
 
@@ -436,7 +462,7 @@ const fun = {
 
       if (jailChannelId) {
         const jailChannel = interaction.guild.channels.cache.get(jailChannelId);
-        if (jailChannel) await jailChannel.send({ embeds: [freeEmbed] }).catch(() => {});
+        if (jailChannel) await jailChannel.send({ embeds: [freeEmbed] }).catch(() => { });
       }
 
       return interaction.reply({
