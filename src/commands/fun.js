@@ -132,25 +132,10 @@ const fun = {
     .addSubcommand(sub =>
       sub
         .setName('roast')
-        .setDescription('Kirim roast lucu ke seorang member')
+        .setDescription('Kirim roast ke seorang member (bisa acak atau custom teks & channel)')
         .addUserOption(opt => opt.setName('user').setDescription('Korban roast').setRequired(true))
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('roast_add')
-        .setDescription('Tambah kalimat roast custom (gunakan {name} untuk nama target)')
-        .addStringOption(opt => opt.setName('teks').setDescription('Teks kalimat roast').setRequired(true).setMaxLength(250))
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('roast_list')
-        .setDescription('Lihat daftar kalimat roast custom di server ini')
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('roast_remove')
-        .setDescription('Hapus kalimat roast custom')
-        .addIntegerOption(opt => opt.setName('index').setDescription('Nomor index kalimat (lihat di /fun roast_list)').setRequired(true).setMinValue(1))
+        .addStringOption(opt => opt.setName('teks').setDescription('Teks roast manual (jika kosong, acak dari bot)').setRequired(false).setMaxLength(500))
+        .addChannelOption(opt => opt.setName('channel').setDescription('Channel tujuan pengiriman (jika kosong, kirim di sini)').addChannelTypes(ChannelType.GuildText).setRequired(false))
     )
     .addSubcommand(sub =>
       sub
@@ -502,21 +487,20 @@ const fun = {
     // ─────────────────────────────────────
     if (sub === 'roast') {
       const targetUser = interaction.options.getUser('user');
+      const customTeks = interaction.options.getString('teks');
+      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
 
       if (targetUser.id === client.user.id) {
         return interaction.reply({
           content: `🤡 Coba lo roast bot? Nice try. Sini aku balik: lo itu orang yang nge-roast bot Discord jam ${new Date().getHours()} pagi/malem. Siapa yang perlu di-roast sekarang?`,
+          flags: MessageFlags.Ephemeral
         });
       }
 
-      // Cari roast dari custom roasts
-      const settings = storage.read('settings');
-      const customRoasts = settings[guildId]?.customRoasts || [];
       let roastText = '';
-
-      if (customRoasts.length > 0) {
-        const rawRoast = customRoasts[Math.floor(Math.random() * customRoasts.length)];
-        roastText = rawRoast.replace(/{name}/g, targetUser.username);
+      if (customTeks) {
+        // Ganti {name} jika ada, atau gunakan langsung
+        roastText = customTeks.replace(/{name}/g, targetUser.username);
       } else {
         const roastFn = ROASTS[Math.floor(Math.random() * ROASTS.length)];
         roastText = roastFn(targetUser.username);
@@ -530,66 +514,19 @@ const fun = {
         .setFooter({ text: `Disponsori oleh ${interaction.user.tag} • Ini cuma bercanda ya!`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
         .setTimestamp();
 
-      return interaction.reply({ embeds: [embed] });
-    }
-
-    if (sub === 'roast_add') {
-      const teks = interaction.options.getString('teks');
-      const settings = storage.read('settings');
-      if (!settings[guildId]) settings[guildId] = {};
-      if (!settings[guildId].customRoasts) settings[guildId].customRoasts = [];
-
-      settings[guildId].customRoasts.push(teks);
-      storage.write('settings', settings);
-
-      return interaction.reply({
-        content: `✅ Berhasil menambahkan kalimat roast custom baru!\n> *"${teks}"*`,
-        flags: MessageFlags.Ephemeral
-      });
-    }
-
-    if (sub === 'roast_list') {
-      const settings = storage.read('settings');
-      const customRoasts = settings[guildId]?.customRoasts || [];
-
-      if (customRoasts.length === 0) {
+      // Jika dikirim ke channel lain
+      if (targetChannel.id !== interaction.channelId) {
+        // Kirim embed ke channel tujuan
+        await targetChannel.send({ embeds: [embed] }).catch(() => {});
+        // Balas interaction secara ephemeral
         return interaction.reply({
-          content: '📋 Belum ada kalimat roast custom di server ini. Gunakan `/fun roast_add` untuk menambahkan!',
+          content: `✅ Roast berhasil dikirim ke <#${targetChannel.id}>!`,
           flags: MessageFlags.Ephemeral
         });
+      } else {
+        // Kirim langsung ke channel saat ini
+        return interaction.reply({ embeds: [embed] });
       }
-
-      const embed = new EmbedBuilder()
-        .setColor(0xFF6B6B)
-        .setTitle('📋 Daftar Roast Custom Server')
-        .setDescription(
-          customRoasts.map((r, i) => `**${i + 1}.** ${r}`).join('\n')
-        )
-        .setFooter({ text: 'Gunakan /fun roast_remove <index> untuk menghapus.' });
-
-      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    if (sub === 'roast_remove') {
-      const index = interaction.options.getInteger('index') - 1; // Konversi ke 0-indexed
-      const settings = storage.read('settings');
-      const customRoasts = settings[guildId]?.customRoasts || [];
-
-      if (index < 0 || index >= customRoasts.length) {
-        return interaction.reply({
-          content: `❌ Nomor index \`${index + 1}\` tidak valid! Silakan cek daftar dengan \`/fun roast_list\`.`,
-          flags: MessageFlags.Ephemeral
-        });
-      }
-
-      const removed = customRoasts.splice(index, 1)[0];
-      settings[guildId].customRoasts = customRoasts;
-      storage.write('settings', settings);
-
-      return interaction.reply({
-        content: `✅ Berhasil menghapus kalimat roast:\n> *"${removed}"*`,
-        flags: MessageFlags.Ephemeral
-      });
     }
 
     // ─────────────────────────────────────
