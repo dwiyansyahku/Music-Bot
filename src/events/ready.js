@@ -263,6 +263,12 @@ module.exports = {
               const currentJailData = storage.read('jail');
               if (!currentJailData[guildId]?.[userId]) return; // Sudah dilepas manual
 
+              // 1. Hapus dari database DULUAN agar Enforcer langsung tahu dia sudah bebas
+              delete currentJailData[guildId][userId];
+              storage.write('jail', currentJailData);
+              const { updateJailVisibility } = require('../utils/helpers');
+              await updateJailVisibility(guild).catch(() => {});
+
               const member = await guild.members.fetch(userId).catch(() => null);
               if (member) {
                 await member.roles.set(data.originalRoles || []).catch(() => {});
@@ -271,22 +277,17 @@ module.exports = {
                 // Kembalikan ke voice channel asal jika ada, jika tidak ada/tidak valid putuskan koneksi voice
                 const jailConfig = settings[guildId]?.jail;
                 if (member.voice.channelId === jailConfig?.voiceChannelId) {
-                  let movedBack = false;
-                  if (data.originalVoiceChannelId) {
-                    await member.voice.setChannel(data.originalVoiceChannelId)
-                      .then(() => { movedBack = true; })
-                      .catch(() => {});
-                  }
-                  if (!movedBack) {
-                    await member.voice.disconnect('Bebas dari penjara!').catch(() => {});
-                  }
+                   let movedBack = false;
+                   if (data.originalVoiceChannelId) {
+                     await member.voice.setChannel(data.originalVoiceChannelId)
+                       .then(() => { movedBack = true; })
+                       .catch(() => {});
+                   }
+                   if (!movedBack) {
+                     await member.voice.disconnect('Bebas dari penjara!').catch(() => {});
+                   }
                 }
               }
-
-              delete currentJailData[guildId][userId];
-              storage.write('jail', currentJailData);
-              const { updateJailVisibility } = require('../utils/helpers');
-              await updateJailVisibility(guild).catch(() => {});
 
               if (jailChannel) {
                 const { EmbedBuilder } = require('discord.js');
