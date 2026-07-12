@@ -81,7 +81,7 @@ const JAIL_VERDICTS = [
 // Nickname jail random
 // ================================
 const JAIL_NICKNAMES = [
-  'Di HITAMKAN OLEH ATMIN'
+  'DIHITAMKAN OLEH ATMIN'
 ];
 
 const fun = {
@@ -382,12 +382,9 @@ const fun = {
             if (memberToFree.voice.channelId === jailConfig?.voiceChannelId) {
               let movedBack = false;
               if (data.originalVoiceChannelId) {
-                const origChannel = await memberToFree.guild.channels.fetch(data.originalVoiceChannelId).catch(() => null);
-                if (origChannel) {
-                  await memberToFree.voice.setChannel(origChannel).then(() => {
-                    movedBack = true;
-                  }).catch(() => {});
-                }
+                await memberToFree.voice.setChannel(data.originalVoiceChannelId)
+                  .then(() => { movedBack = true; })
+                  .catch(() => {});
               }
               if (!movedBack) {
                 await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => { });
@@ -439,12 +436,9 @@ const fun = {
         if (memberToFree.voice.channelId === jailConfig?.voiceChannelId) {
           let movedBack = false;
           if (data.originalVoiceChannelId) {
-            const origChannel = await memberToFree.guild.channels.fetch(data.originalVoiceChannelId).catch(() => null);
-            if (origChannel) {
-              await memberToFree.voice.setChannel(origChannel).then(() => {
-                movedBack = true;
-              }).catch(() => {});
-            }
+            await memberToFree.voice.setChannel(data.originalVoiceChannelId)
+              .then(() => { movedBack = true; })
+              .catch(() => {});
           }
           if (!movedBack) {
             await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => { });

@@ -273,12 +273,9 @@ module.exports = {
                 if (member.voice.channelId === jailConfig?.voiceChannelId) {
                   let movedBack = false;
                   if (data.originalVoiceChannelId) {
-                    const origChannel = await guild.channels.fetch(data.originalVoiceChannelId).catch(() => null);
-                    if (origChannel) {
-                      await member.voice.setChannel(origChannel).then(() => {
-                        movedBack = true;
-                      }).catch(() => {});
-                    }
+                    await member.voice.setChannel(data.originalVoiceChannelId)
+                      .then(() => { movedBack = true; })
+                      .catch(() => {});
                   }
                   if (!movedBack) {
                     await member.voice.disconnect('Bebas dari penjara!').catch(() => {});
