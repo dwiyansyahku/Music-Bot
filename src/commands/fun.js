@@ -287,20 +287,7 @@ const fun = {
         return interaction.reply({ content: `❌ <@${targetUser.id}> sudah ada di penjara!`, flags: MessageFlags.Ephemeral });
       }
 
-      let roleChangeSuccess = true;
-      try {
-        // Hapus semua role, kasih role penjara
-        await targetMember.roles.set([jailRole.id]);
-      } catch (err) {
-        roleChangeSuccess = false;
-        console.warn(`[Jail] Gagal mengubah role untuk ${targetUser.tag} karena hirarki role Discord:`, err.message);
-      }
-
-      // Ganti nickname
-      const randomNick = JAIL_NICKNAMES[Math.floor(Math.random() * JAIL_NICKNAMES.length)];
-      await targetMember.setNickname(randomNick).catch(() => { });
-
-      // Otomatis tarik ke voice channel penjara jika dia ada di voice channel mana pun
+      // 1. Tarik ke voice channel penjara DULUAN jika dia ada di voice channel mana pun
       let originalVoiceChannelId = null;
       if (targetMember.voice.channelId) {
         originalVoiceChannelId = targetMember.voice.channelId;
@@ -310,6 +297,20 @@ const fun = {
           });
         }
       }
+
+      // 2. Baru ubah role
+      let roleChangeSuccess = true;
+      try {
+        // Hapus semua role, kasih role penjara
+        await targetMember.roles.set([jailRole.id]);
+      } catch (err) {
+        roleChangeSuccess = false;
+        console.warn(`[Jail] Gagal mengubah role untuk ${targetUser.tag} karena hirarki role Discord:`, err.message);
+      }
+
+      // 3. Ganti nickname
+      const randomNick = JAIL_NICKNAMES[Math.floor(Math.random() * JAIL_NICKNAMES.length)];
+      await targetMember.setNickname(randomNick).catch(() => { });
 
       // Simpan data jail ke storage
       const releaseTime = Date.now() + durasi * 60 * 1000;
