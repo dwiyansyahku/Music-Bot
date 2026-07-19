@@ -54,8 +54,26 @@ function setupCookies() {
           (netscapeContent.startsWith("'") && netscapeContent.endsWith("'"))) {
         netscapeContent = netscapeContent.slice(1, -1);
       }
+
+      // Fix: Railway UI often converts tab characters to spaces when pasting.
+      // Normalize each non-comment line so fields are separated by a single tab.
+      netscapeContent = netscapeContent.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('#') || trimmed === '') return line;
+        // Split on actual tab OR 2+ spaces (Railway artifact), rejoin with tab
+        return trimmed.split(/\t| {2,}/).join('\t');
+      }).join('\n');
+
       fs.writeFileSync(cookiesTxtPath, netscapeContent, 'utf8');
-      console.log('✅ [Cookies Helper] Written YOUTUBE_COOKIES to cookies.txt');
+
+      // Debug: show first data line to verify tab format
+      const firstDataLine = netscapeContent.split('\n').find(l => l.trim() && !l.startsWith('#'));
+      if (firstDataLine) {
+        const cols = firstDataLine.split('\t');
+        console.log(`✅ [Cookies Helper] Written YOUTUBE_COOKIES to cookies.txt (${cols.length} columns in first line, name=${cols[5] || '?'}`);
+      } else {
+        console.log('✅ [Cookies Helper] Written YOUTUBE_COOKIES to cookies.txt');
+      }
 
       // Configure yt-dlp conf
       const ytDlpBinDir = path.join(process.cwd(), 'bin');

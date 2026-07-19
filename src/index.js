@@ -242,39 +242,26 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     return await executeYtdlpRaw(url, flags, timeoutMs);
   } catch (err) {
     const errText = err.message || '';
-    const hasCookies = flags && flags.cookies;
-    
     const errLower = errText.toLowerCase();
-    
-    // Hanya hapus cookies jika error memang karena auth/cookie tidak valid
-    // JANGAN hapus cookies untuk 429 (rate limit) atau UNPLAYABLE (IP block)
-    // karena menghapus cookies justru memperburuk situasi
-    const isAuthError = (errLower.includes('sign in') || errLower.includes('login_required') ||
-                         errLower.includes('confirm you\'re not a bot') ||
-                         errLower.includes('this video is only available')) &&
-                        !errLower.includes('429') &&
-                        !errLower.includes('too many requests') &&
-                        !errLower.includes('unplayable') &&
-                        !errLower.includes('page needs to be reloaded');
-                          
-    if (hasCookies && isAuthError) {
-      console.warn(`⚠️ [Cookies Fallback] Cookies tidak valid, retry tanpa cookies: ${errText.slice(0, 200)}...`);
-      
-      const newFlags = { ...flags };
-      delete newFlags.cookies;
-      
-      return await executeYtdlpRaw(url, newFlags, timeoutMs);
-    }
-    
+
+    // Retry on rate limit (429) with a short delay
     if (errLower.includes('429') || errLower.includes('too many requests')) {
       console.warn('⚠️ [Rate Limit] YouTube 429 terdeteksi. Tunggu 3 detik lalu retry...');
       await new Promise(r => setTimeout(r, 3000));
       return await executeYtdlpRaw(url, flags, timeoutMs);
     }
-    
+
+    // NOTE: Do NOT remove cookies on LOGIN_REQUIRED — cookies are needed for auth.
+    // Removing cookies and retrying without them will always fail too.
+    if (errLower.includes('sign in') || errLower.includes('login_required') ||
+        errLower.includes('confirm you\'re not a bot')) {
+      console.warn(`⚠️ [Auth Error] YouTube meminta login. Cek apakah YOUTUBE_COOKIES di Railway masih valid.`);
+    }
+
     throw err;
   }
 }
+
 
 // Helper to convert yt-dlp info to DisTube Song
 function createYtDlpSong(plugin, info, options) {
