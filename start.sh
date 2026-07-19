@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Generate cookies.txt from environment variable if set
+if [ -n "$YOUTUBE_COOKIES" ]; then
+  echo "🍪 Generating cookies.txt from environment variable..."
+  echo "$YOUTUBE_COOKIES" > /app/cookies.txt
+  echo "✅ cookies.txt created ($(wc -l < /app/cookies.txt) lines)"
+else
+  echo "⚠️ YOUTUBE_COOKIES env not set, skipping cookies.txt generation"
+fi
+
 # Start the bgutil companion server in the background
 cd /opt/bgutil/server
 node build/main.js &
