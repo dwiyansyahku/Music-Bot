@@ -106,7 +106,7 @@ async function publishCardToChannel(guild, member, client) {
     const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
     payload = { content: warmMessage, files: [attachment] };
   } catch (canvasErr) {
-    console.warn('[PublishCard] Canvas image failed, using Embed fallback:', canvasErr.message);
+    console.warn('[PublishCard] Canvas image failed, using Embed fallback:', canvasErr.stack || canvasErr.message);
     const embed = await buildMemberCardEmbed(guild, member);
     payload = { content: warmMessage, embeds: [embed] };
   }
@@ -232,13 +232,13 @@ async function handleCardButton(interaction, client) {
         files: [attachment]
       });
     } catch (canvasErr) {
-      console.warn('[ViewCard] Canvas generation failed, falling back to Embed:', canvasErr.message);
+      console.warn('[ViewCard] Graphic card editReply failed:', canvasErr.stack || canvasErr.message);
       const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
       return await interaction.editReply({
         content: '*Your Member Profile Card (Only visible to you):*',
         embeds: [embed],
         files: []
-      });
+      }).catch(() => {});
     }
   }
 
