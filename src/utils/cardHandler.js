@@ -5,57 +5,57 @@ const {
 const storage = require('./storage');
 
 /**
- * Buat Embed & ActionRow untuk Panel Hub Card Member yang diposting di channel #member-card
+ * Creates Embed & ActionRow for Member Profile Card Hub Panel posted in #member-card
  */
 function createCardHubPayload(guild) {
   const embed = new EmbedBuilder()
     .setColor('#5865F2')
-    .setTitle('🎴 Kartu Identitas Member Server')
+    .setTitle('Member Profile Card')
     .setDescription(
-      'Selamat datang di sistem **Member Card** server!\n\n' +
-      'Kartu ini adalah identitas digital kamu di server ini. Kamu bisa mengatur **Bio**, **Kota/Domisili Asal**, dan **Warna Aksen Border** profilmu sendiri tanpa perlu mengetik perintah.\n\n' +
-      '**Cara Kerja:**\n' +
-      '1. Klik tombol **📝 Edit Profil Card** di bawah untuk mengisi form pop-up.\n' +
-      '2. Klik **🎴 Lihat Card Saya** untuk melihat tampilan profilmu.\n' +
-      '3. Klik **📢 Publikasikan Card** jika ingin membagikan kartu profilmu di channel ini.'
+      'Welcome to the **Member Profile Card** system.\n\n' +
+      'Create your digital identity card in this server. Customize your **Bio**, **Location**, and **Accent Color** directly using the interactive buttons below.\n\n' +
+      '**How It Works:**\n' +
+      '1. Click **Edit Profile** to fill out your profile details in a pop-up form.\n' +
+      '2. Click **View My Card** to preview your profile card privately.\n' +
+      '3. Click **Publish Card** if you wish to share your profile card in this channel.'
     )
     .addFields(
       {
-        name: '📋 Contoh Tampilan Card',
+        name: 'Preview Template',
         value: [
           '```',
-          'Nama            : DJKingz',
-          'Username        : DJKingz47#4521',
-          'Posisi Member   : #47 dari 312',
-          'Asal            : Jakarta, Indonesia',
-          'Bergabung Server: 15 Jan 2024',
-          'Akun Dibuat     : 03 Mar 2020',
-          'Roles           : @DJ @VIP @Member',
-          'Bio             : Suka musik lo-fi & koding 🎵',
+          'Name            : Domba Kuring',
+          'Username        : qumpruy',
+          'Member Position : #47 of 312',
+          'Location        : Aceh, Indonesia',
+          'Joined Server   : Jan 15, 2024',
+          'Account Created : Mar 03, 2020',
+          'Roles           : @Senior Ketjeh @Price @Bestie Mpruy',
+          'Bio             : Suka musik lo-fi & koding',
           '```'
         ].join('\n'),
         inline: false
       }
     )
-    .setFooter({ text: `${guild.name} • Kartu Identitas Member` })
+    .setFooter({ text: `${guild.name} • Member Identity System` })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('card_btn_edit')
-      .setLabel('📝 Edit Profil Card')
+      .setLabel('Edit Profile')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('card_btn_view_self')
-      .setLabel('🎴 Lihat Card Saya')
+      .setLabel('View My Card')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('card_btn_publish')
-      .setLabel('📢 Publikasikan Card')
+      .setLabel('Publish Card')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('card_btn_reset')
-      .setLabel('🗑️ Reset')
+      .setLabel('Reset')
       .setStyle(ButtonStyle.Danger)
   );
 
@@ -63,45 +63,45 @@ function createCardHubPayload(guild) {
 }
 
 /**
- * Handle ketika user menekan tombol di Card Hub
+ * Handle when user clicks a button in Card Hub
  */
 async function handleCardButton(interaction, client) {
   const customId = interaction.customId;
   const guildId = interaction.guild.id;
   const userId = interaction.user.id;
 
-  // 1. EDIT PROFIL → Buka Modal Pop-up Form
+  // 1. EDIT PROFILE → Open Modal Form
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
 
     const modal = new ModalBuilder()
       .setCustomId('card_modal_submit')
-      .setTitle('📝 Form Profil Card Member');
+      .setTitle('Edit Member Profile');
 
     const bioInput = new TextInputBuilder()
       .setCustomId('card_input_bio')
-      .setLabel('Bio Singkat')
+      .setLabel('Short Bio / Status')
       .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Contoh: Suka musik lo-fi & aktif di server 🎵')
+      .setPlaceholder('Example: Lo-fi music enthusiast & developer')
       .setValue(userCard.bio || '')
       .setRequired(false)
       .setMaxLength(100);
 
     const asalInput = new TextInputBuilder()
       .setCustomId('card_input_asal')
-      .setLabel('Kota / Domisili Asal')
+      .setLabel('Location / Origin')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: Jakarta, Indonesia')
+      .setPlaceholder('Example: Aceh, Indonesia')
       .setValue(userCard.asal || '')
       .setRequired(false)
       .setMaxLength(30);
 
     const colorInput = new TextInputBuilder()
       .setCustomId('card_input_color')
-      .setLabel('Warna Border (Kode Hex, Opsional)')
+      .setLabel('Accent Color (Hex Code, Optional)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: #5865F2 atau #FF5733')
+      .setPlaceholder('Example: #5865F2 or #FF5733')
       .setValue(userCard.color || '')
       .setRequired(false)
       .setMaxLength(7);
@@ -115,22 +115,22 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. LIHAT CARD SAYA (Privat / Ephemeral)
+  // 2. VIEW MY CARD (Private / Ephemeral)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
     return interaction.editReply({
-      content: '*Kartu Profil kamu (Hanya terlihat oleh kamu):*',
+      content: '*Your Member Profile Card (Only visible to you):*',
       embeds: [embed]
     });
   }
 
-  // 3. PUBLIKASIKAN CARD (Tampil Publik di Channel)
+  // 3. PUBLISH CARD (Public in channel)
   if (customId === 'card_btn_publish') {
     await interaction.deferReply();
     const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
     return interaction.editReply({
-      content: `🎴 **Kartu Profil ${interaction.member.displayName}**`,
+      content: `**Member Profile Card — ${interaction.member.displayName}**`,
       embeds: [embed]
     });
   }
@@ -143,14 +143,14 @@ async function handleCardButton(interaction, client) {
       storage.write('cards', cardsData);
     }
     return interaction.reply({
-      content: '🔄 Kustomisasi profil card kamu berhasil direset ke default.',
+      content: 'Your profile customization has been reset to default.',
       flags: MessageFlags.Ephemeral
     });
   }
 }
 
 /**
- * Handle ketika user menekan Submit di Pop-up Form Modal
+ * Handle when user submits Modal Form
  */
 async function handleCardModalSubmit(interaction, client) {
   const guildId = interaction.guild.id;
@@ -160,10 +160,10 @@ async function handleCardModalSubmit(interaction, client) {
   const asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let color = interaction.fields.getTextInputValue('card_input_color').trim();
 
-  // Validasi warna hex jika diisi
+  // Validate hex color if provided
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
     return interaction.reply({
-      content: '❌ Format warna hex tidak valid! Gunakan format seperti `#5865F2` atau kosongkan.',
+      content: 'Invalid hex color format! Please use a format like `#5865F2` or leave it empty.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -181,13 +181,13 @@ async function handleCardModalSubmit(interaction, client) {
   storage.write('cards', cardsData);
 
   return interaction.reply({
-    content: '✅ **Profil Card berhasil diperbarui!** Klik tombol **🎴 Lihat Card Saya** untuk melihat hasilnya.',
+    content: 'Profile updated successfully! Click **View My Card** to see the result.',
     flags: MessageFlags.Ephemeral
   });
 }
 
 /**
- * Build Embed Card Member yang bersih dan elegan
+ * Build clean and elegant Member Profile Card Embed
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -198,7 +198,7 @@ async function buildMemberCardEmbed(guild, member) {
 
   function formatDate(date) {
     if (!date) return '-';
-    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   const allMembers = await guild.members.fetch();
@@ -228,10 +228,10 @@ async function buildMemberCardEmbed(guild, member) {
     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
     .addFields(
       { name: 'Username', value: targetUser.tag, inline: true },
-      { name: 'Posisi Member', value: `#${joinPosition} dari ${totalMembers.toLocaleString('id-ID')}`, inline: true },
-      { name: 'Asal', value: userCard.asal || '-', inline: true },
-      { name: 'Bergabung Server', value: formatDate(member.joinedAt), inline: true },
-      { name: 'Akun Dibuat', value: formatDate(targetUser.createdAt), inline: true },
+      { name: 'Member Position', value: `#${joinPosition} of ${totalMembers.toLocaleString('en-US')}`, inline: true },
+      { name: 'Location', value: userCard.asal || '-', inline: true },
+      { name: 'Joined Server', value: formatDate(member.joinedAt), inline: true },
+      { name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true },
       { name: '\u200B', value: '\u200B', inline: true },
       { name: 'Roles', value: rolesText, inline: false }
     );
