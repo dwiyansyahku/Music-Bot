@@ -14,13 +14,13 @@ const GALLERY_CHANNEL_ID = '1532290934396555354';
  */
 function createCardHubPayload(guild) {
   const embed = new EmbedBuilder()
-    .setColor('#5865F2')
+    .setColor('#8B5CF6')
     .setTitle('Member Profile Card')
     .setDescription(
       'Welcome to the **Member Profile Card** system.\n\n' +
-      'Create your custom digital identity card in this server. Customize your **Bio**, **Location**, **Accent Color**, **Link**, and **Custom Background** directly using the interactive buttons below.\n\n' +
+      'Create your custom digital identity card in this server. Customize your **Bio**, **Location**, **Accent Color**, and **Link** directly using the interactive buttons below.\n\n' +
       '**How It Works:**\n' +
-      '1. Click **Edit Profile** to fill out your profile details & custom background in a pop-up form.\n' +
+      '1. Click **Edit Profile** to fill out your profile details in a pop-up form.\n' +
       '2. Click **View My Card** to preview your HD profile card privately.\n' +
       `3. Click **Publish Card** to share your profile card in <#${GALLERY_CHANNEL_ID}>.`
     )
@@ -29,9 +29,9 @@ function createCardHubPayload(guild) {
         name: 'Preview Features',
         value: [
           '• **HD Resolution Card** (1000x560 Canvas Graphic)',
-          '• **Custom Background Wallpaper** (Link foto dari Discord / Default Glow)',
+          '• **QP Royal Purple Theme** (Official Server Logo Aesthetics)',
           '• **Dynamic Text Scaling** (Auto-fits long names & bios)',
-          '• **Server Position & Top Roles Showcase**'
+          '• **Server Position, Created Date & Top Roles Showcase**'
         ].join('\n'),
         inline: false
       }
@@ -71,7 +71,6 @@ async function publishCardToChannel(guild, member, client) {
   const guildId = guild.id;
   const userId = member.id;
 
-  // Hasil kartu SELALU di-publish ke #card-gallery (GALLERY_CHANNEL_ID)
   const publishChannel = guild.channels.cache.get(GALLERY_CHANNEL_ID)
     || await client.channels.fetch(GALLERY_CHANNEL_ID).catch(err => {
       console.error(`[CardHandler] Fetch gallery channel ${GALLERY_CHANNEL_ID} failed:`, err.message);
@@ -99,21 +98,13 @@ async function publishCardToChannel(guild, member, client) {
     ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya. Say hi! 👋`
     : `✏️ **${member.displayName}** just updated their card — ada yang baru nih.`;
 
-  // Generate payload (HD Canvas Image dengan fallback Embed)
-  let payload;
-  try {
-    const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
-    payload = { content: warmMessage, files: [attachment] };
-  } catch (canvasErr) {
-    console.warn('[PublishCard] Canvas image failed, using Embed fallback:', canvasErr.stack || canvasErr.message);
-    const embed = await buildMemberCardEmbed(guild, member);
-    payload = { content: warmMessage, embeds: [embed] };
-  }
+  // Generate HD Canvas Card (Fast 0.05s response)
+  const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
+  const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
 
   // Kirim pesan baru ke #card-gallery
   try {
-    const newMsg = await publishChannel.send(payload);
+    const newMsg = await publishChannel.send({ content: warmMessage, files: [attachment] });
 
     // Simpan message ID baru
     if (!cardsData[guildId]) cardsData[guildId] = {};
@@ -125,21 +116,7 @@ async function publishCardToChannel(guild, member, client) {
     return isFirstPublish ? 'first' : 'updated';
   } catch (sendErr) {
     console.error(`❌ [CardHandler] Failed to send graphic card to #${publishChannel.name}:`, sendErr.message);
-
-    // Fallback: Kirim embed tanpa file gambar jika ada kendala izin AttachFiles di channel
-    try {
-      const embed = await buildMemberCardEmbed(guild, member);
-      const fallbackMsg = await publishChannel.send({ content: warmMessage, embeds: [embed] });
-      if (!cardsData[guildId]) cardsData[guildId] = {};
-      if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
-      cardsData[guildId][userId].publishedMessageId = fallbackMsg.id;
-      storage.write('cards', cardsData);
-      console.log(`✅ [CardHandler] Fallback embed published to #${publishChannel.name}`);
-      return 'updated';
-    } catch (fallbackErr) {
-      console.error('❌ [CardHandler] Embed fallback publish also failed:', fallbackErr.message);
-      return null;
-    }
+    return null;
   }
 }
 
@@ -151,7 +128,7 @@ async function handleCardButton(interaction, client) {
   const guildId = interaction.guild.id;
   const userId = interaction.user.id;
 
-  // 1. EDIT PROFILE → Open Modal Form (Instant 0ms)
+  // 1. EDIT PROFILE → Open Modal Form (4 fields clean: Bio, Location, Color, Link)
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
@@ -182,19 +159,10 @@ async function handleCardButton(interaction, client) {
       .setCustomId('card_input_color')
       .setLabel('Accent Color Hex (Opsional)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: #5865F2 atau #FF5733')
+      .setPlaceholder('Contoh: #8B5CF6 atau #FF5733')
       .setValue(userCard.color || '')
       .setRequired(false)
       .setMaxLength(7);
-
-    const bgUrlInput = new TextInputBuilder()
-      .setCustomId('card_input_bg')
-      .setLabel('Background URL Discord (Opsional)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Upload foto di Discord -> Right click -> Copy Link Gambar')
-      .setValue(userCard.bgUrl || '')
-      .setRequired(false)
-      .setMaxLength(250);
 
     const linkTitleInput = new TextInputBuilder()
       .setCustomId('card_input_link_title')
@@ -209,14 +177,13 @@ async function handleCardButton(interaction, client) {
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
       new ActionRowBuilder().addComponents(colorInput),
-      new ActionRowBuilder().addComponents(bgUrlInput),
       new ActionRowBuilder().addComponents(linkTitleInput)
     );
 
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Private / Ephemeral)
+  // 2. VIEW MY CARD (Private / Ephemeral - Always sends HD Graphic Image!)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -232,13 +199,10 @@ async function handleCardButton(interaction, client) {
         files: [attachment]
       });
     } catch (canvasErr) {
-      console.warn('[ViewCard] Graphic card editReply failed:', canvasErr.stack || canvasErr.message);
-      const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
+      console.error('[ViewCard] Error rendering HD graphic card:', canvasErr);
       return await interaction.editReply({
-        content: '*Your Member Profile Card (Only visible to you):*',
-        embeds: [embed],
-        files: []
-      }).catch(() => {});
+        content: `❌ Gagal membuat Kartu Profil HD: ${canvasErr.message}`
+      });
     }
   }
 
@@ -290,7 +254,6 @@ async function handleCardModalSubmit(interaction, client) {
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let color = interaction.fields.getTextInputValue('card_input_color').trim();
-  const bgUrl = interaction.fields.getTextInputValue('card_input_bg').trim();
   const linkRaw = interaction.fields.getTextInputValue('card_input_link_title').trim();
 
   // Enforce Max Length Limits
@@ -300,7 +263,7 @@ async function handleCardModalSubmit(interaction, client) {
   // Validate hex color if provided
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
     return interaction.editReply({
-      content: 'Invalid hex color format! Please use a format like `#5865F2` atau kosongkan jika tidak ingin diubah.'
+      content: 'Invalid hex color format! Please use a format like `#8B5CF6` atau kosongkan jika tidak ingin diubah.'
     });
   }
 
@@ -324,13 +287,6 @@ async function handleCardModalSubmit(interaction, client) {
     });
   }
 
-  // Validate background URL format if provided
-  if (bgUrl && !/^https?:\/\/.+/.test(bgUrl)) {
-    return interaction.editReply({
-      content: 'Invalid Background URL format! URL background harus dimulai dengan `https://` atau `http://`.'
-    });
-  }
-
   // Simpan data profil ke RAM & storage (0ms)
   const cardsData = storage.read('cards');
   if (!cardsData[guildId]) cardsData[guildId] = {};
@@ -341,7 +297,6 @@ async function handleCardModalSubmit(interaction, client) {
   if (bio) userCard.bio = bio; else delete userCard.bio;
   if (asal) userCard.asal = asal; else delete userCard.asal;
   if (color) userCard.color = color.toUpperCase(); else delete userCard.color;
-  if (bgUrl) userCard.bgUrl = bgUrl; else delete userCard.bgUrl;
   if (linkTitle) userCard.linkTitle = linkTitle; else delete userCard.linkTitle;
   if (linkUrl) userCard.linkUrl = linkUrl; else delete userCard.linkUrl;
 
@@ -389,7 +344,7 @@ async function buildMemberCardEmbed(guild, member) {
     ? topRoles.map(r => `<@&${r.id}>`).join(' ')
     : '-';
 
-  const embedColor = userCard.color || member.roles.color?.hexColor || '#2B2D31';
+  const embedColor = userCard.color || member.roles.color?.hexColor || '#8B5CF6';
 
   const embed = new EmbedBuilder()
     .setColor(embedColor)

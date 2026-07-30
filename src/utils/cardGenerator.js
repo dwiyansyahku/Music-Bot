@@ -7,9 +7,10 @@ if (dns.setDefaultResultOrder) {
 }
 
 /**
- * Helper to fetch image buffer using native Node fetch with 2.5s timeout.
+ * Helper to fetch image buffer with a tight 800ms timeout to guarantee instant response.
+ * If avatar download takes >800ms, it falls back to initial-letter avatar in 0ms.
  */
-async function fetchImageBuffer(urlStr, timeoutMs = 2500) {
+async function fetchImageBuffer(urlStr, timeoutMs = 800) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -31,7 +32,7 @@ async function fetchImageBuffer(urlStr, timeoutMs = 2500) {
   }
 }
 
-async function safeLoadImage(url, timeoutMs = 2500) {
+async function safeLoadImage(url, timeoutMs = 800) {
   if (!url) throw new Error('No URL provided');
   const buffer = await fetchImageBuffer(url, timeoutMs);
   return await loadImage(buffer);
@@ -73,7 +74,6 @@ function getWrappedLines(ctx, text, maxWidth, maxLines = 3) {
       if (currentLine) lines.push(currentLine);
       currentLine = word;
       if (lines.length === maxLines - 1) {
-        // Last allowed line — truncate remainder with ellipsis
         let remaining = words.slice(i).join(' ');
         let truncated = currentLine;
         while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 0) {
@@ -106,83 +106,44 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const accentColor = userCardData.color || member.roles.color?.hexColor || '#8B5CF6';
 
   // ============================================================
-  // 1. BACKGROUND DRAWING (QP Purple Crown Theme Matching Server Logo)
+  // 1. BACKGROUND DRAWING (QP Royal Purple Theme Matching Server Logo - 0ms Instant Load)
   // ============================================================
-  let bgLoaded = false;
+  // Deep Midnight Purple Gradient (Matching QP Logo black & purple aesthetics)
+  const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+  bgGrad.addColorStop(0, '#0B0614');
+  bgGrad.addColorStop(0.5, '#1D0D36');
+  bgGrad.addColorStop(1, '#08040E');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, width, height);
 
-  // Option A: Custom URL (If user provided one)
-  if (userCardData.bgUrl) {
-    try {
-      const bgImg = await safeLoadImage(userCardData.bgUrl, 2500);
-      const imgRatio = bgImg.width / bgImg.height;
-      const canvasRatio = width / height;
-      let drawW, drawH, drawX, drawY;
+  // Ambient Purple Glow Circles
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = accentColor;
 
-      if (imgRatio > canvasRatio) {
-        drawH = height;
-        drawW = height * imgRatio;
-        drawX = (width - drawW) / 2;
-        drawY = 0;
-      } else {
-        drawW = width;
-        drawH = width / imgRatio;
-        drawX = 0;
-        drawY = (height - drawH) / 2;
-      }
+  ctx.beginPath();
+  ctx.arc(160, 100, 270, 0, Math.PI * 2);
+  ctx.fill();
 
-      ctx.drawImage(bgImg, drawX, drawY, drawW, drawH);
-      bgLoaded = true;
+  ctx.beginPath();
+  ctx.arc(840, 450, 310, 0, Math.PI * 2);
+  ctx.fill();
 
-      // Dark Overlay gradient over custom image for text readability
-      const overlayGrad = ctx.createLinearGradient(0, 0, 0, height);
-      overlayGrad.addColorStop(0, 'rgba(15, 17, 23, 0.65)');
-      overlayGrad.addColorStop(1, 'rgba(10, 11, 16, 0.88)');
-      ctx.fillStyle = overlayGrad;
-      ctx.fillRect(0, 0, width, height);
-    } catch (err) {
-      console.warn('[CardCanvas] Custom background URL skipped, using QP Crown theme:', err.message);
-    }
-  }
+  // Curved Decorative Wave Lines
+  ctx.strokeStyle = '#A78BFA';
+  ctx.lineWidth = 36;
+  ctx.globalAlpha = 0.08;
 
-  // Option B: QP Royal Purple Crown Built-in Theme Preset (0ms Instant Load)
-  if (!bgLoaded) {
-    // Deep Midnight Purple Gradient (Matching QP Logo black & purple aesthetics)
-    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-    bgGrad.addColorStop(0, '#0B0614');
-    bgGrad.addColorStop(0.5, '#1D0D36');
-    bgGrad.addColorStop(1, '#08040E');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, width, height);
+  ctx.beginPath();
+  ctx.moveTo(-50, 180);
+  ctx.bezierCurveTo(300, 40, 600, 380, 1050, 140);
+  ctx.stroke();
 
-    // Ambient Purple Glow Circles
-    ctx.save();
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = accentColor;
-
-    ctx.beginPath();
-    ctx.arc(160, 100, 270, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(840, 450, 310, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Curved Decorative Wave Lines
-    ctx.strokeStyle = '#A78BFA';
-    ctx.lineWidth = 36;
-    ctx.globalAlpha = 0.08;
-
-    ctx.beginPath();
-    ctx.moveTo(-50, 180);
-    ctx.bezierCurveTo(300, 40, 600, 380, 1050, 140);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(-50, 360);
-    ctx.bezierCurveTo(400, 480, 700, 80, 1050, 300);
-    ctx.stroke();
-    ctx.restore();
-  }
+  ctx.beginPath();
+  ctx.moveTo(-50, 360);
+  ctx.bezierCurveTo(400, 480, 700, 80, 1050, 300);
+  ctx.stroke();
+  ctx.restore();
 
   // Card Outer Border Accent Line
   ctx.lineWidth = 3;
@@ -199,10 +160,10 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const avatarX = 50;
   const avatarY = 45;
 
-  // Draw Avatar
+  // Draw Avatar (800ms strict timeout for instant response)
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 });
-    const avatarImg = await safeLoadImage(avatarUrl, 2500);
+    const avatarImg = await safeLoadImage(avatarUrl, 800);
 
     // Circle Clip for Avatar
     ctx.save();
@@ -219,7 +180,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 2, 0, Math.PI * 2);
     ctx.stroke();
   } catch (err) {
-    console.warn('[CardCanvas] Avatar download skipped/failed, drawing fallback avatar circle:', err.message);
+    console.warn('[CardCanvas] Avatar download skipped (>800ms), drawing crisp fallback initial circle:', err.message);
     ctx.save();
     ctx.fillStyle = accentColor;
     ctx.beginPath();
