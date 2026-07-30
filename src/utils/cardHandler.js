@@ -20,7 +20,7 @@ function createCardHubPayload(guild) {
       'Welcome to the **Member Profile Card** system.\n\n' +
       'Create your custom digital identity card in this server. Customize your **Bio**, **Location**, **Accent Color**, **Link**, and **Custom Background** directly using the interactive buttons below.\n\n' +
       '**How It Works:**\n' +
-      '1. Click **Edit Profile** to fill out your profile details & background in a pop-up form.\n' +
+      '1. Click **Edit Profile** to fill out your profile details & custom background in a pop-up form.\n' +
       '2. Click **View My Card** to preview your HD profile card privately.\n' +
       `3. Click **Publish Card** to share your profile card in <#${PUBLISH_CHANNEL_ID}>.`
     )
@@ -63,7 +63,7 @@ function createCardHubPayload(guild) {
 
 /**
  * Publish atau update card member ke PUBLISH_CHANNEL_ID.
- * Dengan Fail-Safe Fallback ke Embed jika Canvas mengalami kendala.
+ * Pembersihan pesan lama dilakukan secara non-blocking di background.
  *
  * @returns {Promise<'first'|'updated'|null>}
  */
@@ -84,7 +84,7 @@ async function publishCardToChannel(guild, member, client) {
   const existingMsgId = userCard.publishedMessageId;
   const isFirstPublish = !existingMsgId;
 
-  // Background Cleanup Non-Blocking (Hapus pesan lama secara asinkron di background)
+  // Background Cleanup Non-Blocking (Hapus pesan lama secara asinkron)
   if (existingMsgId) {
     publishChannel.messages.fetch(existingMsgId)
       .then(msg => msg.delete())
@@ -127,7 +127,7 @@ async function handleCardButton(interaction, client) {
   const guildId = interaction.guild.id;
   const userId = interaction.user.id;
 
-  // 1. EDIT PROFILE → Open Modal Form
+  // 1. EDIT PROFILE → Open Modal Form (Instant 0ms)
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
@@ -254,9 +254,10 @@ async function handleCardButton(interaction, client) {
 }
 
 /**
- * Handle when user submits Modal Form — save data & auto-publish ke channel
+ * Handle when user submits Modal Form — save data & reply INSTANTLY, then publish in background!
  */
 async function handleCardModalSubmit(interaction, client) {
+  // Respon awal instan ke user agar Discord tidak membatalkan koneksi (0ms)
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const guildId = interaction.guild.id;
@@ -306,7 +307,7 @@ async function handleCardModalSubmit(interaction, client) {
     });
   }
 
-  // Simpan data profil
+  // Simpan data profil ke RAM & storage (0ms)
   const cardsData = storage.read('cards');
   if (!cardsData[guildId]) cardsData[guildId] = {};
   if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
@@ -322,22 +323,15 @@ async function handleCardModalSubmit(interaction, client) {
 
   storage.write('cards', cardsData);
 
-  // Auto-publish / update card ke channel setelah save
-  const result = await publishCardToChannel(interaction.guild, interaction.member, client);
+  // Balas user SECARA INSTAN terlebih dahulu (tanpa menunggu proses publish gambar ke channel)
+  await interaction.editReply({
+    content: `✅ **Profil tersimpan!** Member Card terbaru kamu sedang dipublish di <#${PUBLISH_CHANNEL_ID}> ✨`
+  });
 
-  if (result === 'first') {
-    return interaction.editReply({
-      content: `✅ Member Card kamu berhasil dipublish di <#${PUBLISH_CHANNEL_ID}>! Selamat bergabung di wall~ 🎉`
-    });
-  } else if (result === 'updated') {
-    return interaction.editReply({
-      content: `✅ Profil tersimpan! Card terbaru kamu sudah tayang di <#${PUBLISH_CHANNEL_ID}>. Yang lama sudah dihapus~ ✨`
-    });
-  } else {
-    return interaction.editReply({
-      content: `✅ Profile updated successfully! Click **View My Card** to preview your card.`
-    });
-  }
+  // Auto-publish / update card ke channel secara ASINKRON di background
+  publishCardToChannel(interaction.guild, interaction.member, client).catch(err => {
+    console.warn('[CardHandler] Background auto-publish failed:', err.message);
+  });
 }
 
 /**
