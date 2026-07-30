@@ -63,7 +63,7 @@ function createCardHubPayload(guild) {
 
 /**
  * Publish atau update card member ke PUBLISH_CHANNEL_ID.
- * Selalu menghapus pesan lama secara instan.
+ * Pembersihan pesan lama dilakukan secara non-blocking di background (0ms delay).
  *
  * @returns {Promise<'first'|'updated'|null>}
  */
@@ -71,7 +71,7 @@ async function publishCardToChannel(guild, member, client) {
   const guildId = guild.id;
   const userId = member.id;
 
-  // Ambil channel publish
+  // Ambil channel publish dari cache atau fetch cepat
   const publishChannel = guild.channels.cache.get(PUBLISH_CHANNEL_ID)
     || await client.channels.fetch(PUBLISH_CHANNEL_ID).catch(() => null);
 
@@ -83,67 +83,36 @@ async function publishCardToChannel(guild, member, client) {
   const cardsData = storage.read('cards');
   const userCard = cardsData[guildId]?.[userId] || {};
   const existingMsgId = userCard.publishedMessageId;
-
-  // Tentukan apakah ini publish pertama atau update
   const isFirstPublish = !existingMsgId;
 
-  // Pesan hangat — mix indo-inggris, tidak berlebihan
+  // NON-BLOCKING BACKGROUND CLEANUP: Hapus pesan lama secara asinkron tanpa menahan eksekusi
+  if (existingMsgId) {
+    publishChannel.messages.fetch(existingMsgId)
+      .then(msg => msg.delete())
+      .catch(() => {});
+  }
+
   const warmMessage = isFirstPublish
     ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya. Say hi! 👋`
     : `✏️ **${member.displayName}** just updated their card — ada yang baru nih.`;
 
-  // Generate HD Canvas Card Image Buffer (Fast 0.2s)
+  // Generate HD Canvas Card Image Buffer (Fast)
   const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
   const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
 
-  const payload = {
+  // Kirim pesan card baru (hanya 1 REST call langsung)
+  const newMsg = await publishChannel.send({
     content: warmMessage,
     files: [attachment]
-  };
+  });
 
-  // 1. Hapus pesan lama berdasarkan ID tersimpan
-  let deletedCount = 0;
-  if (existingMsgId) {
-    try {
-      const existingMsg = await publishChannel.messages.fetch(existingMsgId);
-      await existingMsg.delete();
-      deletedCount++;
-    } catch (err) {
-      console.warn(`[CardHandler] Pesan lama ID (${existingMsgId}) tidak ditemukan di channel.`);
-    }
-  }
-
-  // 2. FALLBACK SMART CLEANUP: Hanya jalankan scan jika ID tersimpan tidak terhapus
-  if (deletedCount === 0) {
-    try {
-      const recentMessages = await publishChannel.messages.fetch({ limit: 15 });
-      for (const msg of recentMessages.values()) {
-        if (msg.author.id === client.user.id) {
-          const isTargetCard = msg.content?.includes(member.displayName) ||
-                               msg.embeds?.[0]?.footer?.text?.includes(userId) ||
-                               msg.embeds?.[0]?.author?.name?.includes(member.displayName);
-          if (isTargetCard) {
-            await msg.delete().catch(() => {});
-            deletedCount++;
-            break; // Cukup hapus 1 card lama
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[CardHandler] Failed smart cleanup scan:', err.message);
-    }
-  }
-
-  // 3. Kirim pesan baru (selalu di posisi paling bawah / terbaru)
-  const newMsg = await publishChannel.send(payload);
-
-  // 4. Simpan message ID untuk keperluan hapus berikutnya
+  // Simpan message ID baru
   if (!cardsData[guildId]) cardsData[guildId] = {};
   if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
   cardsData[guildId][userId].publishedMessageId = newMsg.id;
   storage.write('cards', cardsData);
 
-  return (isFirstPublish && deletedCount === 0) ? 'first' : 'updated';
+  return isFirstPublish ? 'first' : 'updated';
 }
 
 /**
