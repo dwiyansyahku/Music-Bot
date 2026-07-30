@@ -8,7 +8,6 @@ if (dns.setDefaultResultOrder) {
 
 /**
  * Helper to fetch image buffer using native Node fetch with 2.5s timeout.
- * Handles Discord CDN attachments, redirects, and headers seamlessly.
  */
 async function fetchImageBuffer(urlStr, timeoutMs = 2500) {
   const controller = new AbortController();
@@ -103,16 +102,18 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  const accentColor = userCardData.color || member.roles.color?.hexColor || '#5865F2';
+  // Accent Color (Default to Red Music Vibe #E63946 if not specified)
+  const accentColor = userCardData.color || member.roles.color?.hexColor || '#E63946';
 
   // ============================================================
-  // 1. BACKGROUND DRAWING
+  // 1. BACKGROUND DRAWING (100% Built-in Local High-Definition Presets)
   // ============================================================
   let bgLoaded = false;
+
+  // Option A: Custom URL (If user provided one)
   if (userCardData.bgUrl) {
     try {
       const bgImg = await safeLoadImage(userCardData.bgUrl, 2500);
-      // Object-fit: cover math
       const imgRatio = bgImg.width / bgImg.height;
       const canvasRatio = width / height;
       let drawW, drawH, drawX, drawY;
@@ -139,32 +140,84 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
       ctx.fillStyle = overlayGrad;
       ctx.fillRect(0, 0, width, height);
     } catch (err) {
-      console.warn('[CardCanvas] Custom background image failed to load or timed out, using default gradient:', err.message);
+      console.warn('[CardCanvas] Custom background URL skipped, using local theme preset:', err.message);
     }
   }
 
+  // Option B: Local Built-in Preset Background (0ms Instant Load)
   if (!bgLoaded) {
-    // Default Modern Mesh Dark Gradient
-    const baseGrad = ctx.createLinearGradient(0, 0, width, height);
-    baseGrad.addColorStop(0, '#111319');
-    baseGrad.addColorStop(0.5, '#181b26');
-    baseGrad.addColorStop(1, '#0e0f14');
-    ctx.fillStyle = baseGrad;
-    ctx.fillRect(0, 0, width, height);
+    const theme = (userCardData.theme || '').toLowerCase();
+    const hex = accentColor.toUpperCase();
 
-    // Accent Glow Circles in background
-    ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = accentColor;
+    // 🎨 PRESET 1: RED MUSIC VIBE (Persis Jockie Music — Dark Red Mahogany Gradient + Waves)
+    if (theme === 'red' || hex.includes('E63946') || hex.includes('FF') || hex.includes('D') || hex.includes('9') || !userCardData.color) {
+      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+      bgGrad.addColorStop(0, '#1C0609');
+      bgGrad.addColorStop(0.5, '#360D12');
+      bgGrad.addColorStop(1, '#120305');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
 
-    ctx.beginPath();
-    ctx.arc(150, 100, 260, 0, Math.PI * 2);
-    ctx.fill();
+      // Ambient Red Music Note Curves & Glow Circles
+      ctx.save();
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = '#E63946';
 
-    ctx.beginPath();
-    ctx.arc(850, 460, 300, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+      ctx.beginPath();
+      ctx.arc(180, 120, 280, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(820, 440, 320, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Curved Decorative Music Waves
+      ctx.strokeStyle = '#FF5964';
+      ctx.lineWidth = 40;
+      ctx.globalAlpha = 0.07;
+      ctx.beginPath();
+      ctx.moveTo(-50, 200);
+      ctx.bezierCurveTo(300, 50, 600, 400, 1050, 150);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-50, 380);
+      ctx.bezierCurveTo(400, 500, 700, 100, 1050, 320);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // 🎨 PRESET 2: PURPLE CYBERPUNK
+    else if (theme === 'purple' || hex.includes('9D4EDD') || hex.includes('800080')) {
+      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+      bgGrad.addColorStop(0, '#0F081D');
+      bgGrad.addColorStop(0.5, '#241038');
+      bgGrad.addColorStop(1, '#090412');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#9D4EDD';
+      ctx.beginPath(); ctx.arc(200, 100, 260, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(800, 460, 300, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    // 🎨 PRESET 3: DARK OBSIDIAN MESH
+    else {
+      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+      bgGrad.addColorStop(0, '#111319');
+      bgGrad.addColorStop(0.5, '#181B26');
+      bgGrad.addColorStop(1, '#0E0F14');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = accentColor;
+      ctx.beginPath(); ctx.arc(150, 100, 260, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(850, 460, 300, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
   }
 
   // Card Outer Border Accent Line
