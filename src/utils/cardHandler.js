@@ -86,10 +86,6 @@ async function publishCardToChannel(guild, member, client) {
   }
 
   const embed = await buildMemberCardEmbed(guild, member);
-  const payload = {
-    content: `**Member Profile Card — ${member.displayName}**`,
-    embeds: [embed]
-  };
 
   // Cek apakah sudah ada pesan lama dari user ini
   const cardsData = storage.read('cards');
