@@ -165,7 +165,7 @@ async function handleCardButton(interaction, client) {
 
     const bgUrlInput = new TextInputBuilder()
       .setCustomId('card_input_bg')
-      .setLabel('Custom Background URL (Link foto dari Discord)')
+      .setLabel('Custom Background URL (Foto dari Discord)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('Upload foto di Discord -> Right click -> Copy Link Gambar')
       .setValue(userCard.bgUrl || '')

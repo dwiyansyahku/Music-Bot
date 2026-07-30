@@ -9,10 +9,10 @@ if (dns.setDefaultResultOrder) {
 }
 
 /**
- * Helper to fetch image buffer using IPv4 first with strict 1.5s timeout.
+ * Helper to fetch image buffer using IPv4 first with 3.0s timeout.
  * Forcing IPv4 family eliminates Railway/Docker 2-3s IPv6 DNS lookup delays.
  */
-function fetchImageBuffer(urlStr, timeoutMs = 1500) {
+function fetchImageBuffer(urlStr, timeoutMs = 3000) {
   return new Promise((resolve, reject) => {
     try {
       const parsedUrl = new URL(urlStr);
@@ -61,7 +61,7 @@ function fetchImageBuffer(urlStr, timeoutMs = 1500) {
   });
 }
 
-async function safeLoadImage(url, timeoutMs = 1500) {
+async function safeLoadImage(url, timeoutMs = 3000) {
   if (!url) throw new Error('No URL provided');
   const buffer = await fetchImageBuffer(url, timeoutMs);
   return await loadImage(buffer);
@@ -140,7 +140,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   let bgLoaded = false;
   if (userCardData.bgUrl) {
     try {
-      const bgImg = await safeLoadImage(userCardData.bgUrl, 1500);
+      const bgImg = await safeLoadImage(userCardData.bgUrl, 3000);
       // Object-fit: cover math
       const imgRatio = bgImg.width / bgImg.height;
       const canvasRatio = width / height;
@@ -214,7 +214,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   // Draw Avatar
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 });
-    const avatarImg = await safeLoadImage(avatarUrl, 1500);
+    const avatarImg = await safeLoadImage(avatarUrl, 3000);
 
     // Circle Clip for Avatar
     ctx.save();
@@ -231,11 +231,33 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 2, 0, Math.PI * 2);
     ctx.stroke();
   } catch (err) {
-    console.warn('[CardCanvas] Failed to draw avatar image:', err.message);
+    console.warn('[CardCanvas] Avatar download skipped/failed, drawing fallback avatar circle:', err.message);
+    ctx.save();
+    ctx.fillStyle = accentColor;
+    ctx.beginPath();
+    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 50px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((member.displayName || 'U').charAt(0).toUpperCase(), avatarX + avatarSize / 2, avatarY + avatarSize / 2);
+    ctx.restore();
+
+    // Accent Ring around Avatar
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = accentColor;
+    ctx.beginPath();
+    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 2, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   // Display Name (Dynamic font size adjustment)
   ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
   let nameFontSize = 36;
   ctx.font = `bold ${nameFontSize}px sans-serif`;
   const nameText = member.displayName;
