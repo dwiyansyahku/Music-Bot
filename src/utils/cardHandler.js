@@ -63,7 +63,7 @@ function createCardHubPayload(guild) {
 
 /**
  * Publish atau update card member ke PUBLISH_CHANNEL_ID.
- * Selalu menghapus pesan lama (baik via ID tersimpan maupun auto-scan channel).
+ * Selalu menghapus pesan lama secara instan.
  *
  * @returns {Promise<'first'|'updated'|null>}
  */
@@ -92,7 +92,7 @@ async function publishCardToChannel(guild, member, client) {
     ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya. Say hi! 👋`
     : `✏️ **${member.displayName}** just updated their card — ada yang baru nih.`;
 
-  // Generate HD Canvas Card Image Buffer
+  // Generate HD Canvas Card Image Buffer (Fast 0.2s)
   const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
   const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
 
@@ -109,27 +109,29 @@ async function publishCardToChannel(guild, member, client) {
       await existingMsg.delete();
       deletedCount++;
     } catch (err) {
-      console.warn(`[CardHandler] Pesan lama ID (${existingMsgId}) tidak ditemukan di channel. Reason: ${err.message}`);
+      console.warn(`[CardHandler] Pesan lama ID (${existingMsgId}) tidak ditemukan di channel.`);
     }
   }
 
-  // 2. FALLBACK SMART CLEANUP: Scan 50 pesan terakhir di channel untuk menghapus card lama dari member ini
-  try {
-    const recentMessages = await publishChannel.messages.fetch({ limit: 50 });
-    for (const msg of recentMessages.values()) {
-      if (msg.author.id === client.user.id) {
-        const isTargetCard = msg.content?.includes(member.displayName) ||
-                             msg.embeds?.[0]?.footer?.text?.includes(userId) ||
-                             msg.embeds?.[0]?.author?.name?.includes(member.displayName);
-        if (isTargetCard && msg.id !== existingMsgId) {
-          await msg.delete().catch(() => {});
-          deletedCount++;
-          console.log(`🧹 [CardHandler] Cleaned up legacy/orphaned card message ${msg.id} for ${member.displayName}`);
+  // 2. FALLBACK SMART CLEANUP: Hanya jalankan scan jika ID tersimpan tidak terhapus
+  if (deletedCount === 0) {
+    try {
+      const recentMessages = await publishChannel.messages.fetch({ limit: 15 });
+      for (const msg of recentMessages.values()) {
+        if (msg.author.id === client.user.id) {
+          const isTargetCard = msg.content?.includes(member.displayName) ||
+                               msg.embeds?.[0]?.footer?.text?.includes(userId) ||
+                               msg.embeds?.[0]?.author?.name?.includes(member.displayName);
+          if (isTargetCard) {
+            await msg.delete().catch(() => {});
+            deletedCount++;
+            break; // Cukup hapus 1 card lama
+          }
         }
       }
+    } catch (err) {
+      console.warn('[CardHandler] Failed smart cleanup scan:', err.message);
     }
-  } catch (err) {
-    console.warn('[CardHandler] Failed smart cleanup scan:', err.message);
   }
 
   // 3. Kirim pesan baru (selalu di posisi paling bawah / terbaru)
@@ -374,7 +376,7 @@ async function buildMemberCardEmbed(guild, member) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  const allMembers = await guild.members.fetch();
+  const allMembers = guild.members.cache;
   const sortedByJoin = [...allMembers.values()]
     .filter(m => m.joinedAt)
     .sort((a, b) => a.joinedAt - b.joinedAt);

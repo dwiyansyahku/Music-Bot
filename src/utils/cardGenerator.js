@@ -1,10 +1,10 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 /**
- * Helper to load an image with a strict timeout (default 3.5 seconds).
- * Prevents network hangs from blocking Discord interaction responses.
+ * Helper to load an image with a strict timeout (default 2 seconds).
+ * Prevents network delays from blocking Discord interaction responses.
  */
-function loadImageWithTimeout(url, timeoutMs = 3500) {
+function loadImageWithTimeout(url, timeoutMs = 2000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`Image loading timed out after ${timeoutMs}ms`));
@@ -95,7 +95,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   let bgLoaded = false;
   if (userCardData.bgUrl) {
     try {
-      const bgImg = await loadImageWithTimeout(userCardData.bgUrl, 3500);
+      const bgImg = await loadImageWithTimeout(userCardData.bgUrl, 2000);
       // Object-fit: cover math
       const imgRatio = bgImg.width / bgImg.height;
       const canvasRatio = width / height;
@@ -168,8 +168,8 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
 
   // Draw Avatar
   try {
-    const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
-    const avatarImg = await loadImageWithTimeout(avatarUrl, 3500);
+    const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 });
+    const avatarImg = await loadImageWithTimeout(avatarUrl, 2000);
 
     // Circle Clip for Avatar
     ctx.save();
@@ -255,9 +255,9 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   ctx.font = 'bold 13px sans-serif';
   ctx.fillText('MEMBER INFO', box1X + 20, containerY + 30);
 
-  // Calculate join position
-  const allMembers = await guild.members.fetch().catch(() => new Map());
-  const sortedByJoin = [...allMembers.values()]
+  // Calculate join position (fast cached version)
+  const cachedMembers = guild.members.cache;
+  const sortedByJoin = [...cachedMembers.values()]
     .filter(m => m.joinedAt)
     .sort((a, b) => a.joinedAt - b.joinedAt);
   const joinPos = sortedByJoin.findIndex(m => m.id === member.id) + 1;
