@@ -77,9 +77,11 @@ module.exports = {
       const nowWIB = new Date(nowUTC.getTime() + wibOffset * 60 * 1000);
       const currentHour = nowWIB.getUTCHours();
       const currentMinute = nowWIB.getUTCMinutes();
-      const currentTimeKey = `${currentHour}:${String(currentMinute).padStart(2, '0')}`;
       const currentDay = nowWIB.getUTCDate();
       const currentMonth = nowWIB.getUTCMonth() + 1;
+      const currentYear = nowWIB.getUTCFullYear();
+      // Key menyertakan tanggal agar setiap hari dianggap unik (bukan hanya jam:menit)
+      const currentTimeKey = `${currentYear}-${currentMonth}-${currentDay} ${currentHour}:${String(currentMinute).padStart(2, '0')}`;
       const birthdayKey = `${currentDay}-${currentMonth}`;
 
       // ====== 1. MORNING SCHEDULER ======

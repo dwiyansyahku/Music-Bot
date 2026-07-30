@@ -4,6 +4,9 @@ const {
 } = require('discord.js');
 const storage = require('./storage');
 
+// Channel tempat card di-publish
+const PUBLISH_CHANNEL_ID = '1532290934396555354';
+
 /**
  * Creates Embed & ActionRow for Member Profile Card Hub Panel posted in #member-card
  */
@@ -17,7 +20,7 @@ function createCardHubPayload(guild) {
       '**How It Works:**\n' +
       '1. Click **Edit Profile** to fill out your profile details in a pop-up form.\n' +
       '2. Click **View My Card** to preview your profile card privately.\n' +
-      '3. Click **Publish Card** if you wish to share your profile card in this channel.'
+      `3. Click **Publish Card** to share your profile card in <#${PUBLISH_CHANNEL_ID}>.`
     )
     .addFields(
       {
@@ -60,6 +63,73 @@ function createCardHubPayload(guild) {
   );
 
   return { embeds: [embed], components: [row] };
+}
+
+/**
+ * Publish atau update card member ke PUBLISH_CHANNEL_ID.
+ * Jika user sudah pernah publish → edit pesan lama (anti-spam).
+ * Jika belum → kirim pesan baru & simpan message ID.
+ *
+ * @returns {Promise<'sent'|'edited'|null>}
+ */
+async function publishCardToChannel(guild, member, client) {
+  const guildId = guild.id;
+  const userId = member.id;
+
+  // Ambil channel publish
+  const publishChannel = guild.channels.cache.get(PUBLISH_CHANNEL_ID)
+    || await client.channels.fetch(PUBLISH_CHANNEL_ID).catch(() => null);
+
+  if (!publishChannel) {
+    console.warn(`[CardHandler] Publish channel ${PUBLISH_CHANNEL_ID} tidak ditemukan.`);
+    return null;
+  }
+
+  const embed = await buildMemberCardEmbed(guild, member);
+  const payload = {
+    content: `**Member Profile Card — ${member.displayName}**`,
+    embeds: [embed]
+  };
+
+  // Cek apakah sudah ada pesan lama dari user ini
+  const cardsData = storage.read('cards');
+  const userCard = cardsData[guildId]?.[userId] || {};
+  const existingMsgId = userCard.publishedMessageId;
+
+  // Tentukan apakah ini publish pertama atau update
+  const isFirstPublish = !existingMsgId;
+
+  // Pesan hangat — mix indo-inggris, tidak berlebihan
+  const warmMessage = isFirstPublish
+    ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya. Say hi! 👋`
+    : `✏️ **${member.displayName}** just updated their card — ada yang baru nih.`;
+
+  const payload = {
+    content: warmMessage,
+    embeds: [embed]
+  };
+
+  // Hapus pesan lama jika ada
+  if (existingMsgId) {
+    try {
+      const existingMsg = await publishChannel.messages.fetch(existingMsgId);
+      await existingMsg.delete();
+    } catch (err) {
+      // Pesan lama sudah dihapus atau tidak bisa diakses — lanjut kirim baru
+      console.warn(`[CardHandler] Pesan lama (${existingMsgId}) tidak bisa dihapus, lanjut kirim baru. Reason: ${err.message}`);
+    }
+  }
+
+  // Kirim pesan baru (selalu di posisi paling bawah / terbaru)
+  const newMsg = await publishChannel.send(payload);
+
+  // Simpan message ID untuk keperluan hapus berikutnya
+  if (!cardsData[guildId]) cardsData[guildId] = {};
+  if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
+  cardsData[guildId][userId].publishedMessageId = newMsg.id;
+  storage.write('cards', cardsData);
+
+  return isFirstPublish ? 'first' : 'updated';
 }
 
 /**
@@ -106,10 +176,30 @@ async function handleCardButton(interaction, client) {
       .setRequired(false)
       .setMaxLength(7);
 
+    const linkTitleInput = new TextInputBuilder()
+      .setCustomId('card_input_link_title')
+      .setLabel('Link Title (e.g. GitHub, Portfolio, LinkedIn)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Example: My GitHub')
+      .setValue(userCard.linkTitle || '')
+      .setRequired(false)
+      .setMaxLength(40);
+
+    const linkUrlInput = new TextInputBuilder()
+      .setCustomId('card_input_link_url')
+      .setLabel('Link URL')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Example: https://github.com/username')
+      .setValue(userCard.linkUrl || '')
+      .setRequired(false)
+      .setMaxLength(200);
+
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
-      new ActionRowBuilder().addComponents(colorInput)
+      new ActionRowBuilder().addComponents(colorInput),
+      new ActionRowBuilder().addComponents(linkTitleInput),
+      new ActionRowBuilder().addComponents(linkUrlInput)
     );
 
     return interaction.showModal(modal);
@@ -125,14 +215,25 @@ async function handleCardButton(interaction, client) {
     });
   }
 
-  // 3. PUBLISH CARD (Public in channel)
+  // 3. PUBLISH CARD → Kirim / update pesan di channel publish
   if (customId === 'card_btn_publish') {
-    await interaction.deferReply();
-    const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
-    return interaction.editReply({
-      content: `**Member Profile Card — ${interaction.member.displayName}**`,
-      embeds: [embed]
-    });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const result = await publishCardToChannel(interaction.guild, interaction.member, client);
+
+    if (result === 'first') {
+      return interaction.editReply({
+        content: `✅ Member Card kamu berhasil dipublish di <#${PUBLISH_CHANNEL_ID}>! Selamat bergabung di wall~ 🎉`
+      });
+    } else if (result === 'updated') {
+      return interaction.editReply({
+        content: `✅ Member Card kamu sudah diperbarui di <#${PUBLISH_CHANNEL_ID}>! Yang lama sudah dihapus~ ✨`
+      });
+    } else {
+      return interaction.editReply({
+        content: `❌ Could not find the publish channel. Please contact an admin.`
+      });
+    }
   }
 
   // 4. RESET CARD
@@ -150,7 +251,7 @@ async function handleCardButton(interaction, client) {
 }
 
 /**
- * Handle when user submits Modal Form
+ * Handle when user submits Modal Form — save data & auto-publish ke channel
  */
 async function handleCardModalSubmit(interaction, client) {
   const guildId = interaction.guild.id;
@@ -159,6 +260,8 @@ async function handleCardModalSubmit(interaction, client) {
   const bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   const asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let color = interaction.fields.getTextInputValue('card_input_color').trim();
+  const linkTitle = interaction.fields.getTextInputValue('card_input_link_title').trim();
+  const linkUrl = interaction.fields.getTextInputValue('card_input_link_url').trim();
 
   // Validate hex color if provided
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
@@ -168,6 +271,15 @@ async function handleCardModalSubmit(interaction, client) {
     });
   }
 
+  // Validate URL format if provided
+  if (linkUrl && !/^https?:\/\/.+/.test(linkUrl)) {
+    return interaction.reply({
+      content: 'Invalid URL format! Link harus dimulai dengan `https://` atau `http://`.',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // Simpan data profil
   const cardsData = storage.read('cards');
   if (!cardsData[guildId]) cardsData[guildId] = {};
   if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
@@ -177,13 +289,31 @@ async function handleCardModalSubmit(interaction, client) {
   if (bio) userCard.bio = bio; else delete userCard.bio;
   if (asal) userCard.asal = asal; else delete userCard.asal;
   if (color) userCard.color = color.toUpperCase(); else delete userCard.color;
+  if (linkTitle) userCard.linkTitle = linkTitle; else delete userCard.linkTitle;
+  if (linkUrl) userCard.linkUrl = linkUrl; else delete userCard.linkUrl;
 
   storage.write('cards', cardsData);
 
-  return interaction.reply({
-    content: 'Profile updated successfully! Click **View My Card** to see the result.',
-    flags: MessageFlags.Ephemeral
-  });
+  // Defer reply sementara proses publish berjalan
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  // Auto-publish / update card ke channel setelah save
+  const result = await publishCardToChannel(interaction.guild, interaction.member, client);
+
+  if (result === 'first') {
+    return interaction.editReply({
+      content: `✅ Member Card kamu berhasil dipublish di <#${PUBLISH_CHANNEL_ID}>! Selamat bergabung di wall~ 🎉`
+    });
+  } else if (result === 'updated') {
+    return interaction.editReply({
+      content: `✅ Profil tersimpan! Card terbaru kamu sudah tayang di <#${PUBLISH_CHANNEL_ID}>. Yang lama sudah dihapus~ ✨`
+    });
+  } else {
+    // Channel tidak ditemukan, tapi data tetap tersimpan
+    return interaction.editReply({
+      content: `✅ Profile updated successfully! Click **View My Card** to preview your card.`
+    });
+  }
 }
 
 /**
@@ -238,6 +368,15 @@ async function buildMemberCardEmbed(guild, member) {
 
   if (userCard.bio) {
     embed.addFields({ name: 'Bio', value: userCard.bio, inline: false });
+  }
+
+  if (userCard.linkUrl) {
+    const label = userCard.linkTitle || 'Link';
+    embed.addFields({
+      name: '🔗 ' + label,
+      value: userCard.linkUrl,
+      inline: false
+    });
   }
 
   embed.setFooter({
