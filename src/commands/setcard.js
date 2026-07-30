@@ -34,41 +34,41 @@ module.exports = {
     const guildId = interaction.guild.id;
     const now = Date.now();
 
-    // 🔒 DEDUPLICATION LOCK: Cegah 2 instance bot (misal: bot di laptop & bot di Railway)
-    // yang menyala bersamaan dengan token yang sama mengirim 2 pesan sekaligus.
-    const settings = storage.read('settings');
-    if (!settings[guildId]) settings[guildId] = {};
-
-    const lastTime = settings[guildId].lastSetcardTimestamp || 0;
-    if (now - lastTime < 4000) {
-      console.warn('[/setcard] 🔒 Deduplication lock dipicu (dua instance bot berjalan bersamaan). Melewati pemrosesan kedua.');
-      if (!interaction.replied && !interaction.deferred) {
-        return interaction.reply({
-          content: `✅ Channel <#${channel.id}> telah dikonfigurasi!`,
-          flags: MessageFlags.Ephemeral
-        }).catch(() => {});
-      }
-      return;
-    }
-
-    // Catat timestamp eksekusi sekarang
-    settings[guildId].lastSetcardTimestamp = now;
-    storage.write('settings', settings);
-
-    // 🧹 SAPU BERSIH SELURUH PESAN PANEL LAMA DI CHANNEL TERSANGKUT
+    // 🧹 CEK & PEMBERSIHAN MULTI-INSTANCE (Cegah duplikat meski ada 2 proses bot yang aktif)
     try {
-      const fetched = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+      const fetched = await channel.messages.fetch({ limit: 25 }).catch(() => null);
       if (fetched) {
-        const oldPanelMsgs = fetched.filter(m =>
+        const existingPanels = [...fetched.values()].filter(m =>
           m.author.id === client.user.id &&
           m.embeds.some(e => e.title && e.title.includes('Kartu Identitas Member Server'))
         );
-        for (const msg of oldPanelMsgs.values()) {
+
+        // Jika sudah ada panel yang baru saja dikirim oleh instance lain (<10 detik lalu), batalkan pengiriman duplikat
+        const recentPanel = existingPanels.find(m => (now - m.createdTimestamp) < 10000);
+        if (recentPanel) {
+          console.log('[/setcard] 🔒 Panel baru saja terbit (<10s). Menghindari duplikasi.');
+          // Hapus sisa panel tua jika ada
+          for (const msg of existingPanels) {
+            if (msg.id !== recentPanel.id) {
+              await msg.delete().catch(() => {});
+            }
+          }
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+              content: `✅ Channel <#${channel.id}> telah dikonfigurasi!`,
+              flags: MessageFlags.Ephemeral
+            }).catch(() => {});
+          }
+          return;
+        }
+
+        // Hapus semua panel lama sebelum mengirim yang baru
+        for (const msg of existingPanels) {
           await msg.delete().catch(() => {});
         }
       }
     } catch (e) {
-      console.warn('[/setcard] Gagal membersihkan pesan panel lama:', e.message);
+      console.warn('[/setcard] Error saat memeriksa pesan lama:', e.message);
     }
 
     // Kirim TEPAT 1 Panel Hub Card baru
@@ -77,11 +77,11 @@ module.exports = {
       const sentMsg = await channel.send(payload);
 
       // Simpan channel ID & message ID terbaru ke settings per-guild
-      const updatedSettings = storage.read('settings');
-      if (!updatedSettings[guildId]) updatedSettings[guildId] = {};
-      updatedSettings[guildId].cardResultChannel = channel.id;
-      updatedSettings[guildId].cardHubMessageId = sentMsg.id;
-      storage.write('settings', updatedSettings);
+      const settings = storage.read('settings');
+      if (!settings[guildId]) settings[guildId] = {};
+      settings[guildId].cardResultChannel = channel.id;
+      settings[guildId].cardHubMessageId = sentMsg.id;
+      storage.write('settings', settings);
 
       // Respon balasan ke Admin HANYA terlihat sendiri (ephemeral)
       if (!interaction.replied && !interaction.deferred) {
