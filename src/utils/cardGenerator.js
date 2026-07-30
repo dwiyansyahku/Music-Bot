@@ -413,8 +413,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.fillText(displayLink, 70, box3Y + 106);
   }
 
-  // Export as high-performance, compressed JPEG buffer (~70KB instead of ~800KB PNG)
-  return canvas.toBuffer('image/jpeg', { quality: 0.88 });
+  return canvas.toBuffer('image/png');
 }
 
 module.exports = {

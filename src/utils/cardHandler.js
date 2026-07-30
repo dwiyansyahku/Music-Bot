@@ -99,7 +99,7 @@ async function publishCardToChannel(guild, member, client) {
   let payload;
   try {
     const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
     payload = { content: warmMessage, files: [attachment] };
   } catch (canvasErr) {
     console.warn('[PublishCard] Canvas generation failed, falling back to Embed:', canvasErr.message);
@@ -201,7 +201,7 @@ async function handleCardButton(interaction, client) {
 
     try {
       const imageBuffer = await generateMemberCardCanvas(interaction.guild, interaction.member, userCard);
-      const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
+      const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
 
       return await interaction.editReply({
         content: '*Your HD Member Profile Card (Only visible to you):*',
