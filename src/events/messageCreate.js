@@ -117,25 +117,34 @@ module.exports = {
         if (!voiceChannel) return;
 
         const MAX_JOIN_RETRIES = 2;
-        let joinMsg = await message.reply('⏳ Mencoba bergabung ke voice channel...');
-        let joined = false;
+        let joinMsg = null;
 
         for (let attempt = 1; attempt <= MAX_JOIN_RETRIES + 1; attempt++) {
           try {
             await client.distube.voices.join(voiceChannel);
-            await joinMsg.edit(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`);
-            joined = true;
+            if (joinMsg) {
+              await joinMsg.edit(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`).catch(() => {});
+            } else {
+              await message.reply(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`).catch(() => {});
+            }
             break;
           } catch (error) {
             const isVoiceFail = error.errorCode === 'VOICE_CONNECT_FAILED' ||
                                 error.message?.includes('Cannot connect to the voice channel');
             if (isVoiceFail && attempt <= MAX_JOIN_RETRIES) {
-              console.warn(`⚠️ [Join] VOICE_CONNECT_FAILED (attempt ${attempt}/${MAX_JOIN_RETRIES + 1}), retrying...`);
-              await joinMsg.edit(`⏳ Koneksi gagal, mencoba lagi (${attempt}/${MAX_JOIN_RETRIES})...`).catch(() => {});
+              if (!joinMsg) {
+                joinMsg = await message.reply(`⏳ Koneksi gagal, mencoba lagi (${attempt}/${MAX_JOIN_RETRIES})...`).catch(() => null);
+              } else {
+                await joinMsg.edit(`⏳ Koneksi gagal, mencoba lagi (${attempt}/${MAX_JOIN_RETRIES})...`).catch(() => {});
+              }
               await new Promise(r => setTimeout(r, 3000));
             } else {
               console.error('Error joining voice channel:', error);
-              await joinMsg.edit(`❌ Gagal bergabung ke voice channel setelah ${attempt}x percobaan: ${error.message}`).catch(() => {});
+              if (joinMsg) {
+                await joinMsg.edit(`❌ Gagal bergabung ke voice channel setelah ${attempt}x percobaan: ${error.message}`).catch(() => {});
+              } else {
+                await message.reply(`❌ Gagal bergabung ke voice channel: ${error.message}`).catch(() => {});
+              }
               break;
             }
           }
