@@ -35,25 +35,23 @@ module.exports = {
     const settings = storage.read('settings');
     if (!settings[guildId]) settings[guildId] = {};
 
-    const prevChannelId = settings[guildId].cardResultChannel;
-    const prevMsgId = settings[guildId].cardHubMessageId;
-
-    // Hapus panel lama jika ada di channel yang sama atau channel sebelumnya agar tidak double
-    if (prevChannelId && prevMsgId) {
-      try {
-        const prevChannel = interaction.guild.channels.cache.get(prevChannelId);
-        if (prevChannel) {
-          const oldMsg = await prevChannel.messages.fetch(prevMsgId).catch(() => null);
-          if (oldMsg) {
-            await oldMsg.delete().catch(() => {});
-          }
+    // 🧹 SAPU BERSIH SELURUH PESAN PANEL LAMA DI CHANNEL TERSANGKUT
+    try {
+      const fetched = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+      if (fetched) {
+        const oldPanelMsgs = fetched.filter(m =>
+          m.author.id === client.user.id &&
+          m.embeds.some(e => e.title && e.title.includes('Kartu Identitas Member Server'))
+        );
+        for (const msg of oldPanelMsgs.values()) {
+          await msg.delete().catch(() => {});
         }
-      } catch (e) {
-        /* abaikan jika pesan lama sudah terhapus */
       }
+    } catch (e) {
+      console.warn('[/setcard] Gagal membersihkan pesan panel lama:', e.message);
     }
 
-    // Kirim Panel Hub Card baru
+    // Kirim 1 Panel Hub Card baru
     try {
       const payload = createCardHubPayload(interaction.guild);
       const sentMsg = await channel.send(payload);
@@ -65,7 +63,7 @@ module.exports = {
 
       // Respon balasan ke Admin HANYA terlihat sendiri (ephemeral)
       await interaction.reply({
-        content: `✅ Panel Card Member berhasil dikirim ke <#${channel.id}> dan channel telah dikonfigurasi.`,
+        content: `✅ Channel <#${channel.id}> berhasil dikonfigurasi! Semua panel lama telah dibersihkan dan dipasang 1 panel baru.`,
         flags: MessageFlags.Ephemeral
       });
     } catch (err) {
