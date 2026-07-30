@@ -274,6 +274,9 @@ async function handleCardButton(interaction, client) {
  * Handle when user submits Modal Form — save data & auto-publish ke channel
  */
 async function handleCardModalSubmit(interaction, client) {
+  // PANGGUL DEFERREPLY DI BARIS PERTAMA AGAR DISCORD TIDAK TIMEOUT (AbortError)!
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
   const guildId = interaction.guild.id;
   const userId = interaction.user.id;
 
@@ -289,9 +292,8 @@ async function handleCardModalSubmit(interaction, client) {
 
   // Validate hex color if provided
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
-    return interaction.reply({
-      content: 'Invalid hex color format! Please use a format like `#5865F2` or leave it empty.',
-      flags: MessageFlags.Ephemeral
+    return interaction.editReply({
+      content: 'Invalid hex color format! Please use a format like `#5865F2` or leave it empty.'
     });
   }
 
@@ -310,17 +312,15 @@ async function handleCardModalSubmit(interaction, client) {
 
   // Validate URL format if provided
   if (linkUrl && !/^https?:\/\/.+/.test(linkUrl)) {
-    return interaction.reply({
-      content: 'Invalid URL format! Link harus dimulai dengan `https://` atau `http://`.',
-      flags: MessageFlags.Ephemeral
+    return interaction.editReply({
+      content: 'Invalid URL format! Link harus dimulai dengan `https://` atau `http://`.'
     });
   }
 
   // Validate background URL format if provided
   if (bgUrl && !/^https?:\/\/.+/.test(bgUrl)) {
-    return interaction.reply({
-      content: 'Invalid Background URL format! URL background harus dimulai dengan `https://` atau `http://`.',
-      flags: MessageFlags.Ephemeral
+    return interaction.editReply({
+      content: 'Invalid Background URL format! URL background harus dimulai dengan `https://` atau `http://`.'
     });
   }
 
@@ -339,9 +339,6 @@ async function handleCardModalSubmit(interaction, client) {
   if (linkUrl) userCard.linkUrl = linkUrl; else delete userCard.linkUrl;
 
   storage.write('cards', cardsData);
-
-  // Defer reply sementara proses publish berjalan
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   // Auto-publish / update card ke channel setelah save
   const result = await publishCardToChannel(interaction.guild, interaction.member, client);
