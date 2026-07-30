@@ -19,8 +19,8 @@ module.exports = {
     const voiceChannel = checkVoiceChannel(interaction);
     if (!voiceChannel) return;
 
-    // Defer early to prevent interaction timeout and avoid double-acknowledge errors
-    await interaction.deferReply();
+    // Respon ephemeral (hanya terlihat oleh pengguna yang mengeksekusi)
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     if (!client.stay247) {
       client.stay247 = new Set();
@@ -38,7 +38,6 @@ module.exports = {
         await client.distube.voices.join(voiceChannel);
       } catch (err) {
         console.error('Error joining voice channel:', err);
-        // Revert 24/7 state and inform the user — return early to prevent further replies
         client.stay247.delete(guildId);
         return interaction.editReply({
           content: `❌ Gagal bergabung ke voice channel: ${err.message}`,

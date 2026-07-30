@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { checkVoiceChannel, checkQueue } = require('../utils/helpers');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { checkVoiceChannel } = require('../utils/helpers');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -14,7 +14,6 @@ module.exports = {
     const guildId = interaction.guild.id;
     const queue = client.distube.getQueue(guildId);
 
-    // Jika antrean sedang aktif, pastikan pengguna berada di voice channel yang sama
     if (queue) {
       if (!checkVoiceChannel(interaction)) return;
     }
@@ -41,6 +40,6 @@ module.exports = {
       .setFooter({ text: `Diubah oleh ${interaction.member?.displayName || 'Unknown'}` })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   },
 };
