@@ -1,4 +1,26 @@
-const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
+
+/**
+ * Helper to load an image with a strict timeout (default 3.5 seconds).
+ * Prevents network hangs from blocking Discord interaction responses.
+ */
+function loadImageWithTimeout(url, timeoutMs = 3500) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Image loading timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    loadImage(url)
+      .then((img) => {
+        clearTimeout(timer);
+        resolve(img);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
 
 /**
  * Helper to draw a rounded rectangle
@@ -73,7 +95,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   let bgLoaded = false;
   if (userCardData.bgUrl) {
     try {
-      const bgImg = await loadImage(userCardData.bgUrl);
+      const bgImg = await loadImageWithTimeout(userCardData.bgUrl, 3500);
       // Object-fit: cover math
       const imgRatio = bgImg.width / bgImg.height;
       const canvasRatio = width / height;
@@ -101,7 +123,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
       ctx.fillStyle = overlayGrad;
       ctx.fillRect(0, 0, width, height);
     } catch (err) {
-      console.warn('[CardCanvas] Failed to load custom background image, falling back to gradient:', err.message);
+      console.warn('[CardCanvas] Custom background image failed to load or timed out, using default gradient:', err.message);
     }
   }
 
@@ -147,7 +169,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   // Draw Avatar
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
-    const avatarImg = await loadImage(avatarUrl);
+    const avatarImg = await loadImageWithTimeout(avatarUrl, 3500);
 
     // Circle Clip for Avatar
     ctx.save();
@@ -164,7 +186,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 2, 0, Math.PI * 2);
     ctx.stroke();
   } catch (err) {
-    console.warn('[CardCanvas] Failed to draw avatar:', err.message);
+    console.warn('[CardCanvas] Failed to draw avatar image:', err.message);
   }
 
   // Display Name (Dynamic font size adjustment)
