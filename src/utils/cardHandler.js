@@ -103,7 +103,7 @@ async function publishCardToChannel(guild, member, client) {
   let payload;
   try {
     const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
     payload = { content: warmMessage, files: [attachment] };
   } catch (canvasErr) {
     console.warn('[PublishCard] Canvas image failed, using Embed fallback:', canvasErr.message);
@@ -162,7 +162,7 @@ async function handleCardButton(interaction, client) {
 
     const bioInput = new TextInputBuilder()
       .setCustomId('card_input_bio')
-      .setLabel('Short Bio / Status (Max 100 Karakter)')
+      .setLabel('Short Bio / Status (Opsional, Max 100)')
       .setStyle(TextInputStyle.Paragraph)
       .setPlaceholder('Contoh: Suka musik lo-fi, ngoding web & main game pas senggang.')
       .setValue(userCard.bio || '')
@@ -171,7 +171,7 @@ async function handleCardButton(interaction, client) {
 
     const asalInput = new TextInputBuilder()
       .setCustomId('card_input_asal')
-      .setLabel('Location / Origin (Max 30 Karakter)')
+      .setLabel('Location / Origin (Opsional, Max 30)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('Contoh: Depok, Jawa Barat')
       .setValue(userCard.asal || '')
@@ -180,7 +180,7 @@ async function handleCardButton(interaction, client) {
 
     const colorInput = new TextInputBuilder()
       .setCustomId('card_input_color')
-      .setLabel('Accent Color (Hex Code, Opsional)')
+      .setLabel('Accent Color Hex (Opsional)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('Contoh: #5865F2 atau #FF5733')
       .setValue(userCard.color || '')
@@ -189,7 +189,7 @@ async function handleCardButton(interaction, client) {
 
     const bgUrlInput = new TextInputBuilder()
       .setCustomId('card_input_bg')
-      .setLabel('Custom Background URL (Foto dari Discord)')
+      .setLabel('Background URL Discord (Opsional)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('Upload foto di Discord -> Right click -> Copy Link Gambar')
       .setValue(userCard.bgUrl || '')
@@ -198,7 +198,7 @@ async function handleCardButton(interaction, client) {
 
     const linkTitleInput = new TextInputBuilder()
       .setCustomId('card_input_link_title')
-      .setLabel('Link Title & URL (Format: Judul | URL)')
+      .setLabel('Link Title & URL (Opsional: Judul | URL)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('Contoh: My Spotify | https://open.spotify.com/user/xyz')
       .setValue(userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
@@ -225,7 +225,7 @@ async function handleCardButton(interaction, client) {
 
     try {
       const imageBuffer = await generateMemberCardCanvas(interaction.guild, interaction.member, userCard);
-      const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
+      const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
 
       return await interaction.editReply({
         content: '*Your HD Member Profile Card (Only visible to you):*',
@@ -300,7 +300,7 @@ async function handleCardModalSubmit(interaction, client) {
   // Validate hex color if provided
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
     return interaction.editReply({
-      content: 'Invalid hex color format! Please use a format like `#5865F2` or leave it empty.'
+      content: 'Invalid hex color format! Please use a format like `#5865F2` atau kosongkan jika tidak ingin diubah.'
     });
   }
 

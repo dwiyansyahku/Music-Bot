@@ -435,7 +435,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.fillText(displayLink, 70, box3Y + 106);
   }
 
-  return canvas.toBuffer('image/png');
+  return canvas.toBuffer('image/jpeg');
 }
 
 module.exports = {
