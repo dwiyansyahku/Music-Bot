@@ -37,55 +37,44 @@ module.exports = {
     const settings = storage.read('settings');
     if (!settings[guildId]) settings[guildId] = {};
 
-    const savedChannelId = settings[guildId].cardResultChannel;
-    const savedMsgId = settings[guildId].cardHubMessageId;
+    // 🧹 PURGE EXTRA BOT MESSAGES: Ambil 100 pesan terakhir, hapus semua pesan bot lama & sisakan TEPAT 1
+    try {
+      const fetched = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+      if (fetched) {
+        const botMessages = [...fetched.values()]
+          .filter(m => m.author.id === client.user.id)
+          .sort((a, b) => b.createdTimestamp - a.createdTimestamp); // Urutkan dari yang terbaru
 
-    // 1. Cek apakah sudah ada pesan panel yang tercatat di database & channel
-    if (savedChannelId === channel.id && savedMsgId) {
-      const existingMsg = await channel.messages.fetch(savedMsgId).catch(() => null);
-      if (existingMsg) {
-        // EDIT pesan yang sudah ada (TIDAK buat pesan baru)
-        await existingMsg.edit(payload).catch(() => {});
-        return interaction.reply({
-          content: `✅ Panel Card Member di <#${channel.id}> berhasil diperbarui!`,
-          flags: MessageFlags.Ephemeral
-        });
-      }
-    }
+        if (botMessages.length > 0) {
+          // Gunakan pesan bot terbaru (botMessages[0]), HAPUS SEMUA PESAN BOT LAINNYA
+          const latestMsg = botMessages[0];
+          await latestMsg.edit(payload).catch(() => {});
 
-    // 2. Cari semua pesan panel lama milik bot di channel ini
-    const fetched = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-    let targetMsg = null;
+          for (let i = 1; i < botMessages.length; i++) {
+            await botMessages[i].delete().catch(() => {});
+          }
 
-    if (fetched) {
-      const oldPanels = [...fetched.values()].filter(m =>
-        m.author.id === client.user.id &&
-        m.embeds.some(e => e.title && e.title.includes('Kartu Identitas Member Server'))
-      );
+          // Simpan ID pesan aktif
+          settings[guildId].cardResultChannel = channel.id;
+          settings[guildId].cardHubMessageId = latestMsg.id;
+          storage.write('settings', settings);
 
-      if (oldPanels.length > 0) {
-        // Gunakan pesan panel pertama, hapus sisanya jika ada duplikat
-        targetMsg = oldPanels[0];
-        for (let i = 1; i < oldPanels.length; i++) {
-          await oldPanels[i].delete().catch(() => {});
+          return interaction.reply({
+            content: `✅ Berhasil membersihkan pesan lama di <#${channel.id}>! Tepat 1 panel dipasang.`,
+            flags: MessageFlags.Ephemeral
+          });
         }
       }
+    } catch (e) {
+      console.warn('[/setcard] Error purging extra bot messages:', e.message);
     }
 
+    // Jika belum ada pesan bot sama sekali di channel ini, kirim 1 baru
     try {
-      if (targetMsg) {
-        // Edit pesan panel yang sudah ditemukan
-        await targetMsg.edit(payload);
-        settings[guildId].cardResultChannel = channel.id;
-        settings[guildId].cardHubMessageId = targetMsg.id;
-        storage.write('settings', settings);
-      } else {
-        // Buat 1 pesan panel baru jika benar-benar belum ada
-        const sentMsg = await channel.send(payload);
-        settings[guildId].cardResultChannel = channel.id;
-        settings[guildId].cardHubMessageId = sentMsg.id;
-        storage.write('settings', settings);
-      }
+      const sentMsg = await channel.send(payload);
+      settings[guildId].cardResultChannel = channel.id;
+      settings[guildId].cardHubMessageId = sentMsg.id;
+      storage.write('settings', settings);
 
       await interaction.reply({
         content: `✅ Channel <#${channel.id}> berhasil dikonfigurasi! Tepat 1 panel dipasang.`,
