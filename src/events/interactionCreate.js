@@ -11,9 +11,11 @@ module.exports = {
       try {
         await command.execute(interaction, client);
       } catch (error) {
-        console.error(`Error pada command /${interaction.commandName}:`, error);
+        // 10062: Unknown interaction (interaksi kadaluarsa / bot sedang restart)
+        // 40060: Interaction has already been acknowledged
+        if (error.code === 10062 || error.code === 40060) return;
 
-        if (error.code === 40060) return;
+        console.error(`Error pada command /${interaction.commandName}:`, error);
 
         const reply = {
           content: `❌ Terjadi error: ${error.message}`,
@@ -26,6 +28,7 @@ module.exports = {
             await interaction.reply(reply);
           }
         } catch (replyError) {
+          if (replyError.code === 10062 || replyError.code === 40060) return;
           console.error('Gagal mengirim pesan error:', replyError);
         }
       }
@@ -37,8 +40,12 @@ module.exports = {
       const { buildHelpEmbed } = require('./helpEmbeds');
       const category = interaction.values[0];
       const embed = buildHelpEmbed(category, client);
-      await interaction.update({ embeds: [embed] });
+      try {
+        await interaction.update({ embeds: [embed] });
+      } catch (err) {
+        if (err.code === 10062 || err.code === 40060) return;
+        console.error('Error updating help select menu:', err.message);
+      }
     }
   },
 };
-
