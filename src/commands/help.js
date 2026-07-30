@@ -10,7 +10,6 @@ module.exports = {
     .setDescription('Tampilkan semua command yang tersedia'),
 
   async execute(interaction, client) {
-    // Ambil avatar owner dari Discord jika bisa
     let ownerAvatarURL = null;
     try {
       await client.application.fetch();
@@ -39,6 +38,10 @@ module.exports = {
           .setLabel('🎵 Musik')
           .setDescription('Putar lagu dari YouTube, Spotify, dan lebih banyak lagi')
           .setValue('music'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('🎴 Card Profil')
+          .setDescription('Tampilkan & atur card profil member')
+          .setValue('card'),
         new StringSelectMenuOptionBuilder()
           .setLabel('🛡️ Moderasi')
           .setDescription('Warn, mute, kick, ban — sistem moderasi lengkap')

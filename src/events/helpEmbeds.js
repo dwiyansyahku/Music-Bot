@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 
-// Info owner — berdasarkan footer di help.js lama
+// Info owner
 const OWNER = {
   name: 'Dwiyansyah Oktavyudi',
   github: 'https://github.com/dwiyansyahku',
@@ -15,6 +15,10 @@ const CATEGORIES = {
   music: {
     label: '🎵 Musik',
     color: 0x1DB954,
+  },
+  card: {
+    label: '🎴 Card Profil',
+    color: 0x9B59B6,
   },
   mod: {
     label: '🛡️ Moderasi',
@@ -43,11 +47,12 @@ function buildHelpEmbed(category, client) {
         .setTitle('🤖 QUMPRUY Bot — Bantuan')
         .setDescription(
           `Bot serbaguna untuk server Discord kamu!\n` +
-          `Dukung musik, moderasi, reminder harian, dan lebih banyak lagi.\n\n` +
+          `Dukung musik, card profil, moderasi, reminder harian, dan lebih banyak lagi.\n\n` +
           `**Pilih kategori di bawah untuk melihat daftar command.**`
         )
         .addFields(
           { name: '🎵 Musik', value: 'Putar lagu dari YouTube, Spotify, SoundCloud', inline: true },
+          { name: '🎴 Card Profil', value: 'Lihat & atur card profil member', inline: true },
           { name: '🛡️ Moderasi', value: 'Warn, mute, kick, ban member', inline: true },
           { name: '🌅 Harian & Jadwal', value: 'Reminder pagi, malam, ulang tahun, pengumuman', inline: true },
           { name: '🎉 Fun', value: 'Poll / vote', inline: true },
@@ -70,7 +75,7 @@ function buildHelpEmbed(category, client) {
           {
             name: '▶️ Pemutaran',
             value: [
-              '`/qp [lagu/url]` — Putar lagu atau playlist',
+              '`/play [lagu/url]` — Putar lagu atau playlist',
               '`/nowplaying` — Info lagu yang sedang diputar',
               '`/queue [halaman]` — Lihat antrian lagu',
               '`/skip` — Skip ke lagu berikutnya',
@@ -95,13 +100,45 @@ function buildHelpEmbed(category, client) {
           {
             name: '💡 Contoh',
             value: [
-              '`/qp DJ Domba Kuring`',
-              '`/qp https://open.spotify.com/track/...`',
-              '`/qp https://www.youtube.com/watch?v=...`',
+              '`/play DJ Domba Kuring`',
+              '`/play https://open.spotify.com/track/...`',
+              '`/play https://www.youtube.com/watch?v=...`',
             ].join('\n'),
           }
         )
         .setFooter({ text: 'QUMPRUY Bot • Musik' });
+
+    case 'card':
+      return new EmbedBuilder()
+        .setColor(0x9B59B6)
+        .setTitle('🎴 Command Card Profil Member')
+        .setDescription('Sistem profil card member yang simpel dan elegan.')
+        .addFields(
+          {
+            name: '👤 Tampilkan Card',
+            value: [
+              '`/card` — Tampilkan card profil milikmu',
+              '`/card member:@user` — Lihat card profil member lain',
+            ].join('\n'),
+          },
+          {
+            name: '✏️ Kustomisasi (Privat)',
+            value: [
+              '`/editcard bio [teks]` — Atur bio deskripsi singkat (max 100 karakter)',
+              '`/editcard asal [kota]` — Atur kota/domisili asal (max 30 karakter)',
+              '`/editcard color [hex]` — Atur warna aksen border card (contoh: `#5865F2`)',
+              '`/editcard preview` — Lihat preview card milikmu secara privat',
+              '`/editcard reset` — Hapus seluruh kustomisasi card',
+            ].join('\n'),
+          },
+          {
+            name: '📌 Pengaturan Admin',
+            value: [
+              '`/setcard channel:#channel-tujuan` — Atur channel hasil terbitnya card member *(Admin only)*',
+            ].join('\n'),
+          }
+        )
+        .setFooter({ text: 'QUMPRUY Bot • Card Profil' });
 
     case 'mod':
       return new EmbedBuilder()
@@ -142,8 +179,8 @@ function buildHelpEmbed(category, client) {
           {
             name: '🧹 Lainnya',
             value: [
-              '`/qclear amount [jumlah]` — Hapus N pesan (1-100)',
-              '`/qclear all` — Hapus semua pesan di channel',
+              '`/clear amount [jumlah]` — Hapus N pesan (1-100)',
+              '`/clear all` — Hapus semua pesan di channel',
             ].join('\n'),
           }
         )
@@ -235,7 +272,6 @@ function buildHelpEmbed(category, client) {
         )
         .setFooter({ text: 'QUMPRUY Bot • Fun & Usilan • Mod/Admin only' });
 
-
     case 'settings':
       return new EmbedBuilder()
         .setColor(0x99AAB5)
@@ -249,6 +285,12 @@ function buildHelpEmbed(category, client) {
               '`/qwelcome enable/disable` — Toggle',
               '`/qwelcome test` — Preview sambutan',
               '`/qwelcome status` — Cek status',
+            ].join('\n'),
+          },
+          {
+            name: '🎴 Card Result Channel `/setcard`',
+            value: [
+              '`/setcard #channel` — Set channel tempat hasil /card member diterbitkan',
             ].join('\n'),
           },
           {

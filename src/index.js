@@ -154,8 +154,35 @@ client.welcomeSettings = new Map(); // Per-guild welcome channel config: { chann
 client.morningSettings = new Map(); // Per-guild morning reminder config: { channelId, enabled, hour, minute }
 client.nightSettings = new Map();   // Per-guild night reminder config: { channelId, enabled, hour, minute }
 
-const { setupCookies } = require('./utils/cookies');
+const { setupCookies, getCookiesHealth } = require('./utils/cookies');
 const loadedCookies = setupCookies();
+
+// ============================================================
+// Metadata Cache — hindari spawn yt-dlp berulang untuk URL sama
+// TTL 10 menit agar data tidak basi
+// ============================================================
+const METADATA_CACHE_TTL = 10 * 60 * 1000; // 10 menit
+const metadataCache = new Map();
+
+// Cache menyimpan RAW JSON dari yt-dlp (bukan Song object),
+// sehingga setiap request tetap membuat Song baru dengan options (member) yang benar.
+function getCachedMetadata(url) {
+  const entry = metadataCache.get(url);
+  if (entry && Date.now() - entry.ts < METADATA_CACHE_TTL) {
+    console.log(`📦 [Metadata Cache] HIT for: "${url}"`);
+    return entry.data; // raw JSON info
+  }
+  return null;
+}
+
+function setCachedMetadata(url, data) {
+  metadataCache.set(url, { data, ts: Date.now() });
+  // Bersihkan cache lama jika terlalu besar (>100 entri)
+  if (metadataCache.size > 100) {
+    const oldest = [...metadataCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+    metadataCache.delete(oldest[0]);
+  }
+}
 
 // Plugins - yt-dlp handles YouTube and 1000+ other sites
 const ytPlugin = new YouTubePlugin({ cookies: loadedCookies });
@@ -372,16 +399,31 @@ ytdlpPlugin.resolve = async function(url, options) {
   }
 
 
-  console.log('⚡ [ytdlpPlugin.resolve] Executing yt-dlp process...');
-  const startTime = Date.now();
-  
-  const info = await customYtdlpJson(url, flags).catch((e2) => {
-    console.error(`❌ [ytdlpPlugin.resolve] Execution failed after ${Date.now() - startTime}ms. Error:`, e2.stderr || e2);
-    throw new Error(`${e2.stderr || e2}`);
-  });
+  // Cache check dilakukan SETELAH normalisasi URL (list= stripping) agar key konsisten
+  const cacheKey = url;
+  const cachedInfo = getCachedMetadata(cacheKey);
 
-  console.log(`✅ [ytdlpPlugin.resolve] Execution completed successfully in ${Date.now() - startTime}ms`);
+  let info;
+  if (cachedInfo) {
+    info = cachedInfo;
+  } else {
+    console.log('⚡ [ytdlpPlugin.resolve] Executing yt-dlp process...');
+    const startTime = Date.now();
 
+    info = await customYtdlpJson(url, flags).catch((e2) => {
+      console.error(`❌ [ytdlpPlugin.resolve] Execution failed after ${Date.now() - startTime}ms. Error:`, e2.stderr || e2);
+      throw new Error(`${e2.stderr || e2}`);
+    });
+
+    console.log(`✅ [ytdlpPlugin.resolve] Execution completed successfully in ${Date.now() - startTime}ms`);
+
+    // Simpan RAW JSON ke cache (bukan Song object) — playlist & pencarian tidak di-cache
+    if (!url.startsWith('ytsearch') && !Array.isArray(info.entries)) {
+      setCachedMetadata(cacheKey, info);
+    }
+  }
+
+  // Buat Song/Playlist baru setiap kali agar options (member, interaction) selalu benar
   if (Array.isArray(info.entries)) {
     if (info.entries.length === 0) throw new Error("The playlist is empty");
     console.log(`🎵 [ytdlpPlugin.resolve] Resolved as playlist with ${info.entries.length} songs`);
@@ -394,7 +436,7 @@ ytdlpPlugin.resolve = async function(url, options) {
       thumbnail: info.thumbnails?.[0]?.url
     }, options);
   }
-  
+
   console.log(`🎵 [ytdlpPlugin.resolve] Resolved as single song: "${info.title || info.fulltitle}"`);
   return createYtDlpSong(this, info, options);
 };
@@ -403,10 +445,26 @@ ytdlpPlugin.getStreamURL = async function(song) {
   if (!song.url) {
     throw new Error("Cannot get stream URL from invalid song.");
   }
-  
-  const ageRestrictedParam = song.ageRestricted ? '&ageRestricted=true' : '';
-  console.log(`🔌 [ytdlpPlugin.getStreamURL] Proxying stream for "${song.name}" via local server port ${proxyServerPort} (ageRestricted: ${Boolean(song.ageRestricted)})`);
-  return `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}${ageRestrictedParam}`;
+
+  const MAX_RETRIES = 2;
+  let lastErr;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const ageRestrictedParam = song.ageRestricted ? '&ageRestricted=true' : '';
+      const streamUrl = `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}${ageRestrictedParam}`;
+      console.log(`🔌 [ytdlpPlugin.getStreamURL] [Attempt ${attempt}/${MAX_RETRIES}] Proxying stream for "${song.name}" via port ${proxyServerPort}`);
+      return streamUrl;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < MAX_RETRIES) {
+        console.warn(`⚠️ [getStreamURL] Gagal attempt ${attempt}, retry dalam 2 detik...`);
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+  }
+
+  throw lastErr;
 };
 
 // Bypass ytdl-core stream extractor and use highly robust yt-dlp instead
@@ -837,13 +895,58 @@ client.distube
       queue.textChannel?.send({ embeds: [addedPlaylistEmbed(playlist, queue)] }).catch(() => {});
     }
   })
-  .on('error', (error, queue) => {
+  .on('error', async (error, queue) => {
     console.error('DisTube Error:', error);
-    let msg = `❌ **Error:** ${error.message?.slice(0, 200)}`;
-    if (error.message?.includes('connect to the voice channel') || error.message?.includes('VOICE_CONNECT_FAILED')) {
-      msg += `\n💡 *Tips: Koneksi suara ke Discord gagal. Jika Anda mengetes di laptop, kemungkinan besar ISP/antivirus Anda memblokir lalu lintas UDP Discord. Jika di Railway/hosting, coba ubah "Region Override" pada Voice Channel di Discord ke region lain (seperti Singapore atau India).*`;
+
+    const errMsg = error.message || '';
+    const errLower = errMsg.toLowerCase();
+    let userMsg = `❌ **Gagal memutar lagu ini.**`;
+
+    // Pesan error yang informatif berdasarkan jenis error
+    if (errLower.includes('429') || errLower.includes('too many requests')) {
+      userMsg += `\n⏳ YouTube membatasi request bot. Tunggu sebentar sebelum request lagu lagi.`;
+    } else if (errLower.includes('sign in') || errLower.includes('login_required') || errLower.includes('confirm you\'re not a bot') || errLower.includes('cookies')) {
+      userMsg += `\n🍪 **Cookies YouTube expired!** Hubungi admin untuk update cookies bot.`;
+      // Alert ke owner via DM
+      try {
+        if (!client.application.owner) await client.application.fetch();
+        const owner = client.application.owner;
+        const ownerId = owner?.id || owner?.members?.first()?.id;
+        if (ownerId) {
+          const ownerUser = await client.users.fetch(ownerId).catch(() => null);
+          if (ownerUser) {
+            ownerUser.send([
+              `🚨 **[Bot Alert] Cookies YouTube Expired!**`,
+              `Server: **${queue?.textChannel?.guild?.name || 'Unknown'}**`,
+              `Error: \`${errMsg.slice(0, 200)}\``,
+              `Segera update \`YOUTUBE_COOKIES\` di Railway/hosting dan restart bot!`
+            ].join('\n')).catch(() => {});
+          }
+        }
+      } catch (alertErr) {
+        console.warn('[Alert] Gagal kirim DM ke owner:', alertErr.message);
+      }
+    } else if (errLower.includes('video unavailable') || errLower.includes('not available')) {
+      userMsg += `\n🚫 Video tidak tersedia atau diblokir di region server.`;
+    } else if (errLower.includes('connect to the voice channel') || errLower.includes('voice_connect_failed')) {
+      userMsg += `\n📶 Koneksi suara ke Discord gagal. Coba pindah ke voice channel lain atau ubah region voice channel.`;
+    } else if (errLower.includes('age') || errLower.includes('age_restricted')) {
+      userMsg += `\n🔞 Video dibatasi umur dan tidak bisa diputar.`;
+    } else if (errMsg.length > 0) {
+      userMsg += `\n\`${errMsg.slice(0, 150)}\``;
     }
-    queue?.textChannel?.send(msg).catch(() => {});
+
+    // Auto-skip ke lagu berikutnya jika ada
+    if (queue && queue.songs && queue.songs.length > 1) {
+      userMsg += `\n⏩ Melanjutkan ke lagu berikutnya...`;
+      try {
+        await queue.skip();
+      } catch (skipErr) {
+        console.warn('[Error Handler] Gagal skip lagu:', skipErr.message);
+      }
+    }
+
+    queue?.textChannel?.send(userMsg).catch(() => {});
   })
   .on('initQueue', (queue) => {
     const guildId = queue.textChannel?.guild?.id;

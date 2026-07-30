@@ -138,13 +138,7 @@ const userinfo = {
     const isAdmin = targetMember.permissions.has('Administrator');
     const isMod = targetMember.permissions.has('ModerateMembers');
 
-    // Badge / label khusus
-    const badges = [];
-    if (isOwner) badges.push('👑 Owner');
-    if (isAdmin) badges.push('🛡️ Admin');
-    else if (isMod) badges.push('⚒️ Moderator');
-    if (targetUser.bot) badges.push('🤖 Bot');
-    if (isBoosting) badges.push(`🚀 Booster sejak <t:${Math.floor(targetMember.premiumSinceTimestamp / 1000)}:R>`);
+
 
     // Discord anniversary berikutnya
     const nextAnniversary = formatNextAnniversary(targetUser.createdAt);
@@ -198,10 +192,7 @@ const userinfo = {
           ? [{ name: '💼 Aktivitas', value: activityText, inline: false }]
           : []),
 
-        // Row 4 — Badge & Label khusus
-        ...(badges.length > 0
-          ? [{ name: '✨ Badge', value: badges.join(' • '), inline: false }]
-          : []),
+
 
         // Row 5 — Roles
         {

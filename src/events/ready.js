@@ -1,4 +1,4 @@
-const { ActivityType, REST, Routes } = require('discord.js');
+const { ActivityType, REST, Routes, Events } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { buildMorningMessage } = require('../utils/morningMessage');
@@ -7,7 +7,7 @@ const { loadAllSettings } = require('../utils/storage');
 const storage = require('../utils/storage');
 
 module.exports = {
-  name: 'clientReady',
+  name: Events.ClientReady,
   once: true,
   async execute(client) {
     console.log(`\n🎵 ================================`);
