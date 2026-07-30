@@ -20,7 +20,7 @@ function createCardHubPayload(guild) {
       'Welcome to the **Member Profile Card** system.\n\n' +
       'Create your custom digital identity card in this server. Customize your **Bio**, **Location**, **Accent Color**, **Link**, and **Custom Background** directly using the interactive buttons below.\n\n' +
       '**How It Works:**\n' +
-      '1. Click **Edit Profile** to fill out your profile details & custom background in a pop-up form.\n' +
+      '1. Click **Edit Profile** to fill out your profile details & background in a pop-up form.\n' +
       '2. Click **View My Card** to preview your HD profile card privately.\n' +
       `3. Click **Publish Card** to share your profile card in <#${PUBLISH_CHANNEL_ID}>.`
     )
@@ -29,7 +29,7 @@ function createCardHubPayload(guild) {
         name: 'Preview Features',
         value: [
           '• **HD Resolution Card** (1000x560 Canvas Graphic)',
-          '• **Custom Background Wallpaper** (URL Image / Default Glow)',
+          '• **Custom Background Wallpaper** (Link foto dari Discord / Default Glow)',
           '• **Dynamic Text Scaling** (Auto-fits long names & bios)',
           '• **Server Position & Top Roles Showcase**'
         ].join('\n'),
@@ -84,7 +84,7 @@ async function publishCardToChannel(guild, member, client) {
   const existingMsgId = userCard.publishedMessageId;
   const isFirstPublish = !existingMsgId;
 
-  // Background Cleanup Non-Blocking (Hapus pesan lama secara asinkron)
+  // Background Cleanup Non-Blocking (Hapus pesan lama secara asinkron di background)
   if (existingMsgId) {
     publishChannel.messages.fetch(existingMsgId)
       .then(msg => msg.delete())
@@ -165,9 +165,9 @@ async function handleCardButton(interaction, client) {
 
     const bgUrlInput = new TextInputBuilder()
       .setCustomId('card_input_bg')
-      .setLabel('Custom Background Image URL (Opsional)')
+      .setLabel('Custom Background URL (Link foto dari Discord)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: https://i.imgur.com/image.png')
+      .setPlaceholder('Upload foto di Discord -> Right click -> Copy Link Gambar')
       .setValue(userCard.bgUrl || '')
       .setRequired(false)
       .setMaxLength(250);
