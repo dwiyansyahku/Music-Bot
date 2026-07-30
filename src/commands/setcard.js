@@ -31,17 +31,37 @@ module.exports = {
       });
     }
 
-    // Simpan channel di settings per-guild
     const guildId = interaction.guild.id;
     const settings = storage.read('settings');
     if (!settings[guildId]) settings[guildId] = {};
-    settings[guildId].cardResultChannel = channel.id;
-    storage.write('settings', settings);
 
-    // Kirim Panel Hub Card lengkap dengan tombol & form pop-up di channel tujuan
+    const prevChannelId = settings[guildId].cardResultChannel;
+    const prevMsgId = settings[guildId].cardHubMessageId;
+
+    // Hapus panel lama jika ada di channel yang sama atau channel sebelumnya agar tidak double
+    if (prevChannelId && prevMsgId) {
+      try {
+        const prevChannel = interaction.guild.channels.cache.get(prevChannelId);
+        if (prevChannel) {
+          const oldMsg = await prevChannel.messages.fetch(prevMsgId).catch(() => null);
+          if (oldMsg) {
+            await oldMsg.delete().catch(() => {});
+          }
+        }
+      } catch (e) {
+        /* abaikan jika pesan lama sudah terhapus */
+      }
+    }
+
+    // Kirim Panel Hub Card baru
     try {
       const payload = createCardHubPayload(interaction.guild);
-      await channel.send(payload);
+      const sentMsg = await channel.send(payload);
+
+      // Simpan channel ID & message ID terbaru ke settings per-guild
+      settings[guildId].cardResultChannel = channel.id;
+      settings[guildId].cardHubMessageId = sentMsg.id;
+      storage.write('settings', settings);
 
       // Respon balasan ke Admin HANYA terlihat sendiri (ephemeral)
       await interaction.reply({
