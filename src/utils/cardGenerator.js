@@ -7,39 +7,39 @@ if (dns.setDefaultResultOrder) {
 }
 
 /**
- * Helper to fetch image buffer with a tight 800ms timeout to guarantee instant response.
- * If avatar download takes >800ms, it falls back to initial-letter avatar in 0ms.
+ * Helper to fetch image buffer safely without AbortController socket contamination.
+ * Uses Promise.race to avoid contaminating undici's global socket pool used by @discordjs/rest.
  */
-async function fetchImageBuffer(urlStr, timeoutMs = 800) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(urlStr, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-      }
-    });
-    clearTimeout(timer);
+async function fetchImageBuffer(urlStr, timeoutMs = 1500) {
+  const fetchPromise = fetch(urlStr, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+    }
+  }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const arrayBuffer = await res.arrayBuffer();
     return Buffer.from(arrayBuffer);
-  } catch (err) {
-    clearTimeout(timer);
-    throw err;
-  }
+  });
+
+  const timeoutPromise = new Promise((_, reject) => {
+    const timer = setTimeout(() => {
+      clearTimeout(timer);
+      reject(new Error(`Image fetch timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([fetchPromise, timeoutPromise]);
 }
 
-async function safeLoadImage(url, timeoutMs = 800) {
+async function safeLoadImage(url, timeoutMs = 1500) {
   if (!url) throw new Error('No URL provided');
   const buffer = await fetchImageBuffer(url, timeoutMs);
   return await loadImage(buffer);
 }
 
 /**
- * Helper to draw a rounded rectangle
+ * Helper to draw a rounded rectangle with 100% geometric precision
  */
 function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.beginPath();
@@ -160,10 +160,10 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const avatarX = 50;
   const avatarY = 45;
 
-  // Draw Avatar (800ms strict timeout for instant response)
+  // Draw Avatar (1500ms safe timeout)
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 });
-    const avatarImg = await safeLoadImage(avatarUrl, 800);
+    const avatarImg = await safeLoadImage(avatarUrl, 1500);
 
     // Circle Clip for Avatar
     ctx.save();
@@ -180,7 +180,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 2, 0, Math.PI * 2);
     ctx.stroke();
   } catch (err) {
-    console.warn('[CardCanvas] Avatar download skipped (>800ms), drawing crisp fallback initial circle:', err.message);
+    console.warn('[CardCanvas] Avatar download skipped, drawing crisp fallback initial circle:', err.message);
     ctx.save();
     ctx.fillStyle = accentColor;
     ctx.beginPath();
