@@ -1,8 +1,10 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags
+  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags,
+  AttachmentBuilder
 } = require('discord.js');
 const storage = require('./storage');
+const { generateMemberCardCanvas } = require('./cardGenerator');
 
 // Channel tempat card di-publish
 const PUBLISH_CHANNEL_ID = '1532290934396555354';
@@ -16,26 +18,20 @@ function createCardHubPayload(guild) {
     .setTitle('Member Profile Card')
     .setDescription(
       'Welcome to the **Member Profile Card** system.\n\n' +
-      'Create your digital identity card in this server. Customize your **Bio**, **Location**, and **Accent Color** directly using the interactive buttons below.\n\n' +
+      'Create your custom digital identity card in this server. Customize your **Bio**, **Location**, **Accent Color**, **Link**, and **Custom Background** directly using the interactive buttons below.\n\n' +
       '**How It Works:**\n' +
-      '1. Click **Edit Profile** to fill out your profile details in a pop-up form.\n' +
-      '2. Click **View My Card** to preview your profile card privately.\n' +
+      '1. Click **Edit Profile** to fill out your profile details & custom background in a pop-up form.\n' +
+      '2. Click **View My Card** to preview your HD profile card privately.\n' +
       `3. Click **Publish Card** to share your profile card in <#${PUBLISH_CHANNEL_ID}>.`
     )
     .addFields(
       {
-        name: 'Preview Template',
+        name: 'Preview Features',
         value: [
-          '```',
-          'Name            : Domba Kuring',
-          'Username        : qumpruy',
-          'Member Position : #47 of 312',
-          'Location        : Aceh, Indonesia',
-          'Joined Server   : Jan 15, 2024',
-          'Account Created : Mar 03, 2020',
-          'Roles           : @Senior Ketjeh @Price @Bestie Mpruy',
-          'Bio             : Suka musik lo-fi & koding',
-          '```'
+          '• **HD Resolution Card** (1000x560 Canvas Graphic)',
+          '• **Custom Background Wallpaper** (URL Image / Default Glow)',
+          '• **Dynamic Text Scaling** (Auto-fits long names & bios)',
+          '• **Server Position & Top Roles Showcase**'
         ].join('\n'),
         inline: false
       }
@@ -67,10 +63,9 @@ function createCardHubPayload(guild) {
 
 /**
  * Publish atau update card member ke PUBLISH_CHANNEL_ID.
- * Jika user sudah pernah publish → edit pesan lama (anti-spam).
- * Jika belum → kirim pesan baru & simpan message ID.
+ * Selalu menghapus pesan lama (baik via ID tersimpan maupun auto-scan channel).
  *
- * @returns {Promise<'sent'|'edited'|null>}
+ * @returns {Promise<'first'|'updated'|null>}
  */
 async function publishCardToChannel(guild, member, client) {
   const guildId = guild.id;
@@ -85,9 +80,6 @@ async function publishCardToChannel(guild, member, client) {
     return null;
   }
 
-  const embed = await buildMemberCardEmbed(guild, member);
-
-  // Cek apakah sudah ada pesan lama dari user ini
   const cardsData = storage.read('cards');
   const userCard = cardsData[guildId]?.[userId] || {};
   const existingMsgId = userCard.publishedMessageId;
@@ -100,32 +92,56 @@ async function publishCardToChannel(guild, member, client) {
     ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya. Say hi! 👋`
     : `✏️ **${member.displayName}** just updated their card — ada yang baru nih.`;
 
+  // Generate HD Canvas Card Image Buffer
+  const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
+  const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
+
   const payload = {
     content: warmMessage,
-    embeds: [embed]
+    files: [attachment]
   };
 
-  // Hapus pesan lama jika ada
+  // 1. Hapus pesan lama berdasarkan ID tersimpan
+  let deletedCount = 0;
   if (existingMsgId) {
     try {
       const existingMsg = await publishChannel.messages.fetch(existingMsgId);
       await existingMsg.delete();
+      deletedCount++;
     } catch (err) {
-      // Pesan lama sudah dihapus atau tidak bisa diakses — lanjut kirim baru
-      console.warn(`[CardHandler] Pesan lama (${existingMsgId}) tidak bisa dihapus, lanjut kirim baru. Reason: ${err.message}`);
+      console.warn(`[CardHandler] Pesan lama ID (${existingMsgId}) tidak ditemukan di channel. Reason: ${err.message}`);
     }
   }
 
-  // Kirim pesan baru (selalu di posisi paling bawah / terbaru)
+  // 2. FALLBACK SMART CLEANUP: Scan 50 pesan terakhir di channel untuk menghapus card lama dari member ini
+  try {
+    const recentMessages = await publishChannel.messages.fetch({ limit: 50 });
+    for (const msg of recentMessages.values()) {
+      if (msg.author.id === client.user.id) {
+        const isTargetCard = msg.content?.includes(member.displayName) ||
+                             msg.embeds?.[0]?.footer?.text?.includes(userId) ||
+                             msg.embeds?.[0]?.author?.name?.includes(member.displayName);
+        if (isTargetCard && msg.id !== existingMsgId) {
+          await msg.delete().catch(() => {});
+          deletedCount++;
+          console.log(`🧹 [CardHandler] Cleaned up legacy/orphaned card message ${msg.id} for ${member.displayName}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[CardHandler] Failed smart cleanup scan:', err.message);
+  }
+
+  // 3. Kirim pesan baru (selalu di posisi paling bawah / terbaru)
   const newMsg = await publishChannel.send(payload);
 
-  // Simpan message ID untuk keperluan hapus berikutnya
+  // 4. Simpan message ID untuk keperluan hapus berikutnya
   if (!cardsData[guildId]) cardsData[guildId] = {};
   if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
   cardsData[guildId][userId].publishedMessageId = newMsg.id;
   storage.write('cards', cardsData);
 
-  return isFirstPublish ? 'first' : 'updated';
+  return (isFirstPublish && deletedCount === 0) ? 'first' : 'updated';
 }
 
 /**
@@ -147,55 +163,55 @@ async function handleCardButton(interaction, client) {
 
     const bioInput = new TextInputBuilder()
       .setCustomId('card_input_bio')
-      .setLabel('Short Bio / Status')
+      .setLabel('Short Bio / Status (Max 100 Karakter)')
       .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Example: Lo-fi music enthusiast & developer')
+      .setPlaceholder('Contoh: Suka musik lo-fi, ngoding web & main game pas senggang.')
       .setValue(userCard.bio || '')
       .setRequired(false)
       .setMaxLength(100);
 
     const asalInput = new TextInputBuilder()
       .setCustomId('card_input_asal')
-      .setLabel('Location / Origin')
+      .setLabel('Location / Origin (Max 30 Karakter)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Example: Aceh, Indonesia')
+      .setPlaceholder('Contoh: Depok, Jawa Barat')
       .setValue(userCard.asal || '')
       .setRequired(false)
       .setMaxLength(30);
 
     const colorInput = new TextInputBuilder()
       .setCustomId('card_input_color')
-      .setLabel('Accent Color (Hex Code, Optional)')
+      .setLabel('Accent Color (Hex Code, Opsional)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Example: #5865F2 or #FF5733')
+      .setPlaceholder('Contoh: #5865F2 atau #FF5733')
       .setValue(userCard.color || '')
       .setRequired(false)
       .setMaxLength(7);
 
+    const bgUrlInput = new TextInputBuilder()
+      .setCustomId('card_input_bg')
+      .setLabel('Custom Background Image URL (Opsional)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Contoh: https://i.imgur.com/image.png')
+      .setValue(userCard.bgUrl || '')
+      .setRequired(false)
+      .setMaxLength(250);
+
     const linkTitleInput = new TextInputBuilder()
       .setCustomId('card_input_link_title')
-      .setLabel('Link Title (e.g. GitHub, Portfolio, LinkedIn)')
+      .setLabel('Link Title & URL (Format: Judul | URL)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Example: My GitHub')
-      .setValue(userCard.linkTitle || '')
+      .setPlaceholder('Contoh: My Spotify | https://open.spotify.com/user/xyz')
+      .setValue(userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
       .setRequired(false)
-      .setMaxLength(40);
-
-    const linkUrlInput = new TextInputBuilder()
-      .setCustomId('card_input_link_url')
-      .setLabel('Link URL')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Example: https://github.com/username')
-      .setValue(userCard.linkUrl || '')
-      .setRequired(false)
-      .setMaxLength(200);
+      .setMaxLength(250);
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
       new ActionRowBuilder().addComponents(colorInput),
-      new ActionRowBuilder().addComponents(linkTitleInput),
-      new ActionRowBuilder().addComponents(linkUrlInput)
+      new ActionRowBuilder().addComponents(bgUrlInput),
+      new ActionRowBuilder().addComponents(linkTitleInput)
     );
 
     return interaction.showModal(modal);
@@ -204,10 +220,16 @@ async function handleCardButton(interaction, client) {
   // 2. VIEW MY CARD (Private / Ephemeral)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
+
+    const cardsData = storage.read('cards');
+    const userCard = cardsData[guildId]?.[userId] || {};
+
+    const imageBuffer = await generateMemberCardCanvas(interaction.guild, interaction.member, userCard);
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
+
     return interaction.editReply({
-      content: '*Your Member Profile Card (Only visible to you):*',
-      embeds: [embed]
+      content: '*Your HD Member Profile Card (Only visible to you):*',
+      files: [attachment]
     });
   }
 
@@ -253,11 +275,15 @@ async function handleCardModalSubmit(interaction, client) {
   const guildId = interaction.guild.id;
   const userId = interaction.user.id;
 
-  const bio = interaction.fields.getTextInputValue('card_input_bio').trim();
-  const asal = interaction.fields.getTextInputValue('card_input_asal').trim();
+  let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
+  let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let color = interaction.fields.getTextInputValue('card_input_color').trim();
-  const linkTitle = interaction.fields.getTextInputValue('card_input_link_title').trim();
-  const linkUrl = interaction.fields.getTextInputValue('card_input_link_url').trim();
+  const bgUrl = interaction.fields.getTextInputValue('card_input_bg').trim();
+  const linkRaw = interaction.fields.getTextInputValue('card_input_link_title').trim();
+
+  // Enforce Max Length Limits
+  if (bio.length > 100) bio = bio.slice(0, 100);
+  if (asal.length > 30) asal = asal.slice(0, 30);
 
   // Validate hex color if provided
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
@@ -267,10 +293,31 @@ async function handleCardModalSubmit(interaction, client) {
     });
   }
 
+  // Parse link title & URL format: "Title | URL" or just "URL"
+  let linkTitle = '';
+  let linkUrl = '';
+  if (linkRaw) {
+    if (linkRaw.includes('|')) {
+      const parts = linkRaw.split('|');
+      linkTitle = parts[0].trim();
+      linkUrl = parts.slice(1).join('|').trim();
+    } else {
+      linkUrl = linkRaw;
+    }
+  }
+
   // Validate URL format if provided
   if (linkUrl && !/^https?:\/\/.+/.test(linkUrl)) {
     return interaction.reply({
       content: 'Invalid URL format! Link harus dimulai dengan `https://` atau `http://`.',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // Validate background URL format if provided
+  if (bgUrl && !/^https?:\/\/.+/.test(bgUrl)) {
+    return interaction.reply({
+      content: 'Invalid Background URL format! URL background harus dimulai dengan `https://` atau `http://`.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -285,6 +332,7 @@ async function handleCardModalSubmit(interaction, client) {
   if (bio) userCard.bio = bio; else delete userCard.bio;
   if (asal) userCard.asal = asal; else delete userCard.asal;
   if (color) userCard.color = color.toUpperCase(); else delete userCard.color;
+  if (bgUrl) userCard.bgUrl = bgUrl; else delete userCard.bgUrl;
   if (linkTitle) userCard.linkTitle = linkTitle; else delete userCard.linkTitle;
   if (linkUrl) userCard.linkUrl = linkUrl; else delete userCard.linkUrl;
 
@@ -305,7 +353,6 @@ async function handleCardModalSubmit(interaction, client) {
       content: `✅ Profil tersimpan! Card terbaru kamu sudah tayang di <#${PUBLISH_CHANNEL_ID}>. Yang lama sudah dihapus~ ✨`
     });
   } else {
-    // Channel tidak ditemukan, tapi data tetap tersimpan
     return interaction.editReply({
       content: `✅ Profile updated successfully! Click **View My Card** to preview your card.`
     });
@@ -313,7 +360,7 @@ async function handleCardModalSubmit(interaction, client) {
 }
 
 /**
- * Build clean and elegant Member Profile Card Embed
+ * Build fallback clean Member Profile Card Embed (kept for backwards compatibility)
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -349,9 +396,9 @@ async function buildMemberCardEmbed(guild, member) {
     .setColor(embedColor)
     .setAuthor({
       name: member.displayName,
-      iconURL: targetUser.displayAvatarURL({ dynamic: true, size: 64 })
+      iconURL: targetUser.displayAvatarURL({ extension: 'png', size: 64 })
     })
-    .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
+    .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
     .addFields(
       { name: 'Username', value: targetUser.tag, inline: true },
       { name: 'Member Position', value: `#${joinPosition} of ${totalMembers.toLocaleString('en-US')}`, inline: true },
@@ -377,7 +424,7 @@ async function buildMemberCardEmbed(guild, member) {
 
   embed.setFooter({
     text: `Member ID: ${targetUser.id}`,
-    iconURL: targetUser.displayAvatarURL({ dynamic: true, size: 32 })
+    iconURL: targetUser.displayAvatarURL({ extension: 'png', size: 32 })
   }).setTimestamp();
 
   return embed;
