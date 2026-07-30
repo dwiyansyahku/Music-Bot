@@ -1,4 +1,5 @@
 const { MessageFlags } = require('discord.js');
+const { handleCardButton, handleCardModalSubmit } = require('../utils/cardHandler');
 
 module.exports = {
   name: 'interactionCreate',
@@ -11,7 +12,7 @@ module.exports = {
       try {
         await command.execute(interaction, client);
       } catch (error) {
-        // 10062: Unknown interaction (interaksi kadaluarsa / bot sedang restart)
+        // 10062: Unknown interaction
         // 40060: Interaction has already been acknowledged
         if (error.code === 10062 || error.code === 40060) return;
 
@@ -31,6 +32,28 @@ module.exports = {
           if (replyError.code === 10062 || replyError.code === 40060) return;
           console.error('Gagal mengirim pesan error:', replyError);
         }
+      }
+      return;
+    }
+
+    // ====== Button Interaction (Sistem Panel Card Member) ======
+    if (interaction.isButton() && interaction.customId.startsWith('card_btn_')) {
+      try {
+        await handleCardButton(interaction, client);
+      } catch (err) {
+        if (err.code === 10062 || err.code === 40060) return;
+        console.error('Error handling card button:', err);
+      }
+      return;
+    }
+
+    // ====== Modal Submit Interaction (Pop-up Form Card Member) ======
+    if (interaction.isModalSubmit() && interaction.customId === 'card_modal_submit') {
+      try {
+        await handleCardModalSubmit(interaction, client);
+      } catch (err) {
+        if (err.code === 10062 || err.code === 40060) return;
+        console.error('Error handling card modal submit:', err);
       }
       return;
     }

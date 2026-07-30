@@ -1,14 +1,15 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const storage = require('../utils/storage');
+const { createCardHubPayload } = require('../utils/cardHandler');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setcard')
-    .setDescription('Atur channel hasil penampilan /card (Admin only)')
+    .setDescription('Atur channel tempat panel Card Member diterbitkan (Admin only)')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addChannelOption(opt =>
       opt.setName('channel')
-        .setDescription('Text channel untuk menampilkan hasil card member')
+        .setDescription('Text channel untuk menempatkan panel Card Member')
         .setRequired(true)
     ),
 
@@ -17,32 +18,42 @@ module.exports = {
 
     if (!channel.isTextBased() || channel.isThread()) {
       return interaction.reply({
-        content: 'Pilih text channel biasa (bukan thread/forum).',
-        ephemeral: true
+        content: '❌ Pilih text channel biasa (bukan thread/forum).',
+        flags: MessageFlags.Ephemeral
       });
     }
 
     const botPerms = channel.permissionsFor(interaction.guild.members.me);
     if (!botPerms.has(PermissionFlagsBits.SendMessages) || !botPerms.has(PermissionFlagsBits.EmbedLinks)) {
       return interaction.reply({
-        content: `Bot tidak memiliki izin Send Messages / Embed Links di <#${channel.id}>.`,
-        ephemeral: true
+        content: `❌ Bot tidak memiliki izin **Send Messages** atau **Embed Links** di <#${channel.id}>.`,
+        flags: MessageFlags.Ephemeral
       });
     }
 
+    // Simpan channel di settings per-guild
     const guildId = interaction.guild.id;
     const settings = storage.read('settings');
     if (!settings[guildId]) settings[guildId] = {};
     settings[guildId].cardResultChannel = channel.id;
     storage.write('settings', settings);
 
-    const embed = new EmbedBuilder()
-      .setColor('#5865F2')
-      .setTitle('Channel Card Berhasil Diatur')
-      .setDescription(`Hasil perintah \`/card\` member selanjutnya akan dikirim ke <#${channel.id}>.`)
-      .setFooter({ text: `Diatur oleh ${interaction.user.tag}` })
-      .setTimestamp();
+    // Kirim Panel Hub Card lengkap dengan tombol & form pop-up di channel tujuan
+    try {
+      const payload = createCardHubPayload(interaction.guild);
+      await channel.send(payload);
 
-    await interaction.reply({ embeds: [embed] });
+      // Respon balasan ke Admin HANYA terlihat sendiri (ephemeral)
+      await interaction.reply({
+        content: `✅ Panel Card Member berhasil dikirim ke <#${channel.id}> dan channel telah dikonfigurasi.`,
+        flags: MessageFlags.Ephemeral
+      });
+    } catch (err) {
+      console.error('[/setcard] Gagal mengirim panel ke channel:', err);
+      await interaction.reply({
+        content: `❌ Gagal mengirim panel ke <#${channel.id}>: ${err.message}`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
   }
 };
