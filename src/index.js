@@ -865,6 +865,11 @@ client.distube
     // Simpan lagu yang sedang diputar sebagai "lagu terakhir" untuk autoplay
     lastSongPerGuild.set(queue.id, { name: song.name, uploader: song.uploader?.name });
 
+    // Hapus pesan "Mencari..." dari slash command /play jika ada
+    if (song.metadata?.interaction) {
+      song.metadata.interaction.deleteReply().catch(() => {});
+    }
+
     const embed = nowPlayingEmbed(song, queue);
 
     // Edit pesan NowPlaying yang sama (persistent) — simpan referensi di queue object

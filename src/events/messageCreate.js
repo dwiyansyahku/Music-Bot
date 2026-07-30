@@ -1,6 +1,9 @@
 const { EmbedBuilder } = require('discord.js');
 const { checkVoiceChannel, checkQueue, isBotOwner } = require('../utils/helpers');
 
+// Set untuk mencegah pemrosesan pesan ganda (deduplication guard)
+const processedMessages = new Set();
+
 module.exports = {
   name: 'messageCreate',
   async execute(message, client) {
@@ -9,6 +12,13 @@ module.exports = {
 
     // Check prefix 'q' or 'Q'
     if (!message.content.toLowerCase().startsWith('q')) return;
+
+    // Deduplication guard: pastikan ID pesan belum pernah diproses
+    if (processedMessages.has(message.id)) return;
+    processedMessages.add(message.id);
+
+    // Hapus ID pesan dari set setelah 60 detik agar hemat memori
+    setTimeout(() => processedMessages.delete(message.id), 60000);
 
     // Parse command
     const args = message.content.slice(1).trim().split(/ +/);
