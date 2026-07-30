@@ -1,25 +1,35 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 /**
- * Helper to load an image with a strict timeout (default 2 seconds).
- * Prevents network delays from blocking Discord interaction responses.
+ * Helper to fetch image buffer with User-Agent & 1.8s timeout.
+ * Discord CDN delays or blocks canvas's default libcurl if User-Agent is missing.
+ * Passing Buffer directly to loadImage(buffer) executes in < 5ms.
  */
-function loadImageWithTimeout(url, timeoutMs = 2000) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`Image loading timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
+async function fetchImageBuffer(url, timeoutMs = 1800) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    loadImage(url)
-      .then((img) => {
-        clearTimeout(timer);
-        resolve(img);
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+async function safeLoadImage(url, timeoutMs = 1800) {
+  if (!url) throw new Error('No URL provided');
+  const buffer = await fetchImageBuffer(url, timeoutMs);
+  return await loadImage(buffer);
 }
 
 /**
@@ -95,7 +105,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   let bgLoaded = false;
   if (userCardData.bgUrl) {
     try {
-      const bgImg = await loadImageWithTimeout(userCardData.bgUrl, 2000);
+      const bgImg = await safeLoadImage(userCardData.bgUrl, 1800);
       // Object-fit: cover math
       const imgRatio = bgImg.width / bgImg.height;
       const canvasRatio = width / height;
@@ -169,7 +179,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   // Draw Avatar
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 });
-    const avatarImg = await loadImageWithTimeout(avatarUrl, 2000);
+    const avatarImg = await safeLoadImage(avatarUrl, 1800);
 
     // Circle Clip for Avatar
     ctx.save();
