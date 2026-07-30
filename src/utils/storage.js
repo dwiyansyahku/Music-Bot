@@ -12,20 +12,37 @@ function getFilePath(name) {
   return path.join(DATA_DIR, `${name}.json`);
 }
 
-/** Baca seluruh isi file JSON */
+// In-Memory Cache untuk performa super cepat (0ms disk I/O)
+const memoryCache = new Map();
+
+/** Baca seluruh isi file JSON (dengan in-memory caching) */
 function read(name) {
+  if (memoryCache.has(name)) {
+    return memoryCache.get(name);
+  }
   const fp = getFilePath(name);
-  if (!fs.existsSync(fp)) return {};
+  if (!fs.existsSync(fp)) {
+    memoryCache.set(name, {});
+    return {};
+  }
   try {
-    return JSON.parse(fs.readFileSync(fp, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(fp, 'utf8'));
+    memoryCache.set(name, parsed);
+    return parsed;
   } catch {
+    memoryCache.set(name, {});
     return {};
   }
 }
 
-/** Tulis seluruh isi file JSON */
+/** Tulis seluruh isi file JSON (update memory cache & disk) */
 function write(name, data) {
-  fs.writeFileSync(getFilePath(name), JSON.stringify(data, null, 2), 'utf8');
+  memoryCache.set(name, data);
+  try {
+    fs.writeFileSync(getFilePath(name), JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error(`[Storage] Gagal menulis ${name}.json:`, err.message);
+  }
 }
 
 /** Ambil satu key dari file JSON */

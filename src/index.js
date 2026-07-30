@@ -855,11 +855,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
   }
 });
 
-client.on('debug', (info) => {
-  if (info.includes('voice') || info.includes('Voice') || info.includes('packet') || info.includes('Gateway') || info.includes('Heartbeat')) {
-    console.log(`🤖 [Discord Debug] ${info}`);
-  }
-});
+// Debug logging disabled for performance
 
 // DisTube Events
 const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, autoplayEmbed } = require('./utils/embeds');
@@ -1023,12 +1019,6 @@ client.distube
         }
       }, 60000);
     }
-  })
-  .on('ffmpegDebug', (message) => {
-    console.log(`🔊 [FFmpeg Debug] ${message}`);
-  })
-  .on('debug', (message) => {
-    console.log(`🤖 [DisTube Debug] ${message}`);
   });
 
 if (!process.env.DISCORD_TOKEN) {
