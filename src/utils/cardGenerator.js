@@ -1,29 +1,64 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const https = require('https');
+const http = require('http');
+const dns = require('dns');
+
+// Force IPv4 first globally to bypass Railway/Docker IPv6 DNS delays
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 /**
- * Helper to fetch image buffer with User-Agent & 1.5s timeout.
- * Discord CDN delays or blocks canvas's default libcurl if User-Agent is missing.
- * Passing Buffer directly to loadImage(buffer) executes in < 5ms.
+ * Helper to fetch image buffer using IPv4 first with strict 1.5s timeout.
+ * Forcing IPv4 family eliminates Railway/Docker 2-3s IPv6 DNS lookup delays.
  */
-async function fetchImageBuffer(url, timeoutMs = 1500) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+function fetchImageBuffer(urlStr, timeoutMs = 1500) {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsedUrl = new URL(urlStr);
+      const protocol = parsedUrl.protocol === 'https:' ? https : http;
 
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-    clearTimeout(timer);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch (err) {
-    clearTimeout(timer);
-    throw err;
-  }
+      let req;
+      const timer = setTimeout(() => {
+        if (req) req.destroy();
+        reject(new Error(`Image fetch timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      req = protocol.get(parsedUrl, {
+        family: 4, // Force IPv4 to eliminate 2-3s IPv6 DNS timeouts on Linux/Docker
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          clearTimeout(timer);
+          return fetchImageBuffer(res.headers.location, timeoutMs).then(resolve).catch(reject);
+        }
+        if (res.statusCode !== 200) {
+          clearTimeout(timer);
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          clearTimeout(timer);
+          resolve(Buffer.concat(chunks));
+        });
+        res.on('error', (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
+
+      req.on('error', (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 async function safeLoadImage(url, timeoutMs = 1500) {
