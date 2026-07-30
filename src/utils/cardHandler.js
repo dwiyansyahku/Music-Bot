@@ -21,17 +21,17 @@ function createCardHubPayload(guild) {
       'Create your custom digital identity card in this server. Customize your **Bio**, **Location**, **Accent Color**, and **Link** directly using the interactive buttons below.\n\n' +
       '**How It Works:**\n' +
       '1. Click **Edit Profile** to fill out your profile details in a pop-up form.\n' +
-      '2. Click **View My Card** to preview your HD profile card privately.\n' +
+      '2. Click **View My Card** to preview your profile card privately.\n' +
       `3. Click **Publish Card** to share your profile card in <#${GALLERY_CHANNEL_ID}>.`
     )
     .addFields(
       {
-        name: 'Preview Features',
+        name: 'Card Features',
         value: [
-          '• **HD Resolution Card** (1000x560 Canvas Graphic)',
+          '• **HD Landscape Resolution Card** (1000x560 Canvas Graphic)',
           '• **QP Royal Purple Theme** (Official Server Logo Aesthetics)',
-          '• **Dynamic Text Scaling** (Auto-fits long names & bios)',
-          '• **Server Position, Created Date & Top Roles Showcase**'
+          '• **Server Rank Position** (Join order counter)',
+          '• **Account Created Date & Top Roles Showcase**'
         ].join('\n'),
         inline: false
       }
@@ -98,7 +98,7 @@ async function publishCardToChannel(guild, member, client) {
     ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya. Say hi! 👋`
     : `✏️ **${member.displayName}** just updated their card — ada yang baru nih.`;
 
-  // Generate HD Canvas Card (Fast 0.05s response)
+  // Generate 1000x560 Landscape Graphic Card
   const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
   const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
 
@@ -183,7 +183,7 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Private / Ephemeral - Always sends HD Graphic Image!)
+  // 2. VIEW MY CARD (Private / Ephemeral - 1000x560 Landscape Canvas)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

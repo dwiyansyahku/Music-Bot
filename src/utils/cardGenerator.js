@@ -1,5 +1,7 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const dns = require('dns');
+const https = require('https');
+const http = require('http');
 
 // Force IPv4 first globally to bypass Railway/Docker IPv6 DNS delays
 if (dns.setDefaultResultOrder) {
@@ -7,32 +9,49 @@ if (dns.setDefaultResultOrder) {
 }
 
 /**
- * Helper to fetch image buffer safely without AbortController socket contamination.
- * Uses Promise.race to avoid contaminating undici's global socket pool used by @discordjs/rest.
+ * Helper to fetch image buffer with a tight 300ms timeout.
+ * Immediately destroys socket on timeout so background rendering NEVER blocks.
  */
-async function fetchImageBuffer(urlStr, timeoutMs = 1500) {
-  const fetchPromise = fetch(urlStr, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+function fetchImageBuffer(urlStr, timeoutMs = 300) {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsedUrl = new URL(urlStr);
+      const protocol = parsedUrl.protocol === 'https:' ? https : http;
+
+      const req = protocol.get(parsedUrl, {
+        agent: false,
+        family: 4,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'image/png,image/jpeg,image/*;q=0.8'
+        }
+      }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return fetchImageBuffer(res.headers.location, timeoutMs).then(resolve).catch(reject);
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => resolve(Buffer.concat(chunks)));
+        res.on('error', (err) => reject(err));
+      });
+
+      req.setTimeout(timeoutMs, () => {
+        req.destroy();
+        reject(new Error(`Avatar fetch timeout (${timeoutMs}ms)`));
+      });
+
+      req.on('error', (err) => reject(err));
+    } catch (err) {
+      reject(err);
     }
-  }).then(async (res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
   });
-
-  const timeoutPromise = new Promise((_, reject) => {
-    const timer = setTimeout(() => {
-      clearTimeout(timer);
-      reject(new Error(`Image fetch timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-  });
-
-  return Promise.race([fetchPromise, timeoutPromise]);
 }
 
-async function safeLoadImage(url, timeoutMs = 1500) {
+async function safeLoadImage(url, timeoutMs = 300) {
   if (!url) throw new Error('No URL provided');
   const buffer = await fetchImageBuffer(url, timeoutMs);
   return await loadImage(buffer);
@@ -93,7 +112,7 @@ function getWrappedLines(ctx, text, maxWidth, maxLines = 3) {
 }
 
 /**
- * Generate HD Canvas Member Profile Card (1000px x 560px)
+ * Generate 100% Instant HD Landscape Canvas Member Profile Card (1000px x 560px)
  */
 async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const width = 1000;
@@ -106,9 +125,8 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const accentColor = userCardData.color || member.roles.color?.hexColor || '#8B5CF6';
 
   // ============================================================
-  // 1. BACKGROUND DRAWING (QP Royal Purple Theme Matching Server Logo - 0ms Instant Load)
+  // 1. BACKGROUND DRAWING (100% Local QP Royal Purple Theme — 0ms Instant Load)
   // ============================================================
-  // Deep Midnight Purple Gradient (Matching QP Logo black & purple aesthetics)
   const bgGrad = ctx.createLinearGradient(0, 0, width, height);
   bgGrad.addColorStop(0, '#0B0614');
   bgGrad.addColorStop(0.5, '#1D0D36');
@@ -160,12 +178,11 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const avatarX = 50;
   const avatarY = 45;
 
-  // Draw Avatar (1500ms safe timeout)
+  // Try loading real avatar with ultra-fast 300ms timeout, otherwise draw crisp fallback circle
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 });
-    const avatarImg = await safeLoadImage(avatarUrl, 1500);
+    const avatarImg = await safeLoadImage(avatarUrl, 300);
 
-    // Circle Clip for Avatar
     ctx.save();
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
@@ -173,14 +190,12 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
     ctx.restore();
 
-    // Accent Ring around Avatar
     ctx.lineWidth = 4;
     ctx.strokeStyle = accentColor;
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 2, 0, Math.PI * 2);
     ctx.stroke();
   } catch (err) {
-    console.warn('[CardCanvas] Avatar download skipped, drawing crisp fallback initial circle:', err.message);
     ctx.save();
     ctx.fillStyle = accentColor;
     ctx.beginPath();
@@ -194,7 +209,6 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.fillText((member.displayName || 'U').charAt(0).toUpperCase(), avatarX + avatarSize / 2, avatarY + avatarSize / 2);
     ctx.restore();
 
-    // Accent Ring around Avatar
     ctx.lineWidth = 4;
     ctx.strokeStyle = accentColor;
     ctx.beginPath();
@@ -202,7 +216,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.stroke();
   }
 
-  // Display Name (Dynamic font size adjustment)
+  // Display Name
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -213,7 +227,6 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const nameX = avatarX + avatarSize + 25;
   const nameY = avatarY + 42;
 
-  // Auto shrink font size if display name is long
   while (ctx.measureText(nameText).width > 420 && nameFontSize > 22) {
     nameFontSize -= 2;
     ctx.font = `bold ${nameFontSize}px sans-serif`;
@@ -250,7 +263,6 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const gap = 20;
   const colWidth = (width - 100 - gap) / 2; // 440px each
 
-  // Helper to draw Glass Container Box
   function drawGlassBox(x, y, w, h) {
     ctx.save();
     ctx.fillStyle = 'rgba(20, 24, 36, 0.65)';
@@ -266,12 +278,10 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const box1X = 50;
   drawGlassBox(box1X, containerY, colWidth, containerH);
 
-  // Box 1 Header
   ctx.fillStyle = accentColor;
   ctx.font = 'bold 13px sans-serif';
   ctx.fillText('MEMBER INFO', box1X + 20, containerY + 30);
 
-  // Calculate join position (fast cached version)
   const cachedMembers = guild.members.cache;
   const sortedByJoin = [...cachedMembers.values()]
     .filter(m => m.joinedAt)
@@ -288,7 +298,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     { label: 'Position', val: `#${joinPos || '-'} of ${totalMembers.toLocaleString('en-US')}` },
     { label: 'Location', val: userCardData.asal || '-' },
     { label: 'Joined', val: formatDate(member.joinedAt) },
-    { label: 'Created', val: formatDate(member.user.createdAt) } // Created Account Date
+    { label: 'Created', val: formatDate(member.user.createdAt) }
   ];
 
   ctx.font = '15px sans-serif';
@@ -308,7 +318,6 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const box2X = box1X + colWidth + gap;
   drawGlassBox(box2X, containerY, colWidth, containerH);
 
-  // Box 2 Header
   ctx.fillStyle = accentColor;
   ctx.font = 'bold 13px sans-serif';
   ctx.fillText('TOP ROLES', box2X + 20, containerY + 30);
@@ -325,13 +334,11 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.fillText('No special roles', box2X + 20, roleY);
   } else {
     topRoles.forEach(r => {
-      // Role color dot
       ctx.fillStyle = r.hexColor !== '#000000' ? r.hexColor : '#99AAB5';
       ctx.beginPath();
       ctx.arc(box2X + 26, roleY - 5, 6, 0, Math.PI * 2);
       ctx.fill();
 
-      // Role name
       ctx.fillStyle = '#E1E4EC';
       ctx.font = '15px sans-serif';
       let rName = r.name;
@@ -353,7 +360,6 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const box3H = 125;
   drawGlassBox(50, box3Y, width - 100, box3H);
 
-  // Box 3 Header / Bio
   const bioText = userCardData.bio || 'No bio status set yet.';
   ctx.fillStyle = accentColor;
   ctx.font = 'bold 13px sans-serif';
@@ -368,10 +374,9 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     bioY += 22;
   });
 
-  // Link Title & URL (If provided)
   if (userCardData.linkUrl) {
     const linkTitle = userCardData.linkTitle || 'Link';
-    const linkText = `🔗 ${linkTitle}: ${userCardData.linkUrl}`;
+    const linkText = `${linkTitle.toUpperCase()}: ${userCardData.linkUrl}`;
     ctx.fillStyle = accentColor;
     ctx.font = 'bold 14px sans-serif';
     let displayLink = linkText;
