@@ -32,8 +32,28 @@ module.exports = {
     }
 
     const guildId = interaction.guild.id;
+    const now = Date.now();
+
+    // 🔒 DEDUPLICATION LOCK: Cegah 2 instance bot (misal: bot di laptop & bot di Railway)
+    // yang menyala bersamaan dengan token yang sama mengirim 2 pesan sekaligus.
     const settings = storage.read('settings');
     if (!settings[guildId]) settings[guildId] = {};
+
+    const lastTime = settings[guildId].lastSetcardTimestamp || 0;
+    if (now - lastTime < 4000) {
+      console.warn('[/setcard] 🔒 Deduplication lock dipicu (dua instance bot berjalan bersamaan). Melewati pemrosesan kedua.');
+      if (!interaction.replied && !interaction.deferred) {
+        return interaction.reply({
+          content: `✅ Channel <#${channel.id}> telah dikonfigurasi!`,
+          flags: MessageFlags.Ephemeral
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    // Catat timestamp eksekusi sekarang
+    settings[guildId].lastSetcardTimestamp = now;
+    storage.write('settings', settings);
 
     // 🧹 SAPU BERSIH SELURUH PESAN PANEL LAMA DI CHANNEL TERSANGKUT
     try {
@@ -51,27 +71,33 @@ module.exports = {
       console.warn('[/setcard] Gagal membersihkan pesan panel lama:', e.message);
     }
 
-    // Kirim 1 Panel Hub Card baru
+    // Kirim TEPAT 1 Panel Hub Card baru
     try {
       const payload = createCardHubPayload(interaction.guild);
       const sentMsg = await channel.send(payload);
 
       // Simpan channel ID & message ID terbaru ke settings per-guild
-      settings[guildId].cardResultChannel = channel.id;
-      settings[guildId].cardHubMessageId = sentMsg.id;
-      storage.write('settings', settings);
+      const updatedSettings = storage.read('settings');
+      if (!updatedSettings[guildId]) updatedSettings[guildId] = {};
+      updatedSettings[guildId].cardResultChannel = channel.id;
+      updatedSettings[guildId].cardHubMessageId = sentMsg.id;
+      storage.write('settings', updatedSettings);
 
       // Respon balasan ke Admin HANYA terlihat sendiri (ephemeral)
-      await interaction.reply({
-        content: `✅ Channel <#${channel.id}> berhasil dikonfigurasi! Semua panel lama telah dibersihkan dan dipasang 1 panel baru.`,
-        flags: MessageFlags.Ephemeral
-      });
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: `✅ Channel <#${channel.id}> berhasil dikonfigurasi! Tepat 1 panel dipasang.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
     } catch (err) {
       console.error('[/setcard] Gagal mengirim panel ke channel:', err);
-      await interaction.reply({
-        content: `❌ Gagal mengirim panel ke <#${channel.id}>: ${err.message}`,
-        flags: MessageFlags.Ephemeral
-      });
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: `❌ Gagal mengirim panel ke <#${channel.id}>: ${err.message}`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
     }
   }
 };
