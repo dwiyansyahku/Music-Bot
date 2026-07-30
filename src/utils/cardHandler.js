@@ -63,7 +63,7 @@ function createCardHubPayload(guild) {
 
 /**
  * Publish atau update card member ke PUBLISH_CHANNEL_ID.
- * Pembersihan pesan lama dilakukan secara non-blocking di background (0ms delay).
+ * Dengan Fail-Safe Fallback ke Embed jika Canvas mengalami kendala.
  *
  * @returns {Promise<'first'|'updated'|null>}
  */
@@ -71,7 +71,6 @@ async function publishCardToChannel(guild, member, client) {
   const guildId = guild.id;
   const userId = member.id;
 
-  // Ambil channel publish dari cache atau fetch cepat
   const publishChannel = guild.channels.cache.get(PUBLISH_CHANNEL_ID)
     || await client.channels.fetch(PUBLISH_CHANNEL_ID).catch(() => null);
 
@@ -85,7 +84,7 @@ async function publishCardToChannel(guild, member, client) {
   const existingMsgId = userCard.publishedMessageId;
   const isFirstPublish = !existingMsgId;
 
-  // NON-BLOCKING BACKGROUND CLEANUP: Hapus pesan lama secara asinkron tanpa menahan eksekusi
+  // Background Cleanup Non-Blocking (Hapus pesan lama secara asinkron)
   if (existingMsgId) {
     publishChannel.messages.fetch(existingMsgId)
       .then(msg => msg.delete())
@@ -96,15 +95,20 @@ async function publishCardToChannel(guild, member, client) {
     ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya. Say hi! 👋`
     : `✏️ **${member.displayName}** just updated their card — ada yang baru nih.`;
 
-  // Generate HD Canvas Card Image Buffer (Fast)
-  const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
-  const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
+  // Fail-Safe Payload Generation (Canvas Card dengan fallback Embed)
+  let payload;
+  try {
+    const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
+    payload = { content: warmMessage, files: [attachment] };
+  } catch (canvasErr) {
+    console.warn('[PublishCard] Canvas generation failed, falling back to Embed:', canvasErr.message);
+    const embed = await buildMemberCardEmbed(guild, member);
+    payload = { content: warmMessage, embeds: [embed] };
+  }
 
-  // Kirim pesan card baru (hanya 1 REST call langsung)
-  const newMsg = await publishChannel.send({
-    content: warmMessage,
-    files: [attachment]
-  });
+  // Kirim pesan card baru
+  const newMsg = await publishChannel.send(payload);
 
   // Simpan message ID baru
   if (!cardsData[guildId]) cardsData[guildId] = {};
@@ -195,13 +199,23 @@ async function handleCardButton(interaction, client) {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
 
-    const imageBuffer = await generateMemberCardCanvas(interaction.guild, interaction.member, userCard);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
+    try {
+      const imageBuffer = await generateMemberCardCanvas(interaction.guild, interaction.member, userCard);
+      const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
 
-    return interaction.editReply({
-      content: '*Your HD Member Profile Card (Only visible to you):*',
-      files: [attachment]
-    });
+      return await interaction.editReply({
+        content: '*Your HD Member Profile Card (Only visible to you):*',
+        files: [attachment]
+      });
+    } catch (canvasErr) {
+      console.warn('[ViewCard] Canvas generation failed, falling back to Embed:', canvasErr.message);
+      const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
+      return await interaction.editReply({
+        content: '*Your Member Profile Card (Only visible to you):*',
+        embeds: [embed],
+        files: []
+      });
+    }
   }
 
   // 3. PUBLISH CARD → Kirim / update pesan di channel publish
@@ -243,7 +257,6 @@ async function handleCardButton(interaction, client) {
  * Handle when user submits Modal Form — save data & auto-publish ke channel
  */
 async function handleCardModalSubmit(interaction, client) {
-  // PANGGUL DEFERREPLY DI BARIS PERTAMA AGAR DISCORD TIDAK TIMEOUT (AbortError)!
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const guildId = interaction.guild.id;
