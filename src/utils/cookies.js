@@ -1,6 +1,84 @@
 const fs = require('fs');
 const path = require('path');
 
+// ============================================================
+// Cookies Health State — diakses dari index.js untuk alert admin
+// ============================================================
+const cookiesHealth = {
+  status: 'unknown',   // 'ok' | 'expiring_soon' | 'expired' | 'missing' | 'unknown'
+  expiredNames: [],
+  expiringSoonNames: [],
+  checkedAt: null,
+};
+
+/**
+ * Memeriksa apakah cookies YouTube masih valid.
+ * @param {Array} cookiesArray - Array cookie objects
+ * @returns {{ ok: boolean, expired: string[], expiringSoon: string[] }}
+ */
+function checkCookiesExpiry(cookiesArray) {
+  const now = Math.floor(Date.now() / 1000);
+  const SOON_THRESHOLD_DAYS = 3; // Peringatan jika kurang dari 3 hari
+  const SOON_THRESHOLD_SECS = SOON_THRESHOLD_DAYS * 24 * 60 * 60;
+
+  // Cookie kritis yang harus valid agar YouTube tidak blokir
+  const CRITICAL_COOKIES = ['__Secure-1PSID', 'SAPISID', 'SID', '__Secure-3PSID', 'HSID', 'SSID'];
+
+  const expired = [];
+  const expiringSoon = [];
+
+  for (const cookie of cookiesArray) {
+    if (!cookie.name || !cookie.expirationDate) continue;
+    if (!CRITICAL_COOKIES.includes(cookie.name)) continue;
+
+    const expiry = Math.round(cookie.expirationDate);
+    if (expiry > 0 && expiry < now) {
+      expired.push(cookie.name);
+    } else if (expiry > 0 && expiry - now < SOON_THRESHOLD_SECS) {
+      expiringSoon.push(cookie.name);
+    }
+  }
+
+  const ok = expired.length === 0;
+  console.log(`🍪 [Cookies Health] Status: ${ok ? 'OK' : 'EXPIRED'} | Expired: [${expired.join(', ') || 'none'}] | Expiring soon: [${expiringSoon.join(', ') || 'none'}]`);
+  return { ok, expired, expiringSoon };
+}
+
+/**
+ * Kembalikan status kesehatan cookies yang terakhir dicek.
+ * @returns {typeof cookiesHealth}
+ */
+function getCookiesHealth() {
+  return cookiesHealth;
+}
+
+/**
+ * Converts a raw HTTP Cookie Header string (key=value; key2=value2) to Netscape HTTP Cookie format.
+ * @param {string} headerString 
+ * @returns {string}
+ */
+function cookieHeaderToNetscape(headerString) {
+  let output = '# Netscape HTTP Cookie File\n';
+  output += '# Auto-converted from HTTP Cookie Header string\n\n';
+
+  const pairs = headerString.split(';');
+  let count = 0;
+  for (const pair of pairs) {
+    const trimmed = pair.trim();
+    if (!trimmed) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const name = trimmed.substring(0, eqIdx).trim();
+    const value = trimmed.substring(eqIdx + 1).trim();
+    if (!name) continue;
+
+    output += `.youtube.com\tTRUE\t/\tTRUE\t0\t${name}\t${value}\n`;
+    count++;
+  }
+  console.log(`🍪 [Cookies Helper] Converted ${count} cookies from HTTP Header format to Netscape format.`);
+  return output;
+}
+
 /**
  * Converts a JSON cookie array to the Netscape HTTP Cookie File format.
  * @param {Array} cookiesArray 
@@ -55,14 +133,20 @@ function setupCookies() {
         netscapeContent = netscapeContent.slice(1, -1);
       }
 
-      // Fix: Railway UI often converts tab characters to spaces when pasting.
-      // Normalize each non-comment line so fields are separated by a single tab.
-      netscapeContent = netscapeContent.split('\n').map(line => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('#') || trimmed === '') return line;
-        // Split on actual tab OR 2+ spaces (Railway artifact), rejoin with tab
-        return trimmed.split(/\t| {2,}/).join('\t');
-      }).join('\n');
+      // Auto-detect format: jika bentuknya header string (mengandung '=' dan ';', tanpa '#' atau '[')
+      if (netscapeContent.includes(';') && netscapeContent.includes('=') && !netscapeContent.startsWith('#') && !netscapeContent.startsWith('[')) {
+        console.log('🍪 [Cookies Helper] Detected HTTP Cookie Header format string. Auto-converting to Netscape format...');
+        netscapeContent = cookieHeaderToNetscape(netscapeContent);
+      } else {
+        // Fix: Railway UI often converts tab characters to spaces when pasting.
+        // Normalize each non-comment line so fields are separated by a single tab.
+        netscapeContent = netscapeContent.split('\n').map(line => {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('#') || trimmed === '') return line;
+          // Split on actual tab OR 2+ spaces (Railway artifact), rejoin with tab
+          return trimmed.split(/\t| {2,}/).join('\t');
+        }).join('\n');
+      }
 
       fs.writeFileSync(cookiesTxtPath, netscapeContent, 'utf8');
 
@@ -165,6 +249,21 @@ function setupCookies() {
       fs.writeFileSync(cookiesTxtPath, netscapeContent, 'utf8');
       console.log('✅ [Cookies Helper] Generated cookies.txt in Netscape format');
 
+      // === Cek kesehatan / expiry cookies ===
+      const health = checkCookiesExpiry(cookies);
+      cookiesHealth.checkedAt = new Date().toISOString();
+      cookiesHealth.expiredNames = health.expired;
+      cookiesHealth.expiringSoonNames = health.expiringSoon;
+      if (!health.ok) {
+        cookiesHealth.status = 'expired';
+        console.error(`🚨 [Cookies Health] Ada ${health.expired.length} cookies KRITIS yang sudah EXPIRED: [${health.expired.join(', ')}]. Bot mungkin tidak bisa putar lagu dari YouTube!`);
+      } else if (health.expiringSoon.length > 0) {
+        cookiesHealth.status = 'expiring_soon';
+        console.warn(`⚠️ [Cookies Health] ${health.expiringSoon.length} cookies akan expire dalam 3 hari: [${health.expiringSoon.join(', ')}]. Segera update cookies!`);
+      } else {
+        cookiesHealth.status = 'ok';
+      }
+
       // Append cookies to the configuration content
       const normalizedCookiesPath = cookiesTxtPath.replace(/\\/g, '/');
       confContent += `--cookies "${normalizedCookiesPath}"\n`;
@@ -183,6 +282,8 @@ function setupCookies() {
     }
   } else {
     console.log('ℹ️ [Cookies Helper] No cookies configured. Running in unauthenticated mode.');
+    cookiesHealth.status = 'missing';
+    cookiesHealth.checkedAt = new Date().toISOString();
     
     // Always write the base configuration even in unauthenticated mode
     if (fs.existsSync(ytDlpBinDir)) {
@@ -203,4 +304,4 @@ function setupCookies() {
   return undefined;
 }
 
-module.exports = { setupCookies };
+module.exports = { setupCookies, getCookiesHealth };
