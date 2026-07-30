@@ -94,7 +94,7 @@ async function publishCardToChannel(guild, member, client) {
 
   // Generate HD Canvas Card Image Buffer (Fast 0.2s)
   const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
-  const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
+  const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
 
   const payload = {
     content: warmMessage,
@@ -227,7 +227,7 @@ async function handleCardButton(interaction, client) {
     const userCard = cardsData[guildId]?.[userId] || {};
 
     const imageBuffer = await generateMemberCardCanvas(interaction.guild, interaction.member, userCard);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.png' });
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
 
     return interaction.editReply({
       content: '*Your HD Member Profile Card (Only visible to you):*',
