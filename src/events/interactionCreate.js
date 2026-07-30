@@ -4,6 +4,24 @@ const { handleCardButton, handleCardModalSubmit } = require('../utils/cardHandle
 module.exports = {
   name: 'interactionCreate',
   async execute(interaction, client) {
+    // Helper untuk menangani error respons secara aman (termasuk jika sudah deferred)
+    async function safeErrorReply(err, customMessage = 'Terjadi kesalahan pada sistem.') {
+      if (err.code === 10062 || err.code === 40060) return;
+      console.error('[InteractionError]', err);
+
+      const errContent = `❌ ${customMessage} (${err.message || 'Unknown error'})`;
+
+      try {
+        if (interaction.replied || interaction.deferred) {
+          await interaction.editReply({ content: errContent, embeds: [], files: [] }).catch(async () => {
+            await interaction.followUp({ content: errContent, flags: MessageFlags.Ephemeral }).catch(() => {});
+          });
+        } else {
+          await interaction.reply({ content: errContent, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+      } catch (_) {}
+    }
+
     // ====== Slash Commands ======
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
@@ -12,26 +30,7 @@ module.exports = {
       try {
         await command.execute(interaction, client);
       } catch (error) {
-        // 10062: Unknown interaction
-        // 40060: Interaction has already been acknowledged
-        if (error.code === 10062 || error.code === 40060) return;
-
-        console.error(`Error pada command /${interaction.commandName}:`, error);
-
-        const reply = {
-          content: `❌ Terjadi error: ${error.message}`,
-          flags: MessageFlags.Ephemeral,
-        };
-        try {
-          if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(reply);
-          } else {
-            await interaction.reply(reply);
-          }
-        } catch (replyError) {
-          if (replyError.code === 10062 || replyError.code === 40060) return;
-          console.error('Gagal mengirim pesan error:', replyError);
-        }
+        await safeErrorReply(error, `Error pada command /${interaction.commandName}`);
       }
       return;
     }
@@ -41,8 +40,7 @@ module.exports = {
       try {
         await handleCardButton(interaction, client);
       } catch (err) {
-        if (err.code === 10062 || err.code === 40060) return;
-        console.error('Error handling card button:', err);
+        await safeErrorReply(err, 'Gagal memproses tombol Card Member.');
       }
       return;
     }
@@ -52,8 +50,7 @@ module.exports = {
       try {
         await handleCardModalSubmit(interaction, client);
       } catch (err) {
-        if (err.code === 10062 || err.code === 40060) return;
-        console.error('Error handling card modal submit:', err);
+        await safeErrorReply(err, 'Gagal memproses form Card Member.');
       }
       return;
     }
@@ -66,8 +63,7 @@ module.exports = {
       try {
         await interaction.update({ embeds: [embed] });
       } catch (err) {
-        if (err.code === 10062 || err.code === 40060) return;
-        console.error('Error updating help select menu:', err.message);
+        await safeErrorReply(err, 'Gagal memperbarui menu bantuan.');
       }
     }
   },
