@@ -1,6 +1,4 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
-const https = require('https');
-const http = require('http');
 const dns = require('dns');
 
 // Force IPv4 first globally to bypass Railway/Docker IPv6 DNS delays
@@ -9,59 +7,32 @@ if (dns.setDefaultResultOrder) {
 }
 
 /**
- * Helper to fetch image buffer using IPv4 first with 3.0s timeout.
- * Forcing IPv4 family eliminates Railway/Docker 2-3s IPv6 DNS lookup delays.
+ * Helper to fetch image buffer using native Node fetch with 2.5s timeout.
+ * Handles Discord CDN attachments, redirects, and headers seamlessly.
  */
-function fetchImageBuffer(urlStr, timeoutMs = 3000) {
-  return new Promise((resolve, reject) => {
-    try {
-      const parsedUrl = new URL(urlStr);
-      const protocol = parsedUrl.protocol === 'https:' ? https : http;
+async function fetchImageBuffer(urlStr, timeoutMs = 2500) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-      let req;
-      const timer = setTimeout(() => {
-        if (req) req.destroy();
-        reject(new Error(`Image fetch timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-
-      req = protocol.get(parsedUrl, {
-        family: 4, // Force IPv4 to eliminate 2-3s IPv6 DNS timeouts on Linux/Docker
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-      }, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          clearTimeout(timer);
-          return fetchImageBuffer(res.headers.location, timeoutMs).then(resolve).catch(reject);
-        }
-        if (res.statusCode !== 200) {
-          clearTimeout(timer);
-          return reject(new Error(`HTTP ${res.statusCode}`));
-        }
-
-        const chunks = [];
-        res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', () => {
-          clearTimeout(timer);
-          resolve(Buffer.concat(chunks));
-        });
-        res.on('error', (err) => {
-          clearTimeout(timer);
-          reject(err);
-        });
-      });
-
-      req.on('error', (err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-    } catch (err) {
-      reject(err);
-    }
-  });
+  try {
+    const res = await fetch(urlStr, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+      }
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
 }
 
-async function safeLoadImage(url, timeoutMs = 3000) {
+async function safeLoadImage(url, timeoutMs = 2500) {
   if (!url) throw new Error('No URL provided');
   const buffer = await fetchImageBuffer(url, timeoutMs);
   return await loadImage(buffer);
@@ -140,7 +111,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   let bgLoaded = false;
   if (userCardData.bgUrl) {
     try {
-      const bgImg = await safeLoadImage(userCardData.bgUrl, 3000);
+      const bgImg = await safeLoadImage(userCardData.bgUrl, 2500);
       // Object-fit: cover math
       const imgRatio = bgImg.width / bgImg.height;
       const canvasRatio = width / height;
@@ -214,7 +185,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   // Draw Avatar
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 });
-    const avatarImg = await safeLoadImage(avatarUrl, 3000);
+    const avatarImg = await safeLoadImage(avatarUrl, 2500);
 
     // Circle Clip for Avatar
     ctx.save();
