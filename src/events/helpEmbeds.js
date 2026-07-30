@@ -111,30 +111,29 @@ function buildHelpEmbed(category, client) {
     case 'card':
       return new EmbedBuilder()
         .setColor(0x9B59B6)
-        .setTitle('🎴 Command Card Profil Member')
-        .setDescription('Sistem profil card member yang simpel dan elegan.')
+        .setTitle('🎴 Sistem Card Profil Member')
+        .setDescription('Sistem profil card member interaktif tanpa perlu mengetik perintah!')
         .addFields(
           {
-            name: '👤 Tampilkan Card',
+            name: '📝 Pengisian Profil (Pop-up Form)',
             value: [
-              '`/card` — Tampilkan card profil milikmu',
-              '`/card member:@user` — Lihat card profil member lain',
+              'Kunjungi channel **Member Card** di server kamu.',
+              'Klik tombol **`📝 Edit Profil Card`** untuk membuka form pop-up.',
+              'Isi **Bio**, **Kota/Domisili Asal**, dan **Warna Aksen Border**.',
             ].join('\n'),
           },
           {
-            name: '✏️ Kustomisasi (Privat)',
+            name: '👤 Tampilkan Card',
             value: [
-              '`/editcard bio [teks]` — Atur bio deskripsi singkat (max 100 karakter)',
-              '`/editcard asal [kota]` — Atur kota/domisili asal (max 30 karakter)',
-              '`/editcard color [hex]` — Atur warna aksen border card (contoh: `#5865F2`)',
-              '`/editcard preview` — Lihat preview card milikmu secara privat',
-              '`/editcard reset` — Hapus seluruh kustomisasi card',
+              '`/card` — Tampilkan card profil milikmu (Privat)',
+              '`/card member:@user` — Lihat card profil member lain (Privat)',
+              'Atau klik tombol **`🎴 Lihat Card Saya`** di channel member card.',
             ].join('\n'),
           },
           {
             name: '📌 Pengaturan Admin',
             value: [
-              '`/setcard channel:#channel-tujuan` — Atur channel hasil terbitnya card member *(Admin only)*',
+              '`/setcard channel:#channel-tujuan` — Atur channel panel member card *(Admin only)*',
             ].join('\n'),
           }
         )
