@@ -5,11 +5,11 @@ const { createCardHubPayload } = require('../utils/cardHandler');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setcard')
-    .setDescription('Atur channel tempat panel Card Member diterbitkan (Admin only)')
+    .setDescription('Atur channel tempat panel tombol Card Member dipasang (Admin only)')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addChannelOption(opt =>
       opt.setName('channel')
-        .setDescription('Text channel untuk menempatkan panel Card Member')
+        .setDescription('Text channel untuk menempatkan panel Card Member (misal: #create-card)')
         .setRequired(true)
     ),
 
@@ -37,7 +37,7 @@ module.exports = {
     const settings = storage.read('settings');
     if (!settings[guildId]) settings[guildId] = {};
 
-    // 🧹 PURGE EXTRA BOT MESSAGES: Ambil 100 pesan terakhir, hapus semua pesan bot lama & sisakan TEPAT 1
+    // 🧹 PURGE EXTRA BOT MESSAGES: Ambil 100 pesan terakhir di channel panel, hapus pesan bot lama & sisakan TEPAT 1 panel
     try {
       const fetched = await channel.messages.fetch({ limit: 100 }).catch(() => null);
       if (fetched) {
@@ -54,13 +54,15 @@ module.exports = {
             await botMessages[i].delete().catch(() => {});
           }
 
-          // Simpan ID pesan aktif
-          settings[guildId].cardResultChannel = channel.id;
+          // Simpan ID channel & pesan panel
+          settings[guildId].cardHubChannelId = channel.id;
           settings[guildId].cardHubMessageId = latestMsg.id;
+          // Pastikan cardResultChannel tetap mengarah ke #card-gallery
+          settings[guildId].cardResultChannel = '1532290934396555354';
           storage.write('settings', settings);
 
           return interaction.reply({
-            content: `✅ Berhasil membersihkan pesan lama di <#${channel.id}>! Tepat 1 panel dipasang.`,
+            content: `✅ Berhasil memasang panel tombol Card Member di <#${channel.id}>! Tepat 1 panel dipasang.`,
             flags: MessageFlags.Ephemeral
           });
         }
@@ -72,12 +74,13 @@ module.exports = {
     // Jika belum ada pesan bot sama sekali di channel ini, kirim 1 baru
     try {
       const sentMsg = await channel.send(payload);
-      settings[guildId].cardResultChannel = channel.id;
+      settings[guildId].cardHubChannelId = channel.id;
       settings[guildId].cardHubMessageId = sentMsg.id;
+      settings[guildId].cardResultChannel = '1532290934396555354';
       storage.write('settings', settings);
 
       await interaction.reply({
-        content: `✅ Channel <#${channel.id}> berhasil dikonfigurasi! Tepat 1 panel dipasang.`,
+        content: `✅ Panel Card Member berhasil dipasang di <#${channel.id}>! Tepat 1 panel dipasang.`,
         flags: MessageFlags.Ephemeral
       });
     } catch (err) {

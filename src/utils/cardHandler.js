@@ -6,11 +6,11 @@ const {
 const storage = require('./storage');
 const { generateMemberCardCanvas } = require('./cardGenerator');
 
-// Fallback Channel ID tempat card di-publish jika tidak diatur via /setcard
-const DEFAULT_PUBLISH_CHANNEL_ID = '1532290934396555354';
+// Channel ID tempat hasil Member Card diterbitkan (#card-gallery)
+const GALLERY_CHANNEL_ID = '1532290934396555354';
 
 /**
- * Creates Embed & ActionRow for Member Profile Card Hub Panel posted in #member-card
+ * Creates Embed & ActionRow for Member Profile Card Hub Panel posted in #create-card
  */
 function createCardHubPayload(guild) {
   const embed = new EmbedBuilder()
@@ -22,7 +22,7 @@ function createCardHubPayload(guild) {
       '**How It Works:**\n' +
       '1. Click **Edit Profile** to fill out your profile details & custom background in a pop-up form.\n' +
       '2. Click **View My Card** to preview your HD profile card privately.\n' +
-      `3. Click **Publish Card** to share your profile card in <#${DEFAULT_PUBLISH_CHANNEL_ID}>.`
+      `3. Click **Publish Card** to share your profile card in <#${GALLERY_CHANNEL_ID}>.`
     )
     .addFields(
       {
@@ -62,8 +62,8 @@ function createCardHubPayload(guild) {
 }
 
 /**
- * Publish atau update card member ke channel gallery.
- * Menggunakan channel yang dikonfigurasi via /setcard atau fallback default ID.
+ * Publish atau update card member ke #card-gallery (1532290934396555354).
+ * Pembersihan pesan lama dilakukan secara non-blocking di background.
  *
  * @returns {Promise<'first'|'updated'|null>}
  */
@@ -71,18 +71,15 @@ async function publishCardToChannel(guild, member, client) {
   const guildId = guild.id;
   const userId = member.id;
 
-  // Ambil channel ID hasil konfigurasi /setcard atau fallback
-  const settings = storage.read('settings');
-  const targetChannelId = settings[guildId]?.cardResultChannel || settings[guildId]?.cardPublishChannel || DEFAULT_PUBLISH_CHANNEL_ID;
-
-  const publishChannel = guild.channels.cache.get(targetChannelId)
-    || await client.channels.fetch(targetChannelId).catch(err => {
-      console.error(`[CardHandler] Fetch channel ${targetChannelId} failed:`, err.message);
+  // Hasil kartu SELALU di-publish ke #card-gallery (GALLERY_CHANNEL_ID)
+  const publishChannel = guild.channels.cache.get(GALLERY_CHANNEL_ID)
+    || await client.channels.fetch(GALLERY_CHANNEL_ID).catch(err => {
+      console.error(`[CardHandler] Fetch gallery channel ${GALLERY_CHANNEL_ID} failed:`, err.message);
       return null;
     });
 
   if (!publishChannel) {
-    console.error(`❌ [CardHandler] Target publish channel ${targetChannelId} tidak ditemukan di guild ${guild.name}.`);
+    console.error(`❌ [CardHandler] Gallery channel ${GALLERY_CHANNEL_ID} tidak ditemukan di server ${guild.name}.`);
     return null;
   }
 
@@ -91,7 +88,7 @@ async function publishCardToChannel(guild, member, client) {
   const existingMsgId = userCard.publishedMessageId;
   const isFirstPublish = !existingMsgId;
 
-  // Non-blocking background cleanup: Hapus pesan lama secara asinkron
+  // Non-blocking background cleanup: Hapus pesan card lama user di #card-gallery
   if (existingMsgId) {
     publishChannel.messages.fetch(existingMsgId)
       .then(msg => msg.delete().catch(() => {}))
@@ -114,7 +111,7 @@ async function publishCardToChannel(guild, member, client) {
     payload = { content: warmMessage, embeds: [embed] };
   }
 
-  // Kirim pesan baru ke channel publish
+  // Kirim pesan baru ke #card-gallery
   try {
     const newMsg = await publishChannel.send(payload);
 
@@ -147,7 +144,7 @@ async function publishCardToChannel(guild, member, client) {
 }
 
 /**
- * Handle when user clicks a button in Card Hub
+ * Handle when user clicks a button in Card Hub Panel
  */
 async function handleCardButton(interaction, client) {
   const customId = interaction.customId;
@@ -245,26 +242,23 @@ async function handleCardButton(interaction, client) {
     }
   }
 
-  // 3. PUBLISH CARD → Kirim / update pesan di channel publish
+  // 3. PUBLISH CARD → Kirim / update pesan di #card-gallery
   if (customId === 'card_btn_publish') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const result = await publishCardToChannel(interaction.guild, interaction.member, client);
 
-    const settings = storage.read('settings');
-    const pubChannelId = settings[guildId]?.cardResultChannel || settings[guildId]?.cardPublishChannel || DEFAULT_PUBLISH_CHANNEL_ID;
-
     if (result === 'first') {
       return interaction.editReply({
-        content: `✅ Member Card kamu berhasil dipublish di <#${pubChannelId}>! Selamat bergabung di wall~ 🎉`
+        content: `✅ Member Card kamu berhasil dipublish di <#${GALLERY_CHANNEL_ID}>! Selamat bergabung di wall~ 🎉`
       });
     } else if (result === 'updated') {
       return interaction.editReply({
-        content: `✅ Member Card kamu sudah diperbarui di <#${pubChannelId}>! Yang lama sudah dihapus~ ✨`
+        content: `✅ Member Card kamu sudah diperbarui di <#${GALLERY_CHANNEL_ID}>! Yang lama sudah dihapus~ ✨`
       });
     } else {
       return interaction.editReply({
-        content: `❌ Could not find or publish to channel <#${pubChannelId}>. Pastikan bot memiliki izin Send Messages & Attach Files di channel tersebut.`
+        content: `❌ Could not find or publish to channel <#${GALLERY_CHANNEL_ID}>. Pastikan bot memiliki izin Send Messages & Attach Files.`
       });
     }
   }
@@ -353,15 +347,12 @@ async function handleCardModalSubmit(interaction, client) {
 
   storage.write('cards', cardsData);
 
-  const settings = storage.read('settings');
-  const pubChannelId = settings[guildId]?.cardResultChannel || settings[guildId]?.cardPublishChannel || DEFAULT_PUBLISH_CHANNEL_ID;
-
-  // Balas user SECARA INSTAN terlebih dahulu (tanpa menunggu proses publish gambar ke channel)
+  // Balas user SECARA INSTAN terlebih dahulu
   await interaction.editReply({
-    content: `✅ **Profil tersimpan!** Member Card terbaru kamu sedang dipublish di <#${pubChannelId}> ✨`
+    content: `✅ **Profil tersimpan!** Member Card terbaru kamu sedang dipublish di <#${GALLERY_CHANNEL_ID}> ✨`
   });
 
-  // Auto-publish / update card ke channel secara ASINKRON di background
+  // Auto-publish / update card ke #card-gallery secara ASINKRON di background
   publishCardToChannel(interaction.guild, interaction.member, client).catch(err => {
     console.error('[CardHandler] Background auto-publish failed:', err.message);
   });
