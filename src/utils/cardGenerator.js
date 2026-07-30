@@ -102,11 +102,11 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  // Accent Color (Default to Red Music Vibe #E63946 if not specified)
-  const accentColor = userCardData.color || member.roles.color?.hexColor || '#E63946';
+  // Accent Color (Default matches QP Purple Crown Logo: #8B5CF6)
+  const accentColor = userCardData.color || member.roles.color?.hexColor || '#8B5CF6';
 
   // ============================================================
-  // 1. BACKGROUND DRAWING (100% Built-in Local High-Definition Presets)
+  // 1. BACKGROUND DRAWING (QP Purple Crown Theme Matching Server Logo)
   // ============================================================
   let bgLoaded = false;
 
@@ -140,84 +140,48 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
       ctx.fillStyle = overlayGrad;
       ctx.fillRect(0, 0, width, height);
     } catch (err) {
-      console.warn('[CardCanvas] Custom background URL skipped, using local theme preset:', err.message);
+      console.warn('[CardCanvas] Custom background URL skipped, using QP Crown theme:', err.message);
     }
   }
 
-  // Option B: Local Built-in Preset Background (0ms Instant Load)
+  // Option B: QP Royal Purple Crown Built-in Theme Preset (0ms Instant Load)
   if (!bgLoaded) {
-    const theme = (userCardData.theme || '').toLowerCase();
-    const hex = accentColor.toUpperCase();
+    // Deep Midnight Purple Gradient (Matching QP Logo black & purple aesthetics)
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+    bgGrad.addColorStop(0, '#0B0614');
+    bgGrad.addColorStop(0.5, '#1D0D36');
+    bgGrad.addColorStop(1, '#08040E');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
 
-    // 🎨 PRESET 1: RED MUSIC VIBE (Persis Jockie Music — Dark Red Mahogany Gradient + Waves)
-    if (theme === 'red' || hex.includes('E63946') || hex.includes('FF') || hex.includes('D') || hex.includes('9') || !userCardData.color) {
-      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-      bgGrad.addColorStop(0, '#1C0609');
-      bgGrad.addColorStop(0.5, '#360D12');
-      bgGrad.addColorStop(1, '#120305');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
+    // Ambient Purple Glow Circles
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = accentColor;
 
-      // Ambient Red Music Note Curves & Glow Circles
-      ctx.save();
-      ctx.globalAlpha = 0.15;
-      ctx.fillStyle = '#E63946';
+    ctx.beginPath();
+    ctx.arc(160, 100, 270, 0, Math.PI * 2);
+    ctx.fill();
 
-      ctx.beginPath();
-      ctx.arc(180, 120, 280, 0, Math.PI * 2);
-      ctx.fill();
+    ctx.beginPath();
+    ctx.arc(840, 450, 310, 0, Math.PI * 2);
+    ctx.fill();
 
-      ctx.beginPath();
-      ctx.arc(820, 440, 320, 0, Math.PI * 2);
-      ctx.fill();
+    // Curved Decorative Wave Lines
+    ctx.strokeStyle = '#A78BFA';
+    ctx.lineWidth = 36;
+    ctx.globalAlpha = 0.08;
 
-      // Curved Decorative Music Waves
-      ctx.strokeStyle = '#FF5964';
-      ctx.lineWidth = 40;
-      ctx.globalAlpha = 0.07;
-      ctx.beginPath();
-      ctx.moveTo(-50, 200);
-      ctx.bezierCurveTo(300, 50, 600, 400, 1050, 150);
-      ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-50, 180);
+    ctx.bezierCurveTo(300, 40, 600, 380, 1050, 140);
+    ctx.stroke();
 
-      ctx.beginPath();
-      ctx.moveTo(-50, 380);
-      ctx.bezierCurveTo(400, 500, 700, 100, 1050, 320);
-      ctx.stroke();
-      ctx.restore();
-    }
-    // 🎨 PRESET 2: PURPLE CYBERPUNK
-    else if (theme === 'purple' || hex.includes('9D4EDD') || hex.includes('800080')) {
-      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-      bgGrad.addColorStop(0, '#0F081D');
-      bgGrad.addColorStop(0.5, '#241038');
-      bgGrad.addColorStop(1, '#090412');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.save();
-      ctx.globalAlpha = 0.18;
-      ctx.fillStyle = '#9D4EDD';
-      ctx.beginPath(); ctx.arc(200, 100, 260, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(800, 460, 300, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
-    // 🎨 PRESET 3: DARK OBSIDIAN MESH
-    else {
-      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-      bgGrad.addColorStop(0, '#111319');
-      bgGrad.addColorStop(0.5, '#181B26');
-      bgGrad.addColorStop(1, '#0E0F14');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.save();
-      ctx.globalAlpha = 0.18;
-      ctx.fillStyle = accentColor;
-      ctx.beginPath(); ctx.arc(150, 100, 260, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(850, 460, 300, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
+    ctx.beginPath();
+    ctx.moveTo(-50, 360);
+    ctx.bezierCurveTo(400, 480, 700, 80, 1050, 300);
+    ctx.stroke();
+    ctx.restore();
   }
 
   // Card Outer Border Accent Line
@@ -363,7 +327,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     { label: 'Position', val: `#${joinPos || '-'} of ${totalMembers.toLocaleString('en-US')}` },
     { label: 'Location', val: userCardData.asal || '-' },
     { label: 'Joined', val: formatDate(member.joinedAt) },
-    { label: 'Account', val: formatDate(member.user.createdAt) }
+    { label: 'Created', val: formatDate(member.user.createdAt) } // Created Account Date
   ];
 
   ctx.font = '15px sans-serif';
@@ -422,7 +386,7 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   }
 
   // ============================================================
-  // 4. BOTTOM CONTAINER (BIO & LINK)
+  // 4. BOTTOM CONTAINER (BIO & LINK TITLE + URL)
   // ============================================================
   const box3Y = containerY + containerH + 18;
   const box3H = 125;
@@ -443,12 +407,12 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     bioY += 22;
   });
 
-  // Link (If provided)
+  // Link Title & URL (If provided)
   if (userCardData.linkUrl) {
     const linkTitle = userCardData.linkTitle || 'Link';
     const linkText = `🔗 ${linkTitle}: ${userCardData.linkUrl}`;
-    ctx.fillStyle = '#5865F2';
-    ctx.font = '14px sans-serif';
+    ctx.fillStyle = accentColor;
+    ctx.font = 'bold 14px sans-serif';
     let displayLink = linkText;
     if (ctx.measureText(displayLink).width > width - 140) {
       while (ctx.measureText(displayLink + '...').width > width - 140 && displayLink.length > 0) {
