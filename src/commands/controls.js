@@ -66,6 +66,7 @@ const stop = {
     client.stay247?.delete(interaction.guild.id); // Disable 24/7 mode if user explicitly asks to stop/leave
 
     if (queue) {
+      queue._stoppedByCmd = true;
       await queue.stop();
       if (queue.voice) queue.voice.leave();
       await interaction.reply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');

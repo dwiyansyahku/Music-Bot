@@ -151,9 +151,9 @@ module.exports = {
         const queue = client.distube.getQueue(message.guild.id);
 
         if (queue) {
+          queue._stoppedByCmd = true;
           try {
             await queue.stop();
-            // DisTube otomatis leave setelah stop, tapi kita paksa juga untuk safety
             const disTubeVoice = client.distube.voices.get(message.guild.id);
             if (disTubeVoice) disTubeVoice.leave();
             await safeReply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');

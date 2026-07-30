@@ -982,11 +982,19 @@ client.distube
     }
   })
   .on('disconnect', (queue) => {
+    if (queue._stoppedByCmd) {
+      queue._stoppedByCmd = false;
+      if (queue._nowPlayingMsg) {
+        queue._nowPlayingMsg.delete().catch(() => {});
+        queue._nowPlayingMsg = null;
+      }
+      return;
+    }
     if (queue._nowPlayingMsg) {
       queue._nowPlayingMsg.edit({ embeds: [], content: '👋 **Bot terputus dari voice channel.**' }).catch(() => {});
       queue._nowPlayingMsg = null;
     } else {
-      queue.textChannel?.send('👋 **Bot terputus dari voice channel.**');
+      queue.textChannel?.send('👋 **Bot terputus dari voice channel.**').catch(() => {});
     }
   })
   .on('empty', (queue) => {
