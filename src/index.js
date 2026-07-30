@@ -812,6 +812,13 @@ client.on('voiceStateUpdate', (oldState, newState) => {
         }
 
         try {
+          // Bersihkan ghost connection @discordjs/voice sebelum DisTube join
+          const ghostConn = getVoiceConnection(guildId);
+          if (ghostConn) {
+            console.log(`♻️ [24/7 Enforcer] Destroying ghost voice connection di guild ${guildId}...`);
+            ghostConn.destroy();
+            await new Promise(r => setTimeout(r, 500));
+          }
           await client.distube.voices.join(channelToJoin);
           console.log(`♻️ [24/7 Enforcer] Berhasil reconnect ke ${channelToJoin.name} di guild ${guildId}.`);
           client._enforcerRetries.set(guildId, 0); // Reset counter setelah berhasil

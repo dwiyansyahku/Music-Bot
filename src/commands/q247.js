@@ -34,15 +34,24 @@ module.exports = {
     } else {
       client.stay247.add(guildId);
       // Ensure bot joins the voice channel immediately if not already there
-      try {
-        await client.distube.voices.join(voiceChannel);
-      } catch (err) {
-        console.error('Error joining voice channel:', err);
-        client.stay247.delete(guildId);
-        return interaction.editReply({
-          content: `❌ Gagal bergabung ke voice channel: ${err.message}`,
-        });
-      }
+      // Bersihkan ghost connection dari @discordjs/voice jika ada
+        try {
+          const { getVoiceConnection } = require('@discordjs/voice');
+          const ghostConn = getVoiceConnection(guildId);
+          if (ghostConn) {
+            ghostConn.destroy();
+            await new Promise(r => setTimeout(r, 500));
+          }
+        } catch (_) {}
+        try {
+          await client.distube.voices.join(voiceChannel);
+        } catch (err) {
+          console.error('Error joining voice channel:', err);
+          client.stay247.delete(guildId);
+          return interaction.editReply({
+            content: `❌ Gagal bergabung ke voice channel: ${err.message}`,
+          });
+        }
     }
 
     const newState = !is247;
