@@ -47,12 +47,8 @@ function createCardHubPayload(guild) {
 }
 
 /**
- * Build rich, clean Member Profile Card Embed matching exact layout:
- * Display Name (Title)
- * Avatar (Thumbnail)
- * @username
- * "Bio status..."
- * 📍 Location  •  📅 Joined Date
+ * Build clean, aesthetic, and elegant Member Profile Card Embed
+ * Contains: Display Name, Avatar Thumbnail, @username, Bio status, Location, Joined Server Date, Account Created Date
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -66,34 +62,30 @@ async function buildMemberCardEmbed(guild, member) {
 
   const embedColor = userCard.color || member.roles.color?.hexColor || '#8B5CF6';
 
-  const lines = [
-    `\`@${targetUser.username}\``
-  ];
-
+  let description = `\`@${targetUser.username}\``;
   if (userCard.bio) {
-    lines.push('');
-    lines.push(`*"${userCard.bio}"*`);
-  }
-
-  lines.push('');
-
-  const footerParts = [];
-  if (userCard.asal) {
-    footerParts.push(`📍 **${userCard.asal}**`);
-  }
-  if (member.joinedAt) {
-    footerParts.push(`📅 Joined **${formatDate(member.joinedAt)}**`);
-  }
-
-  if (footerParts.length > 0) {
-    lines.push(footerParts.join('  •  '));
+    description += `\n\n*"${userCard.bio}"*`;
   }
 
   const embed = new EmbedBuilder()
     .setColor(embedColor)
     .setTitle(member.displayName)
     .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
-    .setDescription(lines.join('\n'))
+    .setDescription(description);
+
+  if (userCard.asal) {
+    embed.addFields({ name: 'Location', value: userCard.asal, inline: true });
+  }
+
+  if (member.joinedAt) {
+    embed.addFields({ name: 'Joined Server', value: formatDate(member.joinedAt), inline: true });
+  }
+
+  if (targetUser.createdAt) {
+    embed.addFields({ name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true });
+  }
+
+  embed
     .setFooter({ text: `${guild.name} • Member Card` })
     .setTimestamp();
 
@@ -115,7 +107,7 @@ async function publishCardToChannel(guild, member, client) {
     });
 
   if (!publishChannel) {
-    console.error(`❌ [CardHandler] Gallery channel ${GALLERY_CHANNEL_ID} not found.`);
+    console.error(`[CardHandler] Gallery channel ${GALLERY_CHANNEL_ID} not found.`);
     return null;
   }
 
@@ -132,8 +124,8 @@ async function publishCardToChannel(guild, member, client) {
   }
 
   const warmMessage = isFirstPublish
-    ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya! 👋`
-    : `✏️ **${member.displayName}** just updated their card ✨`;
+    ? `**${member.displayName}** published their Member Card.`
+    : `**${member.displayName}** updated their Member Card.`;
 
   try {
     const embed = await buildMemberCardEmbed(guild, member);
@@ -144,10 +136,10 @@ async function publishCardToChannel(guild, member, client) {
     cardsData[guildId][userId].publishedMessageId = newMsg.id;
     storage.write('cards', cardsData);
 
-    console.log(`✅ [CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
+    console.log(`[CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
     return isFirstPublish ? 'first' : 'updated';
   } catch (sendErr) {
-    console.error(`❌ [CardHandler] Failed to publish card:`, sendErr.message);
+    console.error(`[CardHandler] Failed to publish card:`, sendErr.message);
     return null;
   }
 }
@@ -173,7 +165,7 @@ async function handleCardButton(interaction, client) {
       .setCustomId('card_input_bio')
       .setLabel('Bio / Status (Max 100)')
       .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Contoh: Suka musik lo-fi & ngoding web 🎵')
+      .setPlaceholder('Contoh: Suka musik lo-fi & ngoding web')
       .setValue(userCard.bio || '')
       .setRequired(false)
       .setMaxLength(100);
@@ -212,13 +204,13 @@ async function handleCardButton(interaction, client) {
     try {
       const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
       return await interaction.editReply({
-        content: '🎴 *Your Member Card:*',
+        content: '*Your Member Card:*',
         embeds: [embed]
       });
     } catch (err) {
       console.error('[ViewCard] Error:', err);
       return await interaction.editReply({
-        content: `❌ Gagal menampilkan card: ${err.message}`
+        content: `Gagal menampilkan card: ${err.message}`
       });
     }
   }
@@ -231,15 +223,15 @@ async function handleCardButton(interaction, client) {
 
     if (result === 'first') {
       return interaction.editReply({
-        content: `✅ Member Card kamu berhasil dipublish di <#${GALLERY_CHANNEL_ID}>! 🎉`
+        content: `Member Card kamu berhasil dipublish di <#${GALLERY_CHANNEL_ID}>.`
       });
     } else if (result === 'updated') {
       return interaction.editReply({
-        content: `✅ Member Card kamu diperbarui di <#${GALLERY_CHANNEL_ID}>! ✨`
+        content: `Member Card kamu diperbarui di <#${GALLERY_CHANNEL_ID}>.`
       });
     } else {
       return interaction.editReply({
-        content: `❌ Gagal publish card. Pastikan bot memiliki izin Send Messages di <#${GALLERY_CHANNEL_ID}>.`
+        content: `Gagal publish card. Pastikan bot memiliki izin Send Messages di <#${GALLERY_CHANNEL_ID}>.`
       });
     }
   }
@@ -252,7 +244,7 @@ async function handleCardButton(interaction, client) {
       storage.write('cards', cardsData);
     }
     return interaction.reply({
-      content: '✅ Profil card kamu sudah direset ke default.',
+      content: 'Profil card kamu sudah direset ke default.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -277,7 +269,7 @@ async function handleCardModalSubmit(interaction, client) {
   // Validate hex color
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
     return interaction.editReply({
-      content: '❌ Format warna salah! Gunakan format hex seperti `#8B5CF6`.'
+      content: 'Format warna salah! Gunakan format hex seperti `#8B5CF6`.'
     });
   }
 
@@ -296,7 +288,7 @@ async function handleCardModalSubmit(interaction, client) {
 
   // Reply instantly
   await interaction.editReply({
-    content: `✅ **Profil tersimpan!** Card kamu sedang dipublish di <#${GALLERY_CHANNEL_ID}> ✨`
+    content: `**Profil tersimpan!** Card kamu sedang dipublish di <#${GALLERY_CHANNEL_ID}>.`
   });
 
   // Auto-publish in background
