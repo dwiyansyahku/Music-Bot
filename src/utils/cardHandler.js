@@ -56,7 +56,7 @@ async function buildCardAttachment(guild, member) {
   const userCard = cardsData[guild.id]?.[member.id] || {};
 
   const buffer = await generateMemberCardCanvas(guild, member, userCard);
-  return new AttachmentBuilder(buffer, { name: 'member-card.jpg' });
+  return new AttachmentBuilder(buffer, { name: 'member-card.png' });
 }
 
 /**

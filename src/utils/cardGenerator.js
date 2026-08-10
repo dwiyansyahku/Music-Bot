@@ -11,11 +11,18 @@ if (dns.setDefaultResultOrder) {
 /**
  * Helper to fetch image buffer with timeout.
  */
-function fetchImageBuffer(urlStr, timeoutMs = 500) {
+function fetchImageBuffer(urlStr, timeoutMs = 3000) {
   return new Promise((resolve, reject) => {
     try {
       const parsedUrl = new URL(urlStr);
       const protocol = parsedUrl.protocol === 'https:' ? https : http;
+      let settled = false;
+
+      const settle = (fn, val) => {
+        if (settled) return;
+        settled = true;
+        fn(val);
+      };
 
       const req = protocol.get(parsedUrl, {
         agent: false,
@@ -26,30 +33,33 @@ function fetchImageBuffer(urlStr, timeoutMs = 500) {
         }
       }, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return fetchImageBuffer(res.headers.location, timeoutMs).then(resolve).catch(reject);
+          return fetchImageBuffer(res.headers.location, timeoutMs).then(
+            buf => settle(resolve, buf),
+            err => settle(reject, err)
+          );
         }
         if (res.statusCode !== 200) {
-          return reject(new Error(`HTTP ${res.statusCode}`));
+          return settle(reject, new Error(`HTTP ${res.statusCode}`));
         }
         const chunks = [];
         res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', () => resolve(Buffer.concat(chunks)));
-        res.on('error', (err) => reject(err));
+        res.on('end', () => settle(resolve, Buffer.concat(chunks)));
+        res.on('error', (err) => settle(reject, err));
       });
 
       req.setTimeout(timeoutMs, () => {
         req.destroy();
-        reject(new Error(`Avatar fetch timeout (${timeoutMs}ms)`));
+        settle(reject, new Error(`Timeout (${timeoutMs}ms)`));
       });
 
-      req.on('error', (err) => reject(err));
+      req.on('error', (err) => settle(reject, err));
     } catch (err) {
       reject(err);
     }
   });
 }
 
-async function safeLoadImage(url, timeoutMs = 500) {
+async function safeLoadImage(url, timeoutMs = 3000) {
   if (!url) throw new Error('No URL provided');
   const buffer = await fetchImageBuffer(url, timeoutMs);
   return await loadImage(buffer);
@@ -135,10 +145,12 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   const avatarSize = 100;
   const avatarX = 50;
   const avatarCY = height / 2; // center Y
+  let avatarLoaded = false;
 
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 });
-    const avatarImg = await safeLoadImage(avatarUrl, 500);
+    console.log('[CardGen] Fetching avatar:', avatarUrl);
+    const avatarImg = await safeLoadImage(avatarUrl, 3000);
 
     ctx.save();
     ctx.beginPath();
@@ -146,7 +158,10 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
     ctx.clip();
     ctx.drawImage(avatarImg, avatarX, avatarCY - avatarSize / 2, avatarSize, avatarSize);
     ctx.restore();
-  } catch {
+    avatarLoaded = true;
+    console.log('[CardGen] Avatar loaded OK');
+  } catch (avatarErr) {
+    console.warn('[CardGen] Avatar fetch failed, using initial fallback:', avatarErr.message);
     // Fallback circle with initial letter
     ctx.save();
     ctx.fillStyle = accentColor;
@@ -219,7 +234,11 @@ async function generateMemberCardCanvas(guild, member, userCardData = {}) {
   ctx.textAlign = 'right';
   ctx.fillText(guild.name, width - 20, height - 16);
 
-  return canvas.toBuffer('image/jpeg');
+  // Use PNG for maximum compatibility with @napi-rs/canvas
+  console.log('[CardGen] Encoding canvas to PNG...');
+  const buffer = canvas.toBuffer('image/png');
+  console.log(`[CardGen] Card rendered OK (${Math.round(buffer.length / 1024)}KB, avatar: ${avatarLoaded ? 'real' : 'fallback'})`);
+  return buffer;
 }
 
 module.exports = {
