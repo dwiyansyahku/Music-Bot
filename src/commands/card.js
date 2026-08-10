@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { buildCardAttachment, buildMemberCardEmbed } = require('../utils/cardHandler');
+const { buildMemberCardEmbed } = require('../utils/cardHandler');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -21,25 +21,15 @@ module.exports = {
       return interaction.editReply({ content: '❌ Member tidak ditemukan di server ini.' });
     }
 
-    // Try canvas card, fallback to embed
     try {
-      const attachment = await buildCardAttachment(interaction.guild, member);
+      const embed = await buildMemberCardEmbed(interaction.guild, member);
       await interaction.editReply({
         content: `🎴 **${member.displayName}:**`,
-        files: [attachment]
+        embeds: [embed]
       });
     } catch (err) {
-      console.warn('[/card] Canvas failed, using embed:', err.message);
-      try {
-        const embed = await buildMemberCardEmbed(interaction.guild, member);
-        await interaction.editReply({
-          content: `🎴 **${member.displayName}:**`,
-          embeds: [embed]
-        });
-      } catch (embedErr) {
-        console.error('[/card] Error:', embedErr);
-        await interaction.editReply({ content: `❌ Gagal membuat card: ${embedErr.message}` });
-      }
+      console.error('[/card] Error:', err);
+      await interaction.editReply({ content: `❌ Gagal membuat card: ${err.message}` });
     }
   }
 };

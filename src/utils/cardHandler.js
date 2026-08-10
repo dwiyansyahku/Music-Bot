@@ -1,10 +1,8 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags,
-  AttachmentBuilder
+  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags
 } = require('discord.js');
 const storage = require('./storage');
-const { generateMemberCardCanvas } = require('./cardGenerator');
 
 // Channel ID tempat hasil Member Card diterbitkan (#card-gallery)
 const GALLERY_CHANNEL_ID = '1532290934396555354';
@@ -49,18 +47,12 @@ function createCardHubPayload(guild) {
 }
 
 /**
- * Build canvas card as an AttachmentBuilder
- */
-async function buildCardAttachment(guild, member) {
-  const cardsData = storage.read('cards');
-  const userCard = cardsData[guild.id]?.[member.id] || {};
-
-  const buffer = await generateMemberCardCanvas(guild, member, userCard);
-  return new AttachmentBuilder(buffer, { name: 'member-card.png' });
-}
-
-/**
- * Fallback embed card (used if canvas rendering fails)
+ * Build rich, clean Member Profile Card Embed matching exact layout:
+ * Display Name (Title)
+ * Avatar (Thumbnail)
+ * @username
+ * "Bio status..."
+ * 📍 Location  •  📅 Joined Date
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -74,32 +66,34 @@ async function buildMemberCardEmbed(guild, member) {
 
   const embedColor = userCard.color || member.roles.color?.hexColor || '#8B5CF6';
 
+  const lines = [
+    `\`@${targetUser.username}\``
+  ];
+
+  if (userCard.bio) {
+    lines.push('');
+    lines.push(`*"${userCard.bio}"*`);
+  }
+
+  lines.push('');
+
+  const footerParts = [];
+  if (userCard.asal) {
+    footerParts.push(`📍 **${userCard.asal}**`);
+  }
+  if (member.joinedAt) {
+    footerParts.push(`📅 Joined **${formatDate(member.joinedAt)}**`);
+  }
+
+  if (footerParts.length > 0) {
+    lines.push(footerParts.join('  •  '));
+  }
+
   const embed = new EmbedBuilder()
     .setColor(embedColor)
     .setTitle(member.displayName)
     .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
-    .addFields(
-      {
-        name: 'Username',
-        value: `@${targetUser.username}`,
-        inline: true
-      },
-      {
-        name: 'Joined',
-        value: formatDate(member.joinedAt),
-        inline: true
-      }
-    );
-
-  if (userCard.asal) {
-    embed.addFields({ name: 'Location', value: userCard.asal, inline: true });
-  }
-
-  if (userCard.bio) {
-    embed.addFields({ name: 'Bio', value: `*${userCard.bio}*`, inline: false });
-  }
-
-  embed
+    .setDescription(lines.join('\n'))
     .setFooter({ text: `${guild.name} • Member Card` })
     .setTimestamp();
 
@@ -141,36 +135,20 @@ async function publishCardToChannel(guild, member, client) {
     ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya! 👋`
     : `✏️ **${member.displayName}** just updated their card ✨`;
 
-  // Try canvas card first, fallback to embed
   try {
-    const attachment = await buildCardAttachment(guild, member);
-    const newMsg = await publishChannel.send({ content: warmMessage, files: [attachment] });
+    const embed = await buildMemberCardEmbed(guild, member);
+    const newMsg = await publishChannel.send({ content: warmMessage, embeds: [embed] });
 
     if (!cardsData[guildId]) cardsData[guildId] = {};
     if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
     cardsData[guildId][userId].publishedMessageId = newMsg.id;
     storage.write('cards', cardsData);
 
-    console.log(`✅ [CardHandler] Card for ${member.displayName} published (canvas) → #${publishChannel.name}`);
+    console.log(`✅ [CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
     return isFirstPublish ? 'first' : 'updated';
-  } catch (canvasErr) {
-    console.warn(`⚠️ [CardHandler] Canvas failed, trying embed fallback:`, canvasErr.message);
-
-    try {
-      const embed = await buildMemberCardEmbed(guild, member);
-      const newMsg = await publishChannel.send({ content: warmMessage, embeds: [embed] });
-
-      if (!cardsData[guildId]) cardsData[guildId] = {};
-      if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
-      cardsData[guildId][userId].publishedMessageId = newMsg.id;
-      storage.write('cards', cardsData);
-
-      console.log(`✅ [CardHandler] Card for ${member.displayName} published (embed fallback) → #${publishChannel.name}`);
-      return isFirstPublish ? 'first' : 'updated';
-    } catch (sendErr) {
-      console.error(`❌ [CardHandler] Failed to publish card:`, sendErr.message);
-      return null;
-    }
+  } catch (sendErr) {
+    console.error(`❌ [CardHandler] Failed to publish card:`, sendErr.message);
+    return null;
   }
 }
 
@@ -227,22 +205,20 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Ephemeral — canvas image)
+  // 2. VIEW MY CARD (Ephemeral — Clean Embed)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const attachment = await buildCardAttachment(interaction.guild, interaction.member);
-      return await interaction.editReply({
-        content: '🎴 *Your Member Card:*',
-        files: [attachment]
-      });
-    } catch (err) {
-      console.warn('[ViewCard] Canvas failed, using embed:', err.message);
       const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
       return await interaction.editReply({
         content: '🎴 *Your Member Card:*',
         embeds: [embed]
+      });
+    } catch (err) {
+      console.error('[ViewCard] Error:', err);
+      return await interaction.editReply({
+        content: `❌ Gagal menampilkan card: ${err.message}`
       });
     }
   }
@@ -333,6 +309,5 @@ module.exports = {
   createCardHubPayload,
   handleCardButton,
   handleCardModalSubmit,
-  buildMemberCardEmbed,
-  buildCardAttachment
+  buildMemberCardEmbed
 };
