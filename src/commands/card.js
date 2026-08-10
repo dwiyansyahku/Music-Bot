@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { buildMemberCardEmbed } = require('../utils/cardHandler');
+const { buildCardAttachment, buildMemberCardEmbed } = require('../utils/cardHandler');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,7 +12,6 @@ module.exports = {
     ),
 
   async execute(interaction, client) {
-    // Selalu respon ephemeral (hanya terlihat oleh user sendiri)
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const targetUser = interaction.options.getUser('member') || interaction.user;
@@ -22,15 +21,25 @@ module.exports = {
       return interaction.editReply({ content: '❌ Member tidak ditemukan di server ini.' });
     }
 
+    // Try canvas card, fallback to embed
     try {
-      const embed = await buildMemberCardEmbed(interaction.guild, member);
+      const attachment = await buildCardAttachment(interaction.guild, member);
       await interaction.editReply({
-        content: `🎴 **Kartu Profil ${member.displayName}:**`,
-        embeds: [embed]
+        content: `🎴 **${member.displayName}:**`,
+        files: [attachment]
       });
     } catch (err) {
-      console.error('[/card] Error:', err);
-      await interaction.editReply({ content: `❌ Terjadi kesalahan: ${err.message}` });
+      console.warn('[/card] Canvas failed, using embed:', err.message);
+      try {
+        const embed = await buildMemberCardEmbed(interaction.guild, member);
+        await interaction.editReply({
+          content: `🎴 **${member.displayName}:**`,
+          embeds: [embed]
+        });
+      } catch (embedErr) {
+        console.error('[/card] Error:', embedErr);
+        await interaction.editReply({ content: `❌ Gagal membuat card: ${embedErr.message}` });
+      }
     }
   }
 };
