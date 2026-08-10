@@ -1,10 +1,8 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags,
-  AttachmentBuilder
+  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags
 } = require('discord.js');
 const storage = require('./storage');
-const { generateMemberCardCanvas } = require('./cardGenerator');
 
 // Channel ID tempat hasil Member Card diterbitkan (#card-gallery)
 const GALLERY_CHANNEL_ID = '1532290934396555354';
@@ -28,7 +26,7 @@ function createCardHubPayload(guild) {
       {
         name: 'Card Features',
         value: [
-          '• **HD Landscape Resolution Card** (1000x560 Canvas Graphic)',
+          '• **0ms Instant Load** (Pure, elegant Discord Embed layout)',
           '• **QP Royal Purple Theme** (Official Server Logo Aesthetics)',
           '• **Server Rank Position** (Join order counter)',
           '• **Account Created Date & Top Roles Showcase**'
@@ -59,6 +57,95 @@ function createCardHubPayload(guild) {
   );
 
   return { embeds: [embed], components: [row] };
+}
+
+/**
+ * Build rich, visually pleasing Member Profile Card Embed (0ms instant response)
+ */
+async function buildMemberCardEmbed(guild, member) {
+  const targetUser = member.user;
+  const guildId = guild.id;
+
+  const cardsData = storage.read('cards');
+  const userCard = cardsData[guildId]?.[targetUser.id] || {};
+
+  function formatDate(date) {
+    if (!date) return '-';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // Calculate join position
+  const allMembers = guild.members.cache;
+  const sortedByJoin = [...allMembers.values()]
+    .filter(m => m.joinedAt)
+    .sort((a, b) => a.joinedAt - b.joinedAt);
+  const joinPosition = sortedByJoin.findIndex(m => m.id === member.id) + 1;
+  const totalMembers = guild.memberCount;
+
+  // Top roles
+  const topRoles = member.roles.cache
+    .filter(r => r.id !== guild.id)
+    .sort((a, b) => b.position - a.position)
+    .first(4);
+
+  const rolesText = topRoles.length > 0
+    ? topRoles.map(r => `<@&${r.id}>`).join(' • ')
+    : 'No special roles';
+
+  const embedColor = userCard.color || member.roles.color?.hexColor || '#8B5CF6';
+
+  const embed = new EmbedBuilder()
+    .setColor(embedColor)
+    .setTitle(`Member Card — ${member.displayName}`)
+    .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
+    .addFields(
+      {
+        name: 'Identity',
+        value: `**Username:** @${targetUser.username}\n**Display Name:** ${member.displayName}\n**User ID:** \`${targetUser.id}\``,
+        inline: true
+      },
+      {
+        name: 'Membership Stats',
+        value: `**Server Rank:** #${joinPosition || '-'} of ${totalMembers.toLocaleString('en-US')}\n**Location:** ${userCard.asal || '-'}\n**Joined Server:** ${formatDate(member.joinedAt)}`,
+        inline: true
+      },
+      {
+        name: 'Account History',
+        value: `**Account Created:** ${formatDate(targetUser.createdAt)}`,
+        inline: false
+      },
+      {
+        name: 'Top Roles',
+        value: rolesText,
+        inline: false
+      }
+    );
+
+  if (userCard.bio) {
+    embed.addFields({
+      name: 'Bio / Status',
+      value: `*${userCard.bio}*`,
+      inline: false
+    });
+  }
+
+  if (userCard.linkUrl) {
+    const label = userCard.linkTitle || 'Link';
+    embed.addFields({
+      name: 'Custom Link',
+      value: `[**${label}**](${userCard.linkUrl})`,
+      inline: false
+    });
+  }
+
+  embed
+    .setFooter({
+      text: `${guild.name} • Member Identity System`,
+      iconURL: guild.iconURL({ extension: 'png' }) || targetUser.displayAvatarURL({ extension: 'png' })
+    })
+    .setTimestamp();
+
+  return embed;
 }
 
 /**
@@ -98,13 +185,11 @@ async function publishCardToChannel(guild, member, client) {
     ? `📌 **${member.displayName}** baru saja publish Member Card pertamanya. Say hi! 👋`
     : `✏️ **${member.displayName}** just updated their card — ada yang baru nih.`;
 
-  // Generate 1000x560 Landscape Graphic Card
-  const imageBuffer = await generateMemberCardCanvas(guild, member, userCard);
-  const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
+  const embed = await buildMemberCardEmbed(guild, member);
 
   // Kirim pesan baru ke #card-gallery
   try {
-    const newMsg = await publishChannel.send({ content: warmMessage, files: [attachment] });
+    const newMsg = await publishChannel.send({ content: warmMessage, embeds: [embed] });
 
     // Simpan message ID baru
     if (!cardsData[guildId]) cardsData[guildId] = {};
@@ -115,7 +200,7 @@ async function publishCardToChannel(guild, member, client) {
     console.log(`✅ [CardHandler] Member card for ${member.displayName} published to #${publishChannel.name} (${newMsg.id})`);
     return isFirstPublish ? 'first' : 'updated';
   } catch (sendErr) {
-    console.error(`❌ [CardHandler] Failed to send graphic card to #${publishChannel.name}:`, sendErr.message);
+    console.error(`❌ [CardHandler] Failed to send embed card to #${publishChannel.name}:`, sendErr.message);
     return null;
   }
 }
@@ -183,27 +268,16 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Private / Ephemeral - 1000x560 Landscape Canvas)
+  // 2. VIEW MY CARD (Private / Ephemeral - 0ms Instant Response Clean Embed)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const cardsData = storage.read('cards');
-    const userCard = cardsData[guildId]?.[userId] || {};
+    const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
 
-    try {
-      const imageBuffer = await generateMemberCardCanvas(interaction.guild, interaction.member, userCard);
-      const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
-
-      return await interaction.editReply({
-        content: '*Your HD Member Profile Card (Only visible to you):*',
-        files: [attachment]
-      });
-    } catch (canvasErr) {
-      console.error('[ViewCard] Error rendering HD graphic card:', canvasErr);
-      return await interaction.editReply({
-        content: `❌ Gagal membuat Kartu Profil HD: ${canvasErr.message}`
-      });
-    }
+    return await interaction.editReply({
+      content: '*Your Official Member Profile Card (Only visible to you):*',
+      embeds: [embed]
+    });
   }
 
   // 3. PUBLISH CARD → Kirim / update pesan di #card-gallery
@@ -222,7 +296,7 @@ async function handleCardButton(interaction, client) {
       });
     } else {
       return interaction.editReply({
-        content: `❌ Could not find or publish to channel <#${GALLERY_CHANNEL_ID}>. Pastikan bot memiliki izin Send Messages & Attach Files.`
+        content: `❌ Could not find or publish to channel <#${GALLERY_CHANNEL_ID}>. Pastikan bot memiliki izin Send Messages.`
       });
     }
   }
@@ -311,77 +385,6 @@ async function handleCardModalSubmit(interaction, client) {
   publishCardToChannel(interaction.guild, interaction.member, client).catch(err => {
     console.error('[CardHandler] Background auto-publish failed:', err.message);
   });
-}
-
-/**
- * Build fallback clean Member Profile Card Embed (kept for backwards compatibility)
- */
-async function buildMemberCardEmbed(guild, member) {
-  const targetUser = member.user;
-  const guildId = guild.id;
-
-  const cardsData = storage.read('cards');
-  const userCard = cardsData[guildId]?.[targetUser.id] || {};
-
-  function formatDate(date) {
-    if (!date) return '-';
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-
-  const allMembers = guild.members.cache;
-  const sortedByJoin = [...allMembers.values()]
-    .filter(m => m.joinedAt)
-    .sort((a, b) => a.joinedAt - b.joinedAt);
-  const joinPosition = sortedByJoin.findIndex(m => m.id === member.id) + 1;
-  const totalMembers = guild.memberCount;
-
-  const topRoles = member.roles.cache
-    .filter(r => r.id !== guild.id)
-    .sort((a, b) => b.position - a.position)
-    .first(5);
-
-  const rolesText = topRoles.length > 0
-    ? topRoles.map(r => `<@&${r.id}>`).join(' ')
-    : '-';
-
-  const embedColor = userCard.color || member.roles.color?.hexColor || '#8B5CF6';
-
-  const embed = new EmbedBuilder()
-    .setColor(embedColor)
-    .setAuthor({
-      name: member.displayName,
-      iconURL: targetUser.displayAvatarURL({ extension: 'png', size: 64 })
-    })
-    .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
-    .addFields(
-      { name: 'Username', value: targetUser.tag, inline: true },
-      { name: 'Member Position', value: `#${joinPosition} of ${totalMembers.toLocaleString('en-US')}`, inline: true },
-      { name: 'Location', value: userCard.asal || '-', inline: true },
-      { name: 'Joined Server', value: formatDate(member.joinedAt), inline: true },
-      { name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true },
-      { name: '\u200B', value: '\u200B', inline: true },
-      { name: 'Roles', value: rolesText, inline: false }
-    );
-
-  if (userCard.bio) {
-    embed.addFields({ name: 'Bio', value: userCard.bio, inline: false });
-  }
-
-  if (userCard.linkUrl) {
-    const label = userCard.linkTitle || 'Link';
-    embed.addFields({
-      name: '🔗 ' + label,
-      value: userCard.linkUrl,
-      inline: false
-    });
-  }
-
-  embed.setFooter({
-    text: `Member ID: ${targetUser.id}`,
-    iconURL: targetUser.displayAvatarURL({ extension: 'png', size: 32 })
-  }).setTimestamp();
-
-  return embed;
 }
 
 module.exports = {

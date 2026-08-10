@@ -1,11 +1,10 @@
-const { SlashCommandBuilder, MessageFlags, AttachmentBuilder } = require('discord.js');
-const storage = require('../utils/storage');
-const { generateMemberCardCanvas } = require('../utils/cardGenerator');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { buildMemberCardEmbed } = require('../utils/cardHandler');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('card')
-    .setDescription('Tampilkan card profil member HD (Hanya terlihat oleh Anda)')
+    .setDescription('Tampilkan card profil member (Hanya terlihat oleh Anda)')
     .addUserOption(opt =>
       opt.setName('member')
         .setDescription('Member yang ingin dilihat profilnya (kosongkan = profil sendiri)')
@@ -24,15 +23,10 @@ module.exports = {
     }
 
     try {
-      const cardsData = storage.read('cards');
-      const userCard = cardsData[interaction.guild.id]?.[member.id] || {};
-
-      const imageBuffer = await generateMemberCardCanvas(interaction.guild, member, userCard);
-      const attachment = new AttachmentBuilder(imageBuffer, { name: 'member-card.jpg' });
-
+      const embed = await buildMemberCardEmbed(interaction.guild, member);
       await interaction.editReply({
         content: `🎴 **Kartu Profil ${member.displayName}:**`,
-        files: [attachment]
+        embeds: [embed]
       });
     } catch (err) {
       console.error('[/card] Error:', err);
