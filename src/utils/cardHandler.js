@@ -48,7 +48,7 @@ function createCardHubPayload(guild) {
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Contains: Display Name, Avatar Thumbnail, @username, Bio status, Location, Joined Server Date, Account Created Date, Promo Link (optional toggle)
+ * Contains: Display Name, Avatar Thumbnail, @username, Bio status, Location, Joined Server Date, Account Created Date, Promo Link (optional)
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -85,12 +85,12 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true });
   }
 
-  // Promotional / Custom Link Field (Toggle ON if linkUrl is present)
+  // Promotional / Custom Link Field
   if (userCard.linkUrl) {
     const title = userCard.linkTitle || 'Featured Link';
     embed.addFields({
       name: title,
-      value: `[${userCard.linkUrl}](${userCard.linkUrl})`,
+      value: userCard.linkUrl,
       inline: false
     });
   }
@@ -103,7 +103,7 @@ async function buildMemberCardEmbed(guild, member) {
 }
 
 /**
- * Publish atau update card member ke #card-gallery.
+ * Publish or update member card in #card-gallery.
  * @returns {Promise<'first'|'updated'|null>}
  */
 async function publishCardToChannel(guild, member, client) {
@@ -173,45 +173,45 @@ async function handleCardButton(interaction, client) {
 
     const bioInput = new TextInputBuilder()
       .setCustomId('card_input_bio')
-      .setLabel('Bio / Status (Max 100)')
+      .setLabel('Bio / Status (Optional, Max 100)')
       .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Contoh: Suka musik lo-fi & ngoding web')
+      .setPlaceholder('e.g. Passionate music enthusiast & developer')
       .setValue(userCard.bio || '')
       .setRequired(false)
       .setMaxLength(100);
 
     const asalInput = new TextInputBuilder()
       .setCustomId('card_input_asal')
-      .setLabel('Location (Max 30)')
+      .setLabel('Location (Optional, Max 30)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: Jakarta, Indonesia')
+      .setPlaceholder('e.g. New York, USA')
       .setValue(userCard.asal || '')
       .setRequired(false)
       .setMaxLength(30);
 
     const colorInput = new TextInputBuilder()
       .setCustomId('card_input_color')
-      .setLabel('Accent Color Hex')
+      .setLabel('Accent Color Hex (Optional)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: #8B5CF6 atau #FF5733')
+      .setPlaceholder('e.g. #8B5CF6 or #FF5733')
       .setValue(userCard.color || '')
       .setRequired(false)
       .setMaxLength(7);
 
     const linkTitleInput = new TextInputBuilder()
       .setCustomId('card_input_link_title')
-      .setLabel('Promo Link Title (Opsional, Max 30)')
+      .setLabel('Promo Link Title (Optional, Max 30)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: My Spotify, Instagram, Portfolio')
+      .setPlaceholder('e.g. YouTube, Spotify, Portfolio')
       .setValue(userCard.linkTitle || '')
       .setRequired(false)
       .setMaxLength(30);
 
     const linkUrlInput = new TextInputBuilder()
       .setCustomId('card_input_link_url')
-      .setLabel('Promo Link URL (Kosongkan = Toggle OFF)')
+      .setLabel('Promo Link URL (Optional)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: https://open.spotify.com/user/xyz')
+      .setPlaceholder('e.g. https://youtube.com/@mychannel')
       .setValue(userCard.linkUrl || '')
       .setRequired(false)
       .setMaxLength(250);
@@ -240,7 +240,7 @@ async function handleCardButton(interaction, client) {
     } catch (err) {
       console.error('[ViewCard] Error:', err);
       return await interaction.editReply({
-        content: `Gagal menampilkan card: ${err.message}`
+        content: `Failed to generate card: ${err.message}`
       });
     }
   }
@@ -253,15 +253,15 @@ async function handleCardButton(interaction, client) {
 
     if (result === 'first') {
       return interaction.editReply({
-        content: `Member Card kamu berhasil dipublish di <#${GALLERY_CHANNEL_ID}>.`
+        content: `Your Member Card has been successfully published in <#${GALLERY_CHANNEL_ID}>.`
       });
     } else if (result === 'updated') {
       return interaction.editReply({
-        content: `Member Card kamu diperbarui di <#${GALLERY_CHANNEL_ID}>.`
+        content: `Your Member Card has been updated in <#${GALLERY_CHANNEL_ID}>.`
       });
     } else {
       return interaction.editReply({
-        content: `Gagal publish card. Pastikan bot memiliki izin Send Messages di <#${GALLERY_CHANNEL_ID}>.`
+        content: `Failed to publish card. Please ensure the bot has Send Messages permission in <#${GALLERY_CHANNEL_ID}>.`
       });
     }
   }
@@ -274,7 +274,7 @@ async function handleCardButton(interaction, client) {
       storage.write('cards', cardsData);
     }
     return interaction.reply({
-      content: 'Profil card kamu sudah direset ke default.',
+      content: 'Your profile card has been reset to default.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -302,7 +302,7 @@ async function handleCardModalSubmit(interaction, client) {
   // Validate hex color
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
     return interaction.editReply({
-      content: 'Format warna salah! Gunakan format hex seperti `#8B5CF6`.'
+      content: 'Invalid hex color format! Please use a valid hex code like `#8B5CF6`.'
     });
   }
 
@@ -337,7 +337,7 @@ async function handleCardModalSubmit(interaction, client) {
 
   // Reply instantly
   await interaction.editReply({
-    content: `**Profil tersimpan!** Card kamu sedang dipublish di <#${GALLERY_CHANNEL_ID}>.`
+    content: `**Profile saved!** Your Member Card is being published to <#${GALLERY_CHANNEL_ID}>.`
   });
 
   // Auto-publish in background
