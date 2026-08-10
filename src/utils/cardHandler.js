@@ -17,7 +17,7 @@ function createCardHubPayload(guild) {
     .setDescription(
       'Create your custom digital identity card in this server.\n\n' +
       '**How It Works:**\n' +
-      '1. Click **Edit Profile** to customize your Bio, Location & Accent Color.\n' +
+      '1. Click **Edit Profile** to customize your Bio, Location, Color & Promo Link.\n' +
       '2. Click **View My Card** to preview your card privately.\n' +
       `3. Click **Publish Card** to share your card in <#${GALLERY_CHANNEL_ID}>.`
     )
@@ -48,7 +48,7 @@ function createCardHubPayload(guild) {
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Contains: Display Name, Avatar Thumbnail, @username, Bio status, Location, Joined Server Date, Account Created Date
+ * Contains: Display Name, Avatar Thumbnail, @username, Bio status, Location, Joined Server Date, Account Created Date, Promo Link (optional toggle)
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -83,6 +83,16 @@ async function buildMemberCardEmbed(guild, member) {
 
   if (targetUser.createdAt) {
     embed.addFields({ name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true });
+  }
+
+  // Promotional / Custom Link Field (Toggle ON if linkUrl is present)
+  if (userCard.linkUrl) {
+    const title = userCard.linkTitle || 'Featured Link';
+    embed.addFields({
+      name: title,
+      value: `[${userCard.linkUrl}](${userCard.linkUrl})`,
+      inline: false
+    });
   }
 
   embed
@@ -152,7 +162,7 @@ async function handleCardButton(interaction, client) {
   const guildId = interaction.guild.id;
   const userId = interaction.user.id;
 
-  // 1. EDIT PROFILE → Modal (3 fields: Bio, Location, Color)
+  // 1. EDIT PROFILE → Modal (5 fields: Bio, Location, Color, Link Title, Link URL)
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
@@ -188,10 +198,30 @@ async function handleCardButton(interaction, client) {
       .setRequired(false)
       .setMaxLength(7);
 
+    const linkTitleInput = new TextInputBuilder()
+      .setCustomId('card_input_link_title')
+      .setLabel('Promo Link Title (Opsional, Max 30)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Contoh: My Spotify, Instagram, Portfolio')
+      .setValue(userCard.linkTitle || '')
+      .setRequired(false)
+      .setMaxLength(30);
+
+    const linkUrlInput = new TextInputBuilder()
+      .setCustomId('card_input_link_url')
+      .setLabel('Promo Link URL (Kosongkan = Toggle OFF)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Contoh: https://open.spotify.com/user/xyz')
+      .setValue(userCard.linkUrl || '')
+      .setRequired(false)
+      .setMaxLength(250);
+
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
-      new ActionRowBuilder().addComponents(colorInput)
+      new ActionRowBuilder().addComponents(colorInput),
+      new ActionRowBuilder().addComponents(linkTitleInput),
+      new ActionRowBuilder().addComponents(linkUrlInput)
     );
 
     return interaction.showModal(modal);
@@ -262,15 +292,25 @@ async function handleCardModalSubmit(interaction, client) {
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let color = interaction.fields.getTextInputValue('card_input_color').trim();
+  let linkTitle = interaction.fields.getTextInputValue('card_input_link_title').trim();
+  let linkUrl = interaction.fields.getTextInputValue('card_input_link_url').trim();
 
   if (bio.length > 100) bio = bio.slice(0, 100);
   if (asal.length > 30) asal = asal.slice(0, 30);
+  if (linkTitle.length > 30) linkTitle = linkTitle.slice(0, 30);
 
   // Validate hex color
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
     return interaction.editReply({
       content: 'Format warna salah! Gunakan format hex seperti `#8B5CF6`.'
     });
+  }
+
+  // Format URL if provided
+  if (linkUrl) {
+    if (!/^https?:\/\//i.test(linkUrl)) {
+      linkUrl = `https://${linkUrl}`;
+    }
   }
 
   // Save profile data
@@ -283,6 +323,15 @@ async function handleCardModalSubmit(interaction, client) {
   if (bio) userCard.bio = bio; else delete userCard.bio;
   if (asal) userCard.asal = asal; else delete userCard.asal;
   if (color) userCard.color = color.toUpperCase(); else delete userCard.color;
+
+  // Toggle Promo Link: ON if URL exists, OFF if empty
+  if (linkUrl) {
+    userCard.linkTitle = linkTitle || 'Featured Link';
+    userCard.linkUrl = linkUrl;
+  } else {
+    delete userCard.linkTitle;
+    delete userCard.linkUrl;
+  }
 
   storage.write('cards', cardsData);
 
