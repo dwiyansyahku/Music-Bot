@@ -673,8 +673,12 @@ for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'))) {
 
 // Track and debug voice connection states
 const { getVoiceConnection } = require('@discordjs/voice');
+const voiceTracker = require('./utils/voiceTracker');
 client.on('voiceStateUpdate', (oldState, newState) => {
   const guildId = oldState.guild.id;
+
+  // Track voice channel duration & companions
+  voiceTracker.handleVoiceStateUpdate(oldState, newState, client);
 
   // =============================================
   // ENFORCE JAIL VOICE RULES

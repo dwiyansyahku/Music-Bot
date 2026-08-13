@@ -4,6 +4,7 @@ const path = require('path');
 const { buildMorningMessage } = require('../utils/morningMessage');
 const { buildNightMessage } = require('../utils/nightMessage');
 const { loadAllSettings } = require('../utils/storage');
+const { initVoiceTracker } = require('../utils/voiceTracker');
 const storage = require('../utils/storage');
 
 module.exports = {
@@ -16,9 +17,10 @@ module.exports = {
     console.log(`🎵 ================================\n`);
 
     // =============================================
-    // LOAD SETTINGS dari JSON ke client Maps
+    // LOAD SETTINGS & INIT VOICE TRACKER
     // =============================================
     loadAllSettings(client);
+    initVoiceTracker(client);
 
     // Auto-deploy slash commands saat bot start
     try {
@@ -240,6 +242,28 @@ module.exports = {
     }, 60 * 1000); // cek setiap 60 detik
 
     console.log('✅ [Schedulers] Morning, Night, Announce, Birthday schedulers aktif!');
+
+    // =============================================
+    // AUTO-SYNC PUBLISHED CARDS FOR ACTIVE VOICE USERS
+    // =============================================
+    setInterval(async () => {
+      try {
+        const cardsData = storage.read('cards');
+        const { publishCardToChannel } = require('../utils/cardHandler');
+        for (const guild of client.guilds.cache.values()) {
+          const guildCards = cardsData[guild.id] || {};
+          for (const [userId, userCard] of Object.entries(guildCards)) {
+            if (!userCard.publishedMessageId) continue;
+            const member = guild.members.cache.get(userId);
+            if (member && member.voice && member.voice.channelId) {
+              await publishCardToChannel(guild, member, client).catch(() => {});
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[CardSync] Auto-sync published cards failed:', err.message);
+      }
+    }, 5 * 60 * 1000); // Sync every 5 minutes
 
     // =============================================
     // STARTUP JAIL RELEASE RE-SCHEDULER

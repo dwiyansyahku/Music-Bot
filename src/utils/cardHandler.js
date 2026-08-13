@@ -83,6 +83,53 @@ async function cropBannerImage(url) {
   }
 }
 
+/**
+ * Parse promo link input: supports 'Title | URL' or standalone 'URL' (auto-detects platform name)
+ */
+function parsePromoLink(input) {
+  if (!input || !input.trim()) return null;
+  let title = '';
+  let url = '';
+
+  if (input.includes('|')) {
+    const parts = input.split('|');
+    title = parts[0].trim();
+    url = parts.slice(1).join('|').trim();
+  } else {
+    url = input.trim();
+  }
+
+  if (!url) return null;
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
+
+  // If no custom title was provided, auto-detect platform name from URL
+  if (!title) {
+    const lower = url.toLowerCase();
+    if (lower.includes('youtube.com') || lower.includes('youtu.be')) title = 'YouTube';
+    else if (lower.includes('spotify.com')) title = 'Spotify';
+    else if (lower.includes('instagram.com')) title = 'Instagram';
+    else if (lower.includes('tiktok.com')) title = 'TikTok';
+    else if (lower.includes('github.com')) title = 'GitHub';
+    else if (lower.includes('twitter.com') || lower.includes('x.com')) title = 'X (Twitter)';
+    else if (lower.includes('twitch.tv')) title = 'Twitch';
+    else if (lower.includes('soundcloud.com')) title = 'SoundCloud';
+    else if (lower.includes('discord.gg') || lower.includes('discord.com')) title = 'Discord';
+    else if (lower.includes('steamcommunity.com') || lower.includes('steampowered.com')) title = 'Steam';
+    else {
+      try {
+        const parsed = new URL(url);
+        title = parsed.hostname.replace(/^www\./i, '');
+      } catch (_) {
+        title = 'Visit Link ↗';
+      }
+    }
+  }
+
+  return { title, url };
+}
+
 // Default Channel ID tempat hasil Member Card diterbitkan (#card-gallery)
 const GALLERY_CHANNEL_ID = '1532290934396555354';
 
@@ -144,6 +191,29 @@ function createPublishedCardComponents(authorId, likesCount = 0, respectsCount =
   return [row];
 }
 
+const { getVoiceStats } = require('./voiceTracker');
+
+/**
+ * Helper to calculate member join position order in the guild (e.g. #42 of 250)
+ */
+async function getMemberJoinPosition(guild, member) {
+  if (!guild || !member) return null;
+  try {
+    const members = await guild.members.fetch().catch(() => guild.members.cache);
+    const sorted = [...members.values()]
+      .filter(m => !m.user.bot && m.joinedTimestamp)
+      .sort((a, b) => a.joinedTimestamp - b.joinedTimestamp);
+
+    const index = sorted.findIndex(m => m.id === member.id);
+    if (index !== -1) {
+      return `#${index + 1} of ${sorted.length}`;
+    }
+  } catch (err) {
+    console.warn('[CardHandler] Failed to get member join position:', err.message);
+  }
+  return null;
+}
+
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
  * Returns { embed, files } — files contains the cropped banner attachment if applicable
@@ -171,8 +241,10 @@ async function buildMemberCardEmbed(guild, member) {
     .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
     .setDescription(description);
 
-  if (userCard.asal) {
-    embed.addFields({ name: 'Location', value: userCard.asal, inline: true });
+  // Row 1: Core Server & Account Info (Inline 3 Columns)
+  const joinPos = await getMemberJoinPosition(guild, member);
+  if (joinPos) {
+    embed.addFields({ name: 'Member Order', value: joinPos, inline: true });
   }
 
   if (member.joinedAt) {
@@ -183,8 +255,29 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true });
   }
 
-  if (userCard.hobbies) {
-    embed.addFields({ name: 'Hobbies', value: userCard.hobbies, inline: true });
+  // Row 2: Real-time Voice Stats & Personal Info (Inline 3 Columns)
+  const voiceStats = getVoiceStats(guild.id, targetUser.id, guild);
+  embed.addFields({ name: 'Voice Time', value: voiceStats.formattedTime, inline: true });
+
+  if (userCard.asal) {
+    embed.addFields({ name: 'Location', value: userCard.asal, inline: true });
+  }
+
+  if (userCard.linkUrl) {
+    const linkTitle = userCard.linkTitle || 'Visit Link ↗';
+    embed.addFields({
+      name: 'Featured Link',
+      value: `[${linkTitle}](${userCard.linkUrl})`,
+      inline: true
+    });
+  }
+
+  // Row 3: Top Voice Companions (Full Width, displayed when companion time exists)
+  if (voiceStats.topCompanions && voiceStats.topCompanions.length > 0) {
+    const compText = voiceStats.topCompanions
+      .map((c, i) => `${i + 1}. **${c.name}** (${c.timeFormatted})`)
+      .join('  •  ');
+    embed.addFields({ name: 'Top Voice Companions', value: compText, inline: false });
   }
 
   // Process banner: crop to fixed size for consistency
@@ -319,14 +412,14 @@ async function handleCardButton(interaction, client) {
       .setRequired(false)
       .setMaxLength(30);
 
-    const hobbiesInput = new TextInputBuilder()
-      .setCustomId('card_input_hobbies')
-      .setLabel('Hobbies & Interests (Max 50)')
+    const linkInput = new TextInputBuilder()
+      .setCustomId('card_input_link')
+      .setLabel('Promo Link (Judul | URL, atau langsung URL)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Gaming, Coding, Music, Anime')
-      .setValue(userCard.hobbies || '')
+      .setPlaceholder('e.g. YouTube | https://youtube.com/@mychannel')
+      .setValue(userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
       .setRequired(false)
-      .setMaxLength(50);
+      .setMaxLength(250);
 
     const colorInput = new TextInputBuilder()
       .setCustomId('card_input_color')
@@ -349,7 +442,7 @@ async function handleCardButton(interaction, client) {
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
-      new ActionRowBuilder().addComponents(hobbiesInput),
+      new ActionRowBuilder().addComponents(linkInput),
       new ActionRowBuilder().addComponents(colorInput),
       new ActionRowBuilder().addComponents(bannerInput)
     );
@@ -483,13 +576,12 @@ async function handleCardModalSubmit(interaction, client) {
 
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
-  let hobbies = interaction.fields.getTextInputValue('card_input_hobbies').trim();
+  let linkRaw = interaction.fields.getTextInputValue('card_input_link').trim();
   let color = interaction.fields.getTextInputValue('card_input_color').trim();
   let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
 
   if (bio.length > 100) bio = bio.slice(0, 100);
   if (asal.length > 30) asal = asal.slice(0, 30);
-  if (hobbies.length > 50) hobbies = hobbies.slice(0, 50);
 
   // Validate hex color
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
@@ -498,7 +590,9 @@ async function handleCardModalSubmit(interaction, client) {
     });
   }
 
-  // Format banner URL
+  // Parse custom title & URL or auto-detect platform
+  const parsedLink = parsePromoLink(linkRaw);
+
   if (bannerUrl && !/^https?:\/\//i.test(bannerUrl)) {
     bannerUrl = `https://${bannerUrl}`;
   }
@@ -512,7 +606,15 @@ async function handleCardModalSubmit(interaction, client) {
 
   if (bio) userCard.bio = bio; else delete userCard.bio;
   if (asal) userCard.asal = asal; else delete userCard.asal;
-  if (hobbies) userCard.hobbies = hobbies; else delete userCard.hobbies;
+
+  if (parsedLink) {
+    userCard.linkTitle = parsedLink.title;
+    userCard.linkUrl = parsedLink.url;
+  } else {
+    delete userCard.linkTitle;
+    delete userCard.linkUrl;
+  }
+
   if (color) userCard.color = color.toUpperCase(); else delete userCard.color;
   if (bannerUrl) userCard.bannerUrl = bannerUrl; else delete userCard.bannerUrl;
 
