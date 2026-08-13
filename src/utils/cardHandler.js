@@ -341,9 +341,10 @@ function createCardHubPayload(guild) {
     .setDescription(
       'Create your custom digital identity card in this server.\n\n' +
       '**How It Works:**\n' +
-      `1. Click **Edit Profile** to customize your Bio, Location, Music, Hobbies & Banner. Your card will be automatically published/updated in <#${targetChannelId}>.\n` +
-      '2. Click **View My Card** to preview your card privately.\n' +
-      '3. Click **Reset** to clear all your data and remove your card from the gallery.'
+      `1. Click **Edit Profile** to customize your Bio, Location, Social Link, Card Color & Banner. Your card will be automatically published/updated in <#${targetChannelId}>.\n` +
+      '2. **Banner Image:** Any image size/ratio is supported (auto-cropped to **800×240 px**). Get the link via *Right-click image ➔ Copy Image Link*.\n' +
+      '3. Click **View My Card** to preview your card privately.\n' +
+      '4. Click **Reset** to clear all your data and remove your card from the gallery.'
     )
     .setFooter({ text: `${guild.name} • Member Identity System` })
     .setTimestamp();
@@ -679,22 +680,28 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Ephemeral Preview)
+  // 2. VIEW MY CARD (Ephemeral Preview with Socket Retry)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    try {
-      const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member);
-      return await interaction.editReply({
-        content: '*Your Member Card Preview:*',
-        embeds: [embed],
-        files: files
-      });
-    } catch (err) {
-      console.error('[ViewCard] Error:', err);
-      return await interaction.editReply({
-        content: `Failed to generate card preview: ${err.message}`
-      });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member);
+        return await interaction.editReply({
+          content: '*Your Member Card Preview:*',
+          embeds: [embed],
+          files: files
+        });
+      } catch (err) {
+        if (attempt === 0 && (err.message?.includes('closed') || err.code === 'UND_ERR_SOCKET')) {
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+        console.error('[ViewCard] Error:', err);
+        return await interaction.editReply({
+          content: `Failed to generate card preview: ${err.message}`
+        });
+      }
     }
   }
 
