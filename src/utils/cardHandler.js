@@ -448,7 +448,7 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Process banner: crop to fixed size for consistency (or direct embed for GIFs)
+  // Process banner: crop to 800x240 for consistency, or fallback directly to raw URL
   const files = [];
   if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
     const isGif = /\.gif(\?.*)?$/i.test(userCard.bannerUrl) || /tenor\.com|giphy\.com/i.test(userCard.bannerUrl);
@@ -460,7 +460,8 @@ async function buildMemberCardEmbed(guild, member) {
         files.push(new AttachmentBuilder(croppedBuffer, { name: 'banner.png' }));
         embed.setImage('attachment://banner.png');
       } else {
-        console.warn(`[CardHandler] Banner image could not be cropped, skipping broken image embed for ${targetUser.username}`);
+        // Fallback: direct URL embedding so the image ALWAYS shows in Discord
+        embed.setImage(userCard.bannerUrl);
       }
     }
   }
