@@ -110,35 +110,46 @@ async function publishCardToChannel(guild, member, client) {
   const guildId = guild.id;
   const userId = member.id;
 
-  const publishChannel = guild.channels.cache.get(GALLERY_CHANNEL_ID)
-    || await client.channels.fetch(GALLERY_CHANNEL_ID).catch(err => {
+  const settings = storage.read('settings');
+  const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
+
+  const publishChannel = guild.channels.cache.get(targetChannelId)
+    || await client.channels.fetch(targetChannelId).catch(err => {
       console.error(`[CardHandler] Fetch gallery channel failed:`, err.message);
       return null;
     });
 
   if (!publishChannel) {
-    console.error(`[CardHandler] Gallery channel ${GALLERY_CHANNEL_ID} not found.`);
+    console.error(`[CardHandler] Gallery channel ${targetChannelId} not found.`);
     return null;
   }
 
   const cardsData = storage.read('cards');
   const userCard = cardsData[guildId]?.[userId] || {};
   const existingMsgId = userCard.publishedMessageId;
-  const isFirstPublish = !existingMsgId;
 
-  // Non-blocking cleanup: delete old card message
+  const embed = await buildMemberCardEmbed(guild, member);
+
+  // If card was already published, edit existing message in-place
   if (existingMsgId) {
-    publishChannel.messages.fetch(existingMsgId)
-      .then(msg => msg.delete().catch(() => {}))
-      .catch(() => {});
+    try {
+      const existingMsg = await publishChannel.messages.fetch(existingMsgId);
+      if (existingMsg) {
+        await existingMsg.edit({
+          content: `**${member.displayName}** updated their Member Card.`,
+          embeds: [embed]
+        });
+        console.log(`[CardHandler] Card for ${member.displayName} updated in-place (msg ${existingMsgId}) in #${publishChannel.name}`);
+        return 'updated';
+      }
+    } catch (fetchErr) {
+      console.warn(`[CardHandler] Could not fetch existing message ${existingMsgId} to edit (may be deleted), creating new message instead.`);
+    }
   }
 
-  const warmMessage = isFirstPublish
-    ? `**${member.displayName}** published their Member Card.`
-    : `**${member.displayName}** updated their Member Card.`;
-
+  // First time publish OR fallback if existing message was deleted
   try {
-    const embed = await buildMemberCardEmbed(guild, member);
+    const warmMessage = `**${member.displayName}** published their Member Card.`;
     const newMsg = await publishChannel.send({ content: warmMessage, embeds: [embed] });
 
     if (!cardsData[guildId]) cardsData[guildId] = {};
@@ -147,7 +158,7 @@ async function publishCardToChannel(guild, member, client) {
     storage.write('cards', cardsData);
 
     console.log(`[CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
-    return isFirstPublish ? 'first' : 'updated';
+    return existingMsgId ? 'updated' : 'first';
   } catch (sendErr) {
     console.error(`[CardHandler] Failed to publish card:`, sendErr.message);
     return null;
@@ -269,12 +280,24 @@ async function handleCardButton(interaction, client) {
   // 4. RESET CARD
   if (customId === 'card_btn_reset') {
     const cardsData = storage.read('cards');
-    if (cardsData[guildId] && cardsData[guildId][userId]) {
+    const userCard = cardsData[guildId]?.[userId];
+    if (userCard) {
+      if (userCard.publishedMessageId) {
+        const settings = storage.read('settings');
+        const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
+        const publishChannel = interaction.guild.channels.cache.get(targetChannelId)
+          || await client.channels.fetch(targetChannelId).catch(() => null);
+        if (publishChannel) {
+          publishChannel.messages.fetch(userCard.publishedMessageId)
+            .then(msg => msg.delete().catch(() => {}))
+            .catch(() => {});
+        }
+      }
       delete cardsData[guildId][userId];
       storage.write('cards', cardsData);
     }
     return interaction.reply({
-      content: 'Your profile card has been reset to default.',
+      content: 'Your profile card has been reset to default and removed from gallery.',
       flags: MessageFlags.Ephemeral
     });
   }
