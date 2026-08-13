@@ -1,8 +1,87 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags
+  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags,
+  AttachmentBuilder
 } = require('discord.js');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const https = require('https');
+const http = require('http');
 const storage = require('./storage');
+
+// Banner dimensions (fixed for all cards)
+const BANNER_WIDTH = 800;
+const BANNER_HEIGHT = 240;
+
+/**
+ * Download image buffer from URL with timeout
+ */
+function fetchImageBuffer(urlStr, timeoutMs = 3000) {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsed = new URL(urlStr);
+      const proto = parsed.protocol === 'https:' ? https : http;
+      let settled = false;
+      const settle = (fn, val) => { if (!settled) { settled = true; fn(val); } };
+
+      const req = proto.get(parsed, {
+        agent: false,
+        family: 4,
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/*' }
+      }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return fetchImageBuffer(res.headers.location, timeoutMs)
+            .then(b => settle(resolve, b), e => settle(reject, e));
+        }
+        if (res.statusCode !== 200) return settle(reject, new Error(`HTTP ${res.statusCode}`));
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => settle(resolve, Buffer.concat(chunks)));
+        res.on('error', e => settle(reject, e));
+      });
+      req.setTimeout(timeoutMs, () => { req.destroy(); settle(reject, new Error('Timeout')); });
+      req.on('error', e => settle(reject, e));
+    } catch (e) { reject(e); }
+  });
+}
+
+/**
+ * Download and center-crop any image to a fixed banner size (800x240).
+ * Returns a PNG Buffer or null on failure.
+ */
+async function cropBannerImage(url) {
+  try {
+    const buffer = await fetchImageBuffer(url, 4000);
+    const img = await loadImage(buffer);
+
+    const canvas = createCanvas(BANNER_WIDTH, BANNER_HEIGHT);
+    const ctx = canvas.getContext('2d');
+
+    // Calculate center-crop (cover)
+    const srcRatio = img.width / img.height;
+    const dstRatio = BANNER_WIDTH / BANNER_HEIGHT;
+    let sx, sy, sw, sh;
+
+    if (srcRatio > dstRatio) {
+      // Source is wider — crop sides
+      sh = img.height;
+      sw = img.height * dstRatio;
+      sx = (img.width - sw) / 2;
+      sy = 0;
+    } else {
+      // Source is taller — crop top/bottom
+      sw = img.width;
+      sh = img.width / dstRatio;
+      sx = 0;
+      sy = (img.height - sh) / 2;
+    }
+
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, BANNER_WIDTH, BANNER_HEIGHT);
+    return canvas.toBuffer('image/png');
+  } catch (err) {
+    console.warn('[CardHandler] Banner crop failed:', err.message);
+    return null;
+  }
+}
 
 // Default Channel ID tempat hasil Member Card diterbitkan (#card-gallery)
 const GALLERY_CHANNEL_ID = '1532290934396555354';
@@ -67,7 +146,7 @@ function createPublishedCardComponents(authorId, likesCount = 0, respectsCount =
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Fields: Display Name, Avatar, @username, Bio, Location, Joined Server, Account Created, Fav Music, Hobbies, Banner Image
+ * Returns { embed, files } — files contains the cropped banner attachment if applicable
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -104,24 +183,28 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true });
   }
 
-  if (userCard.favMusic) {
-    embed.addFields({ name: 'Fav Music', value: userCard.favMusic, inline: true });
-  }
-
   if (userCard.hobbies) {
     embed.addFields({ name: 'Hobbies', value: userCard.hobbies, inline: true });
   }
 
-  // Custom Banner / GIF Image
+  // Process banner: crop to fixed size for consistency
+  const files = [];
   if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
-    embed.setImage(userCard.bannerUrl);
+    const croppedBuffer = await cropBannerImage(userCard.bannerUrl);
+    if (croppedBuffer) {
+      files.push(new AttachmentBuilder(croppedBuffer, { name: 'banner.png' }));
+      embed.setImage('attachment://banner.png');
+    } else {
+      // Fallback: use raw URL if crop fails
+      embed.setImage(userCard.bannerUrl);
+    }
   }
 
   embed
     .setFooter({ text: `${guild.name} • Member Card` })
     .setTimestamp();
 
-  return embed;
+  return { embed, files };
 }
 
 /**
@@ -153,7 +236,7 @@ async function publishCardToChannel(guild, member, client) {
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
 
-  const embed = await buildMemberCardEmbed(guild, member);
+  const { embed, files } = await buildMemberCardEmbed(guild, member);
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
 
   // If card was already published, edit existing message in-place
@@ -164,7 +247,8 @@ async function publishCardToChannel(guild, member, client) {
         await existingMsg.edit({
           content: `**${member.displayName}** updated their Member Card.`,
           embeds: [embed],
-          components: components
+          components: components,
+          files: files
         });
         console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
         return 'updated';
@@ -180,7 +264,8 @@ async function publishCardToChannel(guild, member, client) {
     const newMsg = await publishChannel.send({
       content: warmMessage,
       embeds: [embed],
-      components: components
+      components: components,
+      files: files
     });
 
     if (!cardsData[guildId]) cardsData[guildId] = {};
@@ -207,7 +292,7 @@ async function handleCardButton(interaction, client) {
   const settings = storage.read('settings');
   const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
-  // 1. EDIT PROFILE → Single Modal (5 fields: Bio, Location, Fav Music, Hobbies, Banner URL)
+  // 1. EDIT PROFILE → Single Modal (5 fields: Bio, Location, Hobbies, Color, Banner URL)
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
@@ -227,36 +312,36 @@ async function handleCardButton(interaction, client) {
 
     const asalInput = new TextInputBuilder()
       .setCustomId('card_input_asal')
-      .setLabel('Location / Asal (Max 30)')
+      .setLabel('Location (Max 30)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('e.g. Jakarta, Indonesia')
       .setValue(userCard.asal || '')
       .setRequired(false)
       .setMaxLength(30);
 
-    const favMusicInput = new TextInputBuilder()
-      .setCustomId('card_input_favmusic')
-      .setLabel('Fav Music / Genre (Max 50)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Indie Pop, Lo-Fi, Metal')
-      .setValue(userCard.favMusic || '')
-      .setRequired(false)
-      .setMaxLength(50);
-
     const hobbiesInput = new TextInputBuilder()
       .setCustomId('card_input_hobbies')
-      .setLabel('Hobbies & Minat (Max 50)')
+      .setLabel('Hobbies & Interests (Max 50)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Gaming, Coding, Watching Anime')
+      .setPlaceholder('e.g. Gaming, Coding, Music, Anime')
       .setValue(userCard.hobbies || '')
       .setRequired(false)
       .setMaxLength(50);
 
+    const colorInput = new TextInputBuilder()
+      .setCustomId('card_input_color')
+      .setLabel('Card Accent Color Hex')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g. #8B5CF6 or #FF5733')
+      .setValue(userCard.color || '')
+      .setRequired(false)
+      .setMaxLength(7);
+
     const bannerInput = new TextInputBuilder()
       .setCustomId('card_input_banner')
-      .setLabel('Banner Image/GIF URL (Optional)')
+      .setLabel('Banner Image URL (direct link to image)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. https://i.imgur.com/example.gif')
+      .setPlaceholder('Paste direct image link (.png/.jpg/.gif)')
       .setValue(userCard.bannerUrl || '')
       .setRequired(false)
       .setMaxLength(250);
@@ -264,8 +349,8 @@ async function handleCardButton(interaction, client) {
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
-      new ActionRowBuilder().addComponents(favMusicInput),
       new ActionRowBuilder().addComponents(hobbiesInput),
+      new ActionRowBuilder().addComponents(colorInput),
       new ActionRowBuilder().addComponents(bannerInput)
     );
 
@@ -277,10 +362,11 @@ async function handleCardButton(interaction, client) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
+      const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member);
       return await interaction.editReply({
         content: '*Your Member Card Preview:*',
-        embeds: [embed]
+        embeds: [embed],
+        files: files
       });
     } catch (err) {
       console.error('[ViewCard] Error:', err);
@@ -354,7 +440,7 @@ async function handleCardButton(interaction, client) {
       });
     }
 
-    const updatedEmbed = await buildMemberCardEmbed(interaction.guild, authorMember);
+    const { embed: updatedEmbed, files } = await buildMemberCardEmbed(interaction.guild, authorMember);
     const updatedComponents = createPublishedCardComponents(
       authorId,
       (targetCard.likes || []).length,
@@ -364,7 +450,8 @@ async function handleCardButton(interaction, client) {
     // Update the message instantly (real-time update)
     await interaction.update({
       embeds: [updatedEmbed],
-      components: updatedComponents
+      components: updatedComponents,
+      files: files
     });
 
     const isAdded = isLike
@@ -396,14 +483,20 @@ async function handleCardModalSubmit(interaction, client) {
 
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
-  let favMusic = interaction.fields.getTextInputValue('card_input_favmusic').trim();
   let hobbies = interaction.fields.getTextInputValue('card_input_hobbies').trim();
+  let color = interaction.fields.getTextInputValue('card_input_color').trim();
   let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
 
   if (bio.length > 100) bio = bio.slice(0, 100);
   if (asal.length > 30) asal = asal.slice(0, 30);
-  if (favMusic.length > 50) favMusic = favMusic.slice(0, 50);
   if (hobbies.length > 50) hobbies = hobbies.slice(0, 50);
+
+  // Validate hex color
+  if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+    return interaction.editReply({
+      content: 'Invalid color format. Use hex like `#8B5CF6`.'
+    });
+  }
 
   // Format banner URL
   if (bannerUrl && !/^https?:\/\//i.test(bannerUrl)) {
@@ -419,8 +512,8 @@ async function handleCardModalSubmit(interaction, client) {
 
   if (bio) userCard.bio = bio; else delete userCard.bio;
   if (asal) userCard.asal = asal; else delete userCard.asal;
-  if (favMusic) userCard.favMusic = favMusic; else delete userCard.favMusic;
   if (hobbies) userCard.hobbies = hobbies; else delete userCard.hobbies;
+  if (color) userCard.color = color.toUpperCase(); else delete userCard.color;
   if (bannerUrl) userCard.bannerUrl = bannerUrl; else delete userCard.bannerUrl;
 
   storage.write('cards', cardsData);
