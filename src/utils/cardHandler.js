@@ -757,16 +757,12 @@ async function handleCardModalSubmit(interaction, client) {
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let linkRaw = interaction.fields.getTextInputValue('card_input_link').trim();
   let colorRaw = interaction.fields.getTextInputValue('card_input_color').trim();
+  let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
   let resolvedColor = null;
 
-  // Resolve color by name (English / Indonesian) or hex
+  // Resolve color by name (English / Indonesian) or hex, with graceful fallback
   if (colorRaw) {
     resolvedColor = resolveColor(colorRaw);
-    if (!resolvedColor) {
-      return interaction.editReply({
-        content: 'Warna tidak valid. Gunakan nama warna (contoh: `biru`, `merah`, `ungu`, `pink`, `emas`, `toska`, `black`) atau kode hex seperti `#8B5CF6`.'
-      });
-    }
   }
 
   // Parse custom title & URL or auto-detect platform
