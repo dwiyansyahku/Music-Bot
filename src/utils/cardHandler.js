@@ -76,6 +76,33 @@ async function cropBannerImage(url) {
   }
 }
 
+// In-memory cache for cropped banner buffers: url -> { buffer, expiresAt }
+const bannerCache = new Map();
+
+/**
+ * Get cropped banner buffer with 15-minute in-memory caching to avoid redundant downloads
+ */
+async function getCroppedBanner(url) {
+  if (!url) return null;
+  const now = Date.now();
+  if (bannerCache.has(url)) {
+    const cached = bannerCache.get(url);
+    if (cached.expiresAt > now) {
+      return cached.buffer;
+    }
+    bannerCache.delete(url);
+  }
+
+  const buffer = await cropBannerImage(url);
+  if (buffer) {
+    bannerCache.set(url, {
+      buffer,
+      expiresAt: now + 15 * 60 * 1000 // Cache for 15 minutes
+    });
+  }
+  return buffer;
+}
+
 /**
  * Parse promo link input: supports 'Title | URL' or standalone 'URL' (auto-detects platform name)
  */
@@ -448,20 +475,17 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Process banner: crop to 800x240 for consistency, or fallback directly to raw URL
+  // Process banner: crop to 800x240 for consistency
   const files = [];
   if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
-    const isGif = /\.gif(\?.*)?$/i.test(userCard.bannerUrl) || /tenor\.com|giphy\.com/i.test(userCard.bannerUrl);
+    const isGif = /\.gif(\?.*)?$/i.test(userCard.bannerUrl);
     if (isGif) {
       embed.setImage(userCard.bannerUrl);
     } else {
-      const croppedBuffer = await cropBannerImage(userCard.bannerUrl);
+      const croppedBuffer = await getCroppedBanner(userCard.bannerUrl);
       if (croppedBuffer) {
         files.push(new AttachmentBuilder(croppedBuffer, { name: 'banner.png' }));
         embed.setImage('attachment://banner.png');
-      } else {
-        // Fallback: direct URL embedding so the image ALWAYS shows in Discord
-        embed.setImage(userCard.bannerUrl);
       }
     }
   }
@@ -477,7 +501,26 @@ async function buildMemberCardEmbed(guild, member) {
  * Publish or update member card in #card-gallery.
  * @returns {Promise<'first'|'updated'|null>}
  */
+// In-flight concurrency lock per user to avoid concurrent conflicting publishes
+const publishingLocks = new Set();
+
+/**
+ * Publish or update member card in #card-gallery (with lock & socket retry).
+ * @returns {Promise<'first'|'updated'|null>}
+ */
 async function publishCardToChannel(guild, member, client) {
+  const lockKey = `${guild.id}_${member.id}`;
+  if (publishingLocks.has(lockKey)) return null;
+  publishingLocks.add(lockKey);
+
+  try {
+    return await doPublishCard(guild, member, client);
+  } finally {
+    publishingLocks.delete(lockKey);
+  }
+}
+
+async function doPublishCard(guild, member, client, isRetry = false) {
   const guildId = guild.id;
   const userId = member.id;
 
@@ -491,7 +534,6 @@ async function publishCardToChannel(guild, member, client) {
     });
 
   if (!publishChannel) {
-    console.error(`[CardHandler] Gallery channel ${targetChannelId} not found.`);
     return null;
   }
 
@@ -510,18 +552,27 @@ async function publishCardToChannel(guild, member, client) {
     try {
       const existingMsg = await publishChannel.messages.fetch(existingMsgId);
       if (existingMsg) {
-        await existingMsg.edit({
+        const editPayload = {
           content: `**${member.displayName}** updated their Member Card.`,
           embeds: [embed],
-          components: components,
-          files: files
-        });
+          components: components
+        };
+        if (files && files.length > 0) {
+          editPayload.files = files;
+        }
+
+        await existingMsg.edit(editPayload);
         console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
         return 'updated';
       }
     } catch (fetchErr) {
-      delete userCard.publishedMessageId;
-      storage.write('cards', cardsData);
+      if (fetchErr.code === 10008 || fetchErr.status === 404) {
+        delete userCard.publishedMessageId;
+        storage.write('cards', cardsData);
+      } else if (!isRetry && (fetchErr.message?.includes('closed') || fetchErr.code === 'UND_ERR_SOCKET')) {
+        await new Promise(r => setTimeout(r, 600));
+        return doPublishCard(guild, member, client, true);
+      }
     }
   }
 
@@ -543,6 +594,10 @@ async function publishCardToChannel(guild, member, client) {
     console.log(`[CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
     return existingMsgId ? 'updated' : 'first';
   } catch (sendErr) {
+    if (!isRetry && (sendErr.message?.includes('closed') || sendErr.code === 'UND_ERR_SOCKET')) {
+      await new Promise(r => setTimeout(r, 600));
+      return doPublishCard(guild, member, client, true);
+    }
     console.error(`[CardHandler] Failed to publish card:`, sendErr.message);
     return null;
   }
