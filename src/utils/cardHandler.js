@@ -16,7 +16,7 @@ function createCardHubPayload(guild) {
 
   const embed = new EmbedBuilder()
     .setColor('#8B5CF6')
-    .setTitle('🎴 Member Profile Card')
+    .setTitle('Member Profile Card')
     .setDescription(
       'Create your custom digital identity card in this server.\n\n' +
       '**How It Works:**\n' +
@@ -31,17 +31,14 @@ function createCardHubPayload(guild) {
     new ButtonBuilder()
       .setCustomId('card_btn_edit')
       .setLabel('Edit Profile')
-      .setEmoji('📝')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('card_btn_view_self')
       .setLabel('View My Card')
-      .setEmoji('👁️')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('card_btn_reset')
       .setLabel('Reset')
-      .setEmoji('🗑️')
       .setStyle(ButtonStyle.Danger)
   );
 
@@ -96,23 +93,23 @@ async function buildMemberCardEmbed(guild, member) {
     .setDescription(description);
 
   if (userCard.asal) {
-    embed.addFields({ name: '📍 Location', value: userCard.asal, inline: true });
+    embed.addFields({ name: 'Location', value: userCard.asal, inline: true });
   }
 
   if (member.joinedAt) {
-    embed.addFields({ name: '📅 Joined Server', value: formatDate(member.joinedAt), inline: true });
+    embed.addFields({ name: 'Joined Server', value: formatDate(member.joinedAt), inline: true });
   }
 
   if (targetUser.createdAt) {
-    embed.addFields({ name: '🎂 Account Created', value: formatDate(targetUser.createdAt), inline: true });
+    embed.addFields({ name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true });
   }
 
   if (userCard.favMusic) {
-    embed.addFields({ name: '🎵 Fav Music', value: userCard.favMusic, inline: true });
+    embed.addFields({ name: 'Fav Music', value: userCard.favMusic, inline: true });
   }
 
   if (userCard.hobbies) {
-    embed.addFields({ name: '🎮 Hobbies', value: userCard.hobbies, inline: true });
+    embed.addFields({ name: 'Hobbies', value: userCard.hobbies, inline: true });
   }
 
   // Custom Banner / GIF Image
@@ -326,7 +323,7 @@ async function handleCardButton(interaction, client) {
     const cardsData = storage.read('cards');
     if (!cardsData[guildId]?.[authorId]) {
       return interaction.reply({
-        content: '❌ Card data not found.',
+        content: 'Card data not found.',
         flags: MessageFlags.Ephemeral
       });
     }
@@ -352,7 +349,7 @@ async function handleCardButton(interaction, client) {
     const authorMember = await interaction.guild.members.fetch(authorId).catch(() => null);
     if (!authorMember) {
       return interaction.reply({
-        content: '❌ Card author not found in this server.',
+        content: 'Card author not found in this server.',
         flags: MessageFlags.Ephemeral
       });
     }
@@ -375,8 +372,8 @@ async function handleCardButton(interaction, client) {
       : targetCard.respects.includes(voterId);
 
     const actionText = isLike
-      ? (isAdded ? '❤️ You liked this card!' : 'You removed your like.')
-      : (isAdded ? '⭐ You gave respect!' : 'You removed your respect.');
+      ? (isAdded ? 'You liked this card.' : 'You removed your like.')
+      : (isAdded ? 'You gave respect.' : 'You removed your respect.');
 
     return interaction.followUp({
       content: actionText,
