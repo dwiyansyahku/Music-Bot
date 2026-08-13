@@ -605,9 +605,9 @@ async function handleCardButton(interaction, client) {
 
     const bannerInput = new TextInputBuilder()
       .setCustomId('card_input_banner')
-      .setLabel('Banner Image URL (direct link to image)')
+      .setLabel('Banner Image (Auto-Crop 800x240)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Paste direct image link (.png/.jpg/.gif)')
+      .setPlaceholder('Bebas ukuran gambar (otomatis di-crop ke 800x240). Klik kanan gambar -> Copy Image Link')
       .setValue(userCard.bannerUrl || '')
       .setRequired(false)
       .setMaxLength(250);
@@ -653,8 +653,8 @@ async function handleCardButton(interaction, client) {
           || await client.channels.fetch(targetChannelId).catch(() => null);
         if (publishChannel) {
           publishChannel.messages.fetch(userCard.publishedMessageId)
-            .then(msg => msg.delete().catch(() => {}))
-            .catch(() => {});
+            .then(msg => msg.delete().catch(() => { }))
+            .catch(() => { });
         }
       }
       delete cardsData[guildId][userId];
@@ -731,7 +731,7 @@ async function handleCardButton(interaction, client) {
     return interaction.followUp({
       content: actionText,
       flags: MessageFlags.Ephemeral
-    }).catch(() => {});
+    }).catch(() => { });
   }
 }
 
