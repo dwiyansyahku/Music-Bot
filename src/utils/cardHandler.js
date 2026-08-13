@@ -13,35 +13,28 @@ const BANNER_WIDTH = 800;
 const BANNER_HEIGHT = 240;
 
 /**
- * Download image buffer from URL with timeout
+ * Download image buffer from URL with modern fetch & timeout
  */
-function fetchImageBuffer(urlStr, timeoutMs = 3000) {
-  return new Promise((resolve, reject) => {
-    try {
-      const parsed = new URL(urlStr);
-      const proto = parsed.protocol === 'https:' ? https : http;
-      let settled = false;
-      const settle = (fn, val) => { if (!settled) { settled = true; fn(val); } };
-
-      const req = proto.get(parsed, {
-        agent: false,
-        family: 4,
-        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/*' }
-      }, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return fetchImageBuffer(res.headers.location, timeoutMs)
-            .then(b => settle(resolve, b), e => settle(reject, e));
-        }
-        if (res.statusCode !== 200) return settle(reject, new Error(`HTTP ${res.statusCode}`));
-        const chunks = [];
-        res.on('data', c => chunks.push(c));
-        res.on('end', () => settle(resolve, Buffer.concat(chunks)));
-        res.on('error', e => settle(reject, e));
-      });
-      req.setTimeout(timeoutMs, () => { req.destroy(); settle(reject, new Error('Timeout')); });
-      req.on('error', e => settle(reject, e));
-    } catch (e) { reject(e); }
+async function fetchImageBuffer(urlStr, timeoutMs = 8000) {
+  const res = await fetch(urlStr, {
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+    }
   });
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('text/html')) {
+    throw new Error('URL returned HTML webpage instead of a direct image');
+  }
+
+  const arrayBuffer = await res.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
 /**
@@ -50,7 +43,7 @@ function fetchImageBuffer(urlStr, timeoutMs = 3000) {
  */
 async function cropBannerImage(url) {
   try {
-    const buffer = await fetchImageBuffer(url, 4000);
+    const buffer = await fetchImageBuffer(url, 8000);
     const img = await loadImage(buffer);
 
     const canvas = createCanvas(BANNER_WIDTH, BANNER_HEIGHT);
