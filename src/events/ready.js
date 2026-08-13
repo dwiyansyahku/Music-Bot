@@ -246,9 +246,13 @@ module.exports = {
     // =============================================
     // AUTO-SYNC PUBLISHED CARDS FOR ACTIVE VOICE USERS (EVERY 60s)
     // =============================================
-    const { isUserInVoice } = require('../utils/voiceTracker');
+    const { isUserInVoice, flushAllActiveSessions } = require('../utils/voiceTracker');
     setInterval(async () => {
       try {
+        // 1. Flush active voice sessions to disk continuously
+        flushAllActiveSessions();
+
+        // 2. Sync published cards in gallery
         const cardsData = storage.read('cards');
         const { publishCardToChannel } = require('../utils/cardHandler');
         for (const guild of client.guilds.cache.values()) {

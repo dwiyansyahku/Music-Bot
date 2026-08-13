@@ -195,10 +195,60 @@ function isUserInVoice(guildId, userId) {
   return activeSessions.has(`${guildId}_${userId}`);
 }
 
+/**
+ * Flush all active voice sessions incrementally to disk.
+ * Ensures 0 data loss during bot restarts, updates, or redeploys.
+ */
+function flushAllActiveSessions() {
+  if (activeSessions.size === 0) return;
+  const now = Date.now();
+  const statsData = storage.read('voiceStats');
+
+  for (const [key, session] of activeSessions.entries()) {
+    const [guildId, userId] = key.split('_');
+    const elapsed = now - session.joinedAt;
+    if (elapsed < 1000) continue;
+
+    if (!statsData[guildId]) statsData[guildId] = {};
+    if (!statsData[guildId][userId]) {
+      statsData[guildId][userId] = { totalTime: 0, companions: {} };
+    }
+
+    const userStats = statsData[guildId][userId];
+    userStats.totalTime = (userStats.totalTime || 0) + elapsed;
+    if (!userStats.companions) userStats.companions = {};
+
+    // Calculate companion shared times
+    for (const [otherKey, otherSession] of activeSessions.entries()) {
+      if (otherKey !== key && otherKey.startsWith(`${guildId}_`) && otherSession.channelId === session.channelId) {
+        const otherUserId = otherKey.replace(`${guildId}_`, '');
+        const overlapStart = Math.max(session.joinedAt, otherSession.joinedAt);
+        const shared = now - overlapStart;
+        if (shared > 1000) {
+          userStats.companions[otherUserId] = (userStats.companions[otherUserId] || 0) + shared;
+        }
+      }
+    }
+
+    session.joinedAt = now;
+  }
+
+  storage.write('voiceStats', statsData);
+}
+
+// Hook process termination signals to flush before exit
+process.on('SIGTERM', () => {
+  flushAllActiveSessions();
+});
+process.on('SIGINT', () => {
+  flushAllActiveSessions();
+});
+
 module.exports = {
   initVoiceTracker,
   handleVoiceStateUpdate,
   getVoiceStats,
   formatDuration,
-  isUserInVoice
+  isUserInVoice,
+  flushAllActiveSessions
 };
