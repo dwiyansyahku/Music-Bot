@@ -188,9 +188,17 @@ function getVoiceStats(guildId, userId, guild) {
   };
 }
 
+/**
+ * Check if a user is currently in an active voice session
+ */
+function isUserInVoice(guildId, userId) {
+  return activeSessions.has(`${guildId}_${userId}`);
+}
+
 module.exports = {
   initVoiceTracker,
   handleVoiceStateUpdate,
   getVoiceStats,
-  formatDuration
+  formatDuration,
+  isUserInVoice
 };

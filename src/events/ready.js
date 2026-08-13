@@ -244,8 +244,9 @@ module.exports = {
     console.log('✅ [Schedulers] Morning, Night, Announce, Birthday schedulers aktif!');
 
     // =============================================
-    // AUTO-SYNC PUBLISHED CARDS FOR ACTIVE VOICE USERS
+    // AUTO-SYNC PUBLISHED CARDS FOR ACTIVE VOICE USERS (EVERY 60s)
     // =============================================
+    const { isUserInVoice } = require('../utils/voiceTracker');
     setInterval(async () => {
       try {
         const cardsData = storage.read('cards');
@@ -254,16 +255,18 @@ module.exports = {
           const guildCards = cardsData[guild.id] || {};
           for (const [userId, userCard] of Object.entries(guildCards)) {
             if (!userCard.publishedMessageId) continue;
-            const member = guild.members.cache.get(userId);
-            if (member && member.voice && member.voice.channelId) {
-              await publishCardToChannel(guild, member, client).catch(() => {});
+            if (isUserInVoice(guild.id, userId)) {
+              const member = await guild.members.fetch(userId).catch(() => null);
+              if (member) {
+                await publishCardToChannel(guild, member, client).catch(() => {});
+              }
             }
           }
         }
       } catch (err) {
         console.warn('[CardSync] Auto-sync published cards failed:', err.message);
       }
-    }, 5 * 60 * 1000); // Sync every 5 minutes
+    }, 60 * 1000); // Live sync every 60 seconds (1 minute)
 
     // =============================================
     // STARTUP JAIL RELEASE RE-SCHEDULER

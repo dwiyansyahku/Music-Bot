@@ -130,6 +130,181 @@ function parsePromoLink(input) {
   return { title, url };
 }
 
+/**
+ * Comprehensive bilingual Color Map (140+ Standard CSS & Indonesian Color Names)
+ */
+const COLOR_MAP = {
+  // English (Standard & Popular CSS Colors)
+  'purple': '#8B5CF6',
+  'violet': '#7C3AED',
+  'darkviolet': '#9400D3',
+  'indigo': '#6366F1',
+  'blue': '#3B82F6',
+  'royalblue': '#4169E1',
+  'dodgerblue': '#1E90FF',
+  'deepskyblue': '#00BFFF',
+  'skyblue': '#0EA5E9',
+  'sky': '#0EA5E9',
+  'cyan': '#06B6D4',
+  'aqua': '#00FFFF',
+  'teal': '#14B8A6',
+  'turquoise': '#40E0D0',
+  'aquamarine': '#7FFFD4',
+  'green': '#10B981',
+  'emerald': '#059669',
+  'lime': '#84CC16',
+  'limegreen': '#32CD32',
+  'forestgreen': '#228B22',
+  'seagreen': '#2E8B57',
+  'mint': '#6EE7B7',
+  'olive': '#808000',
+  'darkgreen': '#006400',
+  'red': '#EF4444',
+  'crimson': '#DC2626',
+  'firebrick': '#B22222',
+  'darkred': '#8B0000',
+  'rose': '#F43F5E',
+  'ruby': '#E0115F',
+  'scarlet': '#FF2400',
+  'maroon': '#800000',
+  'pink': '#EC4899',
+  'hotpink': '#FF69B4',
+  'deeppink': '#FF1493',
+  'lightpink': '#FFB6C1',
+  'fuchsia': '#D946EF',
+  'magenta': '#E11D48',
+  'orange': '#F97316',
+  'darkorange': '#FF8C00',
+  'coral': '#FF7F50',
+  'salmon': '#FA8072',
+  'peach': '#FFDAB9',
+  'amber': '#F59E0B',
+  'yellow': '#EAB308',
+  'gold': '#FFD700',
+  'golden': '#FFD700',
+  'khaki': '#F0E68C',
+  'black': '#1E1E2E',
+  'dark': '#181825',
+  'charcoal': '#36454F',
+  'white': '#FFFFFF',
+  'silver': '#C0C0C0',
+  'gray': '#6B7280',
+  'grey': '#6B7280',
+  'darkgray': '#4B5563',
+  'darkgrey': '#4B5563',
+  'lightgray': '#D1D5DB',
+  'lightgrey': '#D1D5DB',
+  'navy': '#1E3A8A',
+  'midnightblue': '#191970',
+  'brown': '#78350F',
+  'chocolate': '#D2691E',
+  'coffee': '#6F4E37',
+  'sienna': '#A0522D',
+  'lavender': '#E6E6FA',
+  'plum': '#DDA0DD',
+  'thistle': '#D8BFD8',
+  'beige': '#F5F5DC',
+
+  // Bahasa Indonesia
+  'ungu': '#8B5CF6',
+  'ungutua': '#7C3AED',
+  'ungu tua': '#7C3AED',
+  'ungumuda': '#C084FC',
+  'ungu muda': '#C084FC',
+  'nila': '#6366F1',
+  'lembayung': '#A855F7',
+  'biru': '#3B82F6',
+  'birumuda': '#38BDF8',
+  'biru muda': '#38BDF8',
+  'birulangit': '#0EA5E9',
+  'biru langit': '#0EA5E9',
+  'birutua': '#1E3A8A',
+  'biru tua': '#1E3A8A',
+  'birulaut': '#0284C7',
+  'biru laut': '#0284C7',
+  'hijau': '#10B981',
+  'hijautua': '#047857',
+  'hijau tua': '#047857',
+  'hijaumuda': '#34D399',
+  'hijau muda': '#34D399',
+  'hijaupupus': '#A3E635',
+  'hijau pupus': '#A3E635',
+  'hijaugelap': '#064E3B',
+  'hijau gelap': '#064E3B',
+  'merah': '#EF4444',
+  'merahmuda': '#EC4899',
+  'merah muda': '#EC4899',
+  'merahtua': '#991B1B',
+  'merah tua': '#991B1B',
+  'merahhati': '#800000',
+  'merah hati': '#800000',
+  'merahmaron': '#800000',
+  'merah maron': '#800000',
+  'maron': '#800000',
+  'kuning': '#EAB308',
+  'kuningmuda': '#FEF08A',
+  'kuning muda': '#FEF08A',
+  'kuningtua': '#CA8A04',
+  'kuning tua': '#CA8A04',
+  'emas': '#FFD700',
+  'oranye': '#F97316',
+  'orange': '#F97316',
+  'jingga': '#F97316',
+  'toska': '#06B6D4',
+  'tosca': '#06B6D4',
+  'hitam': '#1E1E2E',
+  'hitampekat': '#11111B',
+  'hitam pekat': '#11111B',
+  'putih': '#FFFFFF',
+  'putihbersih': '#FFFFFF',
+  'putih bersih': '#FFFFFF',
+  'abu': '#6B7280',
+  'abu-abu': '#6B7280',
+  'abu abu': '#6B7280',
+  'abumuda': '#9CA3AF',
+  'abu muda': '#9CA3AF',
+  'abutua': '#374151',
+  'abu tua': '#374151',
+  'perak': '#C0C0C0',
+  'cokelat': '#78350F',
+  'coklat': '#78350F',
+  'coklattua': '#451A03',
+  'coklat tua': '#451A03',
+  'coklatmuda': '#B45309',
+  'coklat muda': '#B45309'
+};
+
+/**
+ * Resolve color from English name, Indonesian name, or Hex code (#RGB / #RRGGBB / RRGGBB)
+ */
+function resolveColor(input) {
+  if (!input || !input.trim()) return null;
+  const clean = input.trim().toLowerCase();
+
+  // 1. Direct name lookup
+  if (COLOR_MAP[clean]) {
+    return COLOR_MAP[clean];
+  }
+
+  // 2. Lookup with spaces/hyphens removed
+  const noSpace = clean.replace(/[\s-_]+/g, '');
+  if (COLOR_MAP[noSpace]) {
+    return COLOR_MAP[noSpace];
+  }
+
+  // 3. Hex code matching (supports 3 or 6 hex digits, with or without #)
+  const hexMatch = clean.match(/^#?([0-9a-f]{6}|[0-9a-f]{3})$/i);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    if (hex.length === 3) {
+      return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toUpperCase();
+    }
+    return `#${hex}`.toUpperCase();
+  }
+
+  return null;
+}
+
 // Default Channel ID tempat hasil Member Card diterbitkan (#card-gallery)
 const GALLERY_CHANNEL_ID = '1532290934396555354';
 
@@ -244,15 +419,15 @@ async function buildMemberCardEmbed(guild, member) {
   // Row 1: Core Server & Account Info (Inline 3 Columns)
   const joinPos = await getMemberJoinPosition(guild, member);
   if (joinPos) {
-    embed.addFields({ name: 'Member Order', value: joinPos, inline: true });
+    embed.addFields({ name: 'Member #', value: joinPos, inline: true });
   }
 
   if (member.joinedAt) {
-    embed.addFields({ name: 'Joined Server', value: formatDate(member.joinedAt), inline: true });
+    embed.addFields({ name: 'Join Server', value: formatDate(member.joinedAt), inline: true });
   }
 
   if (targetUser.createdAt) {
-    embed.addFields({ name: 'Account Created', value: formatDate(targetUser.createdAt), inline: true });
+    embed.addFields({ name: 'Created', value: formatDate(targetUser.createdAt), inline: true });
   }
 
   // Row 2: Real-time Voice Stats & Personal Info (Inline 3 Columns)
@@ -266,30 +441,34 @@ async function buildMemberCardEmbed(guild, member) {
   if (userCard.linkUrl) {
     const linkTitle = userCard.linkTitle || 'Visit Link ↗';
     embed.addFields({
-      name: 'Featured Link',
+      name: 'Social Link',
       value: `[${linkTitle}](${userCard.linkUrl})`,
       inline: true
     });
   }
 
-  // Row 3: Top Voice Companions (Full Width, displayed when companion time exists)
+  // Row 3: Top Voice Friends (Full Width, Vertical List)
   if (voiceStats.topCompanions && voiceStats.topCompanions.length > 0) {
     const compText = voiceStats.topCompanions
-      .map((c, i) => `${i + 1}. **${c.name}** (${c.timeFormatted})`)
-      .join('  •  ');
-    embed.addFields({ name: 'Top Voice Companions', value: compText, inline: false });
+      .map((c, i) => `${i + 1}. **${c.name}** — ${c.timeFormatted}`)
+      .join('\n');
+    embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Process banner: crop to fixed size for consistency
+  // Process banner: crop to fixed size for consistency (or direct embed for GIFs)
   const files = [];
   if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
-    const croppedBuffer = await cropBannerImage(userCard.bannerUrl);
-    if (croppedBuffer) {
-      files.push(new AttachmentBuilder(croppedBuffer, { name: 'banner.png' }));
-      embed.setImage('attachment://banner.png');
-    } else {
-      // Fallback: use raw URL if crop fails
+    const isGif = /\.gif(\?.*)?$/i.test(userCard.bannerUrl) || /tenor\.com|giphy\.com/i.test(userCard.bannerUrl);
+    if (isGif) {
       embed.setImage(userCard.bannerUrl);
+    } else {
+      const croppedBuffer = await cropBannerImage(userCard.bannerUrl);
+      if (croppedBuffer) {
+        files.push(new AttachmentBuilder(croppedBuffer, { name: 'banner.png' }));
+        embed.setImage('attachment://banner.png');
+      } else {
+        console.warn(`[CardHandler] Banner image could not be cropped, skipping broken image embed for ${targetUser.username}`);
+      }
     }
   }
 
@@ -423,12 +602,12 @@ async function handleCardButton(interaction, client) {
 
     const colorInput = new TextInputBuilder()
       .setCustomId('card_input_color')
-      .setLabel('Card Accent Color Hex')
+      .setLabel('Card Color (Nama / Hex)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. #8B5CF6 or #FF5733')
+      .setPlaceholder('e.g. biru, merah, pink, ungu, gold, atau #8B5CF6')
       .setValue(userCard.color || '')
       .setRequired(false)
-      .setMaxLength(7);
+      .setMaxLength(25);
 
     const bannerInput = new TextInputBuilder()
       .setCustomId('card_input_banner')
@@ -577,17 +756,17 @@ async function handleCardModalSubmit(interaction, client) {
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let linkRaw = interaction.fields.getTextInputValue('card_input_link').trim();
-  let color = interaction.fields.getTextInputValue('card_input_color').trim();
-  let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
+  let colorRaw = interaction.fields.getTextInputValue('card_input_color').trim();
+  let resolvedColor = null;
 
-  if (bio.length > 100) bio = bio.slice(0, 100);
-  if (asal.length > 30) asal = asal.slice(0, 30);
-
-  // Validate hex color
-  if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
-    return interaction.editReply({
-      content: 'Invalid color format. Use hex like `#8B5CF6`.'
-    });
+  // Resolve color by name (English / Indonesian) or hex
+  if (colorRaw) {
+    resolvedColor = resolveColor(colorRaw);
+    if (!resolvedColor) {
+      return interaction.editReply({
+        content: 'Warna tidak valid. Gunakan nama warna (contoh: `biru`, `merah`, `ungu`, `pink`, `emas`, `toska`, `black`) atau kode hex seperti `#8B5CF6`.'
+      });
+    }
   }
 
   // Parse custom title & URL or auto-detect platform
@@ -615,7 +794,7 @@ async function handleCardModalSubmit(interaction, client) {
     delete userCard.linkUrl;
   }
 
-  if (color) userCard.color = color.toUpperCase(); else delete userCard.color;
+  if (resolvedColor) userCard.color = resolvedColor; else delete userCard.color;
   if (bannerUrl) userCard.bannerUrl = bannerUrl; else delete userCard.bannerUrl;
 
   storage.write('cards', cardsData);
@@ -634,5 +813,6 @@ module.exports = {
   createCardHubPayload,
   handleCardButton,
   handleCardModalSubmit,
-  buildMemberCardEmbed
+  buildMemberCardEmbed,
+  publishCardToChannel
 };
