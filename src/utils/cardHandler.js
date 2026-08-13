@@ -16,39 +16,28 @@ function createCardHubPayload(guild) {
 
   const embed = new EmbedBuilder()
     .setColor('#8B5CF6')
-    .setTitle('🎴 Member Profile Card Hub')
+    .setTitle('🎴 Member Profile Card')
     .setDescription(
       'Create your custom digital identity card in this server.\n\n' +
       '**How It Works:**\n' +
-      '1. Click **Edit Info** to set your Bio, Location, Fav Music & Hobbies.\n' +
-      '2. Click **Customization** to set Color Hex, Banner Image/GIF & Promo Links.\n' +
-      '3. Click **View My Card** to preview your card privately.\n' +
-      `4. Click **Publish Card** to share/update your card in <#${targetChannelId}>.`
+      `1. Click **Edit Profile** to customize your Bio, Location, Music, Hobbies & Banner. Your card will be automatically published/updated in <#${targetChannelId}>.\n` +
+      '2. Click **View My Card** to preview your card privately.\n' +
+      '3. Click **Reset** to clear all your data and remove your card from the gallery.'
     )
     .setFooter({ text: `${guild.name} • Member Identity System` })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('card_btn_edit_info')
-      .setLabel('Edit Info')
+      .setCustomId('card_btn_edit')
+      .setLabel('Edit Profile')
       .setEmoji('📝')
       .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('card_btn_edit_style')
-      .setLabel('Customization')
-      .setEmoji('🎨')
-      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('card_btn_view_self')
       .setLabel('View My Card')
       .setEmoji('👁️')
       .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('card_btn_publish')
-      .setLabel('Publish Card')
-      .setEmoji('📢')
-      .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('card_btn_reset')
       .setLabel('Reset')
@@ -60,7 +49,7 @@ function createCardHubPayload(guild) {
 }
 
 /**
- * Helper to build interactive ActionRow buttons for published cards in gallery
+ * Helper to build interactive Like & Respect buttons for published cards in gallery
  */
 function createPublishedCardComponents(authorId, likesCount = 0, respectsCount = 0) {
   const row = new ActionRowBuilder().addComponents(
@@ -81,7 +70,7 @@ function createPublishedCardComponents(authorId, likesCount = 0, respectsCount =
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Contains: Display Name, Avatar, Username, Badges, Bio, Location, Joined Server Date, Account Created Date, Fav Music, Hobbies, Promo Link, Image Banner
+ * Fields: Display Name, Avatar, @username, Bio, Location, Joined Server, Account Created, Fav Music, Hobbies, Banner Image
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -95,23 +84,7 @@ async function buildMemberCardEmbed(guild, member) {
 
   const embedColor = userCard.color || member.roles.color?.hexColor || '#8B5CF6';
 
-  // Automatic Server Badges
-  const badges = [];
-  if (guild.ownerId === targetUser.id) {
-    badges.push('👑 Owner');
-  } else if (member.permissions.has('Administrator') || member.permissions.has('ManageGuild')) {
-    badges.push('🛡️ Staff');
-  } else if (member.permissions.has('ManageMessages') || member.permissions.has('ModerateMembers')) {
-    badges.push('🛡️ Mod');
-  }
-
-  if (member.premiumSince) {
-    badges.push('🚀 Booster');
-  }
-
-  badges.push('🎵 Music Lover');
-
-  let description = `\`@${targetUser.username}\` • ${badges.join(' • ')}`;
+  let description = `\`@${targetUser.username}\``;
   if (userCard.bio) {
     description += `\n\n*"${userCard.bio}"*`;
   }
@@ -142,17 +115,7 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: '🎮 Hobbies', value: userCard.hobbies, inline: true });
   }
 
-  // Promotional / Custom Link Field
-  if (userCard.linkUrl) {
-    const title = userCard.linkTitle || '🔗 Featured Link';
-    embed.addFields({
-      name: title,
-      value: userCard.linkUrl,
-      inline: false
-    });
-  }
-
-  // Custom Banner / GIF Image below fields
+  // Custom Banner / GIF Image
   if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
     embed.setImage(userCard.bannerUrl);
   }
@@ -206,11 +169,11 @@ async function publishCardToChannel(guild, member, client) {
           embeds: [embed],
           components: components
         });
-        console.log(`[CardHandler] Card for ${member.displayName} updated in-place (msg ${existingMsgId}) in #${publishChannel.name}`);
+        console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
         return 'updated';
       }
     } catch (fetchErr) {
-      console.warn(`[CardHandler] Could not fetch existing message ${existingMsgId} to edit (may be deleted), creating new message instead.`);
+      console.warn(`[CardHandler] Could not fetch existing message ${existingMsgId}, creating new message.`);
     }
   }
 
@@ -247,14 +210,14 @@ async function handleCardButton(interaction, client) {
   const settings = storage.read('settings');
   const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
-  // 1. EDIT PROFILE INFO (Bio, Location, Fav Music, Hobbies)
-  if (customId === 'card_btn_edit_info') {
+  // 1. EDIT PROFILE → Single Modal (5 fields: Bio, Location, Fav Music, Hobbies, Banner URL)
+  if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
 
     const modal = new ModalBuilder()
-      .setCustomId('card_modal_info_submit')
-      .setTitle('Edit Profile Info');
+      .setCustomId('card_modal_submit')
+      .setTitle('Edit Member Profile');
 
     const bioInput = new TextInputBuilder()
       .setCustomId('card_input_bio')
@@ -292,34 +255,6 @@ async function handleCardButton(interaction, client) {
       .setRequired(false)
       .setMaxLength(50);
 
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(bioInput),
-      new ActionRowBuilder().addComponents(asalInput),
-      new ActionRowBuilder().addComponents(favMusicInput),
-      new ActionRowBuilder().addComponents(hobbiesInput)
-    );
-
-    return interaction.showModal(modal);
-  }
-
-  // 2. EDIT CUSTOMIZATION & LINKS (Color, Banner URL, Promo Title & Link)
-  if (customId === 'card_btn_edit_style') {
-    const cardsData = storage.read('cards');
-    const userCard = cardsData[guildId]?.[userId] || {};
-
-    const modal = new ModalBuilder()
-      .setCustomId('card_modal_style_submit')
-      .setTitle('Customization & Links');
-
-    const colorInput = new TextInputBuilder()
-      .setCustomId('card_input_color')
-      .setLabel('Accent Color Hex (Optional)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. #8B5CF6 or #FF5733')
-      .setValue(userCard.color || '')
-      .setRequired(false)
-      .setMaxLength(7);
-
     const bannerInput = new TextInputBuilder()
       .setCustomId('card_input_banner')
       .setLabel('Banner Image/GIF URL (Optional)')
@@ -329,35 +264,18 @@ async function handleCardButton(interaction, client) {
       .setRequired(false)
       .setMaxLength(250);
 
-    const linkTitleInput = new TextInputBuilder()
-      .setCustomId('card_input_link_title')
-      .setLabel('Promo Link Title (Max 30)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. YouTube Channel, Spotify, Portfolio')
-      .setValue(userCard.linkTitle || '')
-      .setRequired(false)
-      .setMaxLength(30);
-
-    const linkUrlInput = new TextInputBuilder()
-      .setCustomId('card_input_link_url')
-      .setLabel('Promo Link URL (Optional)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. https://youtube.com/@mychannel')
-      .setValue(userCard.linkUrl || '')
-      .setRequired(false)
-      .setMaxLength(250);
-
     modal.addComponents(
-      new ActionRowBuilder().addComponents(colorInput),
-      new ActionRowBuilder().addComponents(bannerInput),
-      new ActionRowBuilder().addComponents(linkTitleInput),
-      new ActionRowBuilder().addComponents(linkUrlInput)
+      new ActionRowBuilder().addComponents(bioInput),
+      new ActionRowBuilder().addComponents(asalInput),
+      new ActionRowBuilder().addComponents(favMusicInput),
+      new ActionRowBuilder().addComponents(hobbiesInput),
+      new ActionRowBuilder().addComponents(bannerInput)
     );
 
     return interaction.showModal(modal);
   }
 
-  // 3. VIEW MY CARD (Ephemeral — Clean Embed)
+  // 2. VIEW MY CARD (Ephemeral Preview)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -375,28 +293,8 @@ async function handleCardButton(interaction, client) {
     }
   }
 
-  // 4. PUBLISH CARD → Send or update in #card-gallery
-  if (customId === 'card_btn_publish') {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const result = await publishCardToChannel(interaction.guild, interaction.member, client);
-
-    if (result === 'first') {
-      return interaction.editReply({
-        content: `Your Member Card has been successfully published in <#${targetChannelId}>!`
-      });
-    } else if (result === 'updated') {
-      return interaction.editReply({
-        content: `Your Member Card has been updated in <#${targetChannelId}>!`
-      });
-    } else {
-      return interaction.editReply({
-        content: `Failed to publish card. Please ensure the bot has Send Messages permission in <#${targetChannelId}>.`
-      });
-    }
-  }
-
-  // 5. RESET CARD
+  // 4. RESET CARD
   if (customId === 'card_btn_reset') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId];
@@ -414,20 +312,19 @@ async function handleCardButton(interaction, client) {
       storage.write('cards', cardsData);
     }
     return interaction.reply({
-      content: 'Your profile card has been reset to default and removed from the gallery.',
+      content: 'Your profile card has been reset and removed from the gallery.',
       flags: MessageFlags.Ephemeral
     });
   }
 
-  // 6. LIKE & RESPECT BUTTONS ON PUBLISHED CARD
+  // 5. LIKE & RESPECT BUTTONS (on published cards in gallery)
   if (customId.startsWith('card_btn_like_') || customId.startsWith('card_btn_respect_')) {
     const isLike = customId.startsWith('card_btn_like_');
     const authorId = customId.replace(isLike ? 'card_btn_like_' : 'card_btn_respect_', '');
-
     const voterId = interaction.user.id;
-    const cardsData = storage.read('cards');
 
-    if (!cardsData[guildId] || !cardsData[guildId][authorId]) {
+    const cardsData = storage.read('cards');
+    if (!cardsData[guildId]?.[authorId]) {
       return interaction.reply({
         content: '❌ Card data not found.',
         flags: MessageFlags.Ephemeral
@@ -435,30 +332,27 @@ async function handleCardButton(interaction, client) {
     }
 
     const targetCard = cardsData[guildId][authorId];
+
+    // Toggle vote (add or remove)
     if (isLike) {
       if (!Array.isArray(targetCard.likes)) targetCard.likes = [];
       const idx = targetCard.likes.indexOf(voterId);
-      if (idx > -1) {
-        targetCard.likes.splice(idx, 1);
-      } else {
-        targetCard.likes.push(voterId);
-      }
+      if (idx > -1) targetCard.likes.splice(idx, 1);
+      else targetCard.likes.push(voterId);
     } else {
       if (!Array.isArray(targetCard.respects)) targetCard.respects = [];
       const idx = targetCard.respects.indexOf(voterId);
-      if (idx > -1) {
-        targetCard.respects.splice(idx, 1);
-      } else {
-        targetCard.respects.push(voterId);
-      }
+      if (idx > -1) targetCard.respects.splice(idx, 1);
+      else targetCard.respects.push(voterId);
     }
 
     storage.write('cards', cardsData);
 
+    // Re-build and update the message in-place (real-time)
     const authorMember = await interaction.guild.members.fetch(authorId).catch(() => null);
     if (!authorMember) {
       return interaction.reply({
-        content: '❌ Member card author not found.',
+        content: '❌ Card author not found in this server.',
         flags: MessageFlags.Ephemeral
       });
     }
@@ -470,7 +364,7 @@ async function handleCardButton(interaction, client) {
       (targetCard.respects || []).length
     );
 
-    // Update message in-place instantly
+    // Update the message instantly (real-time update)
     await interaction.update({
       embeds: [updatedEmbed],
       components: updatedComponents
@@ -481,8 +375,8 @@ async function handleCardButton(interaction, client) {
       : targetCard.respects.includes(voterId);
 
     const actionText = isLike
-      ? (isAdded ? '❤️ You liked this Member Card!' : 'You removed your like.')
-      : (isAdded ? '⭐ You gave respect to this Member Card!' : 'You removed your respect.');
+      ? (isAdded ? '❤️ You liked this card!' : 'You removed your like.')
+      : (isAdded ? '⭐ You gave respect!' : 'You removed your respect.');
 
     return interaction.followUp({
       content: actionText,
@@ -492,92 +386,56 @@ async function handleCardButton(interaction, client) {
 }
 
 /**
- * Handle modal form submit — save data & auto-publish
+ * Handle modal form submit — save data & auto-update if already published
  */
 async function handleCardModalSubmit(interaction, client) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const guildId = interaction.guild.id;
   const userId = interaction.user.id;
-  const customId = interaction.customId;
 
   const settings = storage.read('settings');
   const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
+  let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
+  let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
+  let favMusic = interaction.fields.getTextInputValue('card_input_favmusic').trim();
+  let hobbies = interaction.fields.getTextInputValue('card_input_hobbies').trim();
+  let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
+
+  if (bio.length > 100) bio = bio.slice(0, 100);
+  if (asal.length > 30) asal = asal.slice(0, 30);
+  if (favMusic.length > 50) favMusic = favMusic.slice(0, 50);
+  if (hobbies.length > 50) hobbies = hobbies.slice(0, 50);
+
+  // Format banner URL
+  if (bannerUrl && !/^https?:\/\//i.test(bannerUrl)) {
+    bannerUrl = `https://${bannerUrl}`;
+  }
+
+  // Save profile data
   const cardsData = storage.read('cards');
   if (!cardsData[guildId]) cardsData[guildId] = {};
   if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
 
   const userCard = cardsData[guildId][userId];
 
-  if (customId === 'card_modal_info_submit') {
-    let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
-    let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
-    let favMusic = interaction.fields.getTextInputValue('card_input_favmusic').trim();
-    let hobbies = interaction.fields.getTextInputValue('card_input_hobbies').trim();
+  if (bio) userCard.bio = bio; else delete userCard.bio;
+  if (asal) userCard.asal = asal; else delete userCard.asal;
+  if (favMusic) userCard.favMusic = favMusic; else delete userCard.favMusic;
+  if (hobbies) userCard.hobbies = hobbies; else delete userCard.hobbies;
+  if (bannerUrl) userCard.bannerUrl = bannerUrl; else delete userCard.bannerUrl;
 
-    if (bio.length > 100) bio = bio.slice(0, 100);
-    if (asal.length > 30) asal = asal.slice(0, 30);
-    if (favMusic.length > 50) favMusic = favMusic.slice(0, 50);
-    if (hobbies.length > 50) hobbies = hobbies.slice(0, 50);
+  storage.write('cards', cardsData);
 
-    if (bio) userCard.bio = bio; else delete userCard.bio;
-    if (asal) userCard.asal = asal; else delete userCard.asal;
-    if (favMusic) userCard.favMusic = favMusic; else delete userCard.favMusic;
-    if (hobbies) userCard.hobbies = hobbies; else delete userCard.hobbies;
+  // Always auto-publish/update card in gallery on submit
+  await interaction.editReply({
+    content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
+  });
 
-    storage.write('cards', cardsData);
-
-    await interaction.editReply({
-      content: `**Profile info saved!** Updating your Member Card in <#${targetChannelId}>...`
-    });
-  } else if (customId === 'card_modal_style_submit') {
-    let color = interaction.fields.getTextInputValue('card_input_color').trim();
-    let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
-    let linkTitle = interaction.fields.getTextInputValue('card_input_link_title').trim();
-    let linkUrl = interaction.fields.getTextInputValue('card_input_link_url').trim();
-
-    if (linkTitle.length > 30) linkTitle = linkTitle.slice(0, 30);
-
-    // Validate hex color
-    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
-      return interaction.editReply({
-        content: 'Invalid hex color format! Please use a valid hex code like `#8B5CF6`.'
-      });
-    }
-
-    // Format URLs if provided
-    if (bannerUrl && !/^https?:\/\//i.test(bannerUrl)) {
-      bannerUrl = `https://${bannerUrl}`;
-    }
-    if (linkUrl && !/^https?:\/\//i.test(linkUrl)) {
-      linkUrl = `https://${linkUrl}`;
-    }
-
-    if (color) userCard.color = color.toUpperCase(); else delete userCard.color;
-    if (bannerUrl) userCard.bannerUrl = bannerUrl; else delete userCard.bannerUrl;
-
-    if (linkUrl) {
-      userCard.linkTitle = linkTitle || 'Featured Link';
-      userCard.linkUrl = linkUrl;
-    } else {
-      delete userCard.linkTitle;
-      delete userCard.linkUrl;
-    }
-
-    storage.write('cards', cardsData);
-
-    await interaction.editReply({
-      content: `**Customization saved!** Updating your Member Card in <#${targetChannelId}>...`
-    });
-  }
-
-  // Auto-update published card in gallery if card was already published
-  if (userCard.publishedMessageId) {
-    publishCardToChannel(interaction.guild, interaction.member, client).catch(err => {
-      console.error('[CardHandler] Background auto-update failed:', err.message);
-    });
-  }
+  publishCardToChannel(interaction.guild, interaction.member, client).catch(err => {
+    console.error('[CardHandler] Background auto-publish failed:', err.message);
+  });
 }
 
 module.exports = {
