@@ -520,7 +520,8 @@ async function publishCardToChannel(guild, member, client) {
         return 'updated';
       }
     } catch (fetchErr) {
-      console.warn(`[CardHandler] Could not fetch existing message ${existingMsgId}, creating new message.`);
+      delete userCard.publishedMessageId;
+      storage.write('cards', cardsData);
     }
   }
 
