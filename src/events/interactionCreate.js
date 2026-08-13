@@ -46,7 +46,7 @@ module.exports = {
     }
 
     // ====== Modal Submit Interaction (Pop-up Form Card Member) ======
-    if (interaction.isModalSubmit() && interaction.customId === 'card_modal_submit') {
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('card_modal_')) {
       try {
         await handleCardModalSubmit(interaction, client);
       } catch (err) {
