@@ -20,14 +20,27 @@ function getBannerFilePath(guildId, userId) {
   return path.join(BANNERS_DIR, `${guildId}_${userId}.png`);
 }
 
+function normalizeBannerUrl(url) {
+  if (!url) return '';
+  let clean = url.trim();
+  if (!/^https?:\/\//i.test(clean)) clean = `https://${clean}`;
+  // Convert imgur.com/abc to i.imgur.com/abc.png
+  const imgurMatch = clean.match(/^https?:\/\/imgur\.com\/([a-zA-Z0-9]+)$/i);
+  if (imgurMatch) {
+    clean = `https://i.imgur.com/${imgurMatch[1]}.png`;
+  }
+  return clean;
+}
+
 /**
  * Center-crop any image (square/vertical/landscape) to exactly 800x240 PNG and save to disk
  */
 async function cropAndSaveBanner(url, guildId, userId) {
   if (!url) return false;
   const outPath = getBannerFilePath(guildId, userId);
+  const targetUrl = normalizeBannerUrl(url);
   try {
-    const res = await fetch(url, {
+    const res = await fetch(targetUrl, {
       signal: AbortSignal.timeout(8000),
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
