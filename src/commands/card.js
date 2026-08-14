@@ -22,11 +22,10 @@ module.exports = {
     }
 
     try {
-      const { embed, files } = await buildMemberCardEmbed(interaction.guild, member);
+      const embed = await buildMemberCardEmbed(interaction.guild, member);
       await interaction.editReply({
         content: `**${member.displayName}:**`,
-        embeds: [embed],
-        files: files
+        embeds: [embed]
       });
     } catch (err) {
       console.error('[/card] Error:', err);

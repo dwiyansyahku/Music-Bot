@@ -8,100 +8,7 @@ const https = require('https');
 const http = require('http');
 const storage = require('./storage');
 
-// Banner dimensions (fixed for all cards)
-const BANNER_WIDTH = 800;
-const BANNER_HEIGHT = 240;
 
-/**
- * Download image buffer from URL with modern fetch & timeout
- */
-async function fetchImageBuffer(urlStr, timeoutMs = 8000) {
-  const res = await fetch(urlStr, {
-    signal: AbortSignal.timeout(timeoutMs),
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-    }
-  });
-
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} ${res.statusText}`);
-  }
-
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('text/html')) {
-    throw new Error('URL returned HTML webpage instead of a direct image');
-  }
-
-  const arrayBuffer = await res.arrayBuffer();
-  return Buffer.from(arrayBuffer);
-}
-
-/**
- * Download and center-crop any image to a fixed banner size (800x240).
- * Returns a PNG Buffer or null on failure.
- */
-async function cropBannerImage(url) {
-  try {
-    const buffer = await fetchImageBuffer(url, 8000);
-    const img = await loadImage(buffer);
-
-    const canvas = createCanvas(BANNER_WIDTH, BANNER_HEIGHT);
-    const ctx = canvas.getContext('2d');
-
-    // Calculate center-crop (cover)
-    const srcRatio = img.width / img.height;
-    const dstRatio = BANNER_WIDTH / BANNER_HEIGHT;
-    let sx, sy, sw, sh;
-
-    if (srcRatio > dstRatio) {
-      // Source is wider — crop sides
-      sh = img.height;
-      sw = img.height * dstRatio;
-      sx = (img.width - sw) / 2;
-      sy = 0;
-    } else {
-      // Source is taller — crop top/bottom
-      sw = img.width;
-      sh = img.width / dstRatio;
-      sx = 0;
-      sy = (img.height - sh) / 2;
-    }
-
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, BANNER_WIDTH, BANNER_HEIGHT);
-    return canvas.toBuffer('image/png');
-  } catch (err) {
-    console.warn('[CardHandler] Banner crop failed:', err.message);
-    return null;
-  }
-}
-
-// In-memory cache for cropped banner buffers: url -> { buffer, expiresAt }
-const bannerCache = new Map();
-
-/**
- * Get cropped banner buffer with 15-minute in-memory caching to avoid redundant downloads
- */
-async function getCroppedBanner(url) {
-  if (!url) return null;
-  const now = Date.now();
-  if (bannerCache.has(url)) {
-    const cached = bannerCache.get(url);
-    if (cached.expiresAt > now) {
-      return cached.buffer;
-    }
-    bannerCache.delete(url);
-  }
-
-  const buffer = await cropBannerImage(url);
-  if (buffer) {
-    bannerCache.set(url, {
-      buffer,
-      expiresAt: now + 15 * 60 * 1000 // Cache for 15 minutes
-    });
-  }
-  return buffer;
-}
 
 /**
  * Parse promo link input: supports 'Title | URL' or standalone 'URL' (auto-detects platform name)
@@ -476,52 +383,23 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Process banner: crop to 800x240 for consistency
-  const files = [];
+  // Set banner image directly (Discord proxy renders images natively with zero server socket overhead)
   if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
-    const isGif = /\.gif(\?.*)?$/i.test(userCard.bannerUrl);
-    if (isGif) {
-      embed.setImage(userCard.bannerUrl);
-    } else {
-      const croppedBuffer = await getCroppedBanner(userCard.bannerUrl);
-      if (croppedBuffer) {
-        files.push(new AttachmentBuilder(croppedBuffer, { name: 'banner.png' }));
-        embed.setImage('attachment://banner.png');
-      }
-    }
+    embed.setImage(userCard.bannerUrl);
   }
 
   embed
     .setFooter({ text: `${guild.name} • Member Card` })
     .setTimestamp();
 
-  return { embed, files };
+  return embed;
 }
 
 /**
  * Publish or update member card in #card-gallery.
  * @returns {Promise<'first'|'updated'|null>}
  */
-// In-flight concurrency lock per user to avoid concurrent conflicting publishes
-const publishingLocks = new Set();
-
-/**
- * Publish or update member card in #card-gallery (with lock & socket retry).
- * @returns {Promise<'first'|'updated'|null>}
- */
 async function publishCardToChannel(guild, member, client) {
-  const lockKey = `${guild.id}_${member.id}`;
-  if (publishingLocks.has(lockKey)) return null;
-  publishingLocks.add(lockKey);
-
-  try {
-    return await doPublishCard(guild, member, client);
-  } finally {
-    publishingLocks.delete(lockKey);
-  }
-}
-
-async function doPublishCard(guild, member, client, isRetry = false) {
   const guildId = guild.id;
   const userId = member.id;
 
@@ -545,7 +423,7 @@ async function doPublishCard(guild, member, client, isRetry = false) {
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
 
-  const { embed, files } = await buildMemberCardEmbed(guild, member);
+  const embed = await buildMemberCardEmbed(guild, member);
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
 
   // If card was already published, edit existing message in-place
@@ -553,16 +431,11 @@ async function doPublishCard(guild, member, client, isRetry = false) {
     try {
       const existingMsg = await publishChannel.messages.fetch(existingMsgId);
       if (existingMsg) {
-        const editPayload = {
+        await existingMsg.edit({
           content: `**${member.displayName}** updated their Member Card.`,
           embeds: [embed],
           components: components
-        };
-        if (files && files.length > 0) {
-          editPayload.files = files;
-        }
-
-        await existingMsg.edit(editPayload);
+        });
         console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
         return 'updated';
       }
@@ -570,9 +443,6 @@ async function doPublishCard(guild, member, client, isRetry = false) {
       if (fetchErr.code === 10008 || fetchErr.status === 404) {
         delete userCard.publishedMessageId;
         storage.write('cards', cardsData);
-      } else if (!isRetry && (fetchErr.message?.includes('closed') || fetchErr.code === 'UND_ERR_SOCKET')) {
-        await new Promise(r => setTimeout(r, 600));
-        return doPublishCard(guild, member, client, true);
       }
     }
   }
@@ -583,8 +453,7 @@ async function doPublishCard(guild, member, client, isRetry = false) {
     const newMsg = await publishChannel.send({
       content: warmMessage,
       embeds: [embed],
-      components: components,
-      files: files
+      components: components
     });
 
     if (!cardsData[guildId]) cardsData[guildId] = {};
@@ -595,10 +464,6 @@ async function doPublishCard(guild, member, client, isRetry = false) {
     console.log(`[CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
     return existingMsgId ? 'updated' : 'first';
   } catch (sendErr) {
-    if (!isRetry && (sendErr.message?.includes('closed') || sendErr.code === 'UND_ERR_SOCKET')) {
-      await new Promise(r => setTimeout(r, 600));
-      return doPublishCard(guild, member, client, true);
-    }
     console.error(`[CardHandler] Failed to publish card:`, sendErr.message);
     return null;
   }
@@ -680,28 +545,21 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Ephemeral Preview with Socket Retry)
+  // 2. VIEW MY CARD (Ephemeral Preview)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member);
-        return await interaction.editReply({
-          content: '*Your Member Card Preview:*',
-          embeds: [embed],
-          files: files
-        });
-      } catch (err) {
-        if (attempt === 0 && (err.message?.includes('closed') || err.code === 'UND_ERR_SOCKET')) {
-          await new Promise(r => setTimeout(r, 600));
-          continue;
-        }
-        console.error('[ViewCard] Error:', err);
-        return await interaction.editReply({
-          content: `Failed to generate card preview: ${err.message}`
-        });
-      }
+    try {
+      const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
+      return await interaction.editReply({
+        content: '*Your Member Card Preview:*',
+        embeds: [embed]
+      });
+    } catch (err) {
+      console.error('[ViewCard] Error:', err);
+      return await interaction.editReply({
+        content: `Failed to generate card preview: ${err.message}`
+      });
     }
   }
 
