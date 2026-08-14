@@ -27,6 +27,7 @@ function formatDuration(ms) {
  */
 function initVoiceTracker(client) {
   let count = 0;
+  const now = Date.now();
   for (const guild of client.guilds.cache.values()) {
     const voiceChannels = guild.channels.cache.filter(c => c.isVoiceBased());
     for (const channel of voiceChannels.values()) {
@@ -34,7 +35,8 @@ function initVoiceTracker(client) {
         if (!member.user.bot) {
           activeSessions.set(`${guild.id}_${member.id}`, {
             channelId: channel.id,
-            joinedAt: Date.now()
+            joinedAt: now,
+            sessionStart: now
           });
           count++;
         }
@@ -124,7 +126,8 @@ function handleVoiceStateUpdate(oldState, newState, client) {
   if (newChannelId) {
     activeSessions.set(sessionKey, {
       channelId: newChannelId,
-      joinedAt: now
+      joinedAt: now,
+      sessionStart: now
     });
   }
 }
@@ -138,34 +141,17 @@ function getVoiceStats(guildId, userId, guild) {
 
   let totalMs = userStats.totalTime || 0;
 
-  // Add live session time if currently in voice
+  // Add in-memory session if user is currently in voice
   const sessionKey = `${guildId}_${userId}`;
-  const now = Date.now();
   if (activeSessions.has(sessionKey)) {
     const session = activeSessions.get(sessionKey);
-    totalMs += (now - session.joinedAt);
+    totalMs += (Date.now() - session.joinedAt);
   }
 
   const formattedTime = formatDuration(totalMs);
 
-  // Calculate companions including live shared time
-  const companionsMap = { ...(userStats.companions || {}) };
-
-  if (activeSessions.has(sessionKey)) {
-    const session = activeSessions.get(sessionKey);
-    for (const [key, otherSession] of activeSessions.entries()) {
-      if (key !== sessionKey && key.startsWith(`${guildId}_`) && otherSession.channelId === session.channelId) {
-        const otherUserId = key.replace(`${guildId}_`, '');
-        const overlapStart = Math.max(session.joinedAt, otherSession.joinedAt);
-        const liveShared = now - overlapStart;
-        if (liveShared > 0) {
-          companionsMap[otherUserId] = (companionsMap[otherUserId] || 0) + liveShared;
-        }
-      }
-    }
-  }
-
-  const sortedCompanions = Object.entries(companionsMap)
+  // Sort companions by overlapping voice time
+  const sortedCompanions = Object.entries(userStats.companions || {})
     .sort(([, a], [, b]) => b - a)
     .slice(0, 3);
 
@@ -201,7 +187,7 @@ function isUserInVoice(guildId, userId) {
 function getLiveVoiceInfo(guildId, userId) {
   const session = activeSessions.get(`${guildId}_${userId}`);
   if (session) {
-    const elapsed = Date.now() - session.joinedAt;
+    const elapsed = Date.now() - (session.sessionStart || session.joinedAt);
     return {
       inVoice: true,
       channelId: session.channelId,
