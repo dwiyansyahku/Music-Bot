@@ -214,12 +214,12 @@ async function buildMemberCardEmbed(guild, member) {
     });
   }
 
-  // Row 4: Top Voice Friends (Full Width, Vertical List)
+  // Row 4: Top Voice Companions (Full Width, Vertical List)
   if (voiceStats.topCompanions && voiceStats.topCompanions.length > 0) {
     const compText = voiceStats.topCompanions
       .map((c, i) => `${i + 1}. **${c.name}** — ${c.timeFormatted}`)
       .join('\n');
-    embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
+    embed.addFields({ name: 'Top Voice Companions', value: compText, inline: false });
   }
 
   // Banner image: Direct Image URL via Discord native proxy (Instant, 0 socket drops)

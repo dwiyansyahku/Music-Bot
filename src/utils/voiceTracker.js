@@ -140,18 +140,31 @@ function getVoiceStats(guildId, userId, guild) {
   const userStats = statsData[guildId]?.[userId] || { totalTime: 0, companions: {} };
 
   let totalMs = userStats.totalTime || 0;
+  const companionsMap = { ...(userStats.companions || {}) };
 
-  // Add in-memory session if user is currently in voice
   const sessionKey = `${guildId}_${userId}`;
+  const now = Date.now();
   if (activeSessions.has(sessionKey)) {
     const session = activeSessions.get(sessionKey);
-    totalMs += (Date.now() - session.joinedAt);
+    totalMs += (now - session.joinedAt);
+
+    // Calculate real-time live shared time with everyone in the same voice channel right now
+    for (const [otherKey, otherSession] of activeSessions.entries()) {
+      if (otherKey !== sessionKey && otherKey.startsWith(`${guildId}_`) && otherSession.channelId === session.channelId) {
+        const otherUserId = otherKey.replace(`${guildId}_`, '');
+        const overlapStart = Math.max(session.joinedAt, otherSession.joinedAt);
+        const shared = now - overlapStart;
+        if (shared > 0) {
+          companionsMap[otherUserId] = (companionsMap[otherUserId] || 0) + shared;
+        }
+      }
+    }
   }
 
   const formattedTime = formatDuration(totalMs);
 
-  // Sort companions by overlapping voice time
-  const sortedCompanions = Object.entries(userStats.companions || {})
+  // Sort companions by total overlapping voice time
+  const sortedCompanions = Object.entries(companionsMap)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 3);
 
@@ -206,30 +219,40 @@ function flushAllActiveSessions() {
   const now = Date.now();
   const statsData = storage.read('voiceStats');
 
+  // 1. Calculate all shared increments first before updating joinedAt
+  const increments = [];
   for (const [key, session] of activeSessions.entries()) {
     const [guildId, userId] = key.split('_');
     const elapsed = now - session.joinedAt;
     if (elapsed < 1000) continue;
 
-    if (!statsData[guildId]) statsData[guildId] = {};
-    if (!statsData[guildId][userId]) {
-      statsData[guildId][userId] = { totalTime: 0, companions: {} };
-    }
-
-    const userStats = statsData[guildId][userId];
-    userStats.totalTime = (userStats.totalTime || 0) + elapsed;
-    if (!userStats.companions) userStats.companions = {};
-
-    // Calculate companion shared times
+    const userCompanions = {};
     for (const [otherKey, otherSession] of activeSessions.entries()) {
       if (otherKey !== key && otherKey.startsWith(`${guildId}_`) && otherSession.channelId === session.channelId) {
         const otherUserId = otherKey.replace(`${guildId}_`, '');
         const overlapStart = Math.max(session.joinedAt, otherSession.joinedAt);
         const shared = now - overlapStart;
         if (shared > 1000) {
-          userStats.companions[otherUserId] = (userStats.companions[otherUserId] || 0) + shared;
+          userCompanions[otherUserId] = shared;
         }
       }
+    }
+    increments.push({ guildId, userId, elapsed, companions: userCompanions, session });
+  }
+
+  // 2. Commit all increments to database and advance joinedAt checkpoints
+  for (const inc of increments) {
+    const { guildId, userId, elapsed, companions, session } = inc;
+    if (!statsData[guildId]) statsData[guildId] = {};
+    if (!statsData[guildId][userId]) {
+      statsData[guildId][userId] = { totalTime: 0, companions: {} };
+    }
+    const userStats = statsData[guildId][userId];
+    userStats.totalTime = (userStats.totalTime || 0) + elapsed;
+    if (!userStats.companions) userStats.companions = {};
+
+    for (const [cId, shared] of Object.entries(companions)) {
+      userStats.companions[cId] = (userStats.companions[cId] || 0) + shared;
     }
 
     session.joinedAt = now;
