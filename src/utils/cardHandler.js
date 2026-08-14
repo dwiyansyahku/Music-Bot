@@ -697,7 +697,7 @@ async function handleCardButton(interaction, client) {
 
     const linkInput = new TextInputBuilder()
       .setCustomId('card_input_link')
-      .setLabel('Social Link (Judul | URL, atau langsung URL)')
+      .setLabel('Social Link (Judul | URL)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('e.g. Instagram | https://instagram.com/myusername')
       .setValue(userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
@@ -706,7 +706,7 @@ async function handleCardButton(interaction, client) {
 
     const songInput = new TextInputBuilder()
       .setCustomId('card_input_song')
-      .setLabel('Favorite Song (Judul | Link MP3 / Spotify / YT)')
+      .setLabel('Favorite Song (Judul | Link Audio)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('e.g. Penjaga Hati | https://cdn.discordapp.com/.../song.mp3 (Klik kanan MP3 -> Copy Link)')
       .setValue(userCard.songTitle && userCard.songUrl ? `${userCard.songTitle} | ${userCard.songUrl}` : (userCard.songTitle || userCard.songUrl || ''))
@@ -733,29 +733,24 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Ephemeral Preview with Native Audio Player & Banner)
+  // 2. VIEW MY CARD (Ephemeral Preview with Native Audio Player & Banner — pure JSON)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       const cardsData = storage.read('cards');
       const userCard = cardsData[guildId]?.[userId] || {};
-      const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member, { attachFiles: true });
+      const { embed } = await buildMemberCardEmbed(interaction.guild, interaction.member);
 
       let content = '*Your Member Card Preview:*';
       if (userCard.songUrl && /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(userCard.songUrl)) {
         content = `*Your Member Card Preview:*\n${userCard.songUrl}`;
       }
 
-      const replyPayload = {
+      return await interaction.editReply({
         content: content,
         embeds: [embed]
-      };
-      if (files && files.length > 0) {
-        replyPayload.files = files;
-      }
-
-      return await interaction.editReply(replyPayload);
+      });
     } catch (err) {
       console.error('[ViewCard] Error:', err);
       return await interaction.editReply({
