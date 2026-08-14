@@ -196,6 +196,22 @@ function isUserInVoice(guildId, userId) {
 }
 
 /**
+ * Get live voice session details (channel and elapsed duration)
+ */
+function getLiveVoiceInfo(guildId, userId) {
+  const session = activeSessions.get(`${guildId}_${userId}`);
+  if (session) {
+    const elapsed = Date.now() - session.joinedAt;
+    return {
+      inVoice: true,
+      channelId: session.channelId,
+      durationFormatted: formatDuration(elapsed)
+    };
+  }
+  return { inVoice: false, durationFormatted: null };
+}
+
+/**
  * Flush all active voice sessions incrementally to disk.
  * Ensures 0 data loss during bot restarts, updates, or redeploys.
  */
@@ -248,6 +264,7 @@ module.exports = {
   initVoiceTracker,
   handleVoiceStateUpdate,
   getVoiceStats,
+  getLiveVoiceInfo,
   formatDuration,
   isUserInVoice,
   flushAllActiveSessions

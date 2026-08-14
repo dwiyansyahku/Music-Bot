@@ -360,5 +360,30 @@ module.exports = {
     } catch (jailErr) {
       console.error('⚠️ [Jail Startup] Gagal memproses data jail pada boot:', jailErr.message);
     }
+
+    // =============================================
+    // AUTO-UPDATE CARD HUB PANELS ON STARTUP (#create-card)
+    // =============================================
+    try {
+      const settings = storage.read('settings');
+      const { createCardHubPayload } = require('../utils/cardHandler');
+      for (const guild of client.guilds.cache.values()) {
+        const guildSettings = settings[guild.id];
+        if (guildSettings?.cardHubChannelId && guildSettings?.cardHubMessageId) {
+          const ch = guild.channels.cache.get(guildSettings.cardHubChannelId)
+            || await client.channels.fetch(guildSettings.cardHubChannelId).catch(() => null);
+          if (ch) {
+            const msg = await ch.messages.fetch(guildSettings.cardHubMessageId).catch(() => null);
+            if (msg) {
+              const payload = createCardHubPayload(guild);
+              await msg.edit(payload).catch(() => {});
+              console.log(`✨ [CardHub] Panel #create-card otomatis diperbarui untuk ${guild.name}`);
+            }
+          }
+        }
+      }
+    } catch (hubErr) {
+      console.warn('[CardHub] Auto-update panel on startup failed:', hubErr.message);
+    }
   },
 };

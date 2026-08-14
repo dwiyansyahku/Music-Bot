@@ -3,6 +3,7 @@ const {
   ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags
 } = require('discord.js');
 const storage = require('./storage');
+const { getVoiceStats, getLiveVoiceInfo } = require('./voiceTracker');
 
 function normalizeBannerUrl(url) {
   if (!url) return '';
@@ -14,53 +15,6 @@ function normalizeBannerUrl(url) {
     clean = `https://i.imgur.com/${imgurMatch[1]}.png`;
   }
   return clean;
-}
-
-/**
- * Parse favorite song input: supports 'Title | URL', standalone Spotify / YouTube / audio link, or plain text title
- */
-function parseSongInput(input) {
-  if (!input || !input.trim()) return null;
-  const trimmed = input.trim();
-
-  // Format: "Judul Lagu | URL"
-  if (trimmed.includes('|')) {
-    const parts = trimmed.split('|');
-    const title = parts[0].trim();
-    let url = parts.slice(1).join('|').trim();
-    if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
-    return { title: title || 'Favorite Track', url: url || null };
-  }
-
-  // If it's a direct URL
-  if (/^https?:\/\//i.test(trimmed) || /^(open\.spotify\.com|youtu|soundcloud\.com|cdn\.discordapp\.com)/i.test(trimmed)) {
-    let url = trimmed;
-    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-
-    // Discord message link (jump to message)
-    if (/discord\.com\/channels\//i.test(url)) {
-      return { title: 'Discord Audio', url };
-    }
-
-    // Audio file attachment
-    const fileNameMatch = url.match(/\/([^\/?#]+\.(mp3|wav|ogg|m4a|aac|flac))/i);
-    if (fileNameMatch) {
-      let songName = decodeURIComponent(fileNameMatch[1])
-        .replace(/\.(mp3|wav|ogg|m4a|aac|flac)$/i, '')
-        .replace(/[-_]+/g, ' ')
-        .trim();
-      return { title: songName || 'Audio Track', url };
-    }
-
-    if (/spotify\.com/i.test(url)) return { title: 'Spotify', url };
-    if (/youtu/i.test(url)) return { title: 'YouTube', url };
-    if (/soundcloud\.com/i.test(url)) return { title: 'SoundCloud', url };
-
-    return { title: 'Favorite Track', url };
-  }
-
-  // Plain text title
-  return { title: trimmed, url: null };
 }
 
 /**
@@ -122,15 +76,15 @@ function createCardHubPayload(guild) {
 
   const embed = new EmbedBuilder()
     .setColor('#8B5CF6')
-    .setTitle('Member Profile Card')
+    .setTitle('✨ Member Profile Card Hub')
     .setDescription(
-      'Create your custom digital identity card in this server.\n\n' +
-      '**How It Works:**\n' +
-      `1. Click **Edit Profile** to customize your Bio, Location, Social Link, Favorite Song & Banner. Your card will be automatically published/updated in <#${targetChannelId}>.\n` +
-      '2. **Favorite Song:** Masukkan judul lagu atau link (Spotify / YouTube / Audio link).\n' +
-      '3. **Banner Image:** Masukkan link gambar banner Anda (Copy Image Link).\n' +
-      '4. Click **View My Card** to preview your card privately.\n' +
-      '5. Click **Reset** to clear all your data and remove your card from the gallery.'
+      'Create and customize your digital identity card in this server.\n\n' +
+      '**📋 How It Works:**\n' +
+      `1. Click **Edit Profile** to configure your Bio, Location, Zodiac / MBTI, Social Link & Banner Image. Your card will automatically publish & update in <#${targetChannelId}>.\n` +
+      '2. **🎙️ Live VC Status:** Automatically displays your active voice channel & duration in real-time.\n' +
+      '3. **🖼️ Banner Image:** Paste your banner image URL (*Right-click image ➔ Copy Image Link*).\n' +
+      '4. Click **View My Card** to preview your profile card privately.\n' +
+      '5. Click **Reset** to clear your profile data and remove your card from the gallery.'
     )
     .setFooter({ text: `${guild.name} • Member Identity System` })
     .setTimestamp();
@@ -173,8 +127,6 @@ function createPublishedCardComponents(authorId, likesCount = 0, respectsCount =
   return [row];
 }
 
-const { getVoiceStats } = require('./voiceTracker');
-
 /**
  * Helper to calculate member join position order in the guild (e.g. #42 of 250)
  */
@@ -197,7 +149,8 @@ async function getMemberJoinPosition(guild, member) {
 }
 
 /**
- * Build clean, aesthetic, and elegant Member Profile Card Embed (Pure Direct URL, Zero Canvas Overhead)
+ * Build clean, aesthetic, and elegant Member Profile Card Embed
+ * Includes: Live VC status, Zodiac/MBTI, Social Link, and Direct Banner URL
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -222,7 +175,7 @@ async function buildMemberCardEmbed(guild, member) {
     .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
     .setDescription(description);
 
-  // Row 1: Member # | Join Server | Song (3 Inline Columns)
+  // Row 1: Member # | Join Server | Live VC (3 Inline Columns)
   const joinPos = await getMemberJoinPosition(guild, member);
   if (joinPos) {
     embed.addFields({ name: 'Member #', value: joinPos, inline: true });
@@ -232,45 +185,36 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Join Server', value: formatDate(member.joinedAt), inline: true });
   }
 
-  // Column 3: Song (Replaces Created)
-  if (userCard.songTitle && userCard.songUrl) {
-    embed.addFields({
-      name: 'Song',
-      value: `🎵 [${userCard.songTitle}](${userCard.songUrl})`,
-      inline: true
-    });
-  } else if (userCard.songTitle) {
-    embed.addFields({
-      name: 'Song',
-      value: `🎵 ${userCard.songTitle}`,
-      inline: true
-    });
-  } else {
-    embed.addFields({
-      name: 'Song',
-      value: '-',
-      inline: true
-    });
+  // Column 3: Live VC Status (Real-time)
+  let liveVcText = '⚪ Inactive';
+  if (member.voice && member.voice.channel) {
+    const chName = member.voice.channel.name;
+    const liveInfo = getLiveVoiceInfo(guild.id, targetUser.id);
+    const durText = liveInfo.durationFormatted ? ` (${liveInfo.durationFormatted})` : '';
+    const displayCh = chName.length > 14 ? chName.substring(0, 12) + '..' : chName;
+    liveVcText = `🟢 #${displayCh}${durText}`;
   }
+  embed.addFields({ name: 'Live VC', value: liveVcText, inline: true });
 
-  // Row 2: Real-time Voice Stats & Personal Info (Inline 3 Columns)
+  // Row 2: Voice Time | Location | Zodiac / MBTI (3 Inline Columns)
   const voiceStats = getVoiceStats(guild.id, targetUser.id, guild);
   embed.addFields({ name: 'Voice Time', value: voiceStats.formattedTime, inline: true });
 
-  if (userCard.asal) {
-    embed.addFields({ name: 'Location', value: userCard.asal, inline: true });
-  }
+  embed.addFields({ name: 'Location', value: userCard.asal || '-', inline: true });
 
+  embed.addFields({ name: 'Zodiac / MBTI', value: userCard.zodiac || '-', inline: true });
+
+  // Row 3: Social Link (if set)
   if (userCard.linkUrl) {
     const linkTitle = userCard.linkTitle || 'Visit Link ↗';
     embed.addFields({
       name: 'Social Link',
       value: `[${linkTitle}](${userCard.linkUrl})`,
-      inline: true
+      inline: false
     });
   }
 
-  // Row 3: Top Voice Friends (Full Width, Vertical List)
+  // Row 4: Top Voice Friends (Full Width, Vertical List)
   if (voiceStats.topCompanions && voiceStats.topCompanions.length > 0) {
     const compText = voiceStats.topCompanions
       .map((c, i) => `${i + 1}. **${c.name}** — ${c.timeFormatted}`)
@@ -288,46 +232,6 @@ async function buildMemberCardEmbed(guild, member) {
     .setTimestamp();
 
   return { embed };
-}
-
-/**
- * Resolve Discord message link to direct audio attachment URL if applicable
- */
-async function resolveAudioUrl(inputUrl, client) {
-  if (!inputUrl) return { url: inputUrl, name: null };
-  const match = inputUrl.match(/discord\.com\/channels\/(\d+|@me)\/(\d+)\/(\d+)/i);
-  if (match && client) {
-    const channelId = match[2];
-    const messageId = match[3];
-    try {
-      const ch = client.channels.cache.get(channelId) || await client.channels.fetch(channelId).catch(() => null);
-      if (ch) {
-        const msg = await ch.messages.fetch(messageId).catch(() => null);
-        if (msg && msg.attachments.size > 0) {
-          const audio = msg.attachments.find(a => a.contentType?.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(a.name));
-          if (audio) {
-            const cleanName = audio.name.replace(/\.(mp3|wav|ogg|m4a|aac|flac)$/i, '').replace(/[-_]+/g, ' ').trim();
-            return { url: audio.url, name: cleanName };
-          }
-        }
-      }
-    } catch (_) {}
-  }
-  return { url: inputUrl, name: null };
-}
-
-/**
- * Build message content: includes audio link so Discord renders the native audio player bar widget
- */
-function buildCardMessageContent(displayName, songUrl, isUpdate = false) {
-  const action = isUpdate
-    ? `**${displayName}** updated their Member Card.`
-    : `**${displayName}** published their Member Card.`;
-
-  if (songUrl && (/\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(songUrl) || /cdn\.discordapp\.com|media\.discordapp\.net/i.test(songUrl))) {
-    return `${action}\n${songUrl}`;
-  }
-  return action;
 }
 
 /**
@@ -359,7 +263,6 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
 
   const { embed } = await buildMemberCardEmbed(guild, member);
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
-  const content = buildCardMessageContent(member.displayName, userCard.songUrl, !!existingMsgId);
 
   // If card was already published, edit existing message in-place
   if (existingMsgId) {
@@ -367,7 +270,7 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
       const existingMsg = await publishChannel.messages.fetch(existingMsgId);
       if (existingMsg) {
         await existingMsg.edit({
-          content: content,
+          content: `**${member.displayName}** updated their Member Card.`,
           embeds: [embed],
           components: components
         });
@@ -386,8 +289,9 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
 
   // First time publish OR fallback if existing message was deleted
   try {
+    const warmMessage = `**${member.displayName}** published their Member Card.`;
     const newMsg = await publishChannel.send({
-      content: content,
+      content: warmMessage,
       embeds: [embed],
       components: components
     });
@@ -416,7 +320,7 @@ async function handleCardButton(interaction, client) {
   const settings = storage.read('settings');
   const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
-  // 1. EDIT PROFILE → Single Modal (5 fields: Bio, Location, Social Link, Favorite Song, Banner URL)
+  // 1. EDIT PROFILE → Single Modal (5 fields: Bio, Location, Zodiac/MBTI, Social Link, Banner URL)
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
@@ -443,29 +347,29 @@ async function handleCardButton(interaction, client) {
       .setRequired(false)
       .setMaxLength(30);
 
+    const zodiacInput = new TextInputBuilder()
+      .setCustomId('card_input_zodiac')
+      .setLabel('Zodiac / MBTI (Max 30)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g. ♉ Taurus • INTJ or ♌ Leo')
+      .setValue(userCard.zodiac || '')
+      .setRequired(false)
+      .setMaxLength(30);
+
     const linkInput = new TextInputBuilder()
       .setCustomId('card_input_link')
-      .setLabel('Social Link (Judul | URL)')
+      .setLabel('Social Link (Title | URL)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('e.g. Instagram | https://instagram.com/myusername')
       .setValue(userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
       .setRequired(false)
       .setMaxLength(250);
 
-    const songInput = new TextInputBuilder()
-      .setCustomId('card_input_song')
-      .setLabel('Favorite Song (Judul / Judul | Link)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Penjaga Hati atau Penjaga Hati | https://open.spotify.com/track/...')
-      .setValue(userCard.songTitle && userCard.songUrl ? `${userCard.songTitle} | ${userCard.songUrl}` : (userCard.songTitle || userCard.songUrl || ''))
-      .setRequired(false)
-      .setMaxLength(250);
-
     const bannerInput = new TextInputBuilder()
       .setCustomId('card_input_banner')
-      .setLabel('Banner Image (Link Gambar)')
+      .setLabel('Banner Image (Image URL)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Klik kanan gambar ➔ Copy Image Link / Salin Tautan Gambar')
+      .setPlaceholder('Paste image URL (Right-click image ➔ Copy Image Link)')
       .setValue(userCard.bannerUrl || '')
       .setRequired(false)
       .setMaxLength(250);
@@ -473,8 +377,8 @@ async function handleCardButton(interaction, client) {
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
+      new ActionRowBuilder().addComponents(zodiacInput),
       new ActionRowBuilder().addComponents(linkInput),
-      new ActionRowBuilder().addComponents(songInput),
       new ActionRowBuilder().addComponents(bannerInput)
     );
 
@@ -486,14 +390,9 @@ async function handleCardButton(interaction, client) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const cardsData = storage.read('cards');
-      const userCard = cardsData[guildId]?.[userId] || {};
       const { embed } = await buildMemberCardEmbed(interaction.guild, interaction.member);
-
-      const content = buildCardMessageContent(interaction.member.displayName, userCard.songUrl, false);
-
       return await interaction.editReply({
-        content: `*Your Member Card Preview:*\n${userCard.songUrl && (/\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(userCard.songUrl) || /cdn\.discordapp\.com|media\.discordapp\.net/i.test(userCard.songUrl)) ? userCard.songUrl : ''}`.trim(),
+        content: '*Your Member Card Preview:*',
         embeds: [embed]
       });
     } catch (err) {
@@ -609,26 +508,12 @@ async function handleCardModalSubmit(interaction, client) {
 
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
+  let zodiac = interaction.fields.getTextInputValue('card_input_zodiac').trim();
   let linkRaw = interaction.fields.getTextInputValue('card_input_link').trim();
-  let songRaw = interaction.fields.getTextInputValue('card_input_song').trim();
   let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
 
   // Parse Social Link
   const parsedLink = parsePromoLink(linkRaw);
-
-  // Parse Favorite Song
-  const parsedSong = parseSongInput(songRaw);
-  let resolvedSongUrl = parsedSong?.url || null;
-  let resolvedSongTitle = parsedSong?.title || null;
-
-  // Auto-resolve message link to actual .mp3 attachment if user copied message link
-  if (resolvedSongUrl && /discord\.com\/channels\//i.test(resolvedSongUrl)) {
-    const resolved = await resolveAudioUrl(resolvedSongUrl, client);
-    if (resolved.url) resolvedSongUrl = resolved.url;
-    if (resolved.name && (!resolvedSongTitle || resolvedSongTitle === 'Discord Audio')) {
-      resolvedSongTitle = resolved.name;
-    }
-  }
 
   if (bannerUrl) {
     bannerUrl = normalizeBannerUrl(bannerUrl);
@@ -643,6 +528,7 @@ async function handleCardModalSubmit(interaction, client) {
 
   if (bio) userCard.bio = bio; else delete userCard.bio;
   if (asal) userCard.asal = asal; else delete userCard.asal;
+  if (zodiac) userCard.zodiac = zodiac; else delete userCard.zodiac;
 
   if (parsedLink) {
     userCard.linkTitle = parsedLink.title;
@@ -652,19 +538,16 @@ async function handleCardModalSubmit(interaction, client) {
     delete userCard.linkUrl;
   }
 
-  if (resolvedSongTitle || resolvedSongUrl) {
-    userCard.songTitle = resolvedSongTitle;
-    userCard.songUrl = resolvedSongUrl;
-  } else {
-    delete userCard.songTitle;
-    delete userCard.songUrl;
-  }
-
   if (bannerUrl) {
     userCard.bannerUrl = bannerUrl;
   } else {
     delete userCard.bannerUrl;
   }
+
+  // Clean up old unused song fields
+  delete userCard.songTitle;
+  delete userCard.songUrl;
+  delete userCard.bannerCropUrl;
 
   storage.write('cards', cardsData);
 
