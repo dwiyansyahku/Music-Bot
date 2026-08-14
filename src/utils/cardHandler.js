@@ -1,24 +1,8 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags,
-  AttachmentBuilder
+  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags
 } = require('discord.js');
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
-const http = require('http');
 const storage = require('./storage');
-
-// Local storage directory for cropped banner images (inside persistent volume)
-const BANNERS_DIR = path.join(process.cwd(), 'data', 'banners');
-if (!fs.existsSync(BANNERS_DIR)) {
-  fs.mkdirSync(BANNERS_DIR, { recursive: true });
-}
-
-function getBannerFilePath(guildId, userId) {
-  return path.join(BANNERS_DIR, `${guildId}_${userId}.png`);
-}
 
 function normalizeBannerUrl(url) {
   if (!url) return '';
@@ -33,58 +17,7 @@ function normalizeBannerUrl(url) {
 }
 
 /**
- * Center-crop any image (square/vertical/landscape) to exactly 800x240 PNG and save to disk
- */
-async function cropAndSaveBanner(url, guildId, userId) {
-  if (!url) return false;
-  const outPath = getBannerFilePath(guildId, userId);
-  const targetUrl = normalizeBannerUrl(url);
-  try {
-    const res = await fetch(targetUrl, {
-      signal: AbortSignal.timeout(8000),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-      }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    const img = await loadImage(buf);
-
-    const canvas = createCanvas(800, 240);
-    const ctx = canvas.getContext('2d');
-
-    const srcRatio = img.width / img.height;
-    const dstRatio = 800 / 240;
-    let sx, sy, sw, sh;
-    if (srcRatio > dstRatio) {
-      sh = img.height;
-      sw = img.height * dstRatio;
-      sx = (img.width - sw) / 2;
-      sy = 0;
-    } else {
-      sw = img.width;
-      sh = img.width / dstRatio;
-      sx = 0;
-      sy = (img.height - sh) / 2;
-    }
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 800, 240);
-    fs.writeFileSync(outPath, canvas.toBuffer('image/png'));
-    console.log(`[CardHandler] Cropped banner 800x240 saved for ${userId}`);
-    return true;
-  } catch (err) {
-    console.warn(`[CardHandler] Banner crop failed for ${userId}:`, err.message);
-    if (fs.existsSync(outPath)) {
-      try { fs.unlinkSync(outPath); } catch (_) {}
-    }
-    return false;
-  }
-}
-
-
-
-/**
- * Parse favorite song input: supports 'Title | URL', standalone Discord MP3 URL / audio link, or plain text title
+ * Parse favorite song input: supports 'Title | URL', standalone Spotify / YouTube / audio link, or plain text title
  */
 function parseSongInput(input) {
   if (!input || !input.trim()) return null;
@@ -99,12 +32,17 @@ function parseSongInput(input) {
     return { title: title || 'Favorite Track', url: url || null };
   }
 
-  // If it's a URL
-  if (/^https?:\/\//i.test(trimmed) || /^(cdn\.discordapp\.com|media\.discordapp\.net|open\.spotify\.com|youtu)/i.test(trimmed)) {
+  // If it's a direct URL
+  if (/^https?:\/\//i.test(trimmed) || /^(open\.spotify\.com|youtu|soundcloud\.com|cdn\.discordapp\.com)/i.test(trimmed)) {
     let url = trimmed;
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
 
-    // Detect if Discord audio attachment or mp3 file
+    // Discord message link (jump to message)
+    if (/discord\.com\/channels\//i.test(url)) {
+      return { title: 'Discord Audio', url };
+    }
+
+    // Audio file attachment
     const fileNameMatch = url.match(/\/([^\/?#]+\.(mp3|wav|ogg|m4a|aac|flac))/i);
     if (fileNameMatch) {
       let songName = decodeURIComponent(fileNameMatch[1])
@@ -114,12 +52,9 @@ function parseSongInput(input) {
       return { title: songName || 'Audio Track', url };
     }
 
-    if (/spotify\.com/i.test(url)) {
-      return { title: 'Spotify Track', url };
-    }
-    if (/youtu/i.test(url)) {
-      return { title: 'YouTube Audio', url };
-    }
+    if (/spotify\.com/i.test(url)) return { title: 'Spotify', url };
+    if (/youtu/i.test(url)) return { title: 'YouTube', url };
+    if (/soundcloud\.com/i.test(url)) return { title: 'SoundCloud', url };
 
     return { title: 'Favorite Track', url };
   }
@@ -149,7 +84,7 @@ function parsePromoLink(input) {
     url = `https://${url}`;
   }
 
-  // If no custom title was provided, auto-detect platform name from URL
+  // Auto-detect platform name if no custom title was provided
   if (!title) {
     const lower = url.toLowerCase();
     if (lower.includes('youtube.com') || lower.includes('youtu.be')) title = 'YouTube';
@@ -164,190 +99,15 @@ function parsePromoLink(input) {
     else if (lower.includes('steamcommunity.com') || lower.includes('steampowered.com')) title = 'Steam';
     else {
       try {
-        const parsed = new URL(url);
-        title = parsed.hostname.replace(/^www\./i, '');
+        const domain = new URL(url).hostname.replace(/^www\./i, '');
+        title = domain.charAt(0).toUpperCase() + domain.slice(1);
       } catch (_) {
-        title = 'Visit Link ↗';
+        title = 'Visit Link';
       }
     }
   }
 
   return { title, url };
-}
-
-/**
- * Comprehensive bilingual Color Map (140+ Standard CSS & Indonesian Color Names)
- */
-const COLOR_MAP = {
-  // English (Standard & Popular CSS Colors)
-  'purple': '#8B5CF6',
-  'violet': '#7C3AED',
-  'darkviolet': '#9400D3',
-  'indigo': '#6366F1',
-  'blue': '#3B82F6',
-  'royalblue': '#4169E1',
-  'dodgerblue': '#1E90FF',
-  'deepskyblue': '#00BFFF',
-  'skyblue': '#0EA5E9',
-  'sky': '#0EA5E9',
-  'cyan': '#06B6D4',
-  'aqua': '#00FFFF',
-  'teal': '#14B8A6',
-  'turquoise': '#40E0D0',
-  'aquamarine': '#7FFFD4',
-  'green': '#10B981',
-  'emerald': '#059669',
-  'lime': '#84CC16',
-  'limegreen': '#32CD32',
-  'forestgreen': '#228B22',
-  'seagreen': '#2E8B57',
-  'mint': '#6EE7B7',
-  'olive': '#808000',
-  'darkgreen': '#006400',
-  'red': '#EF4444',
-  'crimson': '#DC2626',
-  'firebrick': '#B22222',
-  'darkred': '#8B0000',
-  'rose': '#F43F5E',
-  'ruby': '#E0115F',
-  'scarlet': '#FF2400',
-  'maroon': '#800000',
-  'pink': '#EC4899',
-  'hotpink': '#FF69B4',
-  'deeppink': '#FF1493',
-  'lightpink': '#FFB6C1',
-  'fuchsia': '#D946EF',
-  'magenta': '#E11D48',
-  'orange': '#F97316',
-  'darkorange': '#FF8C00',
-  'coral': '#FF7F50',
-  'salmon': '#FA8072',
-  'peach': '#FFDAB9',
-  'amber': '#F59E0B',
-  'yellow': '#EAB308',
-  'gold': '#FFD700',
-  'golden': '#FFD700',
-  'khaki': '#F0E68C',
-  'black': '#1E1E2E',
-  'dark': '#181825',
-  'charcoal': '#36454F',
-  'white': '#FFFFFF',
-  'silver': '#C0C0C0',
-  'gray': '#6B7280',
-  'grey': '#6B7280',
-  'darkgray': '#4B5563',
-  'darkgrey': '#4B5563',
-  'lightgray': '#D1D5DB',
-  'lightgrey': '#D1D5DB',
-  'navy': '#1E3A8A',
-  'midnightblue': '#191970',
-  'brown': '#78350F',
-  'chocolate': '#D2691E',
-  'coffee': '#6F4E37',
-  'sienna': '#A0522D',
-  'lavender': '#E6E6FA',
-  'plum': '#DDA0DD',
-  'thistle': '#D8BFD8',
-  'beige': '#F5F5DC',
-
-  // Bahasa Indonesia
-  'ungu': '#8B5CF6',
-  'ungutua': '#7C3AED',
-  'ungu tua': '#7C3AED',
-  'ungumuda': '#C084FC',
-  'ungu muda': '#C084FC',
-  'nila': '#6366F1',
-  'lembayung': '#A855F7',
-  'biru': '#3B82F6',
-  'birumuda': '#38BDF8',
-  'biru muda': '#38BDF8',
-  'birulangit': '#0EA5E9',
-  'biru langit': '#0EA5E9',
-  'birutua': '#1E3A8A',
-  'biru tua': '#1E3A8A',
-  'birulaut': '#0284C7',
-  'biru laut': '#0284C7',
-  'hijau': '#10B981',
-  'hijautua': '#047857',
-  'hijau tua': '#047857',
-  'hijaumuda': '#34D399',
-  'hijau muda': '#34D399',
-  'hijaupupus': '#A3E635',
-  'hijau pupus': '#A3E635',
-  'hijaugelap': '#064E3B',
-  'hijau gelap': '#064E3B',
-  'merah': '#EF4444',
-  'merahmuda': '#EC4899',
-  'merah muda': '#EC4899',
-  'merahtua': '#991B1B',
-  'merah tua': '#991B1B',
-  'merahhati': '#800000',
-  'merah hati': '#800000',
-  'merahmaron': '#800000',
-  'merah maron': '#800000',
-  'maron': '#800000',
-  'kuning': '#EAB308',
-  'kuningmuda': '#FEF08A',
-  'kuning muda': '#FEF08A',
-  'kuningtua': '#CA8A04',
-  'kuning tua': '#CA8A04',
-  'emas': '#FFD700',
-  'oranye': '#F97316',
-  'orange': '#F97316',
-  'jingga': '#F97316',
-  'toska': '#06B6D4',
-  'tosca': '#06B6D4',
-  'hitam': '#1E1E2E',
-  'hitampekat': '#11111B',
-  'hitam pekat': '#11111B',
-  'putih': '#FFFFFF',
-  'putihbersih': '#FFFFFF',
-  'putih bersih': '#FFFFFF',
-  'abu': '#6B7280',
-  'abu-abu': '#6B7280',
-  'abu abu': '#6B7280',
-  'abumuda': '#9CA3AF',
-  'abu muda': '#9CA3AF',
-  'abutua': '#374151',
-  'abu tua': '#374151',
-  'perak': '#C0C0C0',
-  'cokelat': '#78350F',
-  'coklat': '#78350F',
-  'coklattua': '#451A03',
-  'coklat tua': '#451A03',
-  'coklatmuda': '#B45309',
-  'coklat muda': '#B45309'
-};
-
-/**
- * Resolve color from English name, Indonesian name, or Hex code (#RGB / #RRGGBB / RRGGBB)
- */
-function resolveColor(input) {
-  if (!input || !input.trim()) return null;
-  const clean = input.trim().toLowerCase();
-
-  // 1. Direct name lookup
-  if (COLOR_MAP[clean]) {
-    return COLOR_MAP[clean];
-  }
-
-  // 2. Lookup with spaces/hyphens removed
-  const noSpace = clean.replace(/[\s-_]+/g, '');
-  if (COLOR_MAP[noSpace]) {
-    return COLOR_MAP[noSpace];
-  }
-
-  // 3. Hex code matching (supports 3 or 6 hex digits, with or without #)
-  const hexMatch = clean.match(/^#?([0-9a-f]{6}|[0-9a-f]{3})$/i);
-  if (hexMatch) {
-    const hex = hexMatch[1];
-    if (hex.length === 3) {
-      return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toUpperCase();
-    }
-    return `#${hex}`.toUpperCase();
-  }
-
-  return null;
 }
 
 // Default Channel ID tempat hasil Member Card diterbitkan (#card-gallery)
@@ -367,8 +127,8 @@ function createCardHubPayload(guild) {
       'Create your custom digital identity card in this server.\n\n' +
       '**How It Works:**\n' +
       `1. Click **Edit Profile** to customize your Bio, Location, Social Link, Favorite Song & Banner. Your card will be automatically published/updated in <#${targetChannelId}>.\n` +
-      '2. **Favorite Song:** Paste a Discord MP3 file link (Right-click file ➔ *Copy Link*), Spotify / YouTube link, or song title. Audio files render as a **native Discord music player**!\n' +
-      '3. **Banner Image:** Any image size/ratio is supported (auto-cropped to **800×240 px**). Get the link via *Right-click image ➔ Copy Image Link*.\n' +
+      '2. **Favorite Song:** Masukkan judul lagu atau link (Spotify / YouTube / Audio link).\n' +
+      '3. **Banner Image:** Masukkan link gambar banner Anda (Copy Image Link).\n' +
       '4. Click **View My Card** to preview your card privately.\n' +
       '5. Click **Reset** to clear all your data and remove your card from the gallery.'
     )
@@ -437,12 +197,9 @@ async function getMemberJoinPosition(guild, member) {
 }
 
 /**
- * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Replaces 'Created' with 'Song' in Row 1.
- * @param {Object} options - { attachFiles: boolean, referenceAttachment: boolean }
- * Returns { embed, files }
+ * Build clean, aesthetic, and elegant Member Profile Card Embed (Pure Direct URL, Zero Canvas Overhead)
  */
-async function buildMemberCardEmbed(guild, member, options = {}) {
+async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
   const cardsData = storage.read('cards');
   const userCard = cardsData[guild.id]?.[targetUser.id] || {};
@@ -452,7 +209,7 @@ async function buildMemberCardEmbed(guild, member, options = {}) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  const embedColor = userCard.color || member.roles.color?.hexColor || '#8B5CF6';
+  const embedColor = member.roles.color?.hexColor || '#8B5CF6';
 
   let description = `\`@${targetUser.username}\``;
   if (userCard.bio) {
@@ -521,19 +278,8 @@ async function buildMemberCardEmbed(guild, member, options = {}) {
     embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Banner image handling
-  const files = [];
-  const bannerPath = getBannerFilePath(guild.id, targetUser.id);
-  const hasCroppedFile = fs.existsSync(bannerPath);
-
-  if (options.attachFiles && hasCroppedFile) {
-    files.push(new AttachmentBuilder(bannerPath, { name: 'banner.png' }));
-    embed.setImage('attachment://banner.png');
-  } else if (options.referenceAttachment && hasCroppedFile) {
-    embed.setImage('attachment://banner.png');
-  } else if (userCard.bannerCropUrl && /^https?:\/\/.+/i.test(userCard.bannerCropUrl)) {
-    embed.setImage(userCard.bannerCropUrl);
-  } else if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
+  // Banner image: Direct Image URL via Discord native proxy (Instant, 0 socket drops)
+  if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
     embed.setImage(userCard.bannerUrl);
   }
 
@@ -541,27 +287,11 @@ async function buildMemberCardEmbed(guild, member, options = {}) {
     .setFooter({ text: `${guild.name} • Member Card` })
     .setTimestamp();
 
-  return { embed, files };
+  return { embed };
 }
 
 /**
- * Helper to build card message content with native audio player link
- */
-function buildCardContent(displayName, songUrl, isUpdate = false) {
-  const actionText = isUpdate
-    ? `**${displayName}** updated their Member Card.`
-    : `**${displayName}** published their Member Card.`;
-
-  if (songUrl && /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(songUrl)) {
-    return `${actionText}\n${songUrl}`;
-  }
-  return actionText;
-}
-
-/**
- * Publish or update member card in #card-gallery.
- * For user updates: deletes previous message and sends a fresh POST message with attachments (eliminates PATCH multipart socket errors).
- * For 60s auto-sync: cleanly edits embed text only in 0ms.
+ * Publish or update member card in #card-gallery (Pure JSON, 0 Multipart Uploads, 0 Socket Errors)
  */
 async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   const guildId = guild.id;
@@ -587,17 +317,22 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
 
-  // 1. AUTO-SYNC (60s loop): Light in-place edit (0 files, 0 deletes, pure JSON)
-  if (isAutoSync && existingMsgId) {
+  const { embed } = await buildMemberCardEmbed(guild, member);
+  const components = createPublishedCardComponents(userId, likesCount, respectsCount);
+
+  // If card was already published, edit existing message in-place
+  if (existingMsgId) {
     try {
       const existingMsg = await publishChannel.messages.fetch(existingMsgId);
       if (existingMsg) {
-        const { embed } = await buildMemberCardEmbed(guild, member, { referenceAttachment: true });
-        const components = createPublishedCardComponents(userId, likesCount, respectsCount);
         await existingMsg.edit({
+          content: `**${member.displayName}** updated their Member Card.`,
           embeds: [embed],
           components: components
         });
+        if (!isAutoSync) {
+          console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
+        }
         return 'updated';
       }
     } catch (fetchErr) {
@@ -608,48 +343,21 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
     }
   }
 
-  // 2. USER EDIT / FIRST PUBLISH: Fresh POST delivery (100% reliable, zero multipart PATCH drops)
-  if (existingMsgId) {
-    try {
-      const oldMsg = await publishChannel.messages.fetch(existingMsgId).catch(() => null);
-      if (oldMsg) {
-        await oldMsg.delete().catch(() => {});
-      }
-    } catch (_) {}
-    delete userCard.publishedMessageId;
-  }
-
+  // First time publish OR fallback if existing message was deleted
   try {
-    const { embed, files } = await buildMemberCardEmbed(guild, member, { attachFiles: true });
-    const components = createPublishedCardComponents(userId, likesCount, respectsCount);
-    const content = buildCardContent(member.displayName, userCard.songUrl, !!existingMsgId);
-
-    const sendPayload = {
-      content: content,
+    const warmMessage = `**${member.displayName}** published their Member Card.`;
+    const newMsg = await publishChannel.send({
+      content: warmMessage,
       embeds: [embed],
       components: components
-    };
-    if (files && files.length > 0) {
-      sendPayload.files = files;
-    }
-
-    const newMsg = await publishChannel.send(sendPayload);
+    });
 
     if (!cardsData[guildId]) cardsData[guildId] = {};
     if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
     cardsData[guildId][userId].publishedMessageId = newMsg.id;
-
-    // Extract Discord CDN URL from uploaded attachment for zero-overhead previews
-    if (newMsg.attachments && newMsg.attachments.size > 0) {
-      const bannerAttachment = newMsg.attachments.find(a => a.name === 'banner.png');
-      if (bannerAttachment) {
-        cardsData[guildId][userId].bannerCropUrl = bannerAttachment.url.split('?')[0];
-        console.log(`[CardHandler] Saved banner CDN URL for ${member.displayName}: ${cardsData[guildId][userId].bannerCropUrl}`);
-      }
-    }
-
     storage.write('cards', cardsData);
-    console.log(`[CardHandler] Card for ${member.displayName} successfully published to #${publishChannel.name}`);
+
+    console.log(`[CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
     return existingMsgId ? 'updated' : 'first';
   } catch (sendErr) {
     console.error(`[CardHandler] Failed to publish card:`, sendErr.message);
@@ -706,18 +414,18 @@ async function handleCardButton(interaction, client) {
 
     const songInput = new TextInputBuilder()
       .setCustomId('card_input_song')
-      .setLabel('Favorite Song (Judul | Link Audio)')
+      .setLabel('Favorite Song (Judul / Judul | Link)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Penjaga Hati | https://cdn.discordapp.com/.../song.mp3 (Klik kanan MP3 -> Copy Link)')
+      .setPlaceholder('e.g. Penjaga Hati atau Penjaga Hati | https://open.spotify.com/track/...')
       .setValue(userCard.songTitle && userCard.songUrl ? `${userCard.songTitle} | ${userCard.songUrl}` : (userCard.songTitle || userCard.songUrl || ''))
       .setRequired(false)
       .setMaxLength(250);
 
     const bannerInput = new TextInputBuilder()
       .setCustomId('card_input_banner')
-      .setLabel('Banner Image (Auto-Crop 800x240)')
+      .setLabel('Banner Image (Link Gambar)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Bebas ukuran gambar (otomatis di-crop ke 800x240). Klik kanan gambar -> Copy Image Link')
+      .setPlaceholder('Klik kanan gambar ➔ Copy Image Link / Salin Tautan Gambar')
       .setValue(userCard.bannerUrl || '')
       .setRequired(false)
       .setMaxLength(250);
@@ -733,22 +441,14 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Ephemeral Preview with Native Audio Player & Banner — pure JSON)
+  // 2. VIEW MY CARD (Ephemeral Preview — Pure JSON, 0 ms)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const cardsData = storage.read('cards');
-      const userCard = cardsData[guildId]?.[userId] || {};
       const { embed } = await buildMemberCardEmbed(interaction.guild, interaction.member);
-
-      let content = '*Your Member Card Preview:*';
-      if (userCard.songUrl && /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(userCard.songUrl)) {
-        content = `*Your Member Card Preview:*\n${userCard.songUrl}`;
-      }
-
       return await interaction.editReply({
-        content: content,
+        content: '*Your Member Card Preview:*',
         embeds: [embed]
       });
     } catch (err) {
@@ -775,12 +475,6 @@ async function handleCardButton(interaction, client) {
       }
       delete cardsData[guildId][userId];
       storage.write('cards', cardsData);
-
-      // Delete cropped banner file
-      const outPath = getBannerFilePath(guildId, userId);
-      if (fs.existsSync(outPath)) {
-        try { fs.unlinkSync(outPath); } catch (_) {}
-      }
     }
     return interaction.reply({
       content: 'Your profile card has been reset and removed from the gallery.',
@@ -828,7 +522,7 @@ async function handleCardButton(interaction, client) {
       });
     }
 
-    const { embed: updatedEmbed } = await buildMemberCardEmbed(interaction.guild, authorMember, { referenceAttachment: true });
+    const { embed: updatedEmbed } = await buildMemberCardEmbed(interaction.guild, authorMember);
     const updatedComponents = createPublishedCardComponents(
       authorId,
       (targetCard.likes || []).length,
@@ -874,14 +568,14 @@ async function handleCardModalSubmit(interaction, client) {
   let songRaw = interaction.fields.getTextInputValue('card_input_song').trim();
   let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
 
-  // Parse custom title & URL or auto-detect platform for Social Link
+  // Parse Social Link
   const parsedLink = parsePromoLink(linkRaw);
 
-  // Parse custom title & URL or auto-detect for Favorite Song
+  // Parse Favorite Song
   const parsedSong = parseSongInput(songRaw);
 
-  if (bannerUrl && !/^https?:\/\//i.test(bannerUrl)) {
-    bannerUrl = `https://${bannerUrl}`;
+  if (bannerUrl) {
+    bannerUrl = normalizeBannerUrl(bannerUrl);
   }
 
   // Save profile data
@@ -912,24 +606,8 @@ async function handleCardModalSubmit(interaction, client) {
 
   if (bannerUrl) {
     userCard.bannerUrl = bannerUrl;
-    const isGif = /\.gif(\?.*)?$/i.test(bannerUrl) || /tenor\.com|giphy\.com/i.test(bannerUrl);
-    if (!isGif) {
-      await cropAndSaveBanner(bannerUrl, guildId, userId);
-      delete userCard.bannerCropUrl;
-    } else {
-      delete userCard.bannerCropUrl;
-      const outPath = getBannerFilePath(guildId, userId);
-      if (fs.existsSync(outPath)) {
-        try { fs.unlinkSync(outPath); } catch (_) {}
-      }
-    }
   } else {
     delete userCard.bannerUrl;
-    delete userCard.bannerCropUrl;
-    const outPath = getBannerFilePath(guildId, userId);
-    if (fs.existsSync(outPath)) {
-      try { fs.unlinkSync(outPath); } catch (_) {}
-    }
   }
 
   storage.write('cards', cardsData);
