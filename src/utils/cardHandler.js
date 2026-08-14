@@ -477,7 +477,7 @@ async function buildMemberCardEmbed(guild, member) {
  * Publish or update member card in #card-gallery.
  * @returns {Promise<'first'|'updated'|null>}
  */
-async function publishCardToChannel(guild, member, client) {
+async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   const guildId = guild.id;
   const userId = member.id;
 
@@ -514,8 +514,8 @@ async function publishCardToChannel(guild, member, client) {
           embeds: [embed],
           components: components
         };
-        // If attachments were updated or missing, include files
-        if (files && files.length > 0 && (!existingMsg.attachments || existingMsg.attachments.size === 0)) {
+        // On user edit / new banner, send files. On 60s auto-sync, only send files if message has no attachments
+        if (files && files.length > 0 && (!isAutoSync || !existingMsg.attachments || existingMsg.attachments.size === 0)) {
           editPayload.files = files;
         }
 

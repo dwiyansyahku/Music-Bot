@@ -262,7 +262,7 @@ module.exports = {
             if (isUserInVoice(guild.id, userId)) {
               const member = await guild.members.fetch(userId).catch(() => null);
               if (member) {
-                await publishCardToChannel(guild, member, client).catch(() => {});
+                await publishCardToChannel(guild, member, client, true).catch(() => {});
               }
             }
           }
