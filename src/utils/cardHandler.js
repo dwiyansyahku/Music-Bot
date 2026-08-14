@@ -5,77 +5,6 @@ const {
 const storage = require('./storage');
 const { getVoiceStats, getLiveVoiceInfo } = require('./voiceTracker');
 
-const COLOR_MAP = {
-  'ungu': '#8B5CF6',
-  'purple': '#8B5CF6',
-  'violet': '#8B5CF6',
-  'biru': '#3B82F6',
-  'blue': '#3B82F6',
-  'birumuda': '#60A5FA',
-  'biru muda': '#60A5FA',
-  'birutua': '#1E40AF',
-  'biru tua': '#1E40AF',
-  'cyan': '#06B6D4',
-  'hijau': '#10B981',
-  'green': '#10B981',
-  'hijautua': '#047857',
-  'hijau tua': '#047857',
-  'hijaumuda': '#34D399',
-  'hijau muda': '#34D399',
-  'merah': '#EF4444',
-  'red': '#EF4444',
-  'merahmuda': '#F472B6',
-  'merah muda': '#F472B6',
-  'pink': '#EC4899',
-  'merahhati': '#991B1B',
-  'merah hati': '#991B1B',
-  'maroon': '#800000',
-  'marun': '#800000',
-  'kuning': '#FBBF24',
-  'yellow': '#FBBF24',
-  'emas': '#F59E0B',
-  'gold': '#F59E0B',
-  'oranye': '#F97316',
-  'orange': '#F97316',
-  'jingga': '#F97316',
-  'toska': '#06B6D4',
-  'tosca': '#06B6D4',
-  'hitam': '#1E1E2E',
-  'hitampekat': '#11111B',
-  'hitam pekat': '#11111B',
-  'putih': '#FFFFFF',
-  'putihbersih': '#FFFFFF',
-  'putih bersih': '#FFFFFF',
-  'abu': '#6B7280',
-  'abu-abu': '#6B7280',
-  'abumuda': '#9CA3AF',
-  'abu muda': '#9CA3AF',
-  'abutua': '#374151',
-  'abu tua': '#374151',
-  'cokelat': '#78350F',
-  'coklat': '#78350F'
-};
-
-/**
- * Resolve color from English name, Indonesian name, or Hex code (#RGB / #RRGGBB / RRGGBB)
- */
-function resolveColor(input) {
-  if (!input || !input.trim()) return null;
-  const clean = input.trim().toLowerCase();
-  if (COLOR_MAP[clean]) return COLOR_MAP[clean];
-  const noSpace = clean.replace(/[\s-_]+/g, '');
-  if (COLOR_MAP[noSpace]) return COLOR_MAP[noSpace];
-  const hexMatch = clean.match(/^#?([0-9a-f]{6}|[0-9a-f]{3})$/i);
-  if (hexMatch) {
-    const hex = hexMatch[1];
-    if (hex.length === 3) {
-      return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toUpperCase();
-    }
-    return `#${hex}`.toUpperCase();
-  }
-  return null;
-}
-
 function normalizeBannerUrl(url) {
   if (!url) return '';
   let clean = url.trim();
@@ -151,7 +80,7 @@ function createCardHubPayload(guild) {
     .setDescription(
       'Create and customize your digital identity card in this server.\n\n' +
       '**How It Works:**\n' +
-      `1. Click **Edit Profile** to configure your Bio, Location, Zodiac / MBTI, Card Color, Social Link, and Banner Image. Your card will automatically publish and update in <#${targetChannelId}>.\n` +
+      `1. Click **Edit Profile** to configure your Bio, Location, Zodiac / MBTI, Social Link, and Banner Image. Your card will automatically publish and update in <#${targetChannelId}>.\n` +
       '2. **Live Voice Status:** Automatically displays your active voice channel and session duration.\n' +
       '3. **Banner Image:** Provide any direct image URL to display at the bottom of your card.\n' +
       '4. Click **View My Card** to preview your profile card privately.\n' +
@@ -221,7 +150,7 @@ async function getMemberJoinPosition(guild, member) {
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Includes: Live VC status, Zodiac/MBTI, Social Link, Card Color, and Direct Banner URL
+ * Includes: Live VC status, Zodiac/MBTI, Social Link, and Direct Banner URL
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -233,7 +162,7 @@ async function buildMemberCardEmbed(guild, member) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  const embedColor = userCard.color || member.roles.color?.hexColor || '#8B5CF6';
+  const embedColor = member.roles.color?.hexColor || '#8B5CF6';
 
   let description = `\`@${targetUser.username}\``;
   if (userCard.bio) {
@@ -391,7 +320,7 @@ async function handleCardButton(interaction, client) {
   const settings = storage.read('settings');
   const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
-  // 1. EDIT PROFILE → 5 fields (Bio, Location & Zodiac, Card Color, Social Link, Banner URL)
+  // 1. EDIT PROFILE → 5 distinct fields (Bio, Location, Zodiac/MBTI, Social Link, Banner URL)
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
@@ -409,27 +338,23 @@ async function handleCardButton(interaction, client) {
       .setRequired(false)
       .setMaxLength(100);
 
-    const asalAndZodiacVal = userCard.asal && userCard.zodiac
-      ? `${userCard.asal} | ${userCard.zodiac}`
-      : (userCard.asal || userCard.zodiac || '');
-
     const asalInput = new TextInputBuilder()
       .setCustomId('card_input_asal')
-      .setLabel('Location & Zodiac / MBTI (Max 40)')
+      .setLabel('Location (Max 30)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Jakarta | Taurus • INTJ (or just Jakarta)')
-      .setValue(asalAndZodiacVal)
+      .setPlaceholder('e.g. Jakarta, Indonesia')
+      .setValue(userCard.asal || '')
       .setRequired(false)
-      .setMaxLength(40);
+      .setMaxLength(30);
 
-    const colorInput = new TextInputBuilder()
-      .setCustomId('card_input_color')
-      .setLabel('Card Color (Color Name / Hex)')
+    const zodiacInput = new TextInputBuilder()
+      .setCustomId('card_input_zodiac')
+      .setLabel('Zodiac / MBTI (Max 30)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. biru, pink, ungu, gold, red, or #8B5CF6')
-      .setValue(userCard.color || '')
+      .setPlaceholder('e.g. Taurus / INTJ or Leo')
+      .setValue(userCard.zodiac || '')
       .setRequired(false)
-      .setMaxLength(25);
+      .setMaxLength(30);
 
     const linkInput = new TextInputBuilder()
       .setCustomId('card_input_link')
@@ -452,7 +377,7 @@ async function handleCardButton(interaction, client) {
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
-      new ActionRowBuilder().addComponents(colorInput),
+      new ActionRowBuilder().addComponents(zodiacInput),
       new ActionRowBuilder().addComponents(linkInput),
       new ActionRowBuilder().addComponents(bannerInput)
     );
@@ -582,24 +507,10 @@ async function handleCardModalSubmit(interaction, client) {
   const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
-  let asalRaw = interaction.fields.getTextInputValue('card_input_asal').trim();
-  let colorRaw = interaction.fields.getTextInputValue('card_input_color').trim();
+  let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
+  let zodiac = interaction.fields.getTextInputValue('card_input_zodiac').trim();
   let linkRaw = interaction.fields.getTextInputValue('card_input_link').trim();
   let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
-
-  // Parse Location & Zodiac (supports "Location | Zodiac" or standalone Location)
-  let asal = '';
-  let zodiac = '';
-  if (asalRaw.includes('|')) {
-    const parts = asalRaw.split('|');
-    asal = parts[0].trim();
-    zodiac = parts.slice(1).join('|').trim();
-  } else {
-    asal = asalRaw;
-  }
-
-  // Resolve color by name (English / Indonesian) or hex code
-  let resolvedColor = resolveColor(colorRaw);
 
   // Parse Social Link
   const parsedLink = parsePromoLink(linkRaw);
@@ -618,7 +529,6 @@ async function handleCardModalSubmit(interaction, client) {
   if (bio) userCard.bio = bio; else delete userCard.bio;
   if (asal) userCard.asal = asal; else delete userCard.asal;
   if (zodiac) userCard.zodiac = zodiac; else delete userCard.zodiac;
-  if (resolvedColor) userCard.color = resolvedColor; else delete userCard.color;
 
   if (parsedLink) {
     userCard.linkTitle = parsedLink.title;
@@ -634,7 +544,8 @@ async function handleCardModalSubmit(interaction, client) {
     delete userCard.bannerUrl;
   }
 
-  // Clean up unused song fields
+  // Clean up unused color and song fields
+  delete userCard.color;
   delete userCard.songTitle;
   delete userCard.songUrl;
   delete userCard.bannerCropUrl;
