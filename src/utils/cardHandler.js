@@ -627,7 +627,7 @@ async function handleCardButton(interaction, client) {
       });
     }
 
-    const { embed: updatedEmbed, files } = await buildMemberCardEmbed(interaction.guild, authorMember);
+    const updatedEmbed = await buildMemberCardEmbed(interaction.guild, authorMember);
     const updatedComponents = createPublishedCardComponents(
       authorId,
       (targetCard.likes || []).length,
@@ -637,8 +637,7 @@ async function handleCardButton(interaction, client) {
     // Update the message instantly (real-time update)
     await interaction.update({
       embeds: [updatedEmbed],
-      components: updatedComponents,
-      files: files
+      components: updatedComponents
     });
 
     const isAdded = isLike
