@@ -392,9 +392,10 @@ async function getMemberJoinPosition(guild, member) {
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Returns { embed, files } — files contains the cropped banner attachment if applicable
+ * @param {Object} options - { useFiles: boolean } — if true, attach local file; if false, use URL only
+ * Returns { embed, files }
  */
-async function buildMemberCardEmbed(guild, member) {
+async function buildMemberCardEmbed(guild, member, options = {}) {
   const targetUser = member.user;
   const cardsData = storage.read('cards');
   const userCard = cardsData[guild.id]?.[targetUser.id] || {};
@@ -456,13 +457,19 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Banner image handling: cropped 800x240 PNG if static, direct URL if GIF/fallback
+  // Banner image handling
   const files = [];
   const bannerPath = getBannerFilePath(guild.id, targetUser.id);
-  if (fs.existsSync(bannerPath)) {
+
+  if (options.useFiles && fs.existsSync(bannerPath)) {
+    // Mode: upload local cropped file (only used on first publish after crop)
     files.push(new AttachmentBuilder(bannerPath, { name: 'banner.png' }));
     embed.setImage('attachment://banner.png');
+  } else if (userCard.bannerCropUrl && /^https?:\/\/.+/i.test(userCard.bannerCropUrl)) {
+    // Mode: use saved Discord CDN URL of the cropped banner (zero upload)
+    embed.setImage(userCard.bannerCropUrl);
   } else if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
+    // Fallback: use original banner URL (GIF or not yet cropped)
     embed.setImage(userCard.bannerUrl);
   }
 
@@ -475,9 +482,12 @@ async function buildMemberCardEmbed(guild, member) {
 
 /**
  * Publish or update member card in #card-gallery.
+ * After successful publish with file, extracts Discord CDN URL and saves it.
+ * @param {boolean} isAutoSync — if true, never uploads files (uses saved CDN URL)
+ * @param {boolean} forceFiles — if true, forces file upload (used after new crop)
  * @returns {Promise<'first'|'updated'|null>}
  */
-async function publishCardToChannel(guild, member, client, isAutoSync = false) {
+async function publishCardToChannel(guild, member, client, isAutoSync = false, forceFiles = false) {
   const guildId = guild.id;
   const userId = member.id;
 
@@ -501,7 +511,9 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
 
-  const { embed, files } = await buildMemberCardEmbed(guild, member);
+  // Only attach local files on first publish after a new crop, never during auto-sync
+  const useFiles = forceFiles && !isAutoSync;
+  const { embed, files } = await buildMemberCardEmbed(guild, member, { useFiles });
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
 
   // If card was already published, edit existing message in-place
@@ -514,12 +526,22 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
           embeds: [embed],
           components: components
         };
-        // On user edit / new banner, send files. On 60s auto-sync, only send files if message has no attachments
-        if (files && files.length > 0 && (!isAutoSync || !existingMsg.attachments || existingMsg.attachments.size === 0)) {
+        if (useFiles && files.length > 0) {
           editPayload.files = files;
         }
 
-        await existingMsg.edit(editPayload);
+        const editedMsg = await existingMsg.edit(editPayload);
+
+        // Extract Discord CDN URL from uploaded attachment and save it
+        if (useFiles && editedMsg.attachments && editedMsg.attachments.size > 0) {
+          const bannerAttachment = editedMsg.attachments.find(a => a.name === 'banner.png');
+          if (bannerAttachment) {
+            userCard.bannerCropUrl = bannerAttachment.url.split('?')[0];
+            storage.write('cards', cardsData);
+            console.log(`[CardHandler] Saved banner CDN URL for ${member.displayName}`);
+          }
+        }
+
         console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
         return 'updated';
       }
@@ -527,23 +549,43 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
       if (fetchErr.code === 10008 || fetchErr.status === 404) {
         delete userCard.publishedMessageId;
         storage.write('cards', cardsData);
+      } else {
+        console.error(`[CardHandler] Edit failed:`, fetchErr.message);
       }
     }
   }
 
   // First time publish OR fallback if existing message was deleted
   try {
-    const warmMessage = `**${member.displayName}** published their Member Card.`;
-    const newMsg = await publishChannel.send({
-      content: warmMessage,
+    // For first publish, always include files if available
+    const sendPayload = {
+      content: `**${member.displayName}** published their Member Card.`,
       embeds: [embed],
-      components: components,
-      files: files
-    });
+      components: components
+    };
+    // On first publish, use local files even if useFiles was false
+    const bannerPath = getBannerFilePath(guildId, userId);
+    if (fs.existsSync(bannerPath)) {
+      sendPayload.files = [new AttachmentBuilder(bannerPath, { name: 'banner.png' })];
+      embed.setImage('attachment://banner.png');
+      sendPayload.embeds = [embed];
+    }
+
+    const newMsg = await publishChannel.send(sendPayload);
 
     if (!cardsData[guildId]) cardsData[guildId] = {};
     if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
     cardsData[guildId][userId].publishedMessageId = newMsg.id;
+
+    // Extract Discord CDN URL from the newly uploaded attachment
+    if (newMsg.attachments && newMsg.attachments.size > 0) {
+      const bannerAttachment = newMsg.attachments.find(a => a.name === 'banner.png');
+      if (bannerAttachment) {
+        cardsData[guildId][userId].bannerCropUrl = bannerAttachment.url.split('?')[0];
+        console.log(`[CardHandler] Saved banner CDN URL for ${member.displayName}`);
+      }
+    }
+
     storage.write('cards', cardsData);
 
     console.log(`[CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
@@ -630,16 +672,15 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Ephemeral Preview)
+  // 2. VIEW MY CARD (Ephemeral Preview) — never uploads files, uses CDN URL
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member);
+      const { embed } = await buildMemberCardEmbed(interaction.guild, interaction.member);
       return await interaction.editReply({
         content: '*Your Member Card Preview:*',
-        embeds: [embed],
-        files: files
+        embeds: [embed]
       });
     } catch (err) {
       console.error('[ViewCard] Error:', err);
@@ -798,35 +839,54 @@ async function handleCardModalSubmit(interaction, client) {
   if (resolvedColor) userCard.color = resolvedColor; else delete userCard.color;
 
   if (bannerUrl) {
+    const oldBannerUrl = userCard.bannerUrl;
     userCard.bannerUrl = bannerUrl;
     const isGif = /\.gif(\?.*)?$/i.test(bannerUrl) || /tenor\.com|giphy\.com/i.test(bannerUrl);
+    let bannerCropped = false;
     if (!isGif) {
       // Crop banner once to 800x240 and save to disk
-      await cropAndSaveBanner(bannerUrl, guildId, userId);
+      bannerCropped = await cropAndSaveBanner(bannerUrl, guildId, userId);
+      // Clear old CDN URL so it gets refreshed on publish
+      if (bannerCropped) {
+        delete userCard.bannerCropUrl;
+      }
     } else {
+      delete userCard.bannerCropUrl;
       const outPath = getBannerFilePath(guildId, userId);
       if (fs.existsSync(outPath)) {
         try { fs.unlinkSync(outPath); } catch (_) {}
       }
     }
+
+    storage.write('cards', cardsData);
+
+    // Always auto-publish/update card in gallery on submit
+    await interaction.editReply({
+      content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
+    });
+
+    // forceFiles=true so the cropped banner file gets uploaded and CDN URL gets extracted
+    publishCardToChannel(interaction.guild, interaction.member, client, false, bannerCropped).catch(err => {
+      console.error('[CardHandler] Background auto-publish failed:', err.message);
+    });
   } else {
     delete userCard.bannerUrl;
+    delete userCard.bannerCropUrl;
     const outPath = getBannerFilePath(guildId, userId);
     if (fs.existsSync(outPath)) {
       try { fs.unlinkSync(outPath); } catch (_) {}
     }
+
+    storage.write('cards', cardsData);
+
+    await interaction.editReply({
+      content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
+    });
+
+    publishCardToChannel(interaction.guild, interaction.member, client).catch(err => {
+      console.error('[CardHandler] Background auto-publish failed:', err.message);
+    });
   }
-
-  storage.write('cards', cardsData);
-
-  // Always auto-publish/update card in gallery on submit
-  await interaction.editReply({
-    content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
-  });
-
-  publishCardToChannel(interaction.guild, interaction.member, client).catch(err => {
-    console.error('[CardHandler] Background auto-publish failed:', err.message);
-  });
 }
 
 module.exports = {
