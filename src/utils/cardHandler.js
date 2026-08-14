@@ -457,16 +457,24 @@ async function buildMemberCardEmbed(guild, member, options = {}) {
     embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Banner image handling
+  // Banner image handling — 3 modes:
+  //   attachFiles: true      → upload local cropped file (initial gallery publish)
+  //   referenceAttachment: true → use attachment:// ref (auto-sync/like edits on existing gallery msg)
+  //   default (both false)   → use bannerCropUrl CDN URL (View My Card, /card)
   const files = [];
   const bannerPath = getBannerFilePath(guild.id, targetUser.id);
+  const hasCroppedFile = fs.existsSync(bannerPath);
 
-  if (options.useFiles && fs.existsSync(bannerPath)) {
-    // Mode: upload local cropped file (only used on first publish after crop)
+  if (options.attachFiles && hasCroppedFile) {
+    // Mode 1: Upload local cropped file to Discord (only on first publish after new crop)
     files.push(new AttachmentBuilder(bannerPath, { name: 'banner.png' }));
     embed.setImage('attachment://banner.png');
+  } else if (options.referenceAttachment && hasCroppedFile) {
+    // Mode 2: Reference existing attachment on gallery message (auto-sync, like/respect)
+    // Discord preserves attachments when editing — attachment:// resolves to existing file
+    embed.setImage('attachment://banner.png');
   } else if (userCard.bannerCropUrl && /^https?:\/\/.+/i.test(userCard.bannerCropUrl)) {
-    // Mode: use saved Discord CDN URL of the cropped banner (zero upload)
+    // Mode 3: Use saved Discord CDN URL (View My Card, /card — zero upload)
     embed.setImage(userCard.bannerCropUrl);
   } else if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
     // Fallback: use original banner URL (GIF or not yet cropped)
@@ -511,9 +519,10 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false, f
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
 
-  // Only attach local files on first publish after a new crop, never during auto-sync
-  const useFiles = forceFiles && !isAutoSync;
-  const { embed, files } = await buildMemberCardEmbed(guild, member, { useFiles });
+  // Determine banner mode based on context
+  const attachFiles = forceFiles && !isAutoSync;
+  const referenceAttachment = isAutoSync;
+  const { embed, files } = await buildMemberCardEmbed(guild, member, { attachFiles, referenceAttachment });
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
 
   // If card was already published, edit existing message in-place
@@ -526,19 +535,19 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false, f
           embeds: [embed],
           components: components
         };
-        if (useFiles && files.length > 0) {
+        if (attachFiles && files.length > 0) {
           editPayload.files = files;
         }
 
         const editedMsg = await existingMsg.edit(editPayload);
 
         // Extract Discord CDN URL from uploaded attachment and save it
-        if (useFiles && editedMsg.attachments && editedMsg.attachments.size > 0) {
+        if (attachFiles && editedMsg.attachments && editedMsg.attachments.size > 0) {
           const bannerAttachment = editedMsg.attachments.find(a => a.name === 'banner.png');
           if (bannerAttachment) {
             userCard.bannerCropUrl = bannerAttachment.url.split('?')[0];
             storage.write('cards', cardsData);
-            console.log(`[CardHandler] Saved banner CDN URL for ${member.displayName}`);
+            console.log(`[CardHandler] Saved banner CDN URL for ${member.displayName}: ${userCard.bannerCropUrl}`);
           }
         }
 
@@ -759,7 +768,8 @@ async function handleCardButton(interaction, client) {
       });
     }
 
-    const { embed: updatedEmbed } = await buildMemberCardEmbed(interaction.guild, authorMember);
+    // Use referenceAttachment mode — gallery message already has banner.png attached
+    const { embed: updatedEmbed } = await buildMemberCardEmbed(interaction.guild, authorMember, { referenceAttachment: true });
     const updatedComponents = createPublishedCardComponents(
       authorId,
       (targetCard.likes || []).length,
@@ -860,15 +870,25 @@ async function handleCardModalSubmit(interaction, client) {
 
     storage.write('cards', cardsData);
 
-    // Always auto-publish/update card in gallery on submit
+    // Publish with file upload and AWAIT so CDN URL is saved before user clicks View
     await interaction.editReply({
       content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
     });
 
-    // forceFiles=true so the cropped banner file gets uploaded and CDN URL gets extracted
-    publishCardToChannel(interaction.guild, interaction.member, client, false, bannerCropped).catch(err => {
-      console.error('[CardHandler] Background auto-publish failed:', err.message);
-    });
+    try {
+      await publishCardToChannel(interaction.guild, interaction.member, client, false, bannerCropped);
+      // Update reply with success message including CDN URL status
+      const updatedCard = storage.read('cards')[guildId]?.[userId];
+      const hasCdn = updatedCard?.bannerCropUrl ? ' ✅ Banner 800×240 saved!' : '';
+      await interaction.editReply({
+        content: `**Profile saved & published to <#${targetChannelId}>!**${hasCdn}`
+      }).catch(() => {});
+    } catch (err) {
+      console.error('[CardHandler] Publish failed:', err.message);
+      await interaction.editReply({
+        content: `**Profile saved!** Card published to <#${targetChannelId}>.`
+      }).catch(() => {});
+    }
   } else {
     delete userCard.bannerUrl;
     delete userCard.bannerCropUrl;
@@ -883,9 +903,14 @@ async function handleCardModalSubmit(interaction, client) {
       content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
     });
 
-    publishCardToChannel(interaction.guild, interaction.member, client).catch(err => {
-      console.error('[CardHandler] Background auto-publish failed:', err.message);
-    });
+    try {
+      await publishCardToChannel(interaction.guild, interaction.member, client);
+      await interaction.editReply({
+        content: `**Profile saved & published to <#${targetChannelId}>!**`
+      }).catch(() => {});
+    } catch (err) {
+      console.error('[CardHandler] Publish failed:', err.message);
+    }
   }
 }
 
