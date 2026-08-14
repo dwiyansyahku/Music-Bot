@@ -291,6 +291,46 @@ async function buildMemberCardEmbed(guild, member) {
 }
 
 /**
+ * Resolve Discord message link to direct audio attachment URL if applicable
+ */
+async function resolveAudioUrl(inputUrl, client) {
+  if (!inputUrl) return { url: inputUrl, name: null };
+  const match = inputUrl.match(/discord\.com\/channels\/(\d+|@me)\/(\d+)\/(\d+)/i);
+  if (match && client) {
+    const channelId = match[2];
+    const messageId = match[3];
+    try {
+      const ch = client.channels.cache.get(channelId) || await client.channels.fetch(channelId).catch(() => null);
+      if (ch) {
+        const msg = await ch.messages.fetch(messageId).catch(() => null);
+        if (msg && msg.attachments.size > 0) {
+          const audio = msg.attachments.find(a => a.contentType?.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(a.name));
+          if (audio) {
+            const cleanName = audio.name.replace(/\.(mp3|wav|ogg|m4a|aac|flac)$/i, '').replace(/[-_]+/g, ' ').trim();
+            return { url: audio.url, name: cleanName };
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  return { url: inputUrl, name: null };
+}
+
+/**
+ * Build message content: includes audio link so Discord renders the native audio player bar widget
+ */
+function buildCardMessageContent(displayName, songUrl, isUpdate = false) {
+  const action = isUpdate
+    ? `**${displayName}** updated their Member Card.`
+    : `**${displayName}** published their Member Card.`;
+
+  if (songUrl && (/\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(songUrl) || /cdn\.discordapp\.com|media\.discordapp\.net/i.test(songUrl))) {
+    return `${action}\n${songUrl}`;
+  }
+  return action;
+}
+
+/**
  * Publish or update member card in #card-gallery (Pure JSON, 0 Multipart Uploads, 0 Socket Errors)
  */
 async function publishCardToChannel(guild, member, client, isAutoSync = false) {
@@ -319,6 +359,7 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
 
   const { embed } = await buildMemberCardEmbed(guild, member);
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
+  const content = buildCardMessageContent(member.displayName, userCard.songUrl, !!existingMsgId);
 
   // If card was already published, edit existing message in-place
   if (existingMsgId) {
@@ -326,7 +367,7 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
       const existingMsg = await publishChannel.messages.fetch(existingMsgId);
       if (existingMsg) {
         await existingMsg.edit({
-          content: `**${member.displayName}** updated their Member Card.`,
+          content: content,
           embeds: [embed],
           components: components
         });
@@ -345,9 +386,8 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
 
   // First time publish OR fallback if existing message was deleted
   try {
-    const warmMessage = `**${member.displayName}** published their Member Card.`;
     const newMsg = await publishChannel.send({
-      content: warmMessage,
+      content: content,
       embeds: [embed],
       components: components
     });
@@ -446,9 +486,14 @@ async function handleCardButton(interaction, client) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
+      const cardsData = storage.read('cards');
+      const userCard = cardsData[guildId]?.[userId] || {};
       const { embed } = await buildMemberCardEmbed(interaction.guild, interaction.member);
+
+      const content = buildCardMessageContent(interaction.member.displayName, userCard.songUrl, false);
+
       return await interaction.editReply({
-        content: '*Your Member Card Preview:*',
+        content: `*Your Member Card Preview:*\n${userCard.songUrl && (/\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(userCard.songUrl) || /cdn\.discordapp\.com|media\.discordapp\.net/i.test(userCard.songUrl)) ? userCard.songUrl : ''}`.trim(),
         embeds: [embed]
       });
     } catch (err) {
@@ -573,6 +618,17 @@ async function handleCardModalSubmit(interaction, client) {
 
   // Parse Favorite Song
   const parsedSong = parseSongInput(songRaw);
+  let resolvedSongUrl = parsedSong?.url || null;
+  let resolvedSongTitle = parsedSong?.title || null;
+
+  // Auto-resolve message link to actual .mp3 attachment if user copied message link
+  if (resolvedSongUrl && /discord\.com\/channels\//i.test(resolvedSongUrl)) {
+    const resolved = await resolveAudioUrl(resolvedSongUrl, client);
+    if (resolved.url) resolvedSongUrl = resolved.url;
+    if (resolved.name && (!resolvedSongTitle || resolvedSongTitle === 'Discord Audio')) {
+      resolvedSongTitle = resolved.name;
+    }
+  }
 
   if (bannerUrl) {
     bannerUrl = normalizeBannerUrl(bannerUrl);
@@ -596,9 +652,9 @@ async function handleCardModalSubmit(interaction, client) {
     delete userCard.linkUrl;
   }
 
-  if (parsedSong) {
-    userCard.songTitle = parsedSong.title;
-    userCard.songUrl = parsedSong.url;
+  if (resolvedSongTitle || resolvedSongUrl) {
+    userCard.songTitle = resolvedSongTitle;
+    userCard.songUrl = resolvedSongUrl;
   } else {
     delete userCard.songTitle;
     delete userCard.songUrl;
