@@ -76,13 +76,13 @@ function createCardHubPayload(guild) {
 
   const embed = new EmbedBuilder()
     .setColor('#8B5CF6')
-    .setTitle('✨ Member Profile Card Hub')
+    .setTitle('Member Profile Card')
     .setDescription(
       'Create and customize your digital identity card in this server.\n\n' +
-      '**📋 How It Works:**\n' +
-      `1. Click **Edit Profile** to configure your Bio, Location, Zodiac / MBTI, Social Link & Banner Image. Your card will automatically publish & update in <#${targetChannelId}>.\n` +
-      '2. **🎙️ Live VC Status:** Automatically displays your active voice channel & duration in real-time.\n' +
-      '3. **🖼️ Banner Image:** Paste your banner image URL (*Right-click image ➔ Copy Image Link*).\n' +
+      '**How It Works:**\n' +
+      `1. Click **Edit Profile** to configure your Bio, Location, Zodiac / MBTI, Social Link, and Banner Image. Your card will automatically publish and update in <#${targetChannelId}>.\n` +
+      '2. **Live Voice Status:** Automatically displays your active voice channel and session duration.\n' +
+      '3. **Banner Image:** Provide any direct image URL to display at the bottom of your card.\n' +
       '4. Click **View My Card** to preview your profile card privately.\n' +
       '5. Click **Reset** to clear your profile data and remove your card from the gallery.'
     )
@@ -185,14 +185,14 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Join Server', value: formatDate(member.joinedAt), inline: true });
   }
 
-  // Column 3: Live VC Status (Real-time)
-  let liveVcText = '⚪ Inactive';
+  // Column 3: Live VC Status (Clean & Minimalist)
+  let liveVcText = 'Inactive';
   if (member.voice && member.voice.channel) {
     const chName = member.voice.channel.name;
     const liveInfo = getLiveVoiceInfo(guild.id, targetUser.id);
     const durText = liveInfo.durationFormatted ? ` (${liveInfo.durationFormatted})` : '';
     const displayCh = chName.length > 14 ? chName.substring(0, 12) + '..' : chName;
-    liveVcText = `🟢 #${displayCh}${durText}`;
+    liveVcText = `#${displayCh}${durText}`;
   }
   embed.addFields({ name: 'Live VC', value: liveVcText, inline: true });
 
