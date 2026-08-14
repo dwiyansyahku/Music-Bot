@@ -4,9 +4,69 @@ const {
   AttachmentBuilder
 } = require('discord.js');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const fs = require('fs');
+const path = require('path');
 const https = require('https');
 const http = require('http');
 const storage = require('./storage');
+
+// Local storage directory for cropped banner images (inside persistent volume)
+const BANNERS_DIR = path.join(process.cwd(), 'data', 'banners');
+if (!fs.existsSync(BANNERS_DIR)) {
+  fs.mkdirSync(BANNERS_DIR, { recursive: true });
+}
+
+function getBannerFilePath(guildId, userId) {
+  return path.join(BANNERS_DIR, `${guildId}_${userId}.png`);
+}
+
+/**
+ * Center-crop any image (square/vertical/landscape) to exactly 800x240 PNG and save to disk
+ */
+async function cropAndSaveBanner(url, guildId, userId) {
+  if (!url) return false;
+  const outPath = getBannerFilePath(guildId, userId);
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const img = await loadImage(buf);
+
+    const canvas = createCanvas(800, 240);
+    const ctx = canvas.getContext('2d');
+
+    const srcRatio = img.width / img.height;
+    const dstRatio = 800 / 240;
+    let sx, sy, sw, sh;
+    if (srcRatio > dstRatio) {
+      sh = img.height;
+      sw = img.height * dstRatio;
+      sx = (img.width - sw) / 2;
+      sy = 0;
+    } else {
+      sw = img.width;
+      sh = img.width / dstRatio;
+      sx = 0;
+      sy = (img.height - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 800, 240);
+    fs.writeFileSync(outPath, canvas.toBuffer('image/png'));
+    console.log(`[CardHandler] Cropped banner 800x240 saved for ${userId}`);
+    return true;
+  } catch (err) {
+    console.warn(`[CardHandler] Banner crop failed for ${userId}:`, err.message);
+    if (fs.existsSync(outPath)) {
+      try { fs.unlinkSync(outPath); } catch (_) {}
+    }
+    return false;
+  }
+}
 
 
 
@@ -383,8 +443,13 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Set banner image directly (Discord proxy renders images natively with zero server socket overhead)
-  if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
+  // Banner image handling: cropped 800x240 PNG if static, direct URL if GIF/fallback
+  const files = [];
+  const bannerPath = getBannerFilePath(guild.id, targetUser.id);
+  if (fs.existsSync(bannerPath)) {
+    files.push(new AttachmentBuilder(bannerPath, { name: 'banner.png' }));
+    embed.setImage('attachment://banner.png');
+  } else if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
     embed.setImage(userCard.bannerUrl);
   }
 
@@ -392,7 +457,7 @@ async function buildMemberCardEmbed(guild, member) {
     .setFooter({ text: `${guild.name} • Member Card` })
     .setTimestamp();
 
-  return embed;
+  return { embed, files };
 }
 
 /**
@@ -423,7 +488,7 @@ async function publishCardToChannel(guild, member, client) {
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
 
-  const embed = await buildMemberCardEmbed(guild, member);
+  const { embed, files } = await buildMemberCardEmbed(guild, member);
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
 
   // If card was already published, edit existing message in-place
@@ -431,11 +496,17 @@ async function publishCardToChannel(guild, member, client) {
     try {
       const existingMsg = await publishChannel.messages.fetch(existingMsgId);
       if (existingMsg) {
-        await existingMsg.edit({
+        const editPayload = {
           content: `**${member.displayName}** updated their Member Card.`,
           embeds: [embed],
           components: components
-        });
+        };
+        // If attachments were updated or missing, include files
+        if (files && files.length > 0 && (!existingMsg.attachments || existingMsg.attachments.size === 0)) {
+          editPayload.files = files;
+        }
+
+        await existingMsg.edit(editPayload);
         console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
         return 'updated';
       }
@@ -453,7 +524,8 @@ async function publishCardToChannel(guild, member, client) {
     const newMsg = await publishChannel.send({
       content: warmMessage,
       embeds: [embed],
-      components: components
+      components: components,
+      files: files
     });
 
     if (!cardsData[guildId]) cardsData[guildId] = {};
@@ -550,10 +622,11 @@ async function handleCardButton(interaction, client) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const embed = await buildMemberCardEmbed(interaction.guild, interaction.member);
+      const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member);
       return await interaction.editReply({
         content: '*Your Member Card Preview:*',
-        embeds: [embed]
+        embeds: [embed],
+        files: files
       });
     } catch (err) {
       console.error('[ViewCard] Error:', err);
@@ -562,7 +635,6 @@ async function handleCardButton(interaction, client) {
       });
     }
   }
-
 
   // 4. RESET CARD
   if (customId === 'card_btn_reset') {
@@ -580,6 +652,12 @@ async function handleCardButton(interaction, client) {
       }
       delete cardsData[guildId][userId];
       storage.write('cards', cardsData);
+
+      // Delete cropped banner file
+      const outPath = getBannerFilePath(guildId, userId);
+      if (fs.existsSync(outPath)) {
+        try { fs.unlinkSync(outPath); } catch (_) {}
+      }
     }
     return interaction.reply({
       content: 'Your profile card has been reset and removed from the gallery.',
@@ -627,7 +705,7 @@ async function handleCardButton(interaction, client) {
       });
     }
 
-    const updatedEmbed = await buildMemberCardEmbed(interaction.guild, authorMember);
+    const { embed: updatedEmbed } = await buildMemberCardEmbed(interaction.guild, authorMember);
     const updatedComponents = createPublishedCardComponents(
       authorId,
       (targetCard.likes || []).length,
@@ -705,7 +783,26 @@ async function handleCardModalSubmit(interaction, client) {
   }
 
   if (resolvedColor) userCard.color = resolvedColor; else delete userCard.color;
-  if (bannerUrl) userCard.bannerUrl = bannerUrl; else delete userCard.bannerUrl;
+
+  if (bannerUrl) {
+    userCard.bannerUrl = bannerUrl;
+    const isGif = /\.gif(\?.*)?$/i.test(bannerUrl) || /tenor\.com|giphy\.com/i.test(bannerUrl);
+    if (!isGif) {
+      // Crop banner once to 800x240 and save to disk
+      await cropAndSaveBanner(bannerUrl, guildId, userId);
+    } else {
+      const outPath = getBannerFilePath(guildId, userId);
+      if (fs.existsSync(outPath)) {
+        try { fs.unlinkSync(outPath); } catch (_) {}
+      }
+    }
+  } else {
+    delete userCard.bannerUrl;
+    const outPath = getBannerFilePath(guildId, userId);
+    if (fs.existsSync(outPath)) {
+      try { fs.unlinkSync(outPath); } catch (_) {}
+    }
+  }
 
   storage.write('cards', cardsData);
 
