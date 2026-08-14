@@ -84,6 +84,51 @@ async function cropAndSaveBanner(url, guildId, userId) {
 
 
 /**
+ * Parse favorite song input: supports 'Title | URL', standalone Discord MP3 URL / audio link, or plain text title
+ */
+function parseSongInput(input) {
+  if (!input || !input.trim()) return null;
+  const trimmed = input.trim();
+
+  // Format: "Judul Lagu | URL"
+  if (trimmed.includes('|')) {
+    const parts = trimmed.split('|');
+    const title = parts[0].trim();
+    let url = parts.slice(1).join('|').trim();
+    if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
+    return { title: title || 'Favorite Track', url: url || null };
+  }
+
+  // If it's a URL
+  if (/^https?:\/\//i.test(trimmed) || /^(cdn\.discordapp\.com|media\.discordapp\.net|open\.spotify\.com|youtu)/i.test(trimmed)) {
+    let url = trimmed;
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+
+    // Detect if Discord audio attachment or mp3 file
+    const fileNameMatch = url.match(/\/([^\/?#]+\.(mp3|wav|ogg|m4a|aac|flac))/i);
+    if (fileNameMatch) {
+      let songName = decodeURIComponent(fileNameMatch[1])
+        .replace(/\.(mp3|wav|ogg|m4a|aac|flac)$/i, '')
+        .replace(/[-_]+/g, ' ')
+        .trim();
+      return { title: songName || 'Audio Track', url };
+    }
+
+    if (/spotify\.com/i.test(url)) {
+      return { title: 'Spotify Track', url };
+    }
+    if (/youtu/i.test(url)) {
+      return { title: 'YouTube Audio', url };
+    }
+
+    return { title: 'Favorite Track', url };
+  }
+
+  // Plain text title
+  return { title: trimmed, url: null };
+}
+
+/**
  * Parse promo link input: supports 'Title | URL' or standalone 'URL' (auto-detects platform name)
  */
 function parsePromoLink(input) {
@@ -321,10 +366,11 @@ function createCardHubPayload(guild) {
     .setDescription(
       'Create your custom digital identity card in this server.\n\n' +
       '**How It Works:**\n' +
-      `1. Click **Edit Profile** to customize your Bio, Location, Social Link, Card Color & Banner. Your card will be automatically published/updated in <#${targetChannelId}>.\n` +
-      '2. **Banner Image:** Any image size/ratio is supported (auto-cropped to **800×240 px**). Get the link via *Right-click image ➔ Copy Image Link*.\n' +
-      '3. Click **View My Card** to preview your card privately.\n' +
-      '4. Click **Reset** to clear all your data and remove your card from the gallery.'
+      `1. Click **Edit Profile** to customize your Bio, Location, Social Link, Favorite Song & Banner. Your card will be automatically published/updated in <#${targetChannelId}>.\n` +
+      '2. **Favorite Song:** Paste a Discord MP3 file link (Right-click file ➔ *Copy Link*), Spotify / YouTube link, or song title. Audio files render as a **native Discord music player**!\n' +
+      '3. **Banner Image:** Any image size/ratio is supported (auto-cropped to **800×240 px**). Get the link via *Right-click image ➔ Copy Image Link*.\n' +
+      '4. Click **View My Card** to preview your card privately.\n' +
+      '5. Click **Reset** to clear all your data and remove your card from the gallery.'
     )
     .setFooter({ text: `${guild.name} • Member Identity System` })
     .setTimestamp();
@@ -392,7 +438,8 @@ async function getMemberJoinPosition(guild, member) {
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * @param {Object} options - { useFiles: boolean } — if true, attach local file; if false, use URL only
+ * Replaces 'Created' with 'Song' in Row 1.
+ * @param {Object} options - { attachFiles: boolean, referenceAttachment: boolean }
  * Returns { embed, files }
  */
 async function buildMemberCardEmbed(guild, member, options = {}) {
@@ -418,7 +465,7 @@ async function buildMemberCardEmbed(guild, member, options = {}) {
     .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
     .setDescription(description);
 
-  // Row 1: Core Server & Account Info (Inline 3 Columns)
+  // Row 1: Member # | Join Server | Song (3 Inline Columns)
   const joinPos = await getMemberJoinPosition(guild, member);
   if (joinPos) {
     embed.addFields({ name: 'Member #', value: joinPos, inline: true });
@@ -428,8 +475,25 @@ async function buildMemberCardEmbed(guild, member, options = {}) {
     embed.addFields({ name: 'Join Server', value: formatDate(member.joinedAt), inline: true });
   }
 
-  if (targetUser.createdAt) {
-    embed.addFields({ name: 'Created', value: formatDate(targetUser.createdAt), inline: true });
+  // Column 3: Song (Replaces Created)
+  if (userCard.songTitle && userCard.songUrl) {
+    embed.addFields({
+      name: 'Song',
+      value: `🎵 [${userCard.songTitle}](${userCard.songUrl})`,
+      inline: true
+    });
+  } else if (userCard.songTitle) {
+    embed.addFields({
+      name: 'Song',
+      value: `🎵 ${userCard.songTitle}`,
+      inline: true
+    });
+  } else {
+    embed.addFields({
+      name: 'Song',
+      value: '-',
+      inline: true
+    });
   }
 
   // Row 2: Real-time Voice Stats & Personal Info (Inline 3 Columns)
@@ -457,27 +521,19 @@ async function buildMemberCardEmbed(guild, member, options = {}) {
     embed.addFields({ name: 'Top Voice Friends', value: compText, inline: false });
   }
 
-  // Banner image handling — 3 modes:
-  //   attachFiles: true      → upload local cropped file (initial gallery publish)
-  //   referenceAttachment: true → use attachment:// ref (auto-sync/like edits on existing gallery msg)
-  //   default (both false)   → use bannerCropUrl CDN URL (View My Card, /card)
+  // Banner image handling
   const files = [];
   const bannerPath = getBannerFilePath(guild.id, targetUser.id);
   const hasCroppedFile = fs.existsSync(bannerPath);
 
   if (options.attachFiles && hasCroppedFile) {
-    // Mode 1: Upload local cropped file to Discord (only on first publish after new crop)
     files.push(new AttachmentBuilder(bannerPath, { name: 'banner.png' }));
     embed.setImage('attachment://banner.png');
   } else if (options.referenceAttachment && hasCroppedFile) {
-    // Mode 2: Reference existing attachment on gallery message (auto-sync, like/respect)
-    // Discord preserves attachments when editing — attachment:// resolves to existing file
     embed.setImage('attachment://banner.png');
   } else if (userCard.bannerCropUrl && /^https?:\/\/.+/i.test(userCard.bannerCropUrl)) {
-    // Mode 3: Use saved Discord CDN URL (View My Card, /card — zero upload)
     embed.setImage(userCard.bannerCropUrl);
   } else if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
-    // Fallback: use original banner URL (GIF or not yet cropped)
     embed.setImage(userCard.bannerUrl);
   }
 
@@ -489,13 +545,25 @@ async function buildMemberCardEmbed(guild, member, options = {}) {
 }
 
 /**
- * Publish or update member card in #card-gallery.
- * After successful publish with file, extracts Discord CDN URL and saves it.
- * @param {boolean} isAutoSync — if true, never uploads files (uses saved CDN URL)
- * @param {boolean} forceFiles — if true, forces file upload (used after new crop)
- * @returns {Promise<'first'|'updated'|null>}
+ * Helper to build card message content with native audio player link
  */
-async function publishCardToChannel(guild, member, client, isAutoSync = false, forceFiles = false) {
+function buildCardContent(displayName, songUrl, isUpdate = false) {
+  const actionText = isUpdate
+    ? `**${displayName}** updated their Member Card.`
+    : `**${displayName}** published their Member Card.`;
+
+  if (songUrl && /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(songUrl)) {
+    return `${actionText}\n${songUrl}`;
+  }
+  return actionText;
+}
+
+/**
+ * Publish or update member card in #card-gallery.
+ * For user updates: deletes previous message and sends a fresh POST message with attachments (eliminates PATCH multipart socket errors).
+ * For 60s auto-sync: cleanly edits embed text only in 0ms.
+ */
+async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   const guildId = guild.id;
   const userId = member.id;
 
@@ -519,65 +587,50 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false, f
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
 
-  // Determine banner mode based on context
-  const attachFiles = forceFiles && !isAutoSync;
-  const referenceAttachment = isAutoSync;
-  const { embed, files } = await buildMemberCardEmbed(guild, member, { attachFiles, referenceAttachment });
-  const components = createPublishedCardComponents(userId, likesCount, respectsCount);
-
-  // If card was already published, edit existing message in-place
-  if (existingMsgId) {
+  // 1. AUTO-SYNC (60s loop): Light in-place edit (0 files, 0 deletes, pure JSON)
+  if (isAutoSync && existingMsgId) {
     try {
       const existingMsg = await publishChannel.messages.fetch(existingMsgId);
       if (existingMsg) {
-        const editPayload = {
-          content: `**${member.displayName}** updated their Member Card.`,
+        const { embed } = await buildMemberCardEmbed(guild, member, { referenceAttachment: true });
+        const components = createPublishedCardComponents(userId, likesCount, respectsCount);
+        await existingMsg.edit({
           embeds: [embed],
           components: components
-        };
-        if (attachFiles && files.length > 0) {
-          editPayload.files = files;
-        }
-
-        const editedMsg = await existingMsg.edit(editPayload);
-
-        // Extract Discord CDN URL from uploaded attachment and save it
-        if (attachFiles && editedMsg.attachments && editedMsg.attachments.size > 0) {
-          const bannerAttachment = editedMsg.attachments.find(a => a.name === 'banner.png');
-          if (bannerAttachment) {
-            userCard.bannerCropUrl = bannerAttachment.url.split('?')[0];
-            storage.write('cards', cardsData);
-            console.log(`[CardHandler] Saved banner CDN URL for ${member.displayName}: ${userCard.bannerCropUrl}`);
-          }
-        }
-
-        console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
+        });
         return 'updated';
       }
     } catch (fetchErr) {
       if (fetchErr.code === 10008 || fetchErr.status === 404) {
         delete userCard.publishedMessageId;
         storage.write('cards', cardsData);
-      } else {
-        console.error(`[CardHandler] Edit failed:`, fetchErr.message);
       }
     }
   }
 
-  // First time publish OR fallback if existing message was deleted
+  // 2. USER EDIT / FIRST PUBLISH: Fresh POST delivery (100% reliable, zero multipart PATCH drops)
+  if (existingMsgId) {
+    try {
+      const oldMsg = await publishChannel.messages.fetch(existingMsgId).catch(() => null);
+      if (oldMsg) {
+        await oldMsg.delete().catch(() => {});
+      }
+    } catch (_) {}
+    delete userCard.publishedMessageId;
+  }
+
   try {
-    // For first publish, always include files if available
+    const { embed, files } = await buildMemberCardEmbed(guild, member, { attachFiles: true });
+    const components = createPublishedCardComponents(userId, likesCount, respectsCount);
+    const content = buildCardContent(member.displayName, userCard.songUrl, !!existingMsgId);
+
     const sendPayload = {
-      content: `**${member.displayName}** published their Member Card.`,
+      content: content,
       embeds: [embed],
       components: components
     };
-    // On first publish, use local files even if useFiles was false
-    const bannerPath = getBannerFilePath(guildId, userId);
-    if (fs.existsSync(bannerPath)) {
-      sendPayload.files = [new AttachmentBuilder(bannerPath, { name: 'banner.png' })];
-      embed.setImage('attachment://banner.png');
-      sendPayload.embeds = [embed];
+    if (files && files.length > 0) {
+      sendPayload.files = files;
     }
 
     const newMsg = await publishChannel.send(sendPayload);
@@ -586,18 +639,17 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false, f
     if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
     cardsData[guildId][userId].publishedMessageId = newMsg.id;
 
-    // Extract Discord CDN URL from the newly uploaded attachment
+    // Extract Discord CDN URL from uploaded attachment for zero-overhead previews
     if (newMsg.attachments && newMsg.attachments.size > 0) {
       const bannerAttachment = newMsg.attachments.find(a => a.name === 'banner.png');
       if (bannerAttachment) {
         cardsData[guildId][userId].bannerCropUrl = bannerAttachment.url.split('?')[0];
-        console.log(`[CardHandler] Saved banner CDN URL for ${member.displayName}`);
+        console.log(`[CardHandler] Saved banner CDN URL for ${member.displayName}: ${cardsData[guildId][userId].bannerCropUrl}`);
       }
     }
 
     storage.write('cards', cardsData);
-
-    console.log(`[CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
+    console.log(`[CardHandler] Card for ${member.displayName} successfully published to #${publishChannel.name}`);
     return existingMsgId ? 'updated' : 'first';
   } catch (sendErr) {
     console.error(`[CardHandler] Failed to publish card:`, sendErr.message);
@@ -616,7 +668,7 @@ async function handleCardButton(interaction, client) {
   const settings = storage.read('settings');
   const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
-  // 1. EDIT PROFILE → Single Modal (5 fields: Bio, Location, Hobbies, Color, Banner URL)
+  // 1. EDIT PROFILE → Single Modal (5 fields: Bio, Location, Social Link, Favorite Song, Banner URL)
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
@@ -645,21 +697,21 @@ async function handleCardButton(interaction, client) {
 
     const linkInput = new TextInputBuilder()
       .setCustomId('card_input_link')
-      .setLabel('Promo Link (Judul | URL, atau langsung URL)')
+      .setLabel('Social Link (Judul | URL, atau langsung URL)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. YouTube | https://youtube.com/@mychannel')
+      .setPlaceholder('e.g. Instagram | https://instagram.com/myusername')
       .setValue(userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
       .setRequired(false)
       .setMaxLength(250);
 
-    const colorInput = new TextInputBuilder()
-      .setCustomId('card_input_color')
-      .setLabel('Card Color (Nama / Hex)')
+    const songInput = new TextInputBuilder()
+      .setCustomId('card_input_song')
+      .setLabel('Favorite Song (Judul | Link MP3 / Spotify / YT)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. biru, merah, pink, ungu, gold, atau #8B5CF6')
-      .setValue(userCard.color || '')
+      .setPlaceholder('e.g. Penjaga Hati | https://cdn.discordapp.com/.../song.mp3 (Klik kanan MP3 -> Copy Link)')
+      .setValue(userCard.songTitle && userCard.songUrl ? `${userCard.songTitle} | ${userCard.songUrl}` : (userCard.songTitle || userCard.songUrl || ''))
       .setRequired(false)
-      .setMaxLength(25);
+      .setMaxLength(250);
 
     const bannerInput = new TextInputBuilder()
       .setCustomId('card_input_banner')
@@ -674,23 +726,36 @@ async function handleCardButton(interaction, client) {
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
       new ActionRowBuilder().addComponents(linkInput),
-      new ActionRowBuilder().addComponents(colorInput),
+      new ActionRowBuilder().addComponents(songInput),
       new ActionRowBuilder().addComponents(bannerInput)
     );
 
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Ephemeral Preview) — never uploads files, uses CDN URL
+  // 2. VIEW MY CARD (Ephemeral Preview with Native Audio Player & Banner)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const { embed } = await buildMemberCardEmbed(interaction.guild, interaction.member);
-      return await interaction.editReply({
-        content: '*Your Member Card Preview:*',
+      const cardsData = storage.read('cards');
+      const userCard = cardsData[guildId]?.[userId] || {};
+      const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member, { attachFiles: true });
+
+      let content = '*Your Member Card Preview:*';
+      if (userCard.songUrl && /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(userCard.songUrl)) {
+        content = `*Your Member Card Preview:*\n${userCard.songUrl}`;
+      }
+
+      const replyPayload = {
+        content: content,
         embeds: [embed]
-      });
+      };
+      if (files && files.length > 0) {
+        replyPayload.files = files;
+      }
+
+      return await interaction.editReply(replyPayload);
     } catch (err) {
       console.error('[ViewCard] Error:', err);
       return await interaction.editReply({
@@ -768,7 +833,6 @@ async function handleCardButton(interaction, client) {
       });
     }
 
-    // Use referenceAttachment mode — gallery message already has banner.png attached
     const { embed: updatedEmbed } = await buildMemberCardEmbed(interaction.guild, authorMember, { referenceAttachment: true });
     const updatedComponents = createPublishedCardComponents(
       authorId,
@@ -798,7 +862,7 @@ async function handleCardButton(interaction, client) {
 }
 
 /**
- * Handle modal form submit — save data & auto-update if already published
+ * Handle modal form submit — save data & auto-update in gallery
  */
 async function handleCardModalSubmit(interaction, client) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -812,17 +876,14 @@ async function handleCardModalSubmit(interaction, client) {
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let linkRaw = interaction.fields.getTextInputValue('card_input_link').trim();
-  let colorRaw = interaction.fields.getTextInputValue('card_input_color').trim();
+  let songRaw = interaction.fields.getTextInputValue('card_input_song').trim();
   let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
-  let resolvedColor = null;
 
-  // Resolve color by name (English / Indonesian) or hex, with graceful fallback
-  if (colorRaw) {
-    resolvedColor = resolveColor(colorRaw);
-  }
-
-  // Parse custom title & URL or auto-detect platform
+  // Parse custom title & URL or auto-detect platform for Social Link
   const parsedLink = parsePromoLink(linkRaw);
+
+  // Parse custom title & URL or auto-detect for Favorite Song
+  const parsedSong = parseSongInput(songRaw);
 
   if (bannerUrl && !/^https?:\/\//i.test(bannerUrl)) {
     bannerUrl = `https://${bannerUrl}`;
@@ -846,48 +907,26 @@ async function handleCardModalSubmit(interaction, client) {
     delete userCard.linkUrl;
   }
 
-  if (resolvedColor) userCard.color = resolvedColor; else delete userCard.color;
+  if (parsedSong) {
+    userCard.songTitle = parsedSong.title;
+    userCard.songUrl = parsedSong.url;
+  } else {
+    delete userCard.songTitle;
+    delete userCard.songUrl;
+  }
 
   if (bannerUrl) {
-    const oldBannerUrl = userCard.bannerUrl;
     userCard.bannerUrl = bannerUrl;
     const isGif = /\.gif(\?.*)?$/i.test(bannerUrl) || /tenor\.com|giphy\.com/i.test(bannerUrl);
-    let bannerCropped = false;
     if (!isGif) {
-      // Crop banner once to 800x240 and save to disk
-      bannerCropped = await cropAndSaveBanner(bannerUrl, guildId, userId);
-      // Clear old CDN URL so it gets refreshed on publish
-      if (bannerCropped) {
-        delete userCard.bannerCropUrl;
-      }
+      await cropAndSaveBanner(bannerUrl, guildId, userId);
+      delete userCard.bannerCropUrl;
     } else {
       delete userCard.bannerCropUrl;
       const outPath = getBannerFilePath(guildId, userId);
       if (fs.existsSync(outPath)) {
         try { fs.unlinkSync(outPath); } catch (_) {}
       }
-    }
-
-    storage.write('cards', cardsData);
-
-    // Publish with file upload and AWAIT so CDN URL is saved before user clicks View
-    await interaction.editReply({
-      content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
-    });
-
-    try {
-      await publishCardToChannel(interaction.guild, interaction.member, client, false, bannerCropped);
-      // Update reply with success message including CDN URL status
-      const updatedCard = storage.read('cards')[guildId]?.[userId];
-      const hasCdn = updatedCard?.bannerCropUrl ? ' ✅ Banner 800×240 saved!' : '';
-      await interaction.editReply({
-        content: `**Profile saved & published to <#${targetChannelId}>!**${hasCdn}`
-      }).catch(() => {});
-    } catch (err) {
-      console.error('[CardHandler] Publish failed:', err.message);
-      await interaction.editReply({
-        content: `**Profile saved!** Card published to <#${targetChannelId}>.`
-      }).catch(() => {});
     }
   } else {
     delete userCard.bannerUrl;
@@ -896,21 +935,24 @@ async function handleCardModalSubmit(interaction, client) {
     if (fs.existsSync(outPath)) {
       try { fs.unlinkSync(outPath); } catch (_) {}
     }
+  }
 
-    storage.write('cards', cardsData);
+  storage.write('cards', cardsData);
 
+  await interaction.editReply({
+    content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
+  });
+
+  try {
+    await publishCardToChannel(interaction.guild, interaction.member, client);
     await interaction.editReply({
-      content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
-    });
-
-    try {
-      await publishCardToChannel(interaction.guild, interaction.member, client);
-      await interaction.editReply({
-        content: `**Profile saved & published to <#${targetChannelId}>!**`
-      }).catch(() => {});
-    } catch (err) {
-      console.error('[CardHandler] Publish failed:', err.message);
-    }
+      content: `**Profile saved & published to <#${targetChannelId}>!**`
+    }).catch(() => {});
+  } catch (err) {
+    console.error('[CardHandler] Publish failed:', err.message);
+    await interaction.editReply({
+      content: `**Profile saved!** Card published to <#${targetChannelId}>.`
+    }).catch(() => {});
   }
 }
 
