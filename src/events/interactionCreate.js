@@ -1,7 +1,7 @@
-const { MessageFlags } = require('discord.js');
+const { MessageFlags, EmbedBuilder } = require('discord.js');
 const { handleCardButton, handleCardModalSubmit } = require('../utils/cardHandler');
-const { createMusicControlRow } = require('../utils/musicButtons');
-const { nowPlayingEmbed } = require('../utils/embeds');
+const { createMusicControlRows } = require('../utils/musicButtons');
+const { nowPlayingEmbed, queueEmbed } = require('../utils/embeds');
 
 module.exports = {
   name: 'interactionCreate',
@@ -83,15 +83,15 @@ module.exports = {
           case 'pause': {
             if (queue.paused) {
               await queue.resume();
-              const row = createMusicControlRow(queue);
+              const rows = createMusicControlRows(queue);
               const embed = nowPlayingEmbed(queue.songs[0], queue);
-              await interaction.update({ embeds: [embed], components: [row] }).catch(() => {});
+              await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
               return interaction.followUp({ content: '▶️ **Musik dilanjutkan.**', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
               await queue.pause();
-              const row = createMusicControlRow(queue);
+              const rows = createMusicControlRows(queue);
               const embed = nowPlayingEmbed(queue.songs[0], queue);
-              await interaction.update({ embeds: [embed], components: [row] }).catch(() => {});
+              await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
               return interaction.followUp({ content: '⏸️ **Musik di-pause.**', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
           }
@@ -116,6 +116,103 @@ module.exports = {
             }
             await queue.shuffle();
             return interaction.reply({ content: '🔀 **Antrian diacak!**', flags: MessageFlags.Ephemeral });
+          }
+
+          case 'loop': {
+            // Cycle: 0 (Off) -> 1 (Song) -> 2 (Queue) -> 0 (Off)
+            const nextMode = queue.repeatMode === 0 ? 1 : queue.repeatMode === 1 ? 2 : 0;
+            queue.setRepeatMode(nextMode);
+            const rows = createMusicControlRows(queue);
+            const embed = nowPlayingEmbed(queue.songs[0], queue);
+            await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
+            const modeNames = ['Off', 'Lagu (Single)', 'Seluruh Antrian (Queue)'];
+            return interaction.followUp({ content: `🔁 Mode Loop diubah ke: **${modeNames[nextMode]}**`, flags: MessageFlags.Ephemeral }).catch(() => {});
+          }
+
+          case 'autoplay': {
+            queue.autoplay = !queue.autoplay;
+            if (client.autoplaySettings) {
+              client.autoplaySettings.set(guildId, queue.autoplay);
+            }
+            const rows = createMusicControlRows(queue);
+            const embed = nowPlayingEmbed(queue.songs[0], queue);
+            await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
+            return interaction.followUp({
+              content: queue.autoplay ? '🔄 **Autoplay diaktifkan!** Bot otomatis cari lagu serupa saat antrian habis.' : '🚫 **Autoplay dimatikan.**',
+              flags: MessageFlags.Ephemeral
+            }).catch(() => {});
+          }
+
+          case 'lyrics': {
+            const currentSong = queue.songs[0];
+            if (!currentSong) {
+              return interaction.reply({ content: '❌ Tidak ada lagu yang sedang diputar saat ini.', flags: MessageFlags.Ephemeral });
+            }
+
+            // Bersihkan judul lagu dari teks berlebih YouTube
+            const cleanTitle = currentSong.name
+              .replace(/\(Official.*?\)/gi, '')
+              .replace(/\[Official.*?\]/gi, '')
+              .replace(/\(Music Video\)/gi, '')
+              .replace(/\[Music Video\]/gi, '')
+              .replace(/\(Audio\)/gi, '')
+              .replace(/\[Audio\]/gi, '')
+              .replace(/\(Lyric.*?\)/gi, '')
+              .replace(/\[Lyric.*?\]/gi, '')
+              .replace(/\(Visualizer\)/gi, '')
+              .replace(/\|.*$/g, '')
+              .trim();
+
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+            try {
+              const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle)}`, {
+                headers: { 'User-Agent': 'QumpruyDiscordBot/1.0 (https://github.com/dwiyansyahku/Music-Bot)' }
+              });
+
+              if (!res.ok) throw new Error(`Status ${res.status}`);
+
+              const results = await res.json();
+              if (!Array.isArray(results) || results.length === 0) {
+                return interaction.editReply(`❌ Lirik tidak ditemukan untuk lagu: **${currentSong.name}**`);
+              }
+
+              const bestMatch = results.find(r => r.plainLyrics || r.syncedLyrics) || results[0];
+              let lyricsText = bestMatch.plainLyrics;
+
+              if (!lyricsText && bestMatch.syncedLyrics) {
+                lyricsText = bestMatch.syncedLyrics.replace(/\[\d+:\d+\.\d+\]\s*/g, '');
+              }
+
+              if (!lyricsText) {
+                return interaction.editReply(`❌ Lirik tidak tersedia untuk lagu: **${bestMatch.trackName}** oleh **${bestMatch.artistName}**`);
+              }
+
+              if (lyricsText.length > 4000) {
+                lyricsText = lyricsText.substring(0, 3950) + '\n\n*... [Lirik dipotong karena terlalu panjang]*';
+              }
+
+              const lEmbed = new EmbedBuilder()
+                .setColor('#2B2D31')
+                .setTitle(`📝 ${bestMatch.trackName}`)
+                .setAuthor({ name: bestMatch.artistName || currentSong.uploader?.name || 'Artist' })
+                .setDescription(lyricsText)
+                .setFooter({ text: `Lirik untuk lagu yang sedang diputar • Sumber: LRCLIB` })
+                .setTimestamp();
+
+              if (currentSong.thumbnail) {
+                lEmbed.setThumbnail(currentSong.thumbnail);
+              }
+
+              return interaction.editReply({ embeds: [lEmbed] });
+            } catch (lyErr) {
+              return interaction.editReply(`❌ Gagal mengambil lirik lagu: ${lyErr.message}`);
+            }
+          }
+
+          case 'queue': {
+            const qEmbed = queueEmbed(queue, 1);
+            return interaction.reply({ embeds: [qEmbed], flags: MessageFlags.Ephemeral });
           }
 
           default:

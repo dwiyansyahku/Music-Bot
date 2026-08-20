@@ -6,7 +6,8 @@ const COLOR_SUCCESS = 0x57F287;
 const COLOR_ERROR = 0xED4245;
 
 function formatDuration(seconds) {
-  if (!seconds || seconds === Infinity) return '🔴 LIVE';
+  if (seconds === Infinity) return '🔴 LIVE';
+  if (!seconds || seconds <= 0) return '0:00';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
@@ -37,10 +38,12 @@ function nowPlayingEmbed(song, queue) {
 
   const artist = song?.uploader?.name || 'Unknown Artist';
   const requester = song?.member?.displayName || song?.user?.username || 'Unknown';
+  const loopLabel = queue?.repeatMode === 0 ? 'Off' : queue?.repeatMode === 1 ? 'Lagu' : 'Antrian';
+  const autoplayLabel = queue?.autoplay ? 'On' : 'Off';
 
   const embed = new EmbedBuilder()
     .setColor(COLOR_MAIN)
-    .setAuthor({ name: 'Sedang Diputar', iconURL: 'https://cdn.discordapp.com/emojis/858607149811564554.gif' })
+    .setAuthor({ name: 'Sedang Diputar' })
     .setTitle(`${emoji} ${song.name}`)
     .setURL(song.url)
     .setDescription(
@@ -49,7 +52,7 @@ function nowPlayingEmbed(song, queue) {
       `\`${formatDuration(current)} / ${formatDuration(total)}\`\n`
     )
     .setFooter({
-      text: `Diminta oleh ${requester} • Vol ${queue?.volume || 100}% • Loop: ${queue?.repeatMode === 0 ? 'Off' : queue?.repeatMode === 1 ? 'Song' : 'Queue'}`,
+      text: `Diminta oleh ${requester} • Vol ${queue?.volume || 100}% • Loop: ${loopLabel} • Autoplay: ${autoplayLabel}`,
       iconURL: song?.member?.displayAvatarURL() || null
     })
     .setTimestamp();
@@ -102,7 +105,7 @@ function queueEmbed(queue, page = 1) {
     .setTitle(`📋 Antrian Lagu (${queue.songs.length} lagu • ${formatDuration(totalDuration)})`)
     .setDescription(songList || '_Antrian kosong_')
     .setFooter({
-      text: `Halaman ${page}/${totalPages} • Volume: ${queue.volume}% • Loop: ${queue.repeatMode === 0 ? 'Off' : queue.repeatMode === 1 ? 'Song' : 'Queue'}`
+      text: `Halaman ${page}/${totalPages} • Volume: ${queue.volume}% • Loop: ${queue.repeatMode === 0 ? 'Off' : queue.repeatMode === 1 ? 'Lagu' : 'Antrian'} • Autoplay: ${queue.autoplay ? 'On' : 'Off'}`
     });
 }
 

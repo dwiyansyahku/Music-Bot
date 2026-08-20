@@ -289,11 +289,22 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       return await executeYtdlpRaw(url, flags, timeoutMs);
     }
 
-    // NOTE: Do NOT remove cookies on LOGIN_REQUIRED — cookies are needed for auth.
-    // Removing cookies and retrying without them will always fail too.
+    // Auto-fallback: Jika cookies kadaluarsa / rotated oleh browser, coba 1x tanpa cookies menggunakan client android
+    if (flags.cookies && (errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') || errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot'))) {
+      console.warn('🔄 [Cookies Fallback] Cookies terindikasi rotated/invalid. Mencoba fallback tanpa cookies dengan client android...');
+      const fallbackFlags = { ...flags };
+      delete fallbackFlags.cookies;
+      fallbackFlags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=android,web_safari';
+      try {
+        return await executeYtdlpRaw(url, fallbackFlags, timeoutMs);
+      } catch (fallbackErr) {
+        console.error('❌ [Cookies Fallback] Fallback gagal:', fallbackErr.message);
+      }
+    }
+
     if (errLower.includes('sign in') || errLower.includes('login_required') ||
         errLower.includes('confirm you\'re not a bot')) {
-      console.warn(`⚠️ [Auth Error] YouTube meminta login. Cek apakah YOUTUBE_COOKIES di Railway masih valid.`);
+      console.warn(`⚠️ [Auth Error] YouTube meminta login. Pastikan cookies diexport dari Incognito dan Incognito langsung ditutup.`);
     }
 
     throw err;
@@ -872,7 +883,39 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
 // DisTube Events
 const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, autoplayEmbed } = require('./utils/embeds');
-const { createMusicControlRow } = require('./utils/musicButtons');
+const { createMusicControlRows } = require('./utils/musicButtons');
+
+// Helper untuk live-update progress bar Now Playing secara periodik (setiap 6s aman dari rate limit)
+function startLiveProgressUpdater(queue) {
+  if (queue._progressInterval) {
+    clearInterval(queue._progressInterval);
+    queue._progressInterval = null;
+  }
+
+  queue._progressInterval = setInterval(async () => {
+    if (!queue || !queue.playing || queue.paused || !queue.songs || queue.songs.length === 0 || !queue._nowPlayingMsg) {
+      return;
+    }
+
+    try {
+      const embed = nowPlayingEmbed(queue.songs[0], queue);
+      await queue._nowPlayingMsg.edit({ embeds: [embed] });
+    } catch (err) {
+      if (err.code === 10008) { // Unknown Message
+        clearInterval(queue._progressInterval);
+        queue._progressInterval = null;
+        queue._nowPlayingMsg = null;
+      }
+    }
+  }, 6000);
+}
+
+function stopLiveProgressUpdater(queue) {
+  if (queue && queue._progressInterval) {
+    clearInterval(queue._progressInterval);
+    queue._progressInterval = null;
+  }
+}
 
 // Track lagu terakhir per guild untuk fitur autoplay
 const lastSongPerGuild = new Map();
@@ -888,12 +931,13 @@ client.distube
     }
 
     const embed = nowPlayingEmbed(song, queue);
-    const row = createMusicControlRow(queue);
+    const rows = createMusicControlRows(queue);
 
     // Edit pesan NowPlaying yang sama (persistent) — simpan referensi di queue object
     if (queue._nowPlayingMsg) {
       try {
-        await queue._nowPlayingMsg.edit({ embeds: [embed], components: [row] });
+        await queue._nowPlayingMsg.edit({ embeds: [embed], components: rows });
+        startLiveProgressUpdater(queue);
         return;
       } catch {
         // Pesan dihapus atau tidak bisa diedit — kirim baru
@@ -902,7 +946,8 @@ client.distube
     }
 
     // Kirim pesan baru dan simpan referensinya
-    queue._nowPlayingMsg = await queue.textChannel?.send({ embeds: [embed], components: [row] }).catch(() => null);
+    queue._nowPlayingMsg = await queue.textChannel?.send({ embeds: [embed], components: rows }).catch(() => null);
+    startLiveProgressUpdater(queue);
   })
   .on('addSong', (queue, song) => {
     // Hanya tampilkan notifikasi jika lagu ditambahkan ke antrian yang SUDAH BERJALAN
@@ -999,6 +1044,7 @@ client.distube
     console.log(`🤖 [Autoplay] Antrean diinisialisasi untuk server: ${queue.textChannel?.guild?.name}. Autoplay: ${persistentAutoplay}`);
   })
   .on('finish', async (queue) => {
+    stopLiveProgressUpdater(queue);
     // Update pesan NowPlaying — antrean selesai
     if (queue._nowPlayingMsg) {
       queue._nowPlayingMsg.edit({ embeds: [], content: '✅ **Antrean lagu telah selesai.**' }).catch(() => {});
