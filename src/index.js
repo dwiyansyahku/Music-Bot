@@ -58,14 +58,20 @@ if (fs.existsSync(wingetPackagesPath)) {
 
 const { Client, GatewayIntentBits, Collection, PermissionFlagsBits } = require('discord.js');
 const storage = require('./utils/storage');
+const circuitBreaker = require('./utils/circuitBreaker');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { YouTubePlugin } = require('@distube/youtube');
 
-const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const http = require('http');
+
+// Stream concurrency limiter — max 1 concurrent yt-dlp stream to reduce YouTube detection
+let activeStreams = 0;
+const MAX_CONCURRENT_STREAMS = 1;
+const streamQueue = [];
 
 let proxyServerPort = 0;
 
@@ -83,13 +89,13 @@ function startProxyServer() {
       
       const flags = {
         format: "ba[protocol^=http]",
-        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=default,-android_sdkless',
+        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=tv,web_safari',
         userAgent: USER_AGENT,
         retries: 3,
         fragmentRetries: 3,
         socketTimeout: 15,
-        sleepInterval: 1,
-        maxSleepInterval: 3,
+        sleepInterval: 3,
+        maxSleepInterval: 10,
         jsRuntimes: 'node',
         output: '-'
       };
@@ -323,19 +329,25 @@ function createYtDlpSong(plugin, info, options) {
 ytdlpPlugin.resolve = async function(url, options) {
   console.log(`🌐 [ytdlpPlugin.resolve] Starting resolution for URL: "${url}"`);
   
+  // Circuit breaker check — jangan request jika YouTube sedang blokir
+  const cbCheck = circuitBreaker.canRequest();
+  if (!cbCheck.allowed) {
+    throw new Error(cbCheck.message);
+  }
+
   const flags = {
     dumpSingleJson: true,
     noWarnings: false,
     verbose: true,
     skipDownload: true,
     simulate: true,
-    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=default,-android_sdkless',
+    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=tv,web_safari',
     userAgent: USER_AGENT,
     retries: 3,
     fragmentRetries: 3,
     socketTimeout: 15,
-    sleepInterval: 1,
-    maxSleepInterval: 3,
+    sleepInterval: 3,
+    maxSleepInterval: 10,
     noPlaylist: true,
     jsRuntimes: 'node'
   };
@@ -421,6 +433,7 @@ ytdlpPlugin.resolve = async function(url, options) {
     });
 
     console.log(`✅ [ytdlpPlugin.resolve] Execution completed successfully in ${Date.now() - startTime}ms`);
+    circuitBreaker.recordSuccess();
 
     // Simpan RAW JSON ke cache (bukan Song object) — playlist & pencarian tidak di-cache
     if (!url.startsWith('ytsearch') && !Array.isArray(info.entries)) {
@@ -451,25 +464,16 @@ ytdlpPlugin.getStreamURL = async function(song) {
     throw new Error("Cannot get stream URL from invalid song.");
   }
 
-  const MAX_RETRIES = 2;
-  let lastErr;
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const ageRestrictedParam = song.ageRestricted ? '&ageRestricted=true' : '';
-      const streamUrl = `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}${ageRestrictedParam}`;
-      console.log(`🔌 [ytdlpPlugin.getStreamURL] [Attempt ${attempt}/${MAX_RETRIES}] Proxying stream for "${song.name}" via port ${proxyServerPort}`);
-      return streamUrl;
-    } catch (err) {
-      lastErr = err;
-      if (attempt < MAX_RETRIES) {
-        console.warn(`⚠️ [getStreamURL] Gagal attempt ${attempt}, retry dalam 2 detik...`);
-        await new Promise(r => setTimeout(r, 2000));
-      }
-    }
+  // Circuit breaker check
+  const cbCheck = circuitBreaker.canRequest();
+  if (!cbCheck.allowed) {
+    throw new Error(cbCheck.message);
   }
 
-  throw lastErr;
+  const ageRestrictedParam = song.ageRestricted ? '&ageRestricted=true' : '';
+  const streamUrl = `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}${ageRestrictedParam}`;
+  console.log(`🔌 [ytdlpPlugin.getStreamURL] Proxying stream for "${song.name}" via port ${proxyServerPort}`);
+  return streamUrl;
 };
 
 // Bypass ytdl-core stream extractor and use highly robust yt-dlp instead
@@ -868,6 +872,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
 // DisTube Events
 const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, autoplayEmbed } = require('./utils/embeds');
+const { createMusicControlRow } = require('./utils/musicButtons');
 
 // Track lagu terakhir per guild untuk fitur autoplay
 const lastSongPerGuild = new Map();
@@ -883,11 +888,12 @@ client.distube
     }
 
     const embed = nowPlayingEmbed(song, queue);
+    const row = createMusicControlRow(queue);
 
     // Edit pesan NowPlaying yang sama (persistent) — simpan referensi di queue object
     if (queue._nowPlayingMsg) {
       try {
-        await queue._nowPlayingMsg.edit({ embeds: [embed] });
+        await queue._nowPlayingMsg.edit({ embeds: [embed], components: [row] });
         return;
       } catch {
         // Pesan dihapus atau tidak bisa diedit — kirim baru
@@ -896,7 +902,7 @@ client.distube
     }
 
     // Kirim pesan baru dan simpan referensinya
-    queue._nowPlayingMsg = await queue.textChannel?.send({ embeds: [embed] }).catch(() => null);
+    queue._nowPlayingMsg = await queue.textChannel?.send({ embeds: [embed], components: [row] }).catch(() => null);
   })
   .on('addSong', (queue, song) => {
     // Hanya tampilkan notifikasi jika lagu ditambahkan ke antrian yang SUDAH BERJALAN
@@ -919,30 +925,51 @@ client.distube
     const errLower = errMsg.toLowerCase();
     let userMsg = `❌ **Gagal memutar lagu ini.**`;
 
+    // Circuit breaker: laporkan error
+    const cbResult = circuitBreaker.recordError(errMsg);
+
     // Pesan error yang informatif berdasarkan jenis error
-    if (errLower.includes('429') || errLower.includes('too many requests')) {
-      userMsg += `\n⏳ YouTube membatasi request bot. Tunggu sebentar sebelum request lagu lagi.`;
-    } else if (errLower.includes('sign in') || errLower.includes('login_required') || errLower.includes('confirm you\'re not a bot') || errLower.includes('cookies')) {
-      userMsg += `\n🍪 **Cookies YouTube expired!** Hubungi admin untuk update cookies bot.`;
-      // Alert ke owner via DM
-      try {
-        if (!client.application.owner) await client.application.fetch();
-        const owner = client.application.owner;
-        const ownerId = owner?.id || owner?.members?.first()?.id;
-        if (ownerId) {
-          const ownerUser = await client.users.fetch(ownerId).catch(() => null);
-          if (ownerUser) {
-            ownerUser.send([
-              `🚨 **[Bot Alert] Cookies YouTube Expired!**`,
-              `Server: **${queue?.textChannel?.guild?.name || 'Unknown'}**`,
-              `Error: \`${errMsg.slice(0, 200)}\``,
-              `Segera update \`YOUTUBE_COOKIES\` di Railway/hosting dan restart bot!`
-            ].join('\n')).catch(() => {});
-          }
-        }
-      } catch (alertErr) {
-        console.warn('[Alert] Gagal kirim DM ke owner:', alertErr.message);
+    if (circuitBreaker.isAuthError(errMsg)) {
+      userMsg += `\n🍪 **YouTube membatasi bot.** Cookies mungkin expired atau terlalu banyak request.`;
+
+      // Jika circuit breaker trip ATAU terlalu banyak error berturut → STOP queue, jangan skip
+      if (cbResult.shouldStop) {
+        userMsg += `\n\n${cbResult.message}`;
+        userMsg += `\n⏹️ Antrian dihentikan otomatis untuk mencegah spam error.`;
+        queue?.textChannel?.send(userMsg).catch(() => {});
+
+        // Stop queue tanpa leave VC
+        try {
+          if (queue && queue.songs) queue.songs.length = 0;
+          await queue?.stop().catch(() => {});
+        } catch (_) {}
+        return;
       }
+
+      // Alert ke owner via DM (hanya sekali, saat pertama kali)
+      const cbStatus = circuitBreaker.getStatus();
+      if (cbStatus.consecutiveStreamErrors === 1) {
+        try {
+          if (!client.application.owner) await client.application.fetch();
+          const owner = client.application.owner;
+          const ownerId = owner?.id || owner?.members?.first()?.id;
+          if (ownerId) {
+            const ownerUser = await client.users.fetch(ownerId).catch(() => null);
+            if (ownerUser) {
+              ownerUser.send([
+                `🚨 **[Bot Alert] YouTube Auth Error!**`,
+                `Server: **${queue?.textChannel?.guild?.name || 'Unknown'}**`,
+                `Error: \`${errMsg.slice(0, 200)}\``,
+                `Cek cookies atau tunggu cooldown otomatis.`
+              ].join('\n')).catch(() => {});
+            }
+          }
+        } catch (alertErr) {
+          console.warn('[Alert] Gagal kirim DM ke owner:', alertErr.message);
+        }
+      }
+    } else if (errLower.includes('429') || errLower.includes('too many requests')) {
+      userMsg += `\n⏳ YouTube membatasi request bot. Tunggu sebentar sebelum request lagu lagi.`;
     } else if (errLower.includes('video unavailable') || errLower.includes('not available')) {
       userMsg += `\n🚫 Video tidak tersedia atau diblokir di region server.`;
     } else if (errLower.includes('connect to the voice channel') || errLower.includes('voice_connect_failed')) {
@@ -953,8 +980,8 @@ client.distube
       userMsg += `\n\`${errMsg.slice(0, 150)}\``;
     }
 
-    // Auto-skip ke lagu berikutnya jika ada
-    if (queue && queue.songs && queue.songs.length > 1) {
+    // Auto-skip HANYA jika bukan auth error (auth error → semua lagu berikutnya juga pasti gagal)
+    if (!circuitBreaker.isAuthError(errMsg) && queue && queue.songs && queue.songs.length > 1) {
       userMsg += `\n⏩ Melanjutkan ke lagu berikutnya...`;
       try {
         await queue.skip();

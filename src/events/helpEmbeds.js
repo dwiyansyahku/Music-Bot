@@ -29,11 +29,11 @@ const CATEGORIES = {
     color: 0xFFD93D,
   },
   fun: {
-    label: '🎉 Fun',
+    label: '🎉 Fun & Usilan',
     color: 0xFF6B6B,
   },
   settings: {
-    label: '⚙️ Settings',
+    label: '⚙️ Info & Settings',
     color: 0x99AAB5,
   },
 };
@@ -44,23 +44,23 @@ function buildHelpEmbed(category, client) {
     default:
       return new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle('🤖 QUMPRUY Bot — Bantuan')
+        .setTitle('🤖 QUMPRUY Bot — Pusat Bantuan')
         .setDescription(
-          `Bot serbaguna untuk server Discord kamu!\n` +
-          `Dukung musik, card profil, moderasi, reminder harian, dan lebih banyak lagi.\n\n` +
-          `**Pilih kategori di bawah untuk melihat daftar command.**`
+          `Bot multifungsi para BESTIE MPRUY\n` +
+          `Mendukung pemutar musik lengkap, kartu profil interaktif, moderasi, pengingat harian, dan fitur hiburan.\n\n` +
+          `**Pilih menu kategori di bawah untuk melihat rincian setiap command.**`
         )
         .addFields(
-          { name: '🎵 Musik', value: 'Putar lagu dari YouTube, Spotify, SoundCloud', inline: true },
-          { name: '🎴 Card Profil', value: 'Lihat & atur card profil member', inline: true },
-          { name: '🛡️ Moderasi', value: 'Warn, mute, kick, ban member', inline: true },
-          { name: '🌅 Harian & Jadwal', value: 'Reminder pagi, malam, ulang tahun, pengumuman', inline: true },
-          { name: '🎉 Fun', value: 'Poll / vote', inline: true },
-          { name: '⚙️ Settings', value: 'Welcome, clear, konfigurasi bot', inline: true },
+          { name: '🎵 Musik (20+ Fitur)', value: 'YouTube, Spotify, SoundCloud + Lirik, Filter & Tombol Kontrol', inline: true },
+          { name: '🎴 Card Profil', value: 'Sistem identitas member, Live Voice & Reputasi Like/Respect', inline: true },
+          { name: '🛡️ Moderasi', value: 'Warn auto-punish, Mute, Kick, Ban, dan Clear chat', inline: true },
+          { name: '🌅 Harian & Jadwal', value: 'Reminder Pagi/Malam, Ultah Akun Discord & Pengumuman', inline: true },
+          { name: '🎉 Fun & Usilan', value: 'Polling interaktif, Sistem Penjara (Jail), Roast, Fakequote & Wanted', inline: true },
+          { name: '⚙️ Info & Settings', value: 'Serverinfo, Userinfo, Welcome greeting, Ping & Setup bot', inline: true },
           {
             name: '👤 Developer',
             value: `**${OWNER.name}**\n🐙 [GitHub](${OWNER.github})`,
-            inline: true,
+            inline: false,
           }
         )
         .setFooter({ text: `QUMPRUY Bot • Made with ❤️ by ${OWNER.name}` })
@@ -68,248 +68,262 @@ function buildHelpEmbed(category, client) {
 
     case 'music':
       return new EmbedBuilder()
-        .setColor(0x1DB954)
+        .setColor('#2B2D31')
         .setTitle('🎵 Command Musik')
-        .setDescription('Support YouTube, Spotify, SoundCloud, dan 1000+ platform via yt-dlp!')
+        .setDescription(
+          'Dukungan multi-platform (YouTube, Spotify, SoundCloud) dengan kontrol interaktif dan audio filters.'
+        )
         .addFields(
           {
-            name: '▶️ Pemutaran',
+            name: '▶️ Pemutaran Dasar',
             value: [
               '`/play [lagu/url]` — Putar lagu atau playlist',
-              '`/nowplaying` — Info lagu yang sedang diputar',
-              '`/queue [halaman]` — Lihat antrian lagu',
-              '`/skip` — Skip ke lagu berikutnya',
-              '`/pause` — Pause lagu',
-              '`/resume` — Lanjutkan lagu',
-              '`/stop` — Stop dan keluar dari voice channel',
+              '`/search [query]` — Cari & pilih lagu dari 5 hasil dropdown',
+              '`/nowplaying` — Info lagu yang sedang diputar + progress bar visual',
+              '`/queue [halaman]` — Lihat daftar antrian lagu',
+              '`/skip` — Loncat ke lagu berikutnya',
+              '`/pause` — Jeda pemutaran musik sementara',
+              '`/resume` — Lanjutkan lagu yang di-pause',
+              '`/stop` — Hentikan musik & bersihkan antrian *(bot tetap di VC)*',
+              '`/leave` — Keluarkan bot dari Voice Channel *(Owner only)*',
+              '`/join` — Panggil bot bergabung ke Voice Channel kamu',
             ].join('\n'),
           },
           {
-            name: '⚙️ Kontrol Lanjutan',
+            name: '🎛️ Kontrol Lanjutan & Efek Audio',
             value: [
-              '`/volume [0-100]` — Atur volume',
-              '`/loop [off/song/queue]` — Mode repeat',
-              '`/shuffle` — Acak antrian',
-              '`/seek [detik]` — Loncat ke waktu tertentu',
-              '`/remove [nomor]` — Hapus lagu dari antrian',
-              '`/clearqueue` — Kosongkan antrian',
-              '`/autoplay` — Toggle autoplay lagu serupa',
-              '`/247` — Toggle mode 24/7 (bot stay di VC)',
+              '`/volume [0-150]` — Atur volume pemutaran',
+              '`/loop [off/song/queue]` — Mode pengulangan lagu atau antrian',
+              '`/shuffle` — Acak urutan daftar antrian',
+              '`/seek [detik]` — Melompat ke durasi waktu tertentu dalam lagu',
+              '`/remove [nomor]` — Hapus lagu tertentu dari antrian',
+              '`/clearqueue` — Kosongkan seluruh antrian lagu berikutnya',
+              '`/filter [efek]` — Audio filter (`bassboost`, `nightcore`, `vaporwave`, `3d`, `karaoke`, `treble`, `clear`)',
+              '`/lyrics [judul?]` — Cari lirik lagu via LRCLIB (otomatis jika judul dikosongkan)',
+              '`/autoplay` — Toggle otomatis mencari & memutar lagu serupa',
+              '`/q247` — Toggle mode 24/7 agar bot standby di Voice Channel *(Owner/Mod)*',
             ].join('\n'),
           },
           {
-            name: '💡 Contoh',
-            value: [
-              '`/play DJ Domba Kuring`',
-              '`/play https://open.spotify.com/track/...`',
-              '`/play https://www.youtube.com/watch?v=...`',
-            ].join('\n'),
+            name: '🖲️ Tombol Kontrol Interaktif',
+            value: 'Pesan **Now Playing** dilengkapi 5 tombol instan: `⏮️ Prev`, `⏯️ Pause/Play`, `⏭️ Skip`, `⏹️ Stop`, dan `🔀 Shuffle`.',
+          },
+          {
+            name: '💡 Prefix Commands (Awalan `q`)',
+            value: 'Semua command musik dapat dijalankan lewat pesan teks biasa menggunakan awalan `q`:\nContoh: `qp [judul]`, `qnp`, `qs`, `qvol 80`, `qloop`, `qfilter bassboost`, `qlyrics`, `qstop`, `qleave`.',
           }
         )
-        .setFooter({ text: 'QUMPRUY Bot • Musik' });
+        .setFooter({ text: 'QUMPRUY Bot • Sistem Musik' });
 
     case 'card':
       return new EmbedBuilder()
         .setColor(0x9B59B6)
         .setTitle('🎴 Sistem Card Profil Member')
-        .setDescription('Sistem profil card member interaktif tanpa perlu mengetik perintah!')
+        .setDescription('Kartu identitas digital member interaktif tanpa perlu mengetik perintah rumit!')
         .addFields(
           {
-            name: '📝 Pengisian Profil (Pop-up Form)',
+            name: '📝 Pengisian Profil (Pop-up Form Modal)',
             value: [
-              'Kunjungi channel **Member Card** di server kamu.',
-              'Klik tombol **`📝 Edit Profil Card`** untuk membuka form pop-up.',
-              'Isi **Bio**, **Kota/Domisili Asal**, dan **Warna Aksen Border**.',
+              '1. Kunjungi channel **Member Card** di server.',
+              '2. Klik tombol **`Edit Profile`** untuk membuka form pop-up.',
+              '3. Isi **Bio**, **Kota/Domisili**, **Zodiac/MBTI**, **Social Link**, dan **Banner Image URL**.',
+              '4. Kartu profil akan otomatis diterbitkan dan diperbarui di gallery.',
             ].join('\n'),
           },
           {
-            name: '👤 Tampilkan Card',
+            name: '👤 Tampilkan & Lihat Card',
             value: [
-              '`/card` — Tampilkan card profil milikmu (Privat)',
-              '`/card member:@user` — Lihat card profil member lain (Privat)',
-              'Atau klik tombol **`🎴 Lihat Card Saya`** di channel member card.',
+              '`/card` — Tampilkan card profil milikmu secara privat (Ephemeral)',
+              '`/card member:@user` — Lihat card profil member lain secara privat',
+              'Atau klik tombol **`View My Card`** pada panel hub profil.',
             ].join('\n'),
+          },
+          {
+            name: '🎙️ Live Voice Status & Companions',
+            value: [
+              '• Otomatis mendeteksi channel Voice aktif beserta durasinya.',
+              '• Mencatat total waktu voice dan 3 partner Voice yang paling sering mengobrol bersama.',
+            ].join('\n'),
+          },
+          {
+            name: '❤️ Interaksi Sosial & Reputasi',
+            value: 'Setiap kartu di gallery dilengkapi tombol **`❤️ Like`** dan **`⭐ Respect`** yang dapat diberikan oleh member lain.',
           },
           {
             name: '📌 Pengaturan Admin',
-            value: [
-              '`/setcard channel:#channel-tujuan` — Atur channel panel member card *(Admin only)*',
-            ].join('\n'),
+            value: '`/setcard channel:#channel-gallery` — Atur channel tempat hasil kartu member dipublikasikan *(Admin only)*.',
           }
         )
-        .setFooter({ text: 'QUMPRUY Bot • Card Profil' });
+        .setFooter({ text: 'QUMPRUY Bot • Member Profile Card' });
 
     case 'mod':
       return new EmbedBuilder()
         .setColor(0xED4245)
-        .setTitle('🛡️ Command Moderasi')
-        .setDescription('Sistem moderasi lengkap dengan auto-punish berdasarkan jumlah warn.\n⚠️ Butuh permission **Moderate Members** atau lebih tinggi.')
+        .setTitle('🛡️ Command Moderasi Server')
+        .setDescription('Sistem penegakan aturan otomatis dan proteksi server.\n⚠️ Memerlukan permission **Moderate Members** atau lebih tinggi.')
         .addFields(
           {
-            name: '⚠️ Warn System',
+            name: '⚠️ Sistem Peringatan (Warn)',
             value: [
-              '`/mod warn @user [alasan]` — Beri peringatan',
-              '`/mod warnings @user` — Lihat riwayat warn',
-              '`/mod clearwarns @user` — Hapus semua warn *(Admin only)*',
+              '`/mod warn @user [alasan]` — Berikan peringatan kepada member',
+              '`/mod warnings @user` — Lihat riwayat dan jumlah warn member',
+              '`/mod clearwarns @user` — Hapus seluruh catatan warn *(Admin only)*',
             ].join('\n'),
           },
           {
-            name: '🤖 Auto-Punish (Berdasarkan Jumlah Warn)',
+            name: '🤖 Auto-Punish (Hukuman Otomatis)',
             value: [
-              '`3x Warn` → 🔇 Auto mute 3 jam',
-              '`5x Warn` → 👢 Auto kick dari voice',
-              '`8x Warn` → 🔨 Auto ban permanent and kick server',
+              '• `3x Warn` ➔ 🔇 Auto Mute/Timeout selama 3 jam',
+              '• `5x Warn` ➔ 👢 Auto Kick dari Voice Channel',
+              '• `8x Warn` ➔ 🔨 Auto Ban permanen dari server',
             ].join('\n'),
           },
           {
-            name: '🔇 Mute / Timeout',
+            name: '🔇 Mute & Timeout',
             value: [
-              '`/mod mute @user [menit] [alasan]` — Timeout member',
-              '`/mod unmute @user` — Cabut timeout',
+              '`/mod mute @user [menit] [alasan]` — Berikan timeout kepada member',
+              '`/mod unmute @user` — Cabut status timeout member',
             ].join('\n'),
           },
           {
             name: '🚪 Kick & Ban',
             value: [
-              '`/mod kick @user [alasan]` — Kick member',
-              '`/mod ban @user [alasan] [hapus_pesan]` — Ban member',
+              '`/mod kick @user [alasan]` — Keluarkan member dari server',
+              '`/mod ban @user [alasan] [hapus_pesan]` — Blokir member dari server',
             ].join('\n'),
           },
           {
-            name: '🧹 Lainnya',
+            name: '🧹 Pembersihan Pesan (Clear Chat)',
             value: [
-              '`/clear amount [jumlah]` — Hapus N pesan (1-100)',
-              '`/clear all` — Hapus semua pesan di channel',
+              '`/qclear amount [jumlah]` — Hapus sejumlah pesan (1-100 pesan)',
+              '`/qclear all` — Hapus bersih seluruh riwayat chat di channel tersebut',
+              '*Dapat digunakan di channel Text maupun Voice Chat.*',
             ].join('\n'),
           }
         )
-        .setFooter({ text: 'QUMPRUY Bot • Moderasi • Target akan dapat DM notifikasi.' });
+        .setFooter({ text: 'QUMPRUY Bot • Moderasi • Target menerima notifikasi DM otomatis' });
 
     case 'daily':
       return new EmbedBuilder()
         .setColor(0xFFD93D)
-        .setTitle('🌅 Command Harian & Jadwal')
-        .setDescription('Reminder otomatis harian, ulang tahun, dan pengumuman terjadwal. Semua setting tersimpan permanen (tidak hilang saat restart).')
+        .setTitle('🌅 Command Harian, Jadwal & Pengumuman')
+        .setDescription('Pengingat otomatis waktu harian, perayaan ulang tahun, dan jadwal pengumuman.')
         .addFields(
           {
-            name: '☀️ Selamat Pagi `/qmorning`',
+            name: '☀️ Ucapan Pagi `/qmorning`',
             value: [
-              '`/qmorning setchannel #channel` — Set channel',
-              '`/qmorning settime [jam] [menit]` — Set jam (WIB)',
-              '`/qmorning enable/disable` — Toggle',
-              '`/qmorning test` — Preview',
-              '`/qmorning status` — Cek status',
+              '`/qmorning setchannel #channel` — Tentukan channel pesan pagi',
+              '`/qmorning settime [jam] [menit]` — Atur jadwal jam kirim (WIB)',
+              '`/qmorning enable` / `disable` — Aktifkan atau nonaktifkan pengingat',
+              '`/qmorning test` — Preview tampilan pesan selamat pagi',
+              '`/qmorning status` — Cek konfigurasi jadwal saat ini',
             ].join('\n'),
           },
           {
-            name: '🌙 Selamat Malam `/qnight`',
+            name: '🌙 Ucapan Malam `/qnight`',
             value: [
-              '`/qnight setchannel #channel` — Set channel',
-              '`/qnight settime [jam] [menit]` — Set jam (WIB)',
-              '`/qnight enable/disable` — Toggle',
-              '`/qnight test` — Preview',
-              '`/qnight status` — Cek status',
+              '`/qnight setchannel #channel` — Tentukan channel pesan malam',
+              '`/qnight settime [jam] [menit]` — Atur jadwal jam kirim (WIB)',
+              '`/qnight enable` / `disable` — Aktifkan atau nonaktifkan pengingat',
+              '`/qnight test` — Preview tampilan pesan selamat malam',
+              '`/qnight status` — Cek konfigurasi jadwal saat ini',
             ].join('\n'),
           },
           {
             name: '🎂 Discord Anniversary `/birthday`',
             value: [
-              '`/birthday view @user` — Lihat ultah akun Discord seseorang',
-              '`/birthday list` — 10 Discord Anniversary terdekat di server',
-              '`/birthday setchannel #channel` — Set channel pengumuman *(Owner only)*',
-              '',
-              '> Fitur ini otomatis merayakan hari pembuatan akun Discord semua member tanpa perlu registrasi!',
+              '`/birthday view @user` — Lihat tanggal & umur pembuatan akun Discord seseorang',
+              '`/birthday list` — Daftar 10 ulang tahun akun Discord terdekat di server',
+              '`/birthday setchannel #channel` — Atur channel pengumuman ulang tahun *(Owner only)*',
             ].join('\n'),
           },
           {
-            name: '📢 Pengumuman `/announce`',
+            name: '📢 Pengumuman Terjadwal `/announce`',
             value: [
-              '`/announce send #channel [pesan]` — Kirim pengumuman sekarang',
-              '`/announce schedule #channel [pesan] [jam] [menit]` — Jadwalkan harian',
-              '`/announce list` — Lihat jadwal aktif',
-              '`/announce remove [id]` — Hapus jadwal',
+              '`/announce send #channel [pesan]` — Kirim pengumuman langsung',
+              '`/announce schedule #channel [pesan] [jam] [menit]` — Jadwalkan pengumuman rutin setiap hari',
+              '`/announce list` — Tampilkan daftar pengumuman terjadwal aktif',
+              '`/announce remove [id]` — Batalkan/hapus jadwal pengumuman',
             ].join('\n'),
           }
         )
-        .setFooter({ text: 'QUMPRUY Bot • Semua waktu menggunakan WIB (UTC+7)' });
+        .setFooter({ text: 'QUMPRUY Bot • Waktu terkonfigurasi pada WIB (UTC+7)' });
 
     case 'fun':
       return new EmbedBuilder()
         .setColor(0xFF6B6B)
-        .setTitle('🎉 Command Fun & Usilan')
-        .setDescription('Semua command di bawah **hanya bisa diakses Moderator/Admin**. Gunakan dengan bijak (atau jangan — terserah 😈)')
+        .setTitle('🎉 Command Fun, Usilan & Jail')
+        .setDescription('Fitur interaktif dan hiburan server. Fitur usilan & jail khusus untuk **Moderator / Admin**.')
         .addFields(
           {
-            name: '📊 Poll / Vote `/poll`',
+            name: '📊 Polling & Voting `/poll`',
             value: [
-              '`/poll [pertanyaan] [opsi1] [opsi2]` — Buat poll 2 pilihan',
-              '`/poll [pertanyaan] [opsi1] [opsi2] [opsi3] [opsi4]` — Hingga 4 pilihan',
-              'Bot otomatis tambah reaksi 🇦 🇧 🇨 🇩',
+              '`/poll [pertanyaan] [opsi1] [opsi2]` — Buat voting 2 pilihan',
+              '`/poll [pertanyaan] [opsi1] [opsi2] [opsi3] [opsi4]` — Hingga 4 pilihan voting',
+              '*Bot otomatis menambahkan reaksi voting interaktif 🇦 🇧 🇨 🇩.*',
             ].join('\n'),
           },
           {
-            name: '🔒 Sistem Jail `/fun jail`',
+            name: '🔒 Sistem Penjara Server `/fun jail`',
             value: [
-              '`/fun jailsetup [role] [channel]` — Setup jail *(Admin only)*',
-              '`/fun jail @user [menit] [alasan]` — Masukkan member ke penjara',
-              '`/fun bail @user` — Bebaskan lebih awal',
-              '`/fun jailstatus @user` — Cek status penjara member',
-              '',
-              '> Member yang di-jail kehilangan akses semua channel & hanya bisa chat di #penjara. Auto-bebas setelah waktu habis.',
+              '`/fun jailsetup [role] [channel] [voice]` — Konfigurasi sistem penjara *(Admin only)*',
+              '`/fun jail @user [menit] [alasan]` — Jebloskan member nakal ke sel penjara',
+              '`/fun bail @user` — Bebaskan tahanan dari penjara lebih awal',
+              '`/fun jailstatus @user` — Cek status hukuman dan durasi tersisa tahanan',
+              '*Tahanan akan kehilangan akses semua channel lain dan dikurung di channel penjara.*',
             ].join('\n'),
           },
           {
-            name: '😂 Usilan `/fun`',
+            name: '😂 Fitur Usilan `/fun`',
             value: [
-              '`/fun roast @user` — Kirim roast lucu ke target',
-              '`/fun wanted @user [kejahatan]` — Buat poster WANTED keren',
-              '`/fun rename @user [nama?]` — Ganti nickname jadi nama lucu (nama random kalau dikosongkan)',
-              '`/fun fakequote @user [teks]` — Buat quote palsu seolah dari member itu',
-              '`/fun say [pesan] [#channel?]` — Bot ngomong atas nama lo',
+              '`/fun roast @user [teks?] [#channel?]` — Kirim ejekan/roast lucu ke target',
+              '`/fun wanted @user [kejahatan]` — Buat poster buronan WANTED bergaya koboi',
+              '`/fun rename @user [nama?]` — Ganti nickname member menjadi nama unik/kocak',
+              '`/fun fakequote @user [teks]` — Buat kutipan lucu seolah dikatakan oleh target',
+              '`/fun say [pesan] [#channel?]` — Kirim pesan mengatasnamakan bot',
             ].join('\n'),
           }
         )
-        .setFooter({ text: 'QUMPRUY Bot • Fun & Usilan • Mod/Admin only' });
+        .setFooter({ text: 'QUMPRUY Bot • Fitur Hiburan & Interaktif' });
 
     case 'settings':
       return new EmbedBuilder()
         .setColor(0x99AAB5)
-        .setTitle('⚙️ Command Settings')
-        .setDescription('Konfigurasi fitur bot untuk server. Semua perintah ini butuh **Manage Server** atau **Owner Bot**.')
+        .setTitle('⚙️ Info, Utilitas & Konfigurasi')
+        .setDescription('Informasi server, member, dan pengaturan umum bot.')
         .addFields(
           {
-            name: '👋 Welcome Member `/qwelcome`',
+            name: 'ℹ️ Informasi Server & Member',
             value: [
-              '`/qwelcome setchannel #channel` — Set channel sambutan',
-              '`/qwelcome enable/disable` — Toggle',
-              '`/qwelcome test` — Preview sambutan',
-              '`/qwelcome status` — Cek status',
+              '`/serverinfo` — Tampilkan statistik lengkap server (Member, Boost Level, Roles, Channels)',
+              '`/userinfo [@user]` — Tampilkan profil detail member (Join date, Akun dibuat, Status VC, Role)',
+              '`/ping` — Cek status latensi koneksi bot dan Discord WebSocket',
+              '`/help` — Buka panel menu panduan bot ini',
             ].join('\n'),
           },
           {
-            name: '🎴 Card Result Channel `/setcard`',
+            name: '👋 Sambutan Member Baru `/qwelcome`',
             value: [
-              '`/setcard #channel` — Set channel tempat hasil /card member diterbitkan',
+              '`/qwelcome setchannel #channel` — Atur channel kirim kartu sambutan',
+              '`/qwelcome enable` / `disable` — Aktifkan atau nonaktifkan sambutan',
+              '`/qwelcome test` — Uji coba kirim pesan kartu sambutan',
+              '`/qwelcome status` — Cek status konfigurasi welcome',
             ].join('\n'),
           },
           {
-            name: '🔧 Utilitas',
-            value: [
-              '`/ping` — Cek latency bot & uptime',
-              '`/join` — Paksa bot masuk voice channel',
-            ].join('\n'),
+            name: '🎴 Pengaturan Panel Profil',
+            value: '`/setcard #channel` — Tentukan channel untuk panel hub pembuatan kartu profil member.',
           },
           {
-            name: '👤 Info Developer',
+            name: '👤 Informasi Developer',
             value: [
-              `**${OWNER.name}**`,
-              `🐙 GitHub: [${OWNER.tag}](${OWNER.github})`,
-              '',
-              '*Bot ini dibuat dengan ❤️ khusus untuk server ini.*',
+              `Nama: **${OWNER.name}**`,
+              `GitHub: [${OWNER.github}](${OWNER.github})`,
+              `Role: Developer & Bot Architect`,
             ].join('\n'),
           }
         )
-        .setFooter({ text: `QUMPRUY Bot • Made by ${OWNER.name}` });
+        .setFooter({ text: `QUMPRUY Bot • Versi 2.0 • Made with ❤️ by ${OWNER.name}` });
   }
 }
 

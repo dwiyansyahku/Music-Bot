@@ -55,41 +55,22 @@ const resume = {
   },
 };
 
-// STOP
+// STOP — hentikan musik + bersihkan antrian, bot TETAP di voice channel
 const stop = {
   data: new SlashCommandBuilder()
     .setName('stop')
-    .setDescription('Stop musik dan keluarkan bot dari voice channel'),
+    .setDescription('Hentikan musik dan bersihkan antrian (bot tetap di voice channel)'),
   async execute(interaction, client) {
     checkVoiceChannel(interaction);
     const queue = client.distube.getQueue(interaction.guild.id);
-    client.stay247?.delete(interaction.guild.id); // Disable 24/7 mode if user explicitly asks to stop/leave
 
     if (queue) {
       queue._stoppedByCmd = true;
-      await queue.stop();
-      if (queue.voice) queue.voice.leave();
-      await interaction.reply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');
+      // Clear queue tapi jangan leave VC
+      await queue.stop().catch(() => {});
+      await interaction.reply('⏹️ **Musik dihentikan dan antrian dibersihkan.** Bot tetap di voice channel.');
     } else {
-      const voice = client.distube.voices.get(interaction.guild.id);
-      if (voice) {
-        voice.leave();
-        await interaction.reply('👋 **Bot keluar dari voice channel.**');
-      } else {
-        const botVoiceChannel = interaction.guild.members.me?.voice?.channel;
-        if (botVoiceChannel) {
-          const { getVoiceConnection } = require('@discordjs/voice');
-          const connection = getVoiceConnection(interaction.guild.id);
-          if (connection) {
-            connection.destroy();
-          } else {
-            interaction.guild.members.me.voice.disconnect();
-          }
-          await interaction.reply('👋 **Bot dipaksa keluar dari voice channel.**');
-        } else {
-          await interaction.reply('❌ Bot tidak ada di voice channel!');
-        }
-      }
+      await interaction.reply('❌ Tidak ada musik yang sedang diputar!');
     }
   },
 };

@@ -62,12 +62,10 @@ module.exports = {
             client.distube.getQueue(message.guild.id)?.stop().catch(() => {});
 
             if (isVoiceFail && attempt <= MAX_RETRIES) {
-              // Masih ada retry tersisa — informasikan user lalu tunggu
               console.warn(`⚠️ [Voice] VOICE_CONNECT_FAILED (attempt ${attempt}/${MAX_RETRIES + 1}), retrying in 3s...`);
               await searchingMsg.edit(`⏳ Koneksi voice gagal, mencoba lagi (${attempt}/${MAX_RETRIES})...`).catch(() => {});
               await new Promise(r => setTimeout(r, 3000));
             } else {
-              // Semua retry habis atau bukan voice error
               console.error(error);
               break;
             }
@@ -78,7 +76,7 @@ module.exports = {
           const isVoiceFail = lastError?.errorCode === 'VOICE_CONNECT_FAILED' ||
                               lastError?.message?.includes('Cannot connect to the voice channel');
           const errMsg = isVoiceFail
-            ? `❌ Gagal terhubung ke voice channel setelah ${MAX_RETRIES + 1}x percobaan.\n💡 Coba ubah **Region Override** voice channel ke **Singapore** di Discord (Settings → Edit Channel → Region Override).`
+            ? `❌ Gagal terhubung ke voice channel setelah ${MAX_RETRIES + 1}x percobaan.\n💡 Coba ubah **Region Override** voice channel ke **Singapore** di Discord.`
             : `❌ Error: ${lastError?.message?.slice(0, 1500)}`;
           await searchingMsg.edit(errMsg).catch((err) => {
             console.error('Failed to edit search message with error info:', err);
@@ -87,7 +85,6 @@ module.exports = {
 
         break;
       }
-
 
       case 's':
       case 'skip': {
@@ -116,145 +113,68 @@ module.exports = {
         const voiceChannel = checkVoiceChannel(message);
         if (!voiceChannel) return;
 
-        const MAX_JOIN_RETRIES = 2;
-        let joinMsg = null;
-
-        for (let attempt = 1; attempt <= MAX_JOIN_RETRIES + 1; attempt++) {
-          try {
-            await client.distube.voices.join(voiceChannel);
-            if (joinMsg) {
-              await joinMsg.edit(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`).catch(() => {});
-            } else {
-              await message.reply(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`).catch(() => {});
-            }
-            break;
-          } catch (error) {
-            const isVoiceFail = error.errorCode === 'VOICE_CONNECT_FAILED' ||
-                                error.message?.includes('Cannot connect to the voice channel');
-            if (isVoiceFail && attempt <= MAX_JOIN_RETRIES) {
-              if (!joinMsg) {
-                joinMsg = await message.reply(`⏳ Koneksi gagal, mencoba lagi (${attempt}/${MAX_JOIN_RETRIES})...`).catch(() => null);
-              } else {
-                await joinMsg.edit(`⏳ Koneksi gagal, mencoba lagi (${attempt}/${MAX_JOIN_RETRIES})...`).catch(() => {});
-              }
-              await new Promise(r => setTimeout(r, 3000));
-            } else {
-              console.error('Error joining voice channel:', error);
-              if (joinMsg) {
-                await joinMsg.edit(`❌ Gagal bergabung ke voice channel setelah ${attempt}x percobaan: ${error.message}`).catch(() => {});
-              } else {
-                await message.reply(`❌ Gagal bergabung ke voice channel: ${error.message}`).catch(() => {});
-              }
-              break;
-            }
-          }
+        try {
+          await client.distube.voices.join(voiceChannel);
+          await message.reply(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`);
+        } catch (error) {
+          console.error('Error joining voice channel:', error);
+          await message.reply(`❌ Gagal bergabung ke voice channel: ${error.message}`);
         }
         break;
       }
 
-      case 'stop':
-      case 'leave': {
+      // STOP: hanya menghentikan musik & membersihkan antrian, bot TETAP di voice channel
+      case 'stop': {
         const voiceChannel = checkVoiceChannel(message);
         if (!voiceChannel) return;
 
-        // Guard: pastikan hanya 1 reply yang terkirim
-        let hasReplied = false;
-        const safeReply = async (msg) => {
-          if (hasReplied) return;
-          hasReplied = true;
-          await message.reply(msg).catch(() => {});
-        };
+        const queue = client.distube.getQueue(message.guild.id);
+        if (queue) {
+          queue._stoppedByCmd = true;
+          await queue.stop().catch(() => {});
+          await message.reply('⏹️ **Musik dihentikan dan antrian dibersihkan.** Bot tetap di voice channel.');
+        } else {
+          await message.reply('❌ Tidak ada musik yang sedang diputar!');
+        }
+        break;
+      }
+
+      // LEAVE: mengeluarkan bot dari voice channel (Khusus Owner Bot)
+      case 'leave':
+      case 'dc':
+      case 'disconnect': {
+        const isOwner = await isBotOwner(message, client);
+        if (!isOwner) {
+          return message.reply('❌ Perintah ini hanya bisa digunakan oleh **Owner Bot**!');
+        }
+
+        const voiceChannel = message.guild.members.me?.voice?.channel;
+        if (!voiceChannel) {
+          return message.reply('❌ Bot tidak ada di voice channel!');
+        }
 
         client.stay247?.delete(message.guild.id);
 
         const queue = client.distube.getQueue(message.guild.id);
-
         if (queue) {
           queue._stoppedByCmd = true;
-          try {
-            await queue.stop();
-            const disTubeVoice = client.distube.voices.get(message.guild.id);
-            if (disTubeVoice) disTubeVoice.leave();
-            await safeReply('⏹️ **Musik dihentikan dan bot keluar dari voice channel.**');
-          } catch (error) {
-            console.error(error);
-            await safeReply(`❌ Error: ${error.message}`);
-          }
+          await queue.stop().catch(() => {});
+        }
+
+        const disTubeVoice = client.distube.voices.get(message.guild.id);
+        if (disTubeVoice) {
+          disTubeVoice.leave();
         } else {
-          // Tidak ada queue — coba keluar via DisTube voices
-          const disTubeVoice = client.distube.voices.get(message.guild.id);
-          if (disTubeVoice) {
-            disTubeVoice.leave();
-            await safeReply('👋 **Bot keluar dari voice channel.**');
+          const { getVoiceConnection } = require('@discordjs/voice');
+          const connection = getVoiceConnection(message.guild.id);
+          if (connection) {
+            connection.destroy();
           } else {
-            // Fallback: gunakan @discordjs/voice langsung
-            const { getVoiceConnection } = require('@discordjs/voice');
-            const connection = getVoiceConnection(message.guild.id);
-            if (connection) {
-              connection.destroy();
-              await safeReply('👋 **Bot keluar dari voice channel.**');
-            } else if (message.guild.members.me?.voice?.channel) {
-              await message.guild.members.me.voice.disconnect().catch(() => {});
-              await safeReply('👋 **Bot keluar dari voice channel.**');
-            } else {
-              await safeReply('❌ Bot tidak ada di voice channel!');
-            }
+            message.guild.members.me.voice.disconnect().catch(() => {});
           }
         }
-        break;
-      }
 
-      case 'ping': {
-        const sent = await message.reply('Pinging...');
-        const latency = sent.createdTimestamp - message.createdTimestamp;
-        await sent.edit(`🏓 Pong!\nLatency: **${latency}ms**\nAPI Latency: **${Math.round(client.ws.ping)}ms**`);
-        break;
-      }
-
-      case 'h':
-      case 'help': {
-        const helpEmbed = new EmbedBuilder()
-          .setColor(0x1DB954)
-          .setTitle('🎵 Discord Music Bot — Bantuan & Informasi')
-          .setDescription('Bot musik Discord yang berjalan menggunakan prefix teks **q** (tanpa slash `/`).')
-          .addFields(
-            {
-              name: '🎵 Perintah Utama',
-              value: [
-                '`qp [judul/url]` — Putar lagu atau playlist',
-                '`qj` / `qjoin` — Panggil bot ke voice channel',
-                '`qnp` / `nowplaying` — Info lagu yang sedang diputar',
-                '`qq` / `queue [hal]` — Lihat antrian lagu',
-              ].join('\n')
-            },
-            {
-              name: '⏯️ Kontrol Pemutaran',
-              value: [
-                '`qpause` — Pause lagu',
-                '`qresume` — Lanjutkan lagu',
-                '`qs` / `qskip` — Skip ke lagu berikutnya',
-                '`qstop` / `qleave` — Stop musik & bot keluar dari voice channel',
-                '`qap` / `qautoplay` — Aktifkan/matikan fitur lagu otomatis',
-              ].join('\n')
-            },
-            {
-              name: '🎛️ Pengaturan & Lainnya',
-              value: [
-                '`qvol [0-100]` — Atur volume musik',
-                '`qloop [off/song/queue]` — Atur mode loop',
-                '`qshuffle` — Acak urutan antrian',
-                '`qremove [nomor]` — Hapus lagu dari antrian',
-                '`qclear` — Hapus semua daftar antrian',
-                '`q247` — Aktifkan/matikan mode 24/7',
-                '`qping` — Cek status & latency bot',
-                '`qhelp` — Tampilkan menu ini',
-              ].join('\n')
-            }
-          )
-          .setFooter({ text: 'Created by Dwiyansyah Oktavyudi | Discord Music Bot' })
-          .setTimestamp();
-
-        await message.reply({ embeds: [helpEmbed] });
+        await message.reply('👋 **Bot keluar dari voice channel.**');
         break;
       }
 
@@ -325,15 +245,17 @@ module.exports = {
 
       case 'vol':
       case 'volume': {
-        const voiceChannel = checkVoiceChannel(message);
-        if (!voiceChannel) return;
-
         const queue = checkQueue(message, client);
         if (!queue) return;
 
+        if (!args[0]) {
+          return message.reply(`🔊 Volume saat ini: **${queue.volume}%**`);
+        }
+
+        checkVoiceChannel(message);
         const vol = parseInt(args[0]);
-        if (isNaN(vol) || vol < 0 || vol > 100) {
-          return message.reply('⚠️ Tentukan volume antara 0 hingga 100! Contoh: `qvol 50`');
+        if (isNaN(vol) || vol < 0 || vol > 150) {
+          return message.reply('⚠️ Tentukan volume antara 0 hingga 150! Contoh: `qvol 50`');
         }
 
         try {
@@ -359,7 +281,6 @@ module.exports = {
         let mode;
         
         if (!loopArg) {
-          // If no argument is provided, cycle through modes: 0 (Off) -> 1 (Song) -> 2 (Queue) -> 0 (Off)
           mode = queue.repeatMode === 0 ? 1 : queue.repeatMode === 1 ? 2 : 0;
         } else if (loopArg === 'off' || loopArg === '0') {
           mode = 0;
@@ -368,7 +289,7 @@ module.exports = {
         } else if (loopArg === 'queue' || loopArg === '2') {
           mode = 2;
         } else {
-          return message.reply('⚠️ Mode loop tidak valid! Gunakan: `qloop off`, `qloop song`, `qloop queue`, atau ketik `qloop` saja untuk mengganti mode.');
+          return message.reply('⚠️ Mode loop tidak valid! Gunakan: `qloop off`, `qloop song`, `qloop queue`');
         }
 
         try {
@@ -391,7 +312,6 @@ module.exports = {
         const guildId = message.guild.id;
         const queue = client.distube.getQueue(guildId);
 
-        // Jika antrean sedang aktif, pastikan pengguna berada di voice channel yang sama
         if (queue) {
           if (!checkVoiceChannel(message)) return;
         }
@@ -409,7 +329,7 @@ module.exports = {
           }
 
           const status = isOn 
-            ? '✅ **Autoplay diaktifkan!** Bot akan otomatis mencari dan memutar lagu rekomendasi setelah antrean selesai.' 
+            ? '✅ **Autoplay diaktifkan!** Bot otomatis mencari lagu serupa saat antrian habis.' 
             : '🚫 **Autoplay dimatikan.**';
           await message.reply(status);
         } catch (error) {
@@ -426,13 +346,13 @@ module.exports = {
         const queue = checkQueue(message, client);
         if (!queue) return;
 
-        if (queue.songs.length < 3) {
+        if (queue.songs.length <= 2) {
           return message.reply('⚠️ Antrian terlalu sedikit untuk diacak!');
         }
 
         try {
           await queue.shuffle();
-          await message.reply(`🔀 **Antrian diacak!** ${queue.songs.length} lagu telah diacak.`);
+          await message.reply(`🔀 **Antrian diacak!** (${queue.songs.length - 1} lagu berikutnya)`);
         } catch (error) {
           console.error(error);
           await message.reply(`❌ Error: ${error.message}`);
@@ -449,13 +369,12 @@ module.exports = {
 
         const pos = parseInt(args[0]);
         if (isNaN(pos) || pos < 1 || pos >= queue.songs.length) {
-          return message.reply(`❌ Nomor antrian tidak valid! Pilih nomor antrian antara 1 hingga ${queue.songs.length - 1}.`);
+          return message.reply(`❌ Nomor antrian tidak valid! Pilih nomor antara 1 hingga ${queue.songs.length - 1}.`);
         }
 
         try {
-          const removed = queue.songs[pos];
-          queue.songs.splice(pos, 1);
-          await message.reply(`🗑️ **Dihapus:** ${removed.name}`);
+          const removed = queue.songs.splice(pos, 1)[0];
+          await message.reply(`🗑️ **Dihapus dari antrian:** ${removed.name}`);
         } catch (error) {
           console.error(error);
           await message.reply(`❌ Error: ${error.message}`);
@@ -473,8 +392,11 @@ module.exports = {
 
         try {
           const count = queue.songs.length - 1;
+          if (count <= 0) {
+            return message.reply('❌ Tidak ada antrian lagu berikutnya yang bisa dibersihkan!');
+          }
           queue.songs.splice(1);
-          await message.reply(`🗑️ **${count} lagu dihapus dari antrian!**`);
+          await message.reply(`🧹 **${count} lagu dibersihkan dari antrian.**`);
         } catch (error) {
           console.error(error);
           await message.reply(`❌ Error: ${error.message}`);
@@ -500,12 +422,90 @@ module.exports = {
 
         try {
           await queue.seek(seconds);
-          const m = Math.floor(seconds / 60);
-          const s = seconds % 60;
-          await message.reply(`⏩ **Skipped ke ${m}:${String(s).padStart(2, '0')}**`);
+          const { formatDuration } = require('../utils/embeds');
+          await message.reply(`⏩ **Melompat ke ${formatDuration(seconds)}**`);
         } catch (error) {
           console.error(error);
           await message.reply(`❌ Error: ${error.message}`);
+        }
+        break;
+      }
+
+      case 'lyrics':
+      case 'ly': {
+        let query = args.join(' ');
+        if (!query) {
+          const queue = client.distube.getQueue(message.guild.id);
+          if (!queue || !queue.songs || queue.songs.length === 0) {
+            return message.reply('❌ Tidak ada lagu yang sedang diputar! Masukkan judul: `qlyrics [judul]`');
+          }
+          query = queue.songs[0].name.replace(/\(Official.*?\)|\[Official.*?\]|\(Music Video\)|\[Audio\]/gi, '').trim();
+        }
+
+        try {
+          const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`;
+          const res = await fetch(searchUrl, {
+            headers: { 'User-Agent': 'QumpruyDiscordBot/1.0' }
+          });
+          const results = await res.json();
+          if (!Array.isArray(results) || results.length === 0) {
+            return message.reply(`❌ Lirik tidak ditemukan untuk: **${query}**`);
+          }
+
+          const best = results.find(r => r.plainLyrics || r.syncedLyrics) || results[0];
+          let lyricsText = best.plainLyrics || (best.syncedLyrics ? best.syncedLyrics.replace(/\[\d+:\d+\.\d+\]\s*/g, '') : null);
+
+          if (!lyricsText) {
+            return message.reply(`❌ Lirik tidak tersedia untuk lagu: **${best.trackName}**`);
+          }
+
+          if (lyricsText.length > 4000) {
+            lyricsText = lyricsText.substring(0, 3950) + '\n\n*... [Lirik dipotong]*';
+          }
+
+          const embed = new EmbedBuilder()
+            .setColor('#2B2D31')
+            .setTitle(`📝 ${best.trackName}`)
+            .setAuthor({ name: best.artistName || 'Unknown' })
+            .setDescription(lyricsText)
+            .setFooter({ text: 'Sumber: LRCLIB' });
+
+          await message.reply({ embeds: [embed] });
+        } catch (err) {
+          await message.reply(`❌ Gagal mencari lirik: ${err.message}`);
+        }
+        break;
+      }
+
+      case 'filter':
+      case 'filters': {
+        const queue = checkQueue(message, client);
+        if (!queue) return;
+
+        const effect = args[0]?.toLowerCase();
+        if (!effect) {
+          const active = (queue.filters?.names || []).join(', ') || 'Tidak ada filter aktif';
+          return message.reply(`🎛️ **Filter Aktif:** \`${active}\`\nContoh: \`qfilter bassboost\`, \`qfilter nightcore\`, \`qfilter clear\``);
+        }
+
+        checkVoiceChannel(message);
+        try {
+          if (effect === 'clear' || effect === 'off') {
+            if (queue.filters?.clear) queue.filters.clear();
+            return message.reply('🧹 **Semua filter audio telah dimatikan.**');
+          }
+
+          if (queue.filters) {
+            if (queue.filters.has && queue.filters.has(effect)) {
+              queue.filters.remove(effect);
+              await message.reply(`🎛️ Filter **${effect}** dimatikan ❌`);
+            } else {
+              queue.filters.add(effect);
+              await message.reply(`🎛️ Filter **${effect}** diaktifkan ✅`);
+            }
+          }
+        } catch (err) {
+          await message.reply(`❌ Gagal mengatur filter: ${err.message}`);
         }
         break;
       }
@@ -555,8 +555,55 @@ module.exports = {
         break;
       }
 
+      case 'ping': {
+        const sent = await message.reply('Pinging...');
+        const latency = sent.createdTimestamp - message.createdTimestamp;
+        await sent.edit(`🏓 Pong!\nLatency: **${latency}ms**\nAPI Latency: **${Math.round(client.ws.ping)}ms**`);
+        break;
+      }
+
+      case 'h':
+      case 'help': {
+        const helpEmbed = new EmbedBuilder()
+          .setColor('#2B2D31')
+          .setTitle('🎵 QUMPRUY Music Bot — Bantuan Prefix (q)')
+          .setDescription('Daftar perintah teks menggunakan awalan `q`:')
+          .addFields(
+            {
+              name: '▶️ Pemutaran Musik',
+              value: [
+                '`qp [judul/url]` — Putar lagu atau playlist',
+                '`qnp` — Info lagu yang sedang diputar',
+                '`qq [hal]` — Lihat antrian lagu',
+                '`qs` / `qskip` — Skip lagu',
+                '`qpause` / `qresume` — Pause / Lanjutkan',
+                '`qstop` — Stop musik (bot tetap di VC)',
+                '`qleave` — Keluarkan bot dari VC',
+              ].join('\n')
+            },
+            {
+              name: '🎛️ Kontrol & Efek',
+              value: [
+                '`qvol [0-150]` — Atur volume',
+                '`qloop [off/song/queue]` — Mode pengulangan',
+                '`qshuffle` — Acak urutan antrian',
+                '`qseek [detik]` — Loncat ke detik tertentu',
+                '`qremove [nomor]` — Hapus lagu dari antrian',
+                '`qclearqueue` — Kosongkan antrian',
+                '`qfilter [efek]` — Audio filter (bassboost, nightcore, dll)',
+                '`qlyrics [judul]` — Cari lirik lagu',
+                '`qautoplay` — Toggle autoplay lagu serupa',
+                '`q247` — Toggle mode 24/7 (Owner only)',
+              ].join('\n')
+            }
+          )
+          .setFooter({ text: 'Gunakan slash command /help untuk menu bantuan lengkap' });
+
+        await message.reply({ embeds: [helpEmbed] });
+        break;
+      }
+
       default:
-        // Do nothing for unknown commands to prevent replying to random text starting with 'q'
         break;
     }
   },
