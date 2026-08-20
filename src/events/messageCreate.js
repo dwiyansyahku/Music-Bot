@@ -562,47 +562,6 @@ module.exports = {
         break;
       }
 
-      case 'h':
-      case 'help': {
-        const helpEmbed = new EmbedBuilder()
-          .setColor('#2B2D31')
-          .setTitle('🎵 QUMPRUY Music Bot — Bantuan Prefix (q)')
-          .setDescription('Daftar perintah teks menggunakan awalan `q`:')
-          .addFields(
-            {
-              name: '▶️ Pemutaran Musik',
-              value: [
-                '`qp [judul/url]` — Putar lagu atau playlist',
-                '`qnp` — Info lagu yang sedang diputar',
-                '`qq [hal]` — Lihat antrian lagu',
-                '`qs` / `qskip` — Skip lagu',
-                '`qpause` / `qresume` — Pause / Lanjutkan',
-                '`qstop` — Stop musik (bot tetap di VC)',
-                '`qleave` — Keluarkan bot dari VC',
-              ].join('\n')
-            },
-            {
-              name: '🎛️ Kontrol & Efek',
-              value: [
-                '`qvol [0-150]` — Atur volume',
-                '`qloop [off/song/queue]` — Mode pengulangan',
-                '`qshuffle` — Acak urutan antrian',
-                '`qseek [detik]` — Loncat ke detik tertentu',
-                '`qremove [nomor]` — Hapus lagu dari antrian',
-                '`qclearqueue` — Kosongkan antrian',
-                '`qfilter [efek]` — Audio filter (bassboost, nightcore, dll)',
-                '`qlyrics [judul]` — Cari lirik lagu',
-                '`qautoplay` — Toggle autoplay lagu serupa',
-                '`q247` — Toggle mode 24/7 (Owner only)',
-              ].join('\n')
-            }
-          )
-          .setFooter({ text: 'Gunakan slash command /help untuk menu bantuan lengkap' });
-
-        await message.reply({ embeds: [helpEmbed] });
-        break;
-      }
-
       default:
         break;
     }
