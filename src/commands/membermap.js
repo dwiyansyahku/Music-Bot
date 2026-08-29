@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const storage = require('../utils/storage');
 const { parseLocation } = require('../utils/locationHelper');
 
@@ -8,10 +8,12 @@ function createProgressBar(percent, length = 10) {
   return '█'.repeat(filled) + '░'.repeat(empty);
 }
 
+const ITEMS_PER_PAGE = 6; // 6 kota per halaman agar embed tetap proporsional & rapi
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('membermap')
-    .setDescription('Tampilkan statistik peta dan sebaran daerah/kota asal seluruh member server'),
+    .setDescription('Peta sebaran daerah/kota asal member server dengan navigasi halaman (Pagination)'),
 
   async execute(interaction) {
     const guildId = interaction.guild.id;
@@ -31,7 +33,7 @@ module.exports = {
 
       const locObj = parseLocation(rawAsal);
       if (!locObj || locObj.isAnomaly || !locObj.city) {
-        continue; // Lewati lokasi anomali (seperti 'HOME', 'Surga', dll)
+        continue;
       }
 
       const cityKey = locObj.city;
@@ -56,36 +58,132 @@ module.exports = {
 
     // Sort descending berdasarkan jumlah terbanyak
     const sorted = Object.entries(locCounts).sort((a, b) => b[1] - a[1]);
+    const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
 
     const rankIcons = ['🥇', '🥈', '🥉'];
 
-    // Format SEMUA data lokasi tanpa batasan limit 10
-    const formattedList = sorted.map(([loc, count], idx) => {
-      const pct = Math.round((count / totalValidLocations) * 100);
-      const bar = createProgressBar(pct, 10);
-      const rankNum = idx + 1;
-      const rankLabel = rankIcons[idx] || `\`#${rankNum.toString().padStart(2, '0')}\``;
-      const meta = locMetadata[loc];
-      const regionText = meta?.region ? ` *(${meta.region})*` : '';
-      const flagText = meta?.flag ? ` ${meta.flag}` : '';
+    function generateEmbed(pageIndex) {
+      const start = pageIndex * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
+      const pageItems = sorted.slice(start, end);
 
-      return `${rankLabel} **${loc}**${regionText}${flagText} — \`${count} Member\` (${pct}%)\n   \`${bar}\``;
-    }).join('\n\n');
+      const formattedList = pageItems.map(([loc, count], idx) => {
+        const globalRank = start + idx + 1;
+        const pct = Math.round((count / totalValidLocations) * 100);
+        const bar = createProgressBar(pct, 10);
+        const rankLabel = rankIcons[globalRank - 1] || `\`#${globalRank.toString().padStart(2, '0')}\``;
+        const meta = locMetadata[loc];
+        const regionText = meta?.region ? ` *(${meta.region})*` : '';
+        const flagText = meta?.flag ? ` ${meta.flag}` : '';
 
-    const embed = new EmbedBuilder()
-      .setColor(0x8B5CF6)
-      .setTitle(`🗺️ Peta Sebaran Wilayah Member — ${interaction.guild.name}`)
-      .setDescription(
-        `Statistik persebaran domisili member resmi yang terdaftar di **Member Card** server.\n\n` +
-        formattedList
-      )
-      .addFields(
-        { name: '👥 Member Terdata', value: `**${totalValidLocations}** / ${usersWithCard.length} pemilik card`, inline: true },
-        { name: '🏙️ Total Wilayah', value: `**${sorted.length}** Daerah/Kota`, inline: true }
-      )
-      .setFooter({ text: 'Lokasi diperbarui secara realtime dari kartu profil member' })
-      .setTimestamp();
+        return `${rankLabel} **${loc}**${regionText}${flagText} — \`${count} Member\` (${pct}%)\n   \`${bar}\``;
+      }).join('\n\n');
 
-    return interaction.reply({ embeds: [embed] });
+      return new EmbedBuilder()
+        .setColor(0x8B5CF6)
+        .setTitle(`🗺️ Peta Sebaran Wilayah Member — ${interaction.guild.name}`)
+        .setDescription(
+          `Statistik persebaran domisili member resmi di server **${interaction.guild.name}**.\n\n` +
+          formattedList
+        )
+        .addFields(
+          { name: '👥 Member Terdata', value: `**${totalValidLocations}** / ${usersWithCard.length} pemilik card`, inline: true },
+          { name: '🏙️ Total Wilayah', value: `**${sorted.length}** Daerah/Kota`, inline: true },
+          { name: '📄 Halaman', value: `**${pageIndex + 1}** dari **${totalPages}**`, inline: true }
+        )
+        .setFooter({ text: 'Gunakan tombol di bawah untuk berpindah halaman wilayah' })
+        .setTimestamp();
+    }
+
+    function generateActionRow(pageIndex) {
+      return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('map_first')
+          .setLabel('⏮️')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(pageIndex === 0),
+        new ButtonBuilder()
+          .setCustomId('map_prev')
+          .setLabel('◀ Sebelumnya')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(pageIndex === 0),
+        new ButtonBuilder()
+          .setCustomId('map_page_info')
+          .setLabel(`${pageIndex + 1} / ${totalPages}`)
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(true),
+        new ButtonBuilder()
+          .setCustomId('map_next')
+          .setLabel('Berikutnya ▶')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(pageIndex === totalPages - 1),
+        new ButtonBuilder()
+          .setCustomId('map_last')
+          .setLabel('⏭️')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(pageIndex === totalPages - 1)
+      );
+    }
+
+    let currentPage = 0;
+    const initialEmbed = generateEmbed(currentPage);
+    const initialRow = generateActionRow(currentPage);
+
+    const replyMsg = await interaction.reply({
+      embeds: [initialEmbed],
+      components: totalPages > 1 ? [initialRow] : [],
+      fetchReply: true
+    });
+
+    if (totalPages <= 1) return;
+
+    // Interactive Button Collector (2 Menit Aktif)
+    const collector = replyMsg.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: 120000
+    });
+
+    collector.on('collect', async (btnInt) => {
+      // Pastikan hanya yang menjalankan perintah (atau member server) yang bisa navigasi
+      if (btnInt.user.id !== interaction.user.id) {
+        return btnInt.reply({
+          content: '❌ Gunakan perintah `/membermap` sendiri untuk mengontrol navigasi halaman.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (btnInt.customId === 'map_prev' && currentPage > 0) {
+        currentPage--;
+      } else if (btnInt.customId === 'map_next' && currentPage < totalPages - 1) {
+        currentPage++;
+      } else if (btnInt.customId === 'map_first') {
+        currentPage = 0;
+      } else if (btnInt.customId === 'map_last') {
+        currentPage = totalPages - 1;
+      }
+
+      const updatedEmbed = generateEmbed(currentPage);
+      const updatedRow = generateActionRow(currentPage);
+
+      await btnInt.update({
+        embeds: [updatedEmbed],
+        components: [updatedRow]
+      });
+    });
+
+    collector.on('end', async () => {
+      // Nonaktifkan tombol setelah timeout
+      const disabledRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('d1').setLabel('⏮️').setStyle(ButtonStyle.Secondary).setDisabled(true),
+        new ButtonBuilder().setCustomId('d2').setLabel('◀ Sebelumnya').setStyle(ButtonStyle.Primary).setDisabled(true),
+        new ButtonBuilder().setCustomId('d3').setLabel(`${currentPage + 1} / ${totalPages}`).setStyle(ButtonStyle.Secondary).setDisabled(true),
+        new ButtonBuilder().setCustomId('d4').setLabel('Berikutnya ▶').setStyle(ButtonStyle.Primary).setDisabled(true),
+        new ButtonBuilder().setCustomId('d5').setLabel('⏭️').setStyle(ButtonStyle.Secondary).setDisabled(true)
+      );
+
+      await interaction.editReply({
+        components: [disabledRow]
+      }).catch(() => {});
+    });
   }
 };
