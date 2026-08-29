@@ -137,20 +137,15 @@ module.exports = {
 
     if (totalPages <= 1) return;
 
-    // Interactive Button Collector (2 Menit Aktif)
+    // Interactive Button Collector (5 Menit Aktif & diperpanjang setiap ada yang klik)
     const collector = replyMsg.createMessageComponentCollector({
       componentType: ComponentType.Button,
-      time: 120000
+      time: 300000 // 5 Menit
     });
 
     collector.on('collect', async (btnInt) => {
-      // Pastikan hanya yang menjalankan perintah (atau member server) yang bisa navigasi
-      if (btnInt.user.id !== interaction.user.id) {
-        return btnInt.reply({
-          content: '❌ Gunakan perintah `/membermap` sendiri untuk mengontrol navigasi halaman.',
-          flags: MessageFlags.Ephemeral
-        });
-      }
+      // Perpanjang timer collector setiap ada interaksi
+      collector.resetTimer();
 
       if (btnInt.customId === 'map_prev' && currentPage > 0) {
         currentPage--;
@@ -168,7 +163,7 @@ module.exports = {
       await btnInt.update({
         embeds: [updatedEmbed],
         components: [updatedRow]
-      });
+      }).catch(() => {});
     });
 
     collector.on('end', async () => {
