@@ -304,7 +304,7 @@ module.exports = {
     }
 
     // ====== Button Interaction (Peta Member Hub & Navigasi Mandiri) ======
-    if (interaction.isButton() && (interaction.customId === 'mmap_open_panel' || interaction.customId.startsWith('mmap_goto:'))) {
+    if (interaction.isButton() && (interaction.customId === 'mmap_open_panel' || interaction.customId.startsWith('mmap_'))) {
       const {
         getMemberMapData,
         buildMemberMapEmbed,
@@ -316,7 +316,6 @@ module.exports = {
         const data = getMemberMapData(guild.id);
 
         if (interaction.customId === 'mmap_open_panel') {
-          // Buka jendela privat / ephemeral baru untuk member yang mengklik
           const embed = buildMemberMapEmbed(guild, 0);
           const components = buildMemberMapComponents(0, data.totalPages);
 
@@ -327,17 +326,29 @@ module.exports = {
           });
         }
 
-        if (interaction.customId.startsWith('mmap_goto:')) {
-          // Pindah halaman pada jendela privat user tersebut
-          const targetPage = parseInt(interaction.customId.replace('mmap_goto:', ''), 10) || 0;
-          const embed = buildMemberMapEmbed(guild, targetPage);
-          const components = buildMemberMapComponents(targetPage, data.totalPages);
-
-          return interaction.update({
-            embeds: [embed],
-            components
-          });
+        let targetPage = 0;
+        if (interaction.customId === 'mmap_first') {
+          targetPage = 0;
+        } else if (interaction.customId === 'mmap_last') {
+          targetPage = data.totalPages - 1;
+        } else if (interaction.customId.startsWith('mmap_prev:')) {
+          targetPage = parseInt(interaction.customId.replace('mmap_prev:', ''), 10) || 0;
+        } else if (interaction.customId.startsWith('mmap_next:')) {
+          targetPage = parseInt(interaction.customId.replace('mmap_next:', ''), 10) || 0;
+        } else if (interaction.customId.startsWith('mmap_goto:')) {
+          targetPage = parseInt(interaction.customId.replace('mmap_goto:', ''), 10) || 0;
+        } else {
+          return;
         }
+
+        targetPage = Math.max(0, Math.min(targetPage, data.totalPages - 1));
+        const embed = buildMemberMapEmbed(guild, targetPage);
+        const components = buildMemberMapComponents(targetPage, data.totalPages);
+
+        return interaction.update({
+          embeds: [embed],
+          components
+        });
       } catch (err) {
         await safeErrorReply(err, 'Gagal memproses navigasi peta member.');
       }

@@ -119,12 +119,12 @@ function buildMemberMapComponents(pageIndex, totalPages) {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`mmap_goto:0`)
+        .setCustomId('mmap_first')
         .setLabel('⏮')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage === 0),
       new ButtonBuilder()
-        .setCustomId(`mmap_goto:${safePage - 1}`)
+        .setCustomId(`mmap_prev:${Math.max(0, safePage - 1)}`)
         .setLabel('◀ Prev')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage === 0),
@@ -134,12 +134,12 @@ function buildMemberMapComponents(pageIndex, totalPages) {
         .setStyle(ButtonStyle.Primary)
         .setDisabled(true),
       new ButtonBuilder()
-        .setCustomId(`mmap_goto:${safePage + 1}`)
+        .setCustomId(`mmap_next:${Math.min(totalPages - 1, safePage + 1)}`)
         .setLabel('Next ▶')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage >= totalPages - 1),
       new ButtonBuilder()
-        .setCustomId(`mmap_goto:${totalPages - 1}`)
+        .setCustomId(`mmap_last:${totalPages - 1}`)
         .setLabel('⏭')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage >= totalPages - 1)
