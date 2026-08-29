@@ -303,6 +303,47 @@ module.exports = {
       return;
     }
 
+    // ====== Button Interaction (Peta Member Hub & Navigasi Mandiri) ======
+    if (interaction.isButton() && (interaction.customId === 'mmap_open_panel' || interaction.customId.startsWith('mmap_goto:'))) {
+      const {
+        getMemberMapData,
+        buildMemberMapEmbed,
+        buildMemberMapComponents
+      } = require('../utils/memberMapHelper');
+
+      try {
+        const guild = interaction.guild;
+        const data = getMemberMapData(guild.id);
+
+        if (interaction.customId === 'mmap_open_panel') {
+          // Buka jendela privat / ephemeral baru untuk member yang mengklik
+          const embed = buildMemberMapEmbed(guild, 0);
+          const components = buildMemberMapComponents(0, data.totalPages);
+
+          return interaction.reply({
+            embeds: [embed],
+            components,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        if (interaction.customId.startsWith('mmap_goto:')) {
+          // Pindah halaman pada jendela privat user tersebut
+          const targetPage = parseInt(interaction.customId.replace('mmap_goto:', ''), 10) || 0;
+          const embed = buildMemberMapEmbed(guild, targetPage);
+          const components = buildMemberMapComponents(targetPage, data.totalPages);
+
+          return interaction.update({
+            embeds: [embed],
+            components
+          });
+        }
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses navigasi peta member.');
+      }
+      return;
+    }
+
     // ====== Modal Submit Interaction (Pop-up Form Card Member) ======
     if (interaction.isModalSubmit() && interaction.customId === 'card_modal_submit') {
       try {
