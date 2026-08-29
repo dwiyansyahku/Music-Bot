@@ -1,29 +1,30 @@
-const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const storage = require('../utils/storage');
+const { isOwnerOrMod } = require('../utils/helpers');
 
 /**
- * Loot Table & Drop Rates
+ * Loot Table & Drop Rates (Clean & Aesthetic)
  */
 const GACHA_ITEMS = [
   // 🟡 LEGENDARY (5%)
   {
     tier: 'LEGENDARY',
     rate: 5,
-    emoji: '🟡',
-    color: '#FEE75C',
-    name: '👑 Mahkota Sultan Mpruy',
-    badge: '👑 Sultan Mpruy',
-    title: 'Dewa Keberuntungan',
-    desc: 'Kamu mendapatkan status legenda dan gelar tertinggi di jagat Discord!'
+    tag: '✧',
+    color: 0xFEE75C,
+    name: 'Crown of Destiny',
+    badge: '✦ Sultan Mpruy',
+    title: 'Sovereign of Luck',
+    desc: 'Kamu mendapatkan status legenda dan gelar kehormatan tertinggi!'
   },
   {
     tier: 'LEGENDARY',
     rate: 5,
-    emoji: '🟡',
-    color: '#FEE75C',
-    name: '🌟 Golden Star of Destiny',
-    badge: '🌟 Bintang Takdir',
-    title: 'Anak Emas Semesta',
+    tag: '✧',
+    color: 0xFEE75C,
+    name: 'Celestial Star relic',
+    badge: '✦ Bintang Takdir',
+    title: 'Chosen by Cosmos',
     desc: 'Semesta tersenyum padamu! Hoki 1000 tahun telah terpakai!'
   },
 
@@ -31,21 +32,21 @@ const GACHA_ITEMS = [
   {
     tier: 'EPIC',
     rate: 15,
-    emoji: '🟣',
-    color: '#9B59B6',
-    name: '🔮 Kristal Aura Ungu',
-    badge: '🔮 Gacha Lord',
-    title: 'Si Paling Gacor',
-    desc: 'Aura mistis menyelimutimu. Tingkat kehokianmu di atas rata-rata!'
+    tag: '◈',
+    color: 0x9B59B6,
+    name: 'Amethyst Crystal Orb',
+    badge: '◈ Gacha Lord',
+    title: 'Aura of Fortune',
+    desc: 'Aura mistis menyelimutimu. Tingkat keberuntunganmu di atas rata-rata!'
   },
   {
     tier: 'EPIC',
     rate: 15,
-    emoji: '🟣',
-    color: '#9B59B6',
-    name: '🛡️ Tameng Pejuang Malam',
-    badge: '🛡️ Guardian Angel',
-    title: 'Penjaga Tongkrongan',
+    tag: '◈',
+    color: 0x9B59B6,
+    name: 'Midnight Guardian Shield',
+    badge: '◈ Guardian Angel',
+    title: 'Night Watcher',
     desc: 'Simbol ketangguhan begadang di voice channel sampai subuh.'
   },
 
@@ -53,78 +54,68 @@ const GACHA_ITEMS = [
   {
     tier: 'RARE',
     rate: 30,
-    emoji: '🔵',
-    color: '#3498DB',
-    name: '🍀 Semanggi Daun Empat',
-    badge: '🍀 Lucky Explorer',
-    title: 'Pencari Berkah',
+    tag: '◇',
+    color: 0x3498DB,
+    name: 'Four-Leaf Clover Token',
+    badge: '◇ Lucky Explorer',
+    title: 'Blessed Soul',
     desc: 'Jimat keberuntungan untuk menghadapi hari-hari penuh tugas.'
   },
   {
     tier: 'RARE',
     rate: 30,
-    emoji: '🔵',
-    color: '#3498DB',
-    name: '☕ Kopi Gula Aren Abadi',
-    badge: '☕ Kafein Booster',
-    title: 'Pecinta Begadang',
+    tag: '◇',
+    color: 0x3498DB,
+    name: 'Eternal Espresso Cup',
+    badge: '◇ Kafein Booster',
+    title: 'Coffee Aficionado',
     desc: 'Secangkir kopi yang tak pernah dingin untuk menemanimu ngobrol.'
   },
   {
     tier: 'RARE',
     rate: 30,
-    emoji: '🔵',
-    color: '#3498DB',
-    name: '🎮 Stik Konsol Emas',
-    badge: '🎮 Pro Gamer',
-    title: 'Carry Tongkrongan',
-    desc: 'Simbol pemain paling jago di server (atau paling sering beban).'
+    tag: '◇',
+    color: 0x3498DB,
+    name: 'Golden Gamepad Artifact',
+    badge: '◇ Pro Gamer',
+    title: 'Squad MVP',
+    desc: 'Simbol pemain paling andal di server.'
   },
 
   // ⚪ COMMON (50%)
   {
     tier: 'COMMON',
     rate: 50,
-    emoji: '⚪',
-    color: '#95A5A6',
-    name: '🦴 Tulang Kucing Zonk',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Mysterious Fish Bone',
     badge: null,
     title: null,
-    desc: 'Hanya tulang sisa makan siang kemarin. Jangan menyerah, coba lagi besok! 😂'
+    desc: 'Hanya tulang sisa makan siang. Jangan menyerah, coba lagi besok!'
   },
   {
     tier: 'COMMON',
     rate: 50,
-    emoji: '⚪',
-    color: '#95A5A6',
-    name: '🧦 Kaos Kaki Bolong',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Vintage Cozy Sock',
     badge: null,
     title: null,
-    desc: 'Wangi-wangi nostalgia. Lumayan buat lap meja server.'
+    desc: 'Wangi-wangi nostalgia. Lumayan untuk menghangatkan malam.'
   },
   {
     tier: 'COMMON',
     rate: 50,
-    emoji: '⚪',
-    color: '#95A5A6',
-    name: '🧻 Tisu Basah Bekas',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Lucky Fortune Paper',
     badge: null,
     title: null,
-    desc: 'Keringat perjuangan gacha hari ini telah terhapus.'
-  },
-  {
-    tier: 'COMMON',
-    rate: 50,
-    emoji: '⚪',
-    color: '#95A5A6',
-    name: '🍌 Kulit Pisang Licin',
-    badge: null,
-    title: null,
-    desc: 'Hati-hati terpeleset ke pelukan mantan.'
+    desc: 'Sebuah catatan kecil bertuliskan: "Hari esok akan lebih cerah!"'
   }
 ];
 
-const COOLDOWN_HOURS = 12; // Cooldown 12 jam per gacha pull
+const COOLDOWN_HOURS = 12;
 
 function rollGacha() {
   const rand = Math.random() * 100;
@@ -153,20 +144,92 @@ module.exports = {
         .addUserOption(opt =>
           opt.setName('user').setDescription('User yang ingin dilihat inventarisnya').setRequired(false)
         )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('setrole')
+        .setDescription('Atur Role Discord hadiah untuk tingkat kelangkaan tertentu (Admin Only)')
+        .addStringOption(opt =>
+          opt
+            .setName('tier')
+            .setDescription('Tingkat kelangkaan Gacha')
+            .setRequired(true)
+            .addChoices(
+              { name: '🟡 LEGENDARY', value: 'LEGENDARY' },
+              { name: '🟣 EPIC', value: 'EPIC' },
+              { name: '🔵 RARE', value: 'RARE' }
+            )
+        )
+        .addRoleOption(opt =>
+          opt.setName('role').setDescription('Role yang akan otomatis diberikan').setRequired(true)
+        )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('listroles')
+        .setDescription('Lihat daftar Role hadiah yang terpasang di Gacha')
     ),
 
-  async execute(interaction) {
+  async execute(interaction, client) {
     const sub = interaction.options.getSubcommand();
     const userId = interaction.user.id;
     const guildId = interaction.guild.id;
 
+    const settingsData = storage.read('settings');
+    if (!settingsData[guildId]) settingsData[guildId] = {};
+    if (!settingsData[guildId].gachaRoles) settingsData[guildId].gachaRoles = {};
+
+    // === SUBCOMMAND: SETROLE (Admin Only) ===
+    if (sub === 'setrole') {
+      const isAuthorized = await isOwnerOrMod(interaction, client);
+      if (!isAuthorized) {
+        return interaction.reply({
+          content: '❌ Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator/Admin**.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const tier = interaction.options.getString('tier');
+      const role = interaction.options.getRole('role');
+
+      settingsData[guildId].gachaRoles[tier] = role.id;
+      storage.write('settings', settingsData);
+
+      return interaction.reply({
+        content: `✅ **Berhasil Mengatur Hadiah Role!**\nMember yang mendapatkan hadiah tier **${tier}** akan otomatis menerima role **${role.name}** (<@&${role.id}>).`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    // === SUBCOMMAND: LISTROLES ===
+    if (sub === 'listroles') {
+      const gachaRoles = settingsData[guildId].gachaRoles || {};
+      const legRole = gachaRoles.LEGENDARY ? `<@&${gachaRoles.LEGENDARY}>` : '_Belum diatur_';
+      const epicRole = gachaRoles.EPIC ? `<@&${gachaRoles.EPIC}>` : '_Belum diatur_';
+      const rareRole = gachaRoles.RARE ? `<@&${gachaRoles.RARE}>` : '_Belum diatur_';
+
+      const embed = new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setTitle('🎁 Daftar Role Hadiah Gacha')
+        .setDescription('Daftar role yang otomatis diperoleh jika memenangkan tier gacha:')
+        .addFields(
+          { name: '🟡 Tier LEGENDARY', value: legRole, inline: false },
+          { name: '🟣 Tier EPIC', value: epicRole, inline: false },
+          { name: '🔵 Tier RARE', value: rareRole, inline: false }
+        )
+        .setFooter({ text: 'Gunakan /gacha setrole untuk mengatur role baru' });
+
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    // === DATA GACHA USER ===
     const gachaData = storage.read('gacha_data');
     if (!gachaData[guildId]) gachaData[guildId] = {};
     if (!gachaData[guildId][userId]) {
       gachaData[guildId][userId] = {
         pulls: 0,
         lastPull: 0,
-        inventory: [], // array of item names
+        inventory: [],
         badges: [],
         titles: []
       };
@@ -174,36 +237,42 @@ module.exports = {
 
     const userData = gachaData[guildId][userId];
 
-    // === 1. GACHA INVENTORY ===
+    // === SUBCOMMAND: INVENTORY ===
     if (sub === 'inventory') {
       const targetUser = interaction.options.getUser('user') || interaction.user;
       const targetData = gachaData[guildId][targetUser.id] || { pulls: 0, inventory: [], badges: [], titles: [] };
 
       const badgesText = targetData.badges.length > 0
-        ? targetData.badges.map(b => `🎖️ **${b}**`).join('\n')
+        ? targetData.badges.map(b => `\`${b}\``).join('  ')
         : '_Belum memiliki badge gacha_';
 
       const titlesText = targetData.titles.length > 0
-        ? targetData.titles.map(t => `🏷️ **"${t}"**`).join('\n')
+        ? targetData.titles.map(t => `\`"${t}"\``).join('  ')
         : '_Belum memiliki title_';
 
+      const itemsText = targetData.inventory.length > 0
+        ? targetData.inventory.map(item => `• ${item}`).join('\n')
+        : '_Belum ada item yang dikoleksi_';
+
       const embed = new EmbedBuilder()
-        .setColor('#9B59B6')
-        .setTitle(`🎒 Inventaris Gacha — ${targetUser.username}`)
-        .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `INVENTORY — ${targetUser.username.toUpperCase()}`,
+          iconURL: targetUser.displayAvatarURL({ dynamic: true })
+        })
         .addFields(
-          { name: '🎰 Total Pulls', value: `**${targetData.pulls} Kali**`, inline: true },
-          { name: '📦 Total Item Unik', value: `**${targetData.inventory.length} Item**`, inline: true },
-          { name: '🎖️ Badges Terbuka', value: badgesText, inline: false },
-          { name: '🏷️ Titles Koleksi', value: titlesText, inline: false }
+          { name: 'Total Pulls', value: `**${targetData.pulls}x**`, inline: true },
+          { name: 'Koleksi Item', value: `**${targetData.inventory.length} Item**`, inline: true },
+          { name: 'Titles & Badges', value: `${badgesText}\n${titlesText}`, inline: false },
+          { name: 'Daftar Relik', value: itemsText, inline: false }
         )
-        .setFooter({ text: 'Gunakan /gacha pull untuk membuka kotak keberuntungan!' })
+        .setFooter({ text: 'Gunakan /gacha pull setiap 12 jam untuk membuka peti misteri' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });
     }
 
-    // === 2. GACHA PULL ===
+    // === SUBCOMMAND: PULL ===
     if (sub === 'pull') {
       const now = Date.now();
       const timeSinceLast = now - userData.lastPull;
@@ -220,10 +289,10 @@ module.exports = {
         });
       }
 
-      await interaction.reply('🎁 **Membuka Peti Misteri...** 🌟✨');
+      await interaction.reply('✦ **Membuka Peti Misteri...** ✧');
 
-      // Animasi simulasi delay singkat
-      await new Promise(r => setTimeout(r, 1500));
+      // Animasi delay singkat
+      await new Promise(r => setTimeout(r, 1200));
 
       const item = rollGacha();
       userData.pulls++;
@@ -241,19 +310,38 @@ module.exports = {
 
       storage.write('gacha_data', gachaData);
 
+      // Auto-assign Discord Role jika tier ini dipasangkan role
+      let roleGivenText = '';
+      const configuredRoleId = settingsData[guildId]?.gachaRoles?.[item.tier];
+      if (configuredRoleId && interaction.member?.guild) {
+        try {
+          const roleObj = interaction.guild.roles.cache.get(configuredRoleId);
+          if (roleObj && !interaction.member.roles.cache.has(configuredRoleId)) {
+            await interaction.member.roles.add(configuredRoleId);
+            roleGivenText = `\n🎭 **Role Server Didapat:** <@&${configuredRoleId}>!`;
+          }
+        } catch (roleErr) {
+          console.error('[Gacha Role Add Error]:', roleErr.message);
+        }
+      }
+
       const embed = new EmbedBuilder()
         .setColor(item.color)
-        .setTitle(`${item.emoji} GACHA REWARD: [${item.tier}]`)
+        .setAuthor({
+          name: `REWARD UNLOCKED — [${item.tier}]`,
+          iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+        })
+        .setTitle(`${item.tag} ${item.name}`)
         .setDescription(
-          `Selamat **${interaction.member.displayName}**!\nKamu mendapatkan:\n\n` +
-          `✨ **${item.name}**\n` +
-          `> *${item.desc}*\n\n` +
-          (item.badge ? `🎖️ **Badge Didapat:** \`${item.badge}\`\n` : '') +
-          (item.title ? `🏷️ **Title Terbuka:** \`"${item.title}"\`\n` : '')
+          `Selamat **${interaction.member.displayName}**!\n` +
+          `*${item.desc}*\n\n` +
+          (item.badge ? `✦ **Badge:** \`${item.badge}\`\n` : '') +
+          (item.title ? `◈ **Title:** \`"${item.title}"\`\n` : '') +
+          roleGivenText
         )
         .addFields({
-          name: '📊 Info Pull',
-          value: `Tingkat Kelangkaan: **${item.tier}** • Pull ke: **#${userData.pulls}**`,
+          name: 'Tingkat Kelangkaan',
+          value: `Tier **${item.tier}** • Pull ke: **#${userData.pulls}**`,
           inline: false
         })
         .setFooter({ text: `Cooldown ${COOLDOWN_HOURS} jam • Cek koleksi dengan /gacha inventory` })
