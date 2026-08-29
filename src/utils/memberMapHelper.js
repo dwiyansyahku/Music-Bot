@@ -321,6 +321,9 @@ function createMemberMapPanelPayload(guild) {
       .setStyle(ButtonStyle.Primary)
   );
 
+  return { embeds: [embed], components: [row] };
+}
+
 /**
  * Update realtime pesan panel publik peta member jika sudah terpasang di channel
  */
