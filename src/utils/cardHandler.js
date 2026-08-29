@@ -4,6 +4,8 @@ const {
 } = require('discord.js');
 const storage = require('./storage');
 const { getVoiceStats, getLiveVoiceInfo } = require('./voiceTracker');
+const { parseBirthdate, getZodiac } = require('./birthdayHelper');
+const { parseLocation } = require('./locationHelper');
 
 function normalizeBannerUrl(url) {
   if (!url) return '';
@@ -80,11 +82,12 @@ function createCardHubPayload(guild) {
     .setDescription(
       'Create and customize your digital identity card in this server.\n\n' +
       '**How It Works:**\n' +
-      `1. Click **Edit Profile** to configure your Bio, Location, Zodiac / MBTI, Social Link, and Banner Image. Your card will automatically publish and update in <#${targetChannelId}>.\n` +
+      `1. Click **Edit Profile** to configure your Bio, Location, Birthday (Tanggal Lahir), Zodiac / MBTI, Social Link, and Banner Image. Your card will automatically publish and update in <#${targetChannelId}>.\n` +
       '2. **Live Voice Status:** Automatically displays your active voice channel and session duration.\n' +
-      '3. **Banner Image:** Provide any direct image URL to display at the bottom of your card.\n' +
-      '4. Click **View My Card** to preview your profile card privately.\n' +
-      '5. Click **Reset** to clear your profile data and remove your card from the gallery.'
+      '3. **Birthday Alert:** Fill in your birthday to receive an automatic celebration wish on your special day!\n' +
+      '4. **Banner Image:** Provide any direct image URL to display at the bottom of your card.\n' +
+      '5. Click **View My Card** to preview your profile card privately.\n' +
+      '6. Click **Reset** to clear your profile data and remove your card from the gallery.'
     )
     .setFooter({ text: `${guild.name} • Member Identity System` })
     .setTimestamp();
@@ -150,7 +153,7 @@ async function getMemberJoinPosition(guild, member) {
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Includes: Live VC status, Zodiac/MBTI, Social Link, and Direct Banner URL
+ * Includes: Live VC status, Birthday, Zodiac/MBTI, Social Link, and Direct Banner URL
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -196,21 +199,39 @@ async function buildMemberCardEmbed(guild, member) {
   }
   embed.addFields({ name: 'Live VC', value: liveVcText, inline: true });
 
-  // Row 2: Voice Time | Location | Zodiac / MBTI (3 Inline Columns)
+  // Row 2: Voice Time | Location | Birthday (3 Inline Columns)
   const voiceStats = getVoiceStats(guild.id, targetUser.id, guild);
   embed.addFields({ name: 'Voice Time', value: voiceStats.formattedTime, inline: true });
 
-  embed.addFields({ name: 'Location', value: userCard.asal || '-', inline: true });
+  // Location display (Smart normalized)
+  const locDisplay = userCard.location?.display || userCard.asal || '-';
+  embed.addFields({ name: 'Location', value: locDisplay, inline: true });
 
-  embed.addFields({ name: 'Zodiac / MBTI', value: userCard.zodiac || '-', inline: true });
+  // Birthday display
+  let birthdayText = '-';
+  if (userCard.birthdate && userCard.birthdate.formatted) {
+    birthdayText = userCard.birthdate.formatted;
+    if (userCard.birthdate.age) {
+      birthdayText += ` (${userCard.birthdate.age} th)`;
+    }
+  }
+  embed.addFields({ name: '🎂 Birthday', value: birthdayText, inline: true });
 
-  // Row 3: Social Link (if set)
+  // Row 3: Zodiac / MBTI (if set or auto-detected from birthday)
+  const zodiacDetected = userCard.birthdate ? getZodiac(userCard.birthdate.day, userCard.birthdate.month) : null;
+  const zodiacDisplay = userCard.zodiac || (zodiacDetected ? zodiacDetected.label : null);
+
+  if (zodiacDisplay) {
+    embed.addFields({ name: 'Zodiac / MBTI', value: zodiacDisplay, inline: true });
+  }
+
+  // Row 3 (or 4): Social Link (if set)
   if (userCard.linkUrl) {
     const linkTitle = userCard.linkTitle || 'Visit Link ↗';
     embed.addFields({
       name: 'Social Link',
       value: `[${linkTitle}](${userCard.linkUrl})`,
-      inline: false
+      inline: Boolean(zodiacDisplay)
     });
   }
 
@@ -221,6 +242,20 @@ async function buildMemberCardEmbed(guild, member) {
       .join('\n');
     embed.addFields({ name: 'Top Voice Companions', value: compText, inline: false });
   }
+
+  // Row 5: Achievements & Badges (Dynamic)
+  try {
+    const { getUserAchievements } = require('./achievementHelper');
+    const achData = getUserAchievements(guild.id, member.id, member);
+    if (achData.unlocked.length > 0) {
+      const badgeList = achData.unlocked.map(a => `${a.emoji} ${a.name}`).join(' • ');
+      embed.addFields({
+        name: `🎖️ Badges & Gelar (${achData.unlocked.length})`,
+        value: badgeList,
+        inline: false
+      });
+    }
+  } catch (_) {}
 
   // Banner image: Direct Image URL via Discord native proxy (Instant, 0 socket drops)
   if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
@@ -251,66 +286,53 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
     });
 
   if (!publishChannel) {
-    return null;
+    console.warn(`[CardHandler] Target channel ${targetChannelId} not found in guild ${guild.name}`);
+    return;
   }
 
   const cardsData = storage.read('cards');
-  const userCard = cardsData[guildId]?.[userId] || {};
-  const existingMsgId = userCard.publishedMessageId;
+  if (!cardsData[guildId]) cardsData[guildId] = {};
+  if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
+
+  const userCard = cardsData[guildId][userId];
+  const { embed } = await buildMemberCardEmbed(guild, member);
 
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
-
-  const { embed } = await buildMemberCardEmbed(guild, member);
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
 
-  // If card was already published, edit existing message in-place
-  if (existingMsgId) {
+  // CASE 1: Edit existing published message
+  if (userCard.publishedMessageId) {
     try {
-      const existingMsg = await publishChannel.messages.fetch(existingMsgId);
-      if (existingMsg) {
-        await existingMsg.edit({
-          content: `**${member.displayName}** updated their Member Card.`,
+      const existingMessage = await publishChannel.messages.fetch(userCard.publishedMessageId).catch(() => null);
+      if (existingMessage) {
+        await existingMessage.edit({
           embeds: [embed],
           components: components
         });
-        if (!isAutoSync) {
-          console.log(`[CardHandler] Card for ${member.displayName} updated in-place in #${publishChannel.name}`);
-        }
-        return 'updated';
+        return;
       }
-    } catch (fetchErr) {
-      if (fetchErr.code === 10008 || fetchErr.status === 404) {
-        delete userCard.publishedMessageId;
-        storage.write('cards', cardsData);
-      }
+    } catch (err) {
+      console.warn(`[CardHandler] Edit existing card message failed, will repost:`, err.message);
     }
   }
 
-  // First time publish OR fallback if existing message was deleted
+  // CASE 2: Post brand new message if not published yet or deleted
   try {
-    const warmMessage = `**${member.displayName}** published their Member Card.`;
-    const newMsg = await publishChannel.send({
-      content: warmMessage,
+    const newMessage = await publishChannel.send({
       embeds: [embed],
       components: components
     });
 
-    if (!cardsData[guildId]) cardsData[guildId] = {};
-    if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
-    cardsData[guildId][userId].publishedMessageId = newMsg.id;
+    userCard.publishedMessageId = newMessage.id;
     storage.write('cards', cardsData);
-
-    console.log(`[CardHandler] Card for ${member.displayName} published to #${publishChannel.name}`);
-    return existingMsgId ? 'updated' : 'first';
-  } catch (sendErr) {
-    console.error(`[CardHandler] Failed to publish card:`, sendErr.message);
-    return null;
+  } catch (err) {
+    console.error(`[CardHandler] Failed to publish new card message:`, err.message);
   }
 }
 
 /**
- * Handle when user clicks a button in Card Hub Panel or Published Card
+ * Handle button clicks from #create-card and #card-gallery
  */
 async function handleCardButton(interaction, client) {
   const customId = interaction.customId;
@@ -320,56 +342,58 @@ async function handleCardButton(interaction, client) {
   const settings = storage.read('settings');
   const targetChannelId = settings[guildId]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
-  // 1. EDIT PROFILE → 5 distinct fields (Bio, Location, Zodiac/MBTI, Social Link, Banner URL)
+  // 1. OPEN EDIT PROFILE MODAL
   if (customId === 'card_btn_edit') {
     const cardsData = storage.read('cards');
     const userCard = cardsData[guildId]?.[userId] || {};
 
     const modal = new ModalBuilder()
       .setCustomId('card_modal_submit')
-      .setTitle('Edit Member Profile');
+      .setTitle('Edit Member Profile Card');
 
     const bioInput = new TextInputBuilder()
       .setCustomId('card_input_bio')
-      .setLabel('Bio / Status Tagline (Max 100)')
+      .setLabel('Bio / Quote / Status (Max 150)')
       .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('e.g. Passionate music enthusiast & developer')
+      .setPlaceholder('Tell something about yourself...')
       .setValue(userCard.bio || '')
       .setRequired(false)
-      .setMaxLength(100);
+      .setMaxLength(150);
 
     const asalInput = new TextInputBuilder()
       .setCustomId('card_input_asal')
-      .setLabel('Location (Max 30)')
+      .setLabel('Location / Kota Asal (Max 30)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Jakarta, Indonesia')
-      .setValue(userCard.asal || '')
+      .setPlaceholder('Contoh: Indramayu atau Bandung (Kota/Kabupaten)')
+      .setValue(userCard.asalRaw || userCard.asal || '')
+      .setRequired(false)
+      .setMaxLength(30);
+
+    const birthdayInput = new TextInputBuilder()
+      .setCustomId('card_input_birthdate')
+      .setLabel('Tanggal Lahir (Contoh: 15-08 atau 15-08-2000)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g. 15-08-2000 atau 15 Agustus')
+      .setValue(userCard.birthdateRaw || (userCard.birthdate?.formatted || ''))
       .setRequired(false)
       .setMaxLength(30);
 
     const zodiacInput = new TextInputBuilder()
       .setCustomId('card_input_zodiac')
-      .setLabel('Zodiac / MBTI (Max 30)')
+      .setLabel('Zodiac / MBTI / Social Link')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Taurus / INTJ or Leo')
-      .setValue(userCard.zodiac || '')
+      .setPlaceholder('e.g. Taurus / INTJ atau Instagram | https://...')
+      .setValue(
+        userCard.zodiac || (userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
+      )
       .setRequired(false)
-      .setMaxLength(30);
-
-    const linkInput = new TextInputBuilder()
-      .setCustomId('card_input_link')
-      .setLabel('Social Link (Title | URL)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Instagram | https://instagram.com/myusername')
-      .setValue(userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
-      .setRequired(false)
-      .setMaxLength(250);
+      .setMaxLength(100);
 
     const bannerInput = new TextInputBuilder()
       .setCustomId('card_input_banner')
-      .setLabel('Banner Image (Image URL)')
+      .setLabel('Banner Image URL')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Paste image URL (Right-click image ➔ Copy Image Link)')
+      .setPlaceholder('Paste image link (Direct image URL https://...)')
       .setValue(userCard.bannerUrl || '')
       .setRequired(false)
       .setMaxLength(250);
@@ -377,8 +401,8 @@ async function handleCardButton(interaction, client) {
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
+      new ActionRowBuilder().addComponents(birthdayInput),
       new ActionRowBuilder().addComponents(zodiacInput),
-      new ActionRowBuilder().addComponents(linkInput),
       new ActionRowBuilder().addComponents(bannerInput)
     );
 
@@ -441,6 +465,14 @@ async function handleCardButton(interaction, client) {
     }
 
     const targetCard = cardsData[guildId][authorId];
+
+    // Prevent voting on own card
+    if (voterId === authorId) {
+      return interaction.reply({
+        content: '❌ Kamu tidak bisa memberikan Like atau Respect pada kartumu sendiri!',
+        flags: MessageFlags.Ephemeral
+      });
+    }
 
     // Toggle vote (add or remove)
     if (isLike) {
@@ -508,16 +540,9 @@ async function handleCardModalSubmit(interaction, client) {
 
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
-  let zodiac = interaction.fields.getTextInputValue('card_input_zodiac').trim();
-  let linkRaw = interaction.fields.getTextInputValue('card_input_link').trim();
+  let birthdateRaw = interaction.fields.getTextInputValue('card_input_birthdate').trim();
+  let zodiacOrLink = interaction.fields.getTextInputValue('card_input_zodiac').trim();
   let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
-
-  // Parse Social Link
-  const parsedLink = parsePromoLink(linkRaw);
-
-  if (bannerUrl) {
-    bannerUrl = normalizeBannerUrl(bannerUrl);
-  }
 
   // Save profile data
   const cardsData = storage.read('cards');
@@ -527,24 +552,68 @@ async function handleCardModalSubmit(interaction, client) {
   const userCard = cardsData[guildId][userId];
 
   if (bio) userCard.bio = bio; else delete userCard.bio;
-  if (asal) userCard.asal = asal; else delete userCard.asal;
-  if (zodiac) userCard.zodiac = zodiac; else delete userCard.zodiac;
 
-  if (parsedLink) {
-    userCard.linkTitle = parsedLink.title;
-    userCard.linkUrl = parsedLink.url;
+  // Process Location (Smart Normalizer)
+  if (asal) {
+    const parsedLoc = parseLocation(asal);
+    if (parsedLoc) {
+      userCard.location = parsedLoc;
+      userCard.asal = parsedLoc.display;
+      userCard.asalRaw = asal;
+    } else {
+      userCard.asal = asal;
+      userCard.asalRaw = asal;
+    }
   } else {
+    delete userCard.location;
+    delete userCard.asal;
+    delete userCard.asalRaw;
+  }
+
+  // Process Birthday
+  if (birthdateRaw) {
+    const parsedBday = parseBirthdate(birthdateRaw);
+    if (parsedBday) {
+      userCard.birthdate = parsedBday;
+      userCard.birthdateRaw = birthdateRaw;
+    } else {
+      // Keep raw if unparseable but store
+      userCard.birthdateRaw = birthdateRaw;
+    }
+  } else {
+    delete userCard.birthdate;
+    delete userCard.birthdateRaw;
+  }
+
+  // Check if zodiacOrLink is a Social Link or Zodiac/MBTI text
+  if (zodiacOrLink) {
+    if (zodiacOrLink.includes('http://') || zodiacOrLink.includes('https://') || zodiacOrLink.includes('|')) {
+      const parsedLink = parsePromoLink(zodiacOrLink);
+      if (parsedLink) {
+        userCard.linkTitle = parsedLink.title;
+        userCard.linkUrl = parsedLink.url;
+        delete userCard.zodiac;
+      } else {
+        userCard.zodiac = zodiacOrLink;
+      }
+    } else {
+      userCard.zodiac = zodiacOrLink;
+      delete userCard.linkTitle;
+      delete userCard.linkUrl;
+    }
+  } else {
+    delete userCard.zodiac;
     delete userCard.linkTitle;
     delete userCard.linkUrl;
   }
 
   if (bannerUrl) {
-    userCard.bannerUrl = bannerUrl;
+    userCard.bannerUrl = normalizeBannerUrl(bannerUrl);
   } else {
     delete userCard.bannerUrl;
   }
 
-  // Clean up unused color and song fields
+  // Clean up unused legacy fields
   delete userCard.color;
   delete userCard.songTitle;
   delete userCard.songUrl;

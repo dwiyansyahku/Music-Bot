@@ -223,6 +223,76 @@ module.exports = {
       }
     }
 
+    // ====== Button Interaction (Event RSVP System) ======
+    if (interaction.isButton() && interaction.customId.startsWith('event_rsvp_')) {
+      const storage = require('../utils/storage');
+      const guildId = interaction.guild.id;
+      const userId = interaction.user.id;
+
+      const parts = interaction.customId.split('_'); // event_rsvp_yes_EVENTID or event_rsvp_no_EVENTID
+      const action = parts[2]; // 'yes' or 'no'
+      const eventId = parts.slice(3).join('_');
+
+      const eventsData = storage.read('events');
+      const guildEvents = eventsData[guildId] || [];
+      const evt = guildEvents.find(e => e.id === eventId);
+
+      if (!evt) {
+        return interaction.reply({ content: '❌ Event ini sudah tidak tersedia.', flags: MessageFlags.Ephemeral });
+      }
+
+      if (action === 'yes') {
+        if (!evt.attendees.includes(userId)) evt.attendees.push(userId);
+        evt.declines = evt.declines.filter(id => id !== userId);
+      } else {
+        if (!evt.declines.includes(userId)) evt.declines.push(userId);
+        evt.attendees = evt.attendees.filter(id => id !== userId);
+      }
+
+      storage.write('events', eventsData);
+
+      const statusText = action === 'yes' ? '✅ Kamu telah mendaftar **Hadir**!' : '❌ Kamu telah menandai **Tidak Hadir**.';
+      return interaction.reply({ content: statusText, flags: MessageFlags.Ephemeral });
+    }
+
+    // ====== Button Interaction (Event Info) ======
+    if (interaction.isButton() && interaction.customId.startsWith('event_info_')) {
+      const storage = require('../utils/storage');
+      const guildId = interaction.guild.id;
+      const eventId = interaction.customId.replace('event_info_', '');
+
+      const eventsData = storage.read('events');
+      const guildEvents = eventsData[guildId] || [];
+      const evt = guildEvents.find(e => e.id === eventId);
+
+      if (!evt) {
+        return interaction.reply({ content: '❌ Event tidak ditemukan.', flags: MessageFlags.Ephemeral });
+      }
+
+      const { formatDateTimeWIB, getTimeUntilString } = require('../commands/event');
+      const { EmbedBuilder: EB } = require('discord.js');
+
+      const dateStr = formatDateTimeWIB(new Date(evt.timestamp));
+      const timeUntil = evt.timestamp > Date.now() ? getTimeUntilString(evt.timestamp) : '⏰ Sudah berlalu';
+      const attendeeList = evt.attendees.length > 0 ? evt.attendees.map(id => `<@${id}>`).join(', ') : '_Belum ada_';
+      const declineList = evt.declines.length > 0 ? evt.declines.map(id => `<@${id}>`).join(', ') : '_Belum ada_';
+
+      const embed = new EB()
+        .setColor('#5865F2')
+        .setTitle(`📅 ${evt.name}`)
+        .setDescription(evt.description || '_Tidak ada deskripsi_')
+        .addFields(
+          { name: '📆 Tanggal & Waktu', value: dateStr, inline: true },
+          { name: '⏳ Countdown', value: timeUntil, inline: true },
+          { name: `✅ Hadir (${evt.attendees.length})`, value: attendeeList, inline: false },
+          { name: `❌ Tidak Hadir (${evt.declines.length})`, value: declineList, inline: false }
+        )
+        .setFooter({ text: `ID: ${evt.id}` })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
     // ====== Button Interaction (Sistem Panel Card Member) ======
     if (interaction.isButton() && interaction.customId.startsWith('card_btn_')) {
       try {

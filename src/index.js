@@ -164,6 +164,7 @@ client.commands = new Collection();
 client.welcomeSettings = new Map(); // Per-guild welcome channel config: { channelId, enabled }
 client.morningSettings = new Map(); // Per-guild morning reminder config: { channelId, enabled, hour, minute }
 client.nightSettings = new Map();   // Per-guild night reminder config: { channelId, enabled, hour, minute }
+client.afkUsers = new Map();        // Per-guild AFK user tracking: key=guildId_userId, value={ reason, timestamp, displayName }
 
 const { setupCookies, getCookiesHealth } = require('./utils/cookies');
 const loadedCookies = setupCookies();

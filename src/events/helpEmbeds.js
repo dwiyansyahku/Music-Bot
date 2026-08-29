@@ -54,7 +54,7 @@ function buildHelpEmbed(category, client) {
           { name: '🎵 Musik (20+ Fitur)', value: 'YouTube, Spotify, SoundCloud + Lirik, Filter & Tombol Kontrol', inline: true },
           { name: '🎴 Card Profil', value: 'Sistem identitas member, Live Voice & Reputasi Like/Respect', inline: true },
           { name: '🛡️ Moderasi', value: 'Warn auto-punish, Mute, Kick, Ban, dan Clear chat', inline: true },
-          { name: '🌅 Harian & Jadwal', value: 'Reminder Pagi/Malam, Ultah Akun Discord & Pengumuman', inline: true },
+          { name: '🌅 Harian & Jadwal', value: 'Reminder, Ultah, Pengumuman, AFK & Event Server', inline: true },
           { name: '🎉 Fun & Usilan', value: 'Polling interaktif, Sistem Penjara (Jail), Roast, Fakequote & Wanted', inline: true },
           { name: '⚙️ Info & Settings', value: 'Serverinfo, Userinfo, Welcome greeting, Ping & Setup bot', inline: true },
           {
@@ -126,7 +126,7 @@ function buildHelpEmbed(category, client) {
             value: [
               '1. Kunjungi channel **Member Card** di server.',
               '2. Klik tombol **`Edit Profile`** untuk membuka form pop-up.',
-              '3. Isi **Bio**, **Kota/Domisili**, **Zodiac/MBTI**, **Social Link**, dan **Banner Image URL**.',
+              '3. Isi **Bio**, **Kota Asal**, **Tanggal Lahir** *(Contoh: 15-08-2000)*, **Zodiac/Social Link**, dan **Banner Image URL**.',
               '4. Kartu profil akan otomatis diterbitkan dan diperbarui di gallery.',
             ].join('\n'),
           },
@@ -139,6 +139,13 @@ function buildHelpEmbed(category, client) {
             ].join('\n'),
           },
           {
+            name: '🎂 Fitur Ulang Tahun & Zodiak Otomatis',
+            value: [
+              '• Bot otomatis menghitung zodiak dan usia dari tanggal lahirmu.',
+              '• Otomatis dirayakan dengan ucapan meriah di channel khusus ulang tahun saat hari spesialmu tiba!',
+            ].join('\n'),
+          },
+          {
             name: '🎙️ Live Voice Status & Companions',
             value: [
               '• Otomatis mendeteksi channel Voice aktif beserta durasinya.',
@@ -148,6 +155,14 @@ function buildHelpEmbed(category, client) {
           {
             name: '❤️ Interaksi Sosial & Reputasi',
             value: 'Setiap kartu di gallery dilengkapi tombol **`❤️ Like`** dan **`⭐ Respect`** yang dapat diberikan oleh member lain.',
+          },
+          {
+            name: '🗺️ Peta Wilayah Member `/membermap`',
+            value: '`/membermap` — Tampilkan statistik sebaran kota asal member berdasarkan data kartu profil!',
+          },
+          {
+            name: '🏅 Pencapaian & Gelar `/achievements`',
+            value: '`/achievements [@user?]` — Lihat status badge dan milestone yang langsung tampil di kartu profilmu!',
           },
           {
             name: '📌 Pengaturan Admin',
@@ -189,15 +204,9 @@ function buildHelpEmbed(category, client) {
             name: '🚪 Kick & Ban',
             value: [
               '`/mod kick @user [alasan]` — Keluarkan member dari server',
-              '`/mod ban @user [alasan] [hapus_pesan]` — Blokir member dari server',
-            ].join('\n'),
-          },
-          {
-            name: '🧹 Pembersihan Pesan (Clear Chat)',
-            value: [
-              '`/qclear amount [jumlah]` — Hapus sejumlah pesan (1-100 pesan)',
-              '`/qclear all` — Hapus bersih seluruh riwayat chat di channel tersebut',
-              '*Dapat digunakan di channel Text maupun Voice Chat.*',
+              '`/mod ban @user [alasan]` — Blokir permanen member dari server',
+              '`/mod voicekick @user` — Tendang paksa member keluar dari Voice Channel',
+              '`/mod purge [jumlah 1-100]` — Hapus pesan dalam jumlah banyak secara massal',
             ].join('\n'),
           }
         )
@@ -230,11 +239,14 @@ function buildHelpEmbed(category, client) {
             ].join('\n'),
           },
           {
-            name: '🎂 Discord Anniversary `/birthday`',
+            name: '🎂 Perayaan Ulang Tahun `/birthday`',
             value: [
-              '`/birthday view @user` — Lihat tanggal & umur pembuatan akun Discord seseorang',
-              '`/birthday list` — Daftar 10 ulang tahun akun Discord terdekat di server',
-              '`/birthday setchannel #channel` — Atur channel pengumuman ulang tahun *(Owner only)*',
+              '`/birthday view [@user?]` — Lihat tanggal lahir, umur, zodiak & hitung mundur',
+              '`/birthday list` — Lihat daftar ulang tahun member terdekat di server',
+              '`/birthday setchannel #channel` — Atur channel khusus pengumuman ulang tahun *(Owner/Mod)*',
+              '`/birthday test [@user?]` — Uji coba kirim simulasi ucapan ulang tahun *(Owner/Mod)*',
+              '`/birthday status` — Cek status & channel pengumuman ulang tahun saat ini',
+              '`/birthday removechannel` — Nonaktifkan pengumuman ulang tahun *(Owner/Mod)*',
             ].join('\n'),
           },
           {
@@ -244,6 +256,33 @@ function buildHelpEmbed(category, client) {
               '`/announce schedule #channel [pesan] [jam] [menit]` — Jadwalkan pengumuman rutin setiap hari',
               '`/announce list` — Tampilkan daftar pengumuman terjadwal aktif',
               '`/announce remove [id]` — Batalkan/hapus jadwal pengumuman',
+            ].join('\n'),
+          },
+          {
+            name: '💤 Sistem AFK `/afk`',
+            value: [
+              '`/afk [alasan?]` — Set status AFK dengan alasan opsional',
+              '*Saat seseorang mention kamu, bot otomatis kasih tahu mereka.*',
+              '*Status AFK otomatis hilang saat kamu kembali mengetik.*',
+            ].join('\n'),
+          },
+          {
+            name: '📅 Event & Acara Server `/event`',
+            value: [
+              '`/event create [nama] [tanggal] [jam]` — Buat event baru + RSVP',
+              '`/event list` — Lihat daftar event yang akan datang',
+              '`/event info [id]` — Detail lengkap event tertentu',
+              '`/event cancel [id]` — Batalkan event *(Owner/Mod)*',
+              '*Bot otomatis kirim pengingat 30 menit sebelum event!*',
+            ].join('\n'),
+          },
+          {
+            name: '📮 Kapsul Waktu `/timecapsule`',
+            value: [
+              '`/timecapsule send [pesan] [tanggal] [jam?] [tujuan?]` — Kirim surat masa depan',
+              '`/timecapsule list` — Cek daftar kapsul aktif milikmu',
+              '`/timecapsule cancel [id]` — Batalkan kapsul waktu',
+              '*Kapsul akan otomatis terbuka dan dikirim ke DM / Channel saat tanggalnya tiba!*',
             ].join('\n'),
           }
         )
@@ -281,6 +320,21 @@ function buildHelpEmbed(category, client) {
               '`/fun rename @user [nama?]` — Ganti nickname member menjadi nama unik/kocak',
               '`/fun fakequote @user [teks]` — Buat kutipan lucu seolah dikatakan oleh target',
               '`/fun say [pesan] [#channel?]` — Kirim pesan mengatasnamakan bot',
+            ].join('\n'),
+          },
+          {
+            name: '🎵 Music Quiz `/musicquiz`',
+            value: [
+              '`/musicquiz start [ronde?]` — Mulai tebak lagu interaktif dengan tombol A/B/C/D',
+              '`/musicquiz stop` — Hentikan quiz yang sedang berlangsung',
+              '`/musicquiz leaderboard` — Lihat papan peringkat juara tebak lagu server',
+            ].join('\n'),
+          },
+          {
+            name: '🎁 Kotak Misteri Gacha `/gacha`',
+            value: [
+              '`/gacha pull` — Buka 1 peti misteri harian (Common ⚪ hingga Legendary 🟡)',
+              '`/gacha inventory [@user?]` — Cek koleksi item, title, dan badge gachamu',
             ].join('\n'),
           }
         )

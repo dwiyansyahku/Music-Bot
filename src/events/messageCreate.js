@@ -10,6 +10,54 @@ module.exports = {
     if (message.author.bot) return;
     if (!message.guild) return;
 
+    const guildId = message.guild.id;
+
+    // ====== AFK SYSTEM — Auto-remove & Mention Detection ======
+    if (client.afkUsers && client.afkUsers.size > 0) {
+      // 1. Jika user yang sedang AFK mengirim pesan → hapus AFK mereka
+      const senderKey = `${guildId}_${message.author.id}`;
+      if (client.afkUsers.has(senderKey)) {
+        const afkData = client.afkUsers.get(senderKey);
+        client.afkUsers.delete(senderKey);
+
+        const afkDuration = Date.now() - afkData.timestamp;
+        const durStr = formatAfkDuration(afkDuration);
+
+        message.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#57F287')
+              .setDescription(`👋 **Selamat datang kembali, ${message.member.displayName}!**\nKamu AFK selama **${durStr}**.`)
+          ]
+        }).then(m => setTimeout(() => m.delete().catch(() => {}), 8000)).catch(() => {});
+      }
+
+      // 2. Jika pesan ini mention user yang sedang AFK → kasih tahu
+      if (message.mentions.users.size > 0) {
+        for (const [mentionedId, mentionedUser] of message.mentions.users) {
+          const mentionKey = `${guildId}_${mentionedId}`;
+          if (client.afkUsers.has(mentionKey)) {
+            const afkData = client.afkUsers.get(mentionKey);
+            const afkDuration = Date.now() - afkData.timestamp;
+            const durStr = formatAfkDuration(afkDuration);
+
+            message.reply({
+              embeds: [
+                new EmbedBuilder()
+                  .setColor('#FEE75C')
+                  .setDescription(
+                    `💤 **${afkData.displayName}** sedang AFK\n` +
+                    `> *${afkData.reason}*\n` +
+                    `⏱️ Sejak **${durStr}** yang lalu`
+                  )
+              ]
+            }).catch(() => {});
+            break; // Hanya kirim 1 notifikasi per pesan
+          }
+        }
+      }
+    }
+
     // Check prefix 'q' or 'Q'
     if (!message.content.toLowerCase().startsWith('q')) return;
 
@@ -567,3 +615,19 @@ module.exports = {
     }
   },
 };
+
+/**
+ * Format durasi AFK ke string yang mudah dibaca
+ */
+function formatAfkDuration(ms) {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds} detik`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} menit`;
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  if (hours < 24) return remMinutes > 0 ? `${hours} jam ${remMinutes} menit` : `${hours} jam`;
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return remHours > 0 ? `${days} hari ${remHours} jam` : `${days} hari`;
+}

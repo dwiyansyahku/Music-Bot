@@ -182,16 +182,18 @@ module.exports = {
         }
       }
 
-      // ====== 4. BIRTHDAY SCHEDULER (cek sekali per hari jam 00:01 WIB) ======
+      // ====== 4. BIRTHDAY SCHEDULER (cek setiap hari jam 00:01 WIB) ======
       if (currentHour === 0 && currentMinute === 1 && lastBirthdayCheck !== birthdayKey) {
         lastBirthdayCheck = birthdayKey;
 
-        const { BIRTHDAY_WISHES } = require('../commands/birthday');
+        const { buildBirthdayAnnouncementEmbed, BIRTHDAY_WISHES } = require('../utils/birthdayHelper');
         const settings = storage.read('settings');
+        const cardsData = storage.read('cards');
 
         for (const [guildId, guildSettings] of Object.entries(settings)) {
           const channelId = guildSettings?.birthday?.channelId;
-          if (!channelId) continue;
+          const isEnabled = guildSettings?.birthday?.enabled !== false;
+          if (!channelId || !isEnabled) continue;
 
           const guild = client.guilds.cache.get(guildId);
           if (!guild) continue;
@@ -199,28 +201,55 @@ module.exports = {
           const channel = await guild.channels.fetch(channelId).catch(() => null);
           if (!channel) continue;
 
+          const celebratedUsers = new Set();
+
           try {
-            // Fetch all members in the guild to check their creation dates
-            const members = await guild.members.fetch();
+            // A. CEK ULANG TAHUN ASLI MEMBER DARI DATA KARTU PROFIL
+            const guildCards = cardsData[guildId] || {};
+            for (const [userId, card] of Object.entries(guildCards)) {
+              if (!card.birthdate || !card.birthdate.day || !card.birthdate.month) continue;
+
+              if (card.birthdate.day === currentDay && card.birthdate.month === currentMonth) {
+                const member = await guild.members.fetch(userId).catch(() => null);
+                if (!member || member.user.bot) continue;
+
+                // Hitung ulang umur jika ada tahun lahir
+                if (card.birthdate.year) {
+                  card.birthdate.age = Math.max(0, currentYear - card.birthdate.year);
+                }
+
+                const embed = buildBirthdayAnnouncementEmbed(member, null, card.birthdate, guild);
+
+                await channel.send({
+                  content: `🎉 **HAPPY BIRTHDAY** <@${member.id}>! 🎂🥳`,
+                  embeds: [embed],
+                }).catch(err => console.error(`[Birthday Scheduler] Gagal kirim ucapan ke ${guild.name}:`, err.message));
+
+                celebratedUsers.add(userId);
+                console.log(`🎂 [Birthday] Ucapan ulang tahun asli terkirim untuk ${member.user.tag} di ${guild.name}`);
+              }
+            }
+
+            // B. CEK DISCORD ACCOUNT ANNIVERSARY (Hanya untuk yang belum dirayakan ulang tahun asli)
+            const members = await guild.members.fetch().catch(() => guild.members.cache);
             for (const member of members.values()) {
-              if (member.user.bot) continue;
+              if (member.user.bot || celebratedUsers.has(member.id)) continue;
 
               const createdAt = member.user.createdAt;
               const bdayDay = createdAt.getDate();
               const bdayMonth = createdAt.getMonth() + 1;
 
               if (bdayDay === currentDay && bdayMonth === currentMonth) {
-                // Akun berulang tahun hari ini! Hitung umur akun
-                const age = nowWIB.getUTCFullYear() - createdAt.getFullYear();
-                if (age <= 0) continue; // Akun baru dibuat tahun ini, tidak dihitung anniversary
+                const age = currentYear - createdAt.getFullYear();
+                if (age <= 0) continue;
 
-                const wish = BIRTHDAY_WISHES[Math.floor(Math.random() * BIRTHDAY_WISHES.length)];
+                const wishFn = BIRTHDAY_WISHES[Math.floor(Math.random() * BIRTHDAY_WISHES.length)];
                 const { EmbedBuilder } = require('discord.js');
 
                 const embed = new EmbedBuilder()
                   .setColor(0xFF69B4)
                   .setTitle('🎂 HAPPY DISCORD ANNIVERSARY! 🎉')
-                  .setDescription(`${wish(member.user.username, age)}\n\n🎊 Rayakan hari jadi akun Discord-nya bersama di server! 🥳`)
+                  .setDescription(`${wishFn(member.displayName, age)}\n\n🎊 Rayakan hari jadi akun Discord-nya bersama di server! 🥳`)
                   .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
                   .setFooter({ text: `${guild.name} • Akun dibuat pada ${createdAt.toLocaleDateString('id-ID')}`, iconURL: guild.iconURL({ dynamic: true }) || undefined })
                   .setTimestamp();
@@ -228,20 +257,138 @@ module.exports = {
                 await channel.send({
                   content: `🎉 <@${member.id}> 🎂`,
                   embeds: [embed],
-                }).catch(err => console.error(`[Birthday Scheduler] Gagal mengirim ucapan:`, err.message));
+                }).catch(err => console.error(`[Birthday Scheduler] Gagal mengirim ucapan anniversary:`, err.message));
 
-                console.log(`🎂 [Birthday] Ucapan anniversary terkirim untuk ${member.user.tag} (Umur: ${age} tahun) di ${guild.name}`);
+                console.log(`🎂 [Birthday] Ucapan anniversary terkirim untuk ${member.user.tag} (Umur akun: ${age} tahun) di ${guild.name}`);
               }
             }
           } catch (fetchErr) {
-            console.error(`[Birthday Scheduler] Gagal fetch member di guild ${guild.name}:`, fetchErr.message);
+            console.error(`[Birthday Scheduler] Gagal proses guild ${guild.name}:`, fetchErr.message);
           }
         }
       }
 
+      // ====== 5. EVENT REMINDER SCHEDULER ======
+      const eventsData = storage.read('events');
+      for (const [guildId, guildEvents] of Object.entries(eventsData)) {
+        if (!Array.isArray(guildEvents)) continue;
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) continue;
+
+        let modified = false;
+
+        for (const evt of guildEvents) {
+          if (!evt.timestamp || evt.timestamp < Date.now()) continue;
+
+          const timeUntil = evt.timestamp - Date.now();
+          const minutesUntil = timeUntil / (1000 * 60);
+
+          // Reminder 30 menit sebelum event
+          if (minutesUntil <= 30 && minutesUntil > 29 && !evt.reminded30m) {
+            evt.reminded30m = true;
+            modified = true;
+
+            const channel = await guild.channels.fetch(evt.channelId).catch(() => null);
+            if (channel) {
+              const attendeeMentions = evt.attendees.map(id => `<@${id}>`).join(' ');
+              const { EmbedBuilder } = require('discord.js');
+
+              const embed = new EmbedBuilder()
+                .setColor('#FFA500')
+                .setTitle(`⏰ Pengingat Event: ${evt.name}`)
+                .setDescription(
+                  `**Event dimulai dalam 30 menit!**\n\n` +
+                  `📅 Bersiap-siaplah, event akan segera dimulai!\n` +
+                  `✅ **${evt.attendees.length} member** sudah mendaftar hadir.`
+                )
+                .setFooter({ text: `ID: ${evt.id}` })
+                .setTimestamp();
+
+              await channel.send({
+                content: `⏰ **Pengingat!** ${attendeeMentions}`,
+                embeds: [embed]
+              }).catch(err => console.error(`[Event Reminder] Gagal kirim pengingat:`, err.message));
+
+              console.log(`⏰ [Event] Pengingat 30 menit terkirim untuk "${evt.name}" di ${guild.name}`);
+            }
+          }
+        }
+
+        // Bersihkan event yang sudah lewat lebih dari 24 jam
+        const filtered = guildEvents.filter(e => e.timestamp > Date.now() - (24 * 60 * 60 * 1000));
+        if (filtered.length !== guildEvents.length) {
+          eventsData[guildId] = filtered;
+          modified = true;
+        }
+
+        if (modified) storage.write('events', eventsData);
+      }
+
+      // ====== 6. TIME CAPSULE SCHEDULER ======
+      const capsulesData = storage.read('timecapsules');
+      for (const [guildId, guildCapsules] of Object.entries(capsulesData)) {
+        if (!Array.isArray(guildCapsules)) continue;
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) continue;
+
+        let capsuleModified = false;
+
+        for (const cap of guildCapsules) {
+          if (cap.opened || !cap.targetTimestamp) continue;
+
+          // Cek apakah waktu buka sudah tiba
+          if (Date.now() >= cap.targetTimestamp) {
+            cap.opened = true;
+            capsuleModified = true;
+
+            const { EmbedBuilder } = require('discord.js');
+            const timeAgoDays = Math.round((Date.now() - cap.createdAt) / (1000 * 60 * 60 * 24));
+
+            const embed = new EmbedBuilder()
+              .setColor('#5865F2')
+              .setTitle('📮 KAPSUL WAKTU TELAH DIBUKA! ⏳✨')
+              .setDescription(
+                `Hai <@${cap.userId}>! Sebuah pesan rahasia yang kamu kunci pada masa lalu akhirnya tiba di hari ini!\n\n` +
+                `📜 **Pesan Dari Masa Lalu:**\n` +
+                `> *“${cap.message}”*\n\n` +
+                `⏱️ *Pesan ini kamu tulis sekitar **${timeAgoDays > 0 ? `${timeAgoDays} hari` : 'beberapa saat'}** yang lalu.*`
+              )
+              .setFooter({ text: `${guild.name} • Time Capsule System • ID: ${cap.id}` })
+              .setTimestamp();
+
+            // Kirim via DM atau Channel
+            if (cap.targetMode === 'dm') {
+              guild.members.fetch(cap.userId).then(member => {
+                member.send({ embeds: [embed] }).catch(() => {
+                  // Fallback kirim ke channel jika DM terkunci
+                  const channel = guild.channels.cache.get(cap.channelId);
+                  if (channel) channel.send({ content: `📮 <@${cap.userId}> *(DM terkunci, kapsul dikirimkan ke sini)*`, embeds: [embed] }).catch(() => {});
+                });
+              }).catch(() => {});
+            } else {
+              const channel = guild.channels.cache.get(cap.channelId);
+              if (channel) {
+                channel.send({ content: `📮 **Kapsul Waktu Terbuka!** <@${cap.userId}>`, embeds: [embed] }).catch(() => {});
+              }
+            }
+
+            console.log(`📮 [Time Capsule] Kapsul ${cap.id} milik ${cap.userName} telah dibuka di ${guild.name}`);
+          }
+        }
+
+        // Hapus kapsul yang sudah dibuka lebih dari 7 hari
+        const remainingCapsules = guildCapsules.filter(c => !c.opened || (c.opened && Date.now() - c.targetTimestamp < 7 * 24 * 60 * 60 * 1000));
+        if (remainingCapsules.length !== guildCapsules.length) {
+          capsulesData[guildId] = remainingCapsules;
+          capsuleModified = true;
+        }
+
+        if (capsuleModified) storage.write('timecapsules', capsulesData);
+      }
+
     }, 60 * 1000); // cek setiap 60 detik
 
-    console.log('✅ [Schedulers] Morning, Night, Announce, Birthday schedulers aktif!');
+    console.log('✅ [Schedulers] Morning, Night, Announce, Birthday, Event, Time Capsule schedulers aktif!');
 
     // =============================================
     // AUTO-SYNC PUBLISHED CARDS FOR ACTIVE VOICE USERS (EVERY 60s)
