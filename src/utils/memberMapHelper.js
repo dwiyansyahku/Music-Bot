@@ -15,8 +15,12 @@ function createProgressBar(percent, length = 10) {
 
 /**
  * Ambil data sebaran lokasi yang valid beserta daftar user ID di tiap kota
+ * (Hanya menghitung member yang masih aktif/berada di server)
  */
-function getMemberMapData(guildId) {
+function getMemberMapData(guildOrId) {
+  const guildId = typeof guildOrId === 'string' ? guildOrId : guildOrId?.id;
+  const guild = typeof guildOrId === 'object' ? guildOrId : null;
+
   const cardsData = storage.read('cards');
   const guildCards = cardsData[guildId] || {};
 
@@ -24,8 +28,15 @@ function getMemberMapData(guildId) {
   const locMetadata = {};
   const locMembers = {}; // cityKey -> [ { userId, card } ]
   let totalValidLocations = 0;
+  let totalCardsCount = 0;
 
   for (const [userId, card] of Object.entries(guildCards)) {
+    // Jika ada objek guild, pastikan user masih berada di dalam server
+    if (guild && !guild.members.cache.has(userId)) {
+      continue;
+    }
+
+    totalCardsCount++;
     const rawAsal = card.asal || card.location?.display || '';
     if (!rawAsal || rawAsal.trim() === '') continue;
 
@@ -59,7 +70,7 @@ function getMemberMapData(guildId) {
     locMetadata,
     locMembers,
     totalValidLocations,
-    totalCards: Object.keys(guildCards).length,
+    totalCards: totalCardsCount,
     totalPages
   };
 }
@@ -68,7 +79,7 @@ function getMemberMapData(guildId) {
  * Buat Embed Halaman Spesifik (Dengan daftar member per kota)
  */
 function buildMemberMapEmbed(guild, pageIndex = 0) {
-  const data = getMemberMapData(guild.id);
+  const data = getMemberMapData(guild);
   const safePage = Math.max(0, Math.min(pageIndex, data.totalPages - 1));
 
   if (data.totalValidLocations === 0) {
@@ -125,8 +136,8 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
 /**
  * Buat Action Rows (Select Menu + Tombol Navigasi)
  */
-function buildMemberMapComponents(pageIndex, totalPages, guildId) {
-  const data = getMemberMapData(guildId);
+function buildMemberMapComponents(pageIndex, totalPages, guild) {
+  const data = getMemberMapData(guild);
   const safePage = Math.max(0, Math.min(pageIndex, totalPages - 1));
 
   const rows = [];
@@ -195,7 +206,7 @@ function buildMemberMapComponents(pageIndex, totalPages, guildId) {
  * Buat Embed Detail Member untuk Kota Tertentu
  */
 async function buildCityDetailEmbed(guild, cityKey) {
-  const data = getMemberMapData(guild.id);
+  const data = getMemberMapData(guild);
   const members = data.locMembers[cityKey] || [];
   const meta = data.locMetadata[cityKey];
   const regionText = meta?.region ? ` (${meta.region})` : '';
@@ -240,7 +251,7 @@ async function buildCityDetailEmbed(guild, cityKey) {
  * Buat Payload Panel Publik Permanen
  */
 function createMemberMapPanelPayload(guild) {
-  const data = getMemberMapData(guild.id);
+  const data = getMemberMapData(guild);
 
   const embed = new EmbedBuilder()
     .setColor(0x2B2D31)

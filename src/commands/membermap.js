@@ -52,9 +52,9 @@ module.exports = {
     }
 
     // === 2. SUBCOMMAND: VIEW (Default) ===
-    const data = getMemberMapData(guild.id);
+    const data = getMemberMapData(guild);
     const embed = buildMemberMapEmbed(guild, 0);
-    const components = buildMemberMapComponents(0, data.totalPages, guild.id);
+    const components = buildMemberMapComponents(0, data.totalPages, guild);
 
     return interaction.reply({
       embeds: [embed],

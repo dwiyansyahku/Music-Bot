@@ -313,11 +313,11 @@ module.exports = {
 
       try {
         const guild = interaction.guild;
-        const data = getMemberMapData(guild.id);
+        const data = getMemberMapData(guild);
 
         if (interaction.customId === 'mmap_open_panel') {
           const embed = buildMemberMapEmbed(guild, 0);
-          const components = buildMemberMapComponents(0, data.totalPages, guild.id);
+          const components = buildMemberMapComponents(0, data.totalPages, guild);
 
           return interaction.reply({
             embeds: [embed],
@@ -343,7 +343,7 @@ module.exports = {
 
         targetPage = Math.max(0, Math.min(targetPage, data.totalPages - 1));
         const embed = buildMemberMapEmbed(guild, targetPage);
-        const components = buildMemberMapComponents(targetPage, data.totalPages, guild.id);
+        const components = buildMemberMapComponents(targetPage, data.totalPages, guild);
 
         return interaction.update({
           embeds: [embed],
