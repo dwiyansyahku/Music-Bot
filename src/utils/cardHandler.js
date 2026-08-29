@@ -20,6 +20,35 @@ function normalizeBannerUrl(url) {
 }
 
 /**
+ * Validasi tautan gambar banner:
+ * Mendukung link attachment Discord, direct image URL (.png, .jpg, .gif, .webp), dan image host populer.
+ */
+function isValidBannerUrl(url) {
+  if (!url || !url.trim()) return { isValid: true, isEmpty: true };
+  let clean = url.trim();
+  if (!/^https?:\/\//i.test(clean)) clean = `https://${clean}`;
+
+  const isDiscordCdn = clean.includes('cdn.discordapp.com') ||
+                       clean.includes('media.discordapp.net') ||
+                       clean.includes('discord.com/channels');
+
+  const cleanWithoutQuery = clean.split('?')[0].toLowerCase();
+  const hasImageExt = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(cleanWithoutQuery);
+
+  const isKnownHost = clean.includes('imgur.com') ||
+                      clean.includes('catbox.moe') ||
+                      clean.includes('pinimg.com') ||
+                      clean.includes('tenor.com') ||
+                      clean.includes('giphy.com');
+
+  if (isDiscordCdn || hasImageExt || isKnownHost) {
+    return { isValid: true, url: normalizeBannerUrl(clean) };
+  }
+
+  return { isValid: false, url: clean };
+}
+
+/**
  * Parse promo link input: supports 'Title | URL' or standalone 'URL' (auto-detects platform name)
  */
 function parsePromoLink(input) {
@@ -613,8 +642,15 @@ async function handleCardModalSubmit(interaction, client) {
     delete userCard.linkUrl;
   }
 
+  let bannerWarning = '';
   if (bannerUrl) {
-    userCard.bannerUrl = normalizeBannerUrl(bannerUrl);
+    const bannerCheck = isValidBannerUrl(bannerUrl);
+    if (bannerCheck.isValid && bannerCheck.url) {
+      userCard.bannerUrl = bannerCheck.url;
+    } else {
+      delete userCard.bannerUrl;
+      bannerWarning = '\n\n⚠️ **Catatan Banner:** Tautan banner yang kamu masukkan tidak valid (bukan link gambar langsung / salinan link Discord). Banner belum dipasang, tetapi bagian profil lainnya tetap berhasil disimpan!';
+    }
   } else {
     delete userCard.bannerUrl;
   }
@@ -631,13 +667,13 @@ async function handleCardModalSubmit(interaction, client) {
     content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
   });
 
-    try {
-      const { updateMemberMapPanel } = require('./memberMapHelper');
-      updateMemberMapPanel(interaction.guild, client).catch(() => {});
-    } catch (_) {}
+  try {
+    const { updateMemberMapPanel } = require('./memberMapHelper');
+    updateMemberMapPanel(interaction.guild, client).catch(() => {});
+  } catch (_) {}
 
-    try {
-      const result = await publishCardToChannel(interaction.guild, interaction.member, client);
+  try {
+    const result = await publishCardToChannel(interaction.guild, interaction.member, client);
     const jumpUrl = result?.jumpUrl || (userCard.publishedMessageId ? `https://discord.com/channels/${guildId}/${targetChannelId}/${userCard.publishedMessageId}` : null);
 
     if (jumpUrl) {
@@ -650,18 +686,18 @@ async function handleCardModalSubmit(interaction, client) {
       );
 
       await interaction.editReply({
-        content: `✅ **Profil berhasil disimpan & diperbarui di <#${targetChannelId}>!**\nKlik tombol di bawah untuk langsung menuju ke kartumu:`,
+        content: `✅ **Profil berhasil disimpan & diperbarui di <#${targetChannelId}>!**${bannerWarning}\nKlik tombol di bawah untuk langsung menuju ke kartumu:`,
         components: [row]
       }).catch(() => {});
     } else {
       await interaction.editReply({
-        content: `✅ **Profil berhasil disimpan & dipublikasikan di <#${targetChannelId}>!**`
+        content: `✅ **Profil berhasil disimpan & dipublikasikan di <#${targetChannelId}>!**${bannerWarning}`
       }).catch(() => {});
     }
   } catch (err) {
     console.error('[CardHandler] Publish failed:', err.message);
     await interaction.editReply({
-      content: `**Profile saved!** Card published to <#${targetChannelId}>.`
+      content: `**Profile saved!** Card published to <#${targetChannelId}>.${bannerWarning}`
     }).catch(() => {});
   }
 }
