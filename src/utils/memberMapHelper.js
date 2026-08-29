@@ -14,8 +14,8 @@ function createProgressBar(percent, length = 10) {
 }
 
 /**
- * Ambil data sebaran lokasi yang valid beserta daftar user ID di tiap kota
- * (Hanya menghitung member yang masih aktif/berada di server)
+ * Ambil data sebaran lokasi yang dikelompokkan berdasarkan Provinsi Terbanyak,
+ * lalu diurutkan berdasarkan Kota Terbanyak di dalam provinsi tersebut.
  */
 function getMemberMapData(guildOrId) {
   const guildId = typeof guildOrId === 'string' ? guildOrId : guildOrId?.id;
@@ -24,6 +24,7 @@ function getMemberMapData(guildOrId) {
   const cardsData = storage.read('cards');
   const guildCards = cardsData[guildId] || {};
 
+  const regions = {}; // provinceName -> { name, flag, totalCount, cities: { cityName -> { city, count, members } } }
   const locCounts = {};
   const locMetadata = {};
   const locMembers = {}; // cityKey -> [ { userId, card } ]
@@ -31,7 +32,7 @@ function getMemberMapData(guildOrId) {
   let totalCardsCount = 0;
 
   for (const [userId, card] of Object.entries(guildCards)) {
-    // Jika ada objek guild, pastikan user masih berada di dalam server
+    // Pastikan user masih berada di dalam server
     if (guild && !guild.members.cache.has(userId)) {
       continue;
     }
@@ -47,13 +48,33 @@ function getMemberMapData(guildOrId) {
 
     const cityKey = locObj.city;
     const flag = locObj.flag || '🇮🇩';
-    const region = locObj.stateOrProvince && locObj.stateOrProvince !== cityKey
-      ? locObj.stateOrProvince
-      : (locObj.country !== 'Indonesia' ? locObj.country : '');
+    const province = locObj.stateOrProvince || (locObj.country !== 'Indonesia' ? locObj.country : 'Lainnya');
 
+    // 1. Grouping per Provinsi / Region
+    if (!regions[province]) {
+      regions[province] = {
+        name: province,
+        flag,
+        totalCount: 0,
+        cities: {}
+      };
+    }
+
+    regions[province].totalCount++;
+    if (!regions[province].cities[cityKey]) {
+      regions[province].cities[cityKey] = {
+        city: cityKey,
+        count: 0,
+        members: []
+      };
+    }
+    regions[province].cities[cityKey].count++;
+    regions[province].cities[cityKey].members.push({ userId, card });
+
+    // 2. Metadata umum
     locCounts[cityKey] = (locCounts[cityKey] || 0) + 1;
     if (!locMetadata[cityKey]) {
-      locMetadata[cityKey] = { flag, region };
+      locMetadata[cityKey] = { flag, region: province !== cityKey ? province : '' };
     }
     if (!locMembers[cityKey]) {
       locMembers[cityKey] = [];
@@ -62,11 +83,25 @@ function getMemberMapData(guildOrId) {
     totalValidLocations++;
   }
 
-  const sorted = Object.entries(locCounts).sort((a, b) => b[1] - a[1]);
+  // 3. SORTING TINGKAT 1: Urutkan Provinsi dari yang membernya paling banyak
+  const sortedRegions = Object.values(regions).sort((a, b) => b.totalCount - a.totalCount);
+
+  // 4. SORTING TINGKAT 2: Di dalam tiap provinsi, urutkan kota dari yang membernya terbanyak
+  const sorted = [];
+  for (const reg of sortedRegions) {
+    const sortedCities = Object.values(reg.cities).sort((a, b) => b.count - a.count);
+    for (const c of sortedCities) {
+      sorted.push([c.city, c.count, reg.name]);
+    }
+  }
+
+  const topRegion = sortedRegions.length > 0 ? sortedRegions[0] : null;
   const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
 
   return {
     sorted,
+    sortedRegions,
+    topRegion,
     locMetadata,
     locMembers,
     totalValidLocations,
@@ -76,7 +111,7 @@ function getMemberMapData(guildOrId) {
 }
 
 /**
- * Buat Embed Halaman Spesifik (Dengan daftar member per kota)
+ * Buat Embed Halaman Spesifik (Hierarki Provinsi Terbanyak -> Kota Terbanyak)
  */
 function buildMemberMapEmbed(guild, pageIndex = 0) {
   const data = getMemberMapData(guild);
@@ -113,6 +148,10 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
     return `${rankLabel} **${loc}**${regionText}${flagText} — \`${count} Member\` (${pct}%)\n   \`${bar}\`\n   └ ${memberMentions}`;
   }).join('\n\n');
 
+  const topRegionInfo = data.topRegion
+    ? `**${data.topRegion.name}** (${data.topRegion.totalCount} Member)`
+    : '-';
+
   return new EmbedBuilder()
     .setColor(0x2B2D31)
     .setAuthor({
@@ -121,12 +160,13 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
     })
     .setTitle(`Peta Persebaran Wilayah Member`)
     .setDescription(
-      `Statistik domisili member resmi di server **${guild.name}**.\n\n` +
+      `Statistik domisili member resmi di server **${guild.name}**.\n` +
+      `*Dikelompokkan berdasarkan provinsi & kota terbanyak.*\n\n` +
       formattedList
     )
     .addFields(
+      { name: 'Provinsi Terbanyak', value: topRegionInfo, inline: true },
       { name: 'Member Terdata', value: `**${data.totalValidLocations}** / ${data.totalCards} profil`, inline: true },
-      { name: 'Total Wilayah', value: `**${data.sorted.length}** Daerah`, inline: true },
       { name: 'Halaman', value: `**${safePage + 1}** dari **${data.totalPages}**`, inline: true }
     )
     .setFooter({ text: 'Pilih daerah pada menu di bawah untuk melihat detail profil member' })
@@ -154,7 +194,7 @@ function buildMemberMapComponents(pageIndex, totalPages, guild) {
       .addOptions(
         pageItems.map(([loc, count]) => {
           const meta = data.locMetadata[loc];
-          const desc = meta?.region ? `Provinsi: ${meta.region}` : `Total ${count} member terdaftar`;
+          const desc = meta?.region ? `Provinsi: ${meta.region} • ${count} Member` : `Total ${count} member terdaftar`;
           return {
             label: `${loc} (${count} Member)`,
             description: desc.substring(0, 100),
@@ -252,6 +292,9 @@ async function buildCityDetailEmbed(guild, cityKey) {
  */
 function createMemberMapPanelPayload(guild) {
   const data = getMemberMapData(guild);
+  const topRegionInfo = data.topRegion
+    ? `**${data.topRegion.name}** (${data.topRegion.totalCount} Member)`
+    : '-';
 
   const embed = new EmbedBuilder()
     .setColor(0x2B2D31)
@@ -265,8 +308,8 @@ function createMemberMapPanelPayload(guild) {
       `Klik tombol **Buka Peta Wilayah** di bawah untuk membuka sesi navigasi interaktif pribadimu.`
     )
     .addFields(
-      { name: 'Member Terdata', value: `**${data.totalValidLocations} Member**`, inline: true },
-      { name: 'Total Wilayah', value: `**${data.sorted.length} Daerah/Kota**`, inline: true }
+      { name: 'Provinsi Terbanyak', value: topRegionInfo, inline: true },
+      { name: 'Member Terdata', value: `**${data.totalValidLocations} Member**`, inline: true }
     )
     .setFooter({ text: 'Sesi bersifat privat dan tidak saling mengganggu antar member' })
     .setTimestamp();
