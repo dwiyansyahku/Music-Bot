@@ -7,7 +7,7 @@ const ITEMS_PER_PAGE = 6;
 function createProgressBar(percent, length = 10) {
   const filled = Math.round((percent / 100) * length);
   const empty = length - filled;
-  return '█'.repeat(filled) + '░'.repeat(empty);
+  return '■'.repeat(filled) + '□'.repeat(empty);
 }
 
 /**
@@ -57,7 +57,7 @@ function getMemberMapData(guildId) {
 }
 
 /**
- * Buat Embed Halaman Spesifik
+ * Buat Embed Halaman Spesifik (Clean & Dark Minimalist)
  */
 function buildMemberMapEmbed(guild, pageIndex = 0) {
   const data = getMemberMapData(guild.id);
@@ -65,23 +65,22 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
 
   if (data.totalValidLocations === 0) {
     return new EmbedBuilder()
-      .setColor(0x8B5CF6)
-      .setTitle(`🗺️ Peta Persebaran Member — ${guild.name}`)
-      .setDescription('📍 **Belum ada member yang mengisi data Lokasi di Kartu Profil mereka!**\nYuk buat kartu profilmu di channel panel card untuk mengisi peta server!')
-      .setFooter({ text: 'Lokasi diperbarui secara realtime dari kartu profil member' })
+      .setColor(0x2B2D31)
+      .setTitle(`Peta Persebaran Wilayah — ${guild.name}`)
+      .setDescription('Belum ada data domisili yang terdaftar di sistem kartu profil.\nMember dapat melengkapi lokasi mereka melalui panel Member Card.')
+      .setFooter({ text: 'Lokasi diperbarui secara realtime dari profil member' })
       .setTimestamp();
   }
 
   const start = safePage * ITEMS_PER_PAGE;
   const end = start + ITEMS_PER_PAGE;
   const pageItems = data.sorted.slice(start, end);
-  const rankIcons = ['🥇', '🥈', '🥉'];
 
   const formattedList = pageItems.map(([loc, count], idx) => {
     const globalRank = start + idx + 1;
     const pct = Math.round((count / data.totalValidLocations) * 100);
     const bar = createProgressBar(pct, 10);
-    const rankLabel = rankIcons[globalRank - 1] || `\`#${globalRank.toString().padStart(2, '0')}\``;
+    const rankLabel = `\`#${globalRank.toString().padStart(2, '0')}\``;
     const meta = data.locMetadata[loc];
     const regionText = meta?.region ? ` *(${meta.region})*` : '';
     const flagText = meta?.flag ? ` ${meta.flag}` : '';
@@ -90,18 +89,22 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
   }).join('\n\n');
 
   return new EmbedBuilder()
-    .setColor(0x8B5CF6)
-    .setTitle(`🗺️ Peta Persebaran Member — ${guild.name}`)
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `REGIONAL DIRECTORY — ${guild.name.toUpperCase()}`,
+      iconURL: guild.iconURL({ dynamic: true }) || undefined
+    })
+    .setTitle(`Peta Persebaran Wilayah Member`)
     .setDescription(
-      `Statistik persebaran domisili member resmi di server **${guild.name}**.\n\n` +
+      `Statistik domisili member resmi di server **${guild.name}**.\n\n` +
       formattedList
     )
     .addFields(
-      { name: '👥 Member Terdata', value: `**${data.totalValidLocations}** / ${data.totalCards} kartu profil`, inline: true },
-      { name: '🏙️ Total Wilayah', value: `**${data.sorted.length}** Daerah/Kota`, inline: true },
-      { name: '📄 Halaman', value: `**${safePage + 1}** dari **${data.totalPages}**`, inline: true }
+      { name: 'Member Terdata', value: `**${data.totalValidLocations}** / ${data.totalCards} profil`, inline: true },
+      { name: 'Total Wilayah', value: `**${data.sorted.length}** Daerah`, inline: true },
+      { name: 'Halaman', value: `**${safePage + 1}** dari **${data.totalPages}**`, inline: true }
     )
-    .setFooter({ text: 'Gunakan tombol di bawah untuk berpindah halaman wilayah' })
+    .setFooter({ text: 'Navigasi halaman melalui tombol di bawah' })
     .setTimestamp();
 }
 
@@ -117,27 +120,27 @@ function buildMemberMapComponents(pageIndex, totalPages) {
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`mmap_goto:0`)
-        .setLabel('⏮️')
+        .setLabel('⏮')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage === 0),
       new ButtonBuilder()
         .setCustomId(`mmap_goto:${safePage - 1}`)
-        .setLabel('◀ Sebelumnya')
-        .setStyle(ButtonStyle.Primary)
+        .setLabel('◀ Prev')
+        .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage === 0),
       new ButtonBuilder()
         .setCustomId('mmap_info')
         .setLabel(`${safePage + 1} / ${totalPages}`)
-        .setStyle(ButtonStyle.Secondary)
+        .setStyle(ButtonStyle.Primary)
         .setDisabled(true),
       new ButtonBuilder()
         .setCustomId(`mmap_goto:${safePage + 1}`)
-        .setLabel('Berikutnya ▶')
-        .setStyle(ButtonStyle.Primary)
+        .setLabel('Next ▶')
+        .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage >= totalPages - 1),
       new ButtonBuilder()
         .setCustomId(`mmap_goto:${totalPages - 1}`)
-        .setLabel('⏭️')
+        .setLabel('⏭')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage >= totalPages - 1)
     )
@@ -151,25 +154,28 @@ function createMemberMapPanelPayload(guild) {
   const data = getMemberMapData(guild.id);
 
   const embed = new EmbedBuilder()
-    .setColor(0x8B5CF6)
-    .setTitle(`🗺️ Hub Peta Persebaran Member — ${guild.name}`)
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `REGIONAL HUB — ${guild.name.toUpperCase()}`,
+      iconURL: guild.iconURL({ dynamic: true }) || undefined
+    })
+    .setTitle(`Peta Persebaran Domisili Member`)
     .setDescription(
-      `Selamat datang di **Peta Domisili Komunitas**!\n\n` +
-      `Ingin tahu teman-teman di server berasal dari kota atau provinsi mana saja?\n` +
-      `Klik tombol **Buka Peta Member** di bawah untuk menjelajahi seluruh statistik wilayah secara interaktif dan realtime!`
+      `Jelajahi statistik sebaran daerah dan kota asal teman-teman di komunitas **${guild.name}**.\n\n` +
+      `Klik tombol **Buka Peta Wilayah** di bawah untuk membuka sesi navigasi interaktif pribadimu.`
     )
     .addFields(
-      { name: '👥 Member Terdata', value: `**${data.totalValidLocations} Member**`, inline: true },
-      { name: '🏙️ Total Kota/Wilayah', value: `**${data.sorted.length} Daerah**`, inline: true }
+      { name: 'Member Terdata', value: `**${data.totalValidLocations} Member**`, inline: true },
+      { name: 'Total Wilayah', value: `**${data.sorted.length} Daerah/Kota**`, inline: true }
     )
-    .setFooter({ text: 'Setiap member akan membuka tampilan navigasi mandiri saat mengklik tombol' })
+    .setFooter({ text: 'Sesi bersifat privat dan tidak saling mengganggu antar member' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('mmap_open_panel')
-      .setLabel('🗺️ Buka Peta Member')
-      .setStyle(ButtonStyle.Success)
+      .setLabel('Buka Peta Wilayah ↗')
+      .setStyle(ButtonStyle.Primary)
   );
 
   return { embeds: [embed], components: [row] };

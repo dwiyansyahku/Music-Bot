@@ -17,8 +17,21 @@ function formatDateTimeWIB(dateObj) {
   return `${day} ${MONTH_NAMES[month]} ${year}, ${hour}:${minute} WIB`;
 }
 
+function getTimeUntilString(targetTimestamp) {
+  const diffMs = targetTimestamp - Date.now();
+  if (diffMs <= 0) return 'Sedang berlangsung';
+
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (days > 0) return `${days} hari ${hours} jam lagi`;
+  if (hours > 0) return `${hours} jam ${mins} menit lagi`;
+  return `${mins} menit lagi`;
+}
+
 function generateEventId() {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+  return Date.now().toString(36).slice(-4) + Math.random().toString(36).substring(2, 6);
 }
 
 module.exports = {
@@ -65,11 +78,10 @@ module.exports = {
       const channel = interaction.options.getChannel('channel') || interaction.channel;
       const deskripsi = interaction.options.getString('deskripsi') || '';
 
-      // Parse tanggal
       const parts = tanggalRaw.split(/[-/.\s]+/);
       if (parts.length < 3) {
         return interaction.reply({
-          content: '❌ Format tanggal salah! Gunakan format **DD-MM-YYYY**, contoh: `15-09-2026`',
+          content: 'Format tanggal tidak valid. Gunakan format **DD-MM-YYYY**, contoh: `15-09-2026`.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -80,19 +92,17 @@ module.exports = {
 
       if (!day || !month || !year || day < 1 || day > 31 || month < 1 || month > 12 || year < 2024) {
         return interaction.reply({
-          content: '❌ Tanggal tidak valid! Pastikan format **DD-MM-YYYY** benar.',
+          content: 'Tanggal tidak valid. Pastikan format **DD-MM-YYYY** benar.',
           flags: MessageFlags.Ephemeral
         });
       }
 
-      // Konversi ke timestamp UTC (input dalam WIB = UTC+7)
       const eventDateWIB = new Date(year, month - 1, day, jam, menit, 0);
-      const eventTimestamp = eventDateWIB.getTime() - (7 * 60 * 60 * 1000); // WIB to UTC
+      const eventTimestamp = eventDateWIB.getTime() - (7 * 60 * 60 * 1000);
 
-      // Validasi: event harus di masa depan
       if (eventTimestamp < Date.now()) {
         return interaction.reply({
-          content: '❌ Tanggal event sudah lewat! Pastikan event dijadwalkan di masa depan.',
+          content: 'Waktu event sudah terlewat. Jadwalkan event untuk waktu yang akan datang.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -107,7 +117,7 @@ module.exports = {
         channelId: channel.id,
         creatorId: interaction.user.id,
         creatorName: interaction.member.displayName,
-        attendees: [interaction.user.id], // Creator otomatis hadir
+        attendees: [interaction.user.id],
         declines: [],
         reminded30m: false,
         remindedDay: false,
@@ -115,57 +125,57 @@ module.exports = {
         createdAt: Date.now()
       };
 
-      // Simpan ke storage
       const eventsData = storage.read('events');
       if (!eventsData[guildId]) eventsData[guildId] = [];
       eventsData[guildId].push(eventData);
       storage.write('events', eventsData);
 
-      // Buat embed pengumuman event
       const dateFormatted = formatDateTimeWIB(new Date(eventTimestamp));
       const timeUntil = getTimeUntilString(eventTimestamp);
 
       const embed = new EmbedBuilder()
-        .setColor('#5865F2')
-        .setTitle(`📅 Event Baru: ${name}`)
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `COMMUNITY EVENT — ${interaction.guild.name.toUpperCase()}`,
+          iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+        })
+        .setTitle(name)
         .setDescription(
-          (deskripsi ? `${deskripsi}\n\n` : '') +
-          `📆 **Tanggal:** ${dateFormatted}\n` +
-          `⏳ **Dimulai dalam:** ${timeUntil}\n` +
-          `📍 **Channel:** <#${channel.id}>\n` +
-          `👤 **Dibuat oleh:** ${interaction.member.displayName}\n\n` +
-          `✅ **Hadir (1):** <@${interaction.user.id}>\n` +
-          `❌ **Tidak Hadir (0):** -`
+          (deskripsi ? `*${deskripsi}*\n\n` : '') +
+          `**Waktu:** ${dateFormatted} (${timeUntil})\n` +
+          `**Lokasi:** <#${channel.id}>\n` +
+          `**Inisiator:** ${interaction.member.displayName}\n\n` +
+          `**Hadir (1):** <@${interaction.user.id}>\n` +
+          `**Tidak Hadir (0):** _Belum ada_`
         )
-        .setFooter({ text: `ID: ${eventId} • Klik tombol di bawah untuk RSVP!` })
+        .setFooter({ text: `ID: ${eventId} • Konfirmasi kehadiran melalui tombol di bawah` })
         .setTimestamp();
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`event_rsvp_yes_${eventId}`)
-          .setLabel('✅ Hadir')
+          .setLabel('Hadir')
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
           .setCustomId(`event_rsvp_no_${eventId}`)
-          .setLabel('❌ Tidak Hadir')
-          .setStyle(ButtonStyle.Danger),
+          .setLabel('Tidak Hadir')
+          .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`event_info_${eventId}`)
-          .setLabel('📋 Info')
-          .setStyle(ButtonStyle.Secondary)
+          .setLabel('Info ↗')
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/channels/${guildId}/${channel.id}`)
       );
 
-      // Kirim ke channel event
       const sentMsg = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
 
       if (sentMsg) {
-        // Simpan message ID untuk update embed real-time
         eventData.messageId = sentMsg.id;
         storage.write('events', eventsData);
       }
 
       return interaction.reply({
-        content: `✅ **Event "${name}" berhasil dibuat!** Pengumuman telah dikirim ke <#${channel.id}>.\n📋 ID Event: \`${eventId}\``,
+        content: `Event **"${name}"** berhasil dibuat dan diumumkan di <#${channel.id}>. (ID: \`${eventId}\`)`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -179,7 +189,7 @@ module.exports = {
 
       if (guildEvents.length === 0) {
         return interaction.reply({
-          content: 'ℹ️ **Tidak ada event yang dijadwalkan saat ini.** Gunakan `/event create` untuk membuat event baru!',
+          content: 'Tidak ada jadwal event aktif saat ini. Gunakan `/event create` untuk membuat event baru.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -187,14 +197,18 @@ module.exports = {
       const list = guildEvents.slice(0, 10).map((evt, i) => {
         const dateStr = formatDateTimeWIB(new Date(evt.timestamp));
         const timeUntil = getTimeUntilString(evt.timestamp);
-        return `\`${i + 1}.\` **${evt.name}**\n   📆 ${dateStr} (${timeUntil})\n   ✅ ${evt.attendees.length} hadir • ID: \`${evt.id}\``;
+        return `\`#${(i + 1).toString().padStart(2, '0')}\` **${evt.name}**\n   ${dateStr} (${timeUntil})\n   Konfirmasi: ${evt.attendees.length} Hadir • ID: \`${evt.id}\``;
       }).join('\n\n');
 
       const embed = new EmbedBuilder()
-        .setColor('#5865F2')
-        .setTitle(`📅 Daftar Event Server (${guildEvents.length} event)`)
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `UPCOMING EVENTS — ${interaction.guild.name.toUpperCase()}`,
+          iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+        })
+        .setTitle(`Jadwal Acara Server (${guildEvents.length} Event)`)
         .setDescription(list)
-        .setFooter({ text: `${interaction.guild.name} • Event System` })
+        .setFooter({ text: `${interaction.guild.name} • Event Calendar` })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
@@ -213,7 +227,7 @@ module.exports = {
 
       if (idx === -1) {
         return interaction.reply({
-          content: `❌ Event dengan ID \`${eventId}\` tidak ditemukan.`,
+          content: `Event dengan ID \`${eventId}\` tidak ditemukan.`,
           flags: MessageFlags.Ephemeral
         });
       }
@@ -222,7 +236,7 @@ module.exports = {
       storage.write('events', eventsData);
 
       return interaction.reply({
-        content: `🗑️ **Event "${removed.name}" telah dibatalkan dan dihapus.**`,
+        content: `Event **"${removed.name}"** telah dibatalkan dan dihapus.`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -236,13 +250,13 @@ module.exports = {
 
       if (!evt) {
         return interaction.reply({
-          content: `❌ Event dengan ID \`${eventId}\` tidak ditemukan.`,
+          content: `Event dengan ID \`${eventId}\` tidak ditemukan.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       const dateStr = formatDateTimeWIB(new Date(evt.timestamp));
-      const timeUntil = evt.timestamp > Date.now() ? getTimeUntilString(evt.timestamp) : '⏰ Sudah berlalu';
+      const timeUntil = evt.timestamp > Date.now() ? getTimeUntilString(evt.timestamp) : 'Sudah berlalu';
       const attendeeList = evt.attendees.length > 0
         ? evt.attendees.map(id => `<@${id}>`).join(', ')
         : '_Belum ada_';
@@ -251,42 +265,21 @@ module.exports = {
         : '_Belum ada_';
 
       const embed = new EmbedBuilder()
-        .setColor('#5865F2')
-        .setTitle(`📅 ${evt.name}`)
-        .setDescription(evt.description || '_Tidak ada deskripsi_')
+        .setColor(0x2B2D31)
+        .setTitle(evt.name)
+        .setDescription(evt.description ? `*${evt.description}*` : '_Tidak ada deskripsi._')
         .addFields(
-          { name: '📆 Tanggal & Waktu', value: dateStr, inline: true },
-          { name: '⏳ Countdown', value: timeUntil, inline: true },
-          { name: '👤 Dibuat oleh', value: evt.creatorName || `<@${evt.creatorId}>`, inline: true },
-          { name: `✅ Hadir (${evt.attendees.length})`, value: attendeeList, inline: false },
-          { name: `❌ Tidak Hadir (${evt.declines.length})`, value: declineList, inline: false }
+          { name: 'Waktu Pelaksanaan', value: dateStr, inline: true },
+          { name: 'Status', value: timeUntil, inline: true },
+          { name: `Daftar Hadir (${evt.attendees.length})`, value: attendeeList, inline: false },
+          { name: `Tidak Hadir (${evt.declines.length})`, value: declineList, inline: false }
         )
-        .setFooter({ text: `ID: ${evt.id}` })
+        .setFooter({ text: `Event ID: ${evt.id}` })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
   },
+  formatDateTimeWIB,
+  getTimeUntilString
 };
-
-/**
- * Helper: Hitung string "X hari Y jam lagi"
- */
-function getTimeUntilString(timestamp) {
-  const diff = timestamp - Date.now();
-  if (diff <= 0) return '⏰ Sudah dimulai!';
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-  const parts = [];
-  if (days > 0) parts.push(`${days} hari`);
-  if (hours > 0) parts.push(`${hours} jam`);
-  if (minutes > 0 && days === 0) parts.push(`${minutes} menit`);
-
-  return parts.join(' ') + ' lagi';
-}
-
-module.exports.getTimeUntilString = getTimeUntilString;
-module.exports.formatDateTimeWIB = formatDateTimeWIB;

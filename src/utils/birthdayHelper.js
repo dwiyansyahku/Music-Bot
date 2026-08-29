@@ -269,32 +269,32 @@ function buildBirthdayAnnouncementEmbed(member, customWish, birthInfo, guild) {
   const zodiac = getZodiac(birthInfo?.day, birthInfo?.month);
 
   const embed = new EmbedBuilder()
-    .setColor('#FF69B4') // Hot pink celebratory color
+    .setColor(0x2B2D31)
     .setAuthor({
-      name: `🎉 BIRTHDAY CELEBRATION — ${guild.name.toUpperCase()}`,
+      name: `BIRTHDAY CELEBRATION — ${guild.name.toUpperCase()}`,
       iconURL: guild.iconURL({ dynamic: true }) || undefined
     })
-    .setTitle(`🎂 SELAMAT ULANG TAHUN, ${member.displayName.toUpperCase()}! 🎈`)
+    .setTitle(`Selamat Ulang Tahun, ${member.displayName}! ✦`)
     .setDescription(
       `${wishText}\n\n` +
-      `🎊 Hari ini adalah hari spesial kelahiran **<@${member.id}>**!\n` +
-      `Yuk kawan-kawan berikan ucapan, kado, dan doa terbaik di chat! 🥳🥂`
+      `Hari ini adalah hari istimewa kelahiran **<@${member.id}>**.\n` +
+      `Mari sampaikan ucapan dan doa terbaik di chat!`
     )
     .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 512 }))
     .setImage(BIRTHDAY_GIFS[Math.floor(Math.random() * BIRTHDAY_GIFS.length)])
     .setFooter({
-      text: `${guild.name} • Birthday Alert System • ${birthInfo?.formatted || ''} ${zodiac ? `(${zodiac.label})` : ''}`,
+      text: `${guild.name} • Birthday System • ${birthInfo?.formatted || ''} ${zodiac ? `(${zodiac.label})` : ''}`,
       iconURL: guild.iconURL({ dynamic: true }) || undefined
     })
     .setTimestamp();
 
   if (birthInfo?.formatted) {
     embed.addFields(
-      { name: '📅 Tanggal Lahir', value: `**${birthInfo.formatted}**`, inline: true },
-      { name: '🌟 Zodiak', value: `**${zodiac?.label || '-'}**`, inline: true }
+      { name: 'Tanggal Lahir', value: `${birthInfo.formatted}`, inline: true },
+      { name: 'Zodiak', value: `${zodiac?.label || '-'}`, inline: true }
     );
     if (birthInfo.age) {
-      embed.addFields({ name: '🎂 Usia Sekarang', value: `**${birthInfo.age} Tahun**`, inline: true });
+      embed.addFields({ name: 'Usia Saat Ini', value: `${birthInfo.age} Tahun`, inline: true });
     }
   }
 

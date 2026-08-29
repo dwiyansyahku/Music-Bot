@@ -103,21 +103,24 @@ module.exports = {
       }
 
       const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('📦 Database Backup Ready!')
-        .setDescription('Seluruh data server, member profile card, settings, dan voice stats telah berhasil dikemas dan siap diunduh.')
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `DATABASE BACKUP — ${interaction.guild?.name?.toUpperCase() || 'SERVER'}`,
+          iconURL: interaction.guild?.iconURL({ dynamic: true }) || undefined
+        })
+        .setTitle('Cadangan Database Berhasil Dibuat')
+        .setDescription('Seluruh data profil member card, konfigurasi sistem, data voice tracker, dan log berhasil dikemas dengan aman.')
         .addFields(
-          { name: '📊 Total Tabel', value: `${totalFiles} File JSON`, inline: true },
-          { name: '💾 Ukuran Asli', value: `${sizeOriginalKb} KB`, inline: true },
-          { name: '🗜️ Terkompresi', value: `${sizeCompressedKb} KB`, inline: true },
-          { name: '🔒 Keamanan', value: 'Pesan ini bersifat privat (hanya kamu yang bisa lihat)', inline: false }
+          { name: 'Tabel Database', value: `${totalFiles} File JSON`, inline: true },
+          { name: 'Ukuran Asli', value: `${sizeOriginalKb} KB`, inline: true },
+          { name: 'Ukuran Arsip', value: `${sizeCompressedKb} KB`, inline: true }
         )
-        .setFooter({ text: 'Klik tombol di bawah untuk mengunduh backup' })
+        .setFooter({ text: 'Cadangan privat • Klik tautan untuk mengunduh arsip' })
         .setTimestamp();
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setLabel('📥 Unduh File Backup')
+          .setLabel('Unduh File Cadangan ↗')
           .setStyle(ButtonStyle.Link)
           .setURL(downloadUrl)
       );

@@ -62,11 +62,11 @@ module.exports = {
       });
 
       const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('✅ Channel Pengumuman Ulang Tahun Berhasil Diatur!')
+        .setColor(0x2B2D31)
+        .setTitle('Channel Pengumuman Ulang Tahun Diperbarui')
         .setDescription(
-          `Setiap hari jam **00:01 WIB**, bot akan otomatis mengirim ucapan selamat ulang tahun yang meriah ke <#${channel.id}> untuk member yang berulang tahun pada hari tersebut!\n\n` +
-          `💡 **Tips:** Member dapat mengisi tanggal lahir mereka dengan menekan tombol **Edit Profile** di panel Member Card (` + '`/setcard`' + `).`
+          `Setiap hari jam **00:01 WIB**, bot akan otomatis mengirimkan ucapan selamat ulang tahun ke <#${channel.id}> bagi member yang berulang tahun.\n\n` +
+          `Member dapat melengkapi tanggal lahir mereka melalui panel Member Card.`
         )
         .setFooter({ text: `${interaction.guild.name} • Birthday System` })
         .setTimestamp();
@@ -86,7 +86,7 @@ module.exports = {
       });
 
       return interaction.reply({
-        content: '🧹 **Pengumuman ulang tahun otomatis telah dinonaktifkan.**',
+        content: 'Pengumuman ulang tahun otomatis telah dinonaktifkan.',
         flags: MessageFlags.Ephemeral
       });
     }
@@ -105,20 +105,16 @@ module.exports = {
         }
       }
 
-      const channelMention = bdaySetting?.channelId ? `<#${bdaySetting.channelId}>` : '`Belum diatur`';
-      const isEnabled = bdaySetting?.enabled && bdaySetting?.channelId ? '🟢 **Aktif (00:01 WIB)**' : '🔴 **Nonaktif**';
+      const channelMention = bdaySetting?.channelId ? `<#${bdaySetting.channelId}>` : '_Belum diatur_';
+      const isEnabled = bdaySetting?.enabled && bdaySetting?.channelId ? 'Aktif (00:01 WIB)' : 'Nonaktif';
 
       const embed = new EmbedBuilder()
-        .setColor('#FF69B4')
-        .setTitle('🎂 Status Pengumuman Ulang Tahun Server')
+        .setColor(0x2B2D31)
+        .setTitle('Status Pengumuman Ulang Tahun')
         .addFields(
-          { name: '📢 Channel Pengumuman', value: channelMention, inline: true },
-          { name: '⚙️ Status Sistem', value: isEnabled, inline: true },
-          { name: '👥 Member dengan Tanggal Lahir', value: `**${totalWithBday} Member**`, inline: true }
-        )
-        .setDescription(
-          `Untuk mengatur channel pengumuman, gunakan: ` + '`/birthday setchannel channel:#channel`' + `\n` +
-          `Untuk mengisi tanggal lahir, gunakan panel Member Card (` + '`/setcard`' + `).`
+          { name: 'Channel Pengumuman', value: channelMention, inline: true },
+          { name: 'Status Sistem', value: isEnabled, inline: true },
+          { name: 'Member Terdata', value: `${totalWithBday} Member`, inline: true }
         )
         .setFooter({ text: `${interaction.guild.name} • Birthday System` })
         .setTimestamp();
@@ -135,7 +131,7 @@ module.exports = {
       const targetUser = interaction.options.getUser('user') || interaction.user;
       const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (!targetMember) {
-        return interaction.reply({ content: '❌ Member tidak ditemukan.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Member tidak ditemukan.', flags: MessageFlags.Ephemeral });
       }
 
       const settings = storage.read('settings');
@@ -144,7 +140,7 @@ module.exports = {
 
       if (!channelId) {
         return interaction.reply({
-          content: '❌ Channel pengumuman belum diatur! Gunakan `/birthday setchannel` terlebih dahulu.',
+          content: 'Channel pengumuman belum diatur. Gunakan `/birthday setchannel` terlebih dahulu.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -152,7 +148,7 @@ module.exports = {
       const targetChannel = await interaction.guild.channels.fetch(channelId).catch(() => null);
       if (!targetChannel) {
         return interaction.reply({
-          content: `❌ Channel <#${channelId}> tidak dapat diakses bot.`,
+          content: `Channel <#${channelId}> tidak dapat diakses bot.`,
           flags: MessageFlags.Ephemeral
         });
       }
@@ -169,12 +165,12 @@ module.exports = {
       const embed = buildBirthdayAnnouncementEmbed(targetMember, null, birthInfo, interaction.guild);
 
       await targetChannel.send({
-        content: `🎉 **[TEST PREVIEW]** Selamat Ulang Tahun <@${targetMember.id}>! 🎂`,
+        content: `Selamat Ulang Tahun, <@${targetMember.id}>! ✦`,
         embeds: [embed]
       });
 
       return interaction.reply({
-        content: `✅ **Pesan simulasi ulang tahun berhasil dikirim ke <#${channelId}>!**`,
+        content: `Pesan simulasi ulang tahun berhasil dikirim ke <#${channelId}>.`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -184,7 +180,7 @@ module.exports = {
       const targetUser = interaction.options.getUser('user') || interaction.user;
       const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (!targetMember) {
-        return interaction.reply({ content: '❌ Member tidak ditemukan.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Member tidak ditemukan.', flags: MessageFlags.Ephemeral });
       }
 
       const cardsData = storage.read('cards');
@@ -192,8 +188,11 @@ module.exports = {
       const birthdate = userCard.birthdate;
 
       const embed = new EmbedBuilder()
-        .setColor('#FF69B4')
-        .setTitle(`🎂 Info Ulang Tahun — ${targetMember.displayName}`)
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `BIRTHDAY PROFILE — ${targetMember.displayName.toUpperCase()}`,
+          iconURL: targetUser.displayAvatarURL({ dynamic: true })
+        })
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }));
 
       if (birthdate && birthdate.day && birthdate.month) {
@@ -201,36 +200,24 @@ module.exports = {
         const zodiac = getZodiac(birthdate.day, birthdate.month);
 
         embed.addFields(
-          { name: '📅 Tanggal Lahir', value: `**${birthdate.formatted}**`, inline: true },
-          { name: '🌟 Zodiak', value: `**${zodiac?.label || '-'}**`, inline: true }
+          { name: 'Tanggal Lahir', value: `${birthdate.formatted}`, inline: true },
+          { name: 'Zodiak', value: `${zodiac?.label || '-'}`, inline: true }
         );
 
         if (birthdate.age) {
-          embed.addFields({ name: '🎂 Usia Sekarang', value: `**${birthdate.age} Tahun**`, inline: true });
+          embed.addFields({ name: 'Usia Saat Ini', value: `${birthdate.age} Tahun`, inline: true });
         }
 
         const countdownText = countdown.isToday
-          ? '🎉 **HARI INI! SELAMAT ULANG TAHUN! 🥳**'
+          ? '✦ **Hari ini berulang tahun!**'
           : `**${countdown.daysLeft} hari lagi** (${countdown.nextDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })})`;
 
-        embed.addFields({ name: '⏳ Ulang Tahun Berikutnya', value: countdownText, inline: false });
+        embed.addFields({ name: 'Ulang Tahun Berikutnya', value: countdownText, inline: false });
       } else {
-        // Fallback: Discord Account Anniversary
-        const createdAt = targetUser.createdAt;
-        const day = createdAt.getDate();
-        const month = createdAt.getMonth() + 1;
-        const year = createdAt.getFullYear();
-        const countdown = getNextBirthdayCountdown(day, month);
-
-        embed.addFields(
-          { name: '📅 Tanggal Lahir Asli', value: '_Belum diisi di profil card_', inline: true },
-          { name: '🤖 Discord Anniversary', value: `**${day} ${MONTH_NAMES[month]} ${year}**`, inline: true },
-          { name: '⏳ Anniversary Berikutnya', value: countdown.isToday ? '🎉 **Hari Ini!**' : `**${countdown.daysLeft} hari lagi**`, inline: false }
-        );
-        embed.setDescription('💡 *Isi tanggal lahir aslimu lewat tombol **Edit Profile** di panel `/setcard` agar namamu otomatis dirayakan!*');
+        embed.setDescription('_Member belum mengisi tanggal lahir pada kartu profil._\nLengkapi tanggal lahir melalui tombol Edit Profile di panel kartu member.');
       }
 
-      embed.setFooter({ text: `${interaction.guild.name} • Birthday Info` }).setTimestamp();
+      embed.setFooter({ text: `${interaction.guild.name} • Birthday System` }).setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
@@ -259,14 +246,14 @@ module.exports = {
           daysLeft: countdown.daysLeft,
           isToday: countdown.isToday,
           formatted: card.birthdate.formatted,
-          zodiac: zodiac ? zodiac.symbol : '🎂',
+          zodiac: zodiac ? zodiac.label : '-',
           age: card.birthdate.age
         });
       }
 
       if (birthdayList.length === 0) {
         return interaction.editReply({
-          content: 'ℹ️ **Belum ada member yang mengisi tanggal lahir.**\nMember dapat mengisi tanggal lahir di panel Member Card (`/setcard`).'
+          content: 'Belum ada member yang mengisi tanggal lahir pada kartu profil.'
         });
       }
 
@@ -276,15 +263,15 @@ module.exports = {
 
       const listDescription = topList.map((item, idx) => {
         const timeStr = item.isToday
-          ? '🎉 **HARI INI!**'
-          : `**${item.daysLeft} hari lagi**`;
+          ? '✦ **Hari Ini**'
+          : `${item.daysLeft} hari lagi`;
         const ageStr = item.age ? ` (${item.age} th)` : '';
-        return `\`${idx + 1}.\` **${item.member.displayName}** — 📅 ${item.formatted}${ageStr} • ${item.zodiac} (${timeStr})`;
+        return `\`#${(idx + 1).toString().padStart(2, '0')}\` **${item.member.displayName}** — ${item.formatted}${ageStr} • *${item.zodiac}* (${timeStr})`;
       }).join('\n');
 
       const embed = new EmbedBuilder()
-        .setColor('#FF69B4')
-        .setTitle(`🎂 Daftar Ulang Tahun Member Terdekat (${birthdayList.length} Terdaftar)`)
+        .setColor(0x2B2D31)
+        .setTitle(`Daftar Ulang Tahun Terdekat (${birthdayList.length} Member)`)
         .setDescription(listDescription)
         .setFooter({ text: `${interaction.guild.name} • Diurutkan berdasarkan hari terdekat` })
         .setTimestamp();
