@@ -631,8 +631,13 @@ async function handleCardModalSubmit(interaction, client) {
     content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
   });
 
-  try {
-    const result = await publishCardToChannel(interaction.guild, interaction.member, client);
+    try {
+      const { updateMemberMapPanel } = require('./memberMapHelper');
+      updateMemberMapPanel(interaction.guild, client).catch(() => {});
+    } catch (_) {}
+
+    try {
+      const result = await publishCardToChannel(interaction.guild, interaction.member, client);
     const jumpUrl = result?.jumpUrl || (userCard.publishedMessageId ? `https://discord.com/channels/${guildId}/${targetChannelId}/${userCard.publishedMessageId}` : null);
 
     if (jumpUrl) {

@@ -406,6 +406,12 @@ module.exports = {
           if (cardsChanged) {
             storage.write('cards', cardsData);
           }
+
+          // Realtime auto-sync panel peta member jika terpasang
+          try {
+            const { updateMemberMapPanel } = require('../utils/memberMapHelper');
+            await updateMemberMapPanel(guild, client);
+          } catch (_) {}
         }
       } catch (err) {
         console.warn('[CardSync] Auto-sync published cards failed:', err.message);

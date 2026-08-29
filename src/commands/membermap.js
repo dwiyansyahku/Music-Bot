@@ -43,10 +43,20 @@ module.exports = {
       const targetChannel = interaction.options.getChannel('channel');
       const payload = createMemberMapPanelPayload(guild);
 
-      await targetChannel.send(payload);
+      const sentMsg = await targetChannel.send(payload);
+
+      // Simpan referensi pesan panel agar selalu diperbarui secara realtime
+      const storage = require('../utils/storage');
+      const settings = storage.read('settings');
+      if (!settings[guild.id]) settings[guild.id] = {};
+      settings[guild.id].memberMapPanel = {
+        channelId: targetChannel.id,
+        messageId: sentMsg.id
+      };
+      storage.write('settings', settings);
 
       return interaction.reply({
-        content: `✅ **Panel Peta Member Berhasil Dipasang di <#${targetChannel.id}>!**\nSemua member sekarang dapat mengklik tombol pada panel tersebut untuk membuka peta interaktif mereka sendiri.`,
+        content: `✅ **Panel Peta Member Berhasil Dipasang di <#${targetChannel.id}>!**\nPanel ini akan otomatis diperbarui secara realtime setiap ada member yang mengisi atau mengedit lokasi.`,
         flags: MessageFlags.Ephemeral
       });
     }

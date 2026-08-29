@@ -321,7 +321,27 @@ function createMemberMapPanelPayload(guild) {
       .setStyle(ButtonStyle.Primary)
   );
 
-  return { embeds: [embed], components: [row] };
+/**
+ * Update realtime pesan panel publik peta member jika sudah terpasang di channel
+ */
+async function updateMemberMapPanel(guild, client) {
+  try {
+    const settings = storage.read('settings');
+    const panelConfig = settings[guild.id]?.memberMapPanel;
+    if (!panelConfig?.channelId || !panelConfig?.messageId) return;
+
+    const channel = guild.channels.cache.get(panelConfig.channelId)
+      || await client.channels.fetch(panelConfig.channelId).catch(() => null);
+    if (!channel) return;
+
+    const message = await channel.messages.fetch(panelConfig.messageId).catch(() => null);
+    if (!message) return;
+
+    const payload = createMemberMapPanelPayload(guild);
+    await message.edit(payload).catch(() => {});
+  } catch (err) {
+    console.warn(`[MemberMap] Auto-update panel failed:`, err.message);
+  }
 }
 
 module.exports = {
@@ -329,5 +349,6 @@ module.exports = {
   buildMemberMapEmbed,
   buildMemberMapComponents,
   buildCityDetailEmbed,
-  createMemberMapPanelPayload
+  createMemberMapPanelPayload,
+  updateMemberMapPanel
 };

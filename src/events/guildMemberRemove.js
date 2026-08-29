@@ -39,6 +39,12 @@ module.exports = {
       delete guildCards[userId];
       storage.write('cards', cardsData);
 
+      // 3. Update realtime panel peta member jika ada
+      try {
+        const { updateMemberMapPanel } = require('../utils/memberMapHelper');
+        await updateMemberMapPanel(guild, client);
+      } catch (_) {}
+
       console.log(`👋 [Member Card] Data kartu profil ${member.user?.tag || userId} dibersihkan dari server ${guild.name}.`);
     } catch (err) {
       console.error(`[guildMemberRemove] Error membersihkan kartu member ${userId}:`, err.message);
