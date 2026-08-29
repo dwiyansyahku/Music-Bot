@@ -132,12 +132,13 @@ module.exports = {
     const replyMsg = await interaction.reply({
       embeds: [initialEmbed],
       components: totalPages > 1 ? [initialRow] : [],
+      flags: MessageFlags.Ephemeral,
       fetchReply: true
     });
 
     if (totalPages <= 1) return;
 
-    // Interactive Button Collector (5 Menit Aktif & diperpanjang setiap ada yang klik)
+    // Interactive Button Collector (5 Menit Aktif Khusus User Tersebut)
     const collector = replyMsg.createMessageComponentCollector({
       componentType: ComponentType.Button,
       time: 300000 // 5 Menit
