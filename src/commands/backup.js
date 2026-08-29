@@ -6,7 +6,7 @@ const path = require('path');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('backup')
-    .setDescription('Download seluruh database bot sebagai 1 file JSON cadangan (Owner / Admin Only)'),
+    .setDescription('Download seluruh database bot sebagai file cadangan (Owner / Admin Only)'),
 
   async execute(interaction, client) {
     const isOwner = await isBotOwner(interaction, client);
@@ -23,51 +23,66 @@ module.exports = {
 
     try {
       const dataDir = path.join(process.cwd(), 'data');
-      const backupBundle = {
-        _meta: {
-          exportedAt: new Date().toISOString(),
-          guildId: interaction.guild?.id,
-          guildName: interaction.guild?.name
-        },
-        data: {}
-      };
-
       const fileList = [
         'cards.json', 'settings.json', 'voiceStats.json', 'jail.json',
         'events.json', 'timecapsules.json', 'gacha_data.json', 'musicquiz_lb.json'
       ];
 
-      let totalFiles = 0;
-
+      const foundFiles = [];
       for (const fileName of fileList) {
         const filePath = path.join(dataDir, fileName);
         if (fs.existsSync(filePath)) {
-          try {
-            const content = fs.readFileSync(filePath, 'utf8');
-            backupBundle.data[fileName] = JSON.parse(content);
-            totalFiles++;
-          } catch (readErr) {
-            console.error(`[Backup] Error membaca ${fileName}:`, readErr.message);
-          }
+          const stats = fs.statSync(filePath);
+          foundFiles.push({ name: fileName, path: filePath, size: stats.size });
         }
       }
 
-      if (totalFiles === 0) {
+      if (foundFiles.length === 0) {
         return interaction.editReply({
           content: '⚠️ Tidak ada file database yang ditemukan di folder `data/`.'
         });
       }
 
-      const jsonString = JSON.stringify(backupBundle, null, 2);
-      const buffer = Buffer.from(jsonString, 'utf8');
-      const attachment = new AttachmentBuilder(buffer, { name: 'qumpruy_database_backup.json' });
+      // Kirim pesan awal
+      const fileListStr = foundFiles.map(f => {
+        const kb = (f.size / 1024).toFixed(1);
+        return `• \`${f.name}\` (${kb} KB)`;
+      }).join('\n');
 
-      return await interaction.editReply({
-        content: `📦 **Backup Database Berhasil Dibuat!**\n` +
-          `✅ Berhasil mengemas **${totalFiles} file database** ke dalam 1 file.\n` +
-          `Silakan klik dan download file **\`qumpruy_database_backup.json\`** di bawah ini:`,
-        files: [attachment]
+      await interaction.editReply({
+        content: `📦 **Backup Database — ${foundFiles.length} file ditemukan**\n${fileListStr}\n\n⏳ Mengirim file satu per satu...`
       });
+
+      // Kirim setiap file satu per satu via followUp agar tidak kena limit
+      let sentCount = 0;
+      for (const file of foundFiles) {
+        try {
+          const buffer = fs.readFileSync(file.path);
+          const attachment = new AttachmentBuilder(buffer, { name: file.name });
+
+          await interaction.followUp({
+            content: `📄 **${file.name}** (${(file.size / 1024).toFixed(1)} KB)`,
+            files: [attachment],
+            flags: MessageFlags.Ephemeral
+          });
+          sentCount++;
+
+          // Delay kecil antar pengiriman agar tidak kena rate limit
+          await new Promise(r => setTimeout(r, 1000));
+        } catch (sendErr) {
+          console.error(`[Backup] Gagal mengirim ${file.name}:`, sendErr.message);
+          await interaction.followUp({
+            content: `⚠️ Gagal mengirim \`${file.name}\`: ${sendErr.message}`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+      }
+
+      await interaction.followUp({
+        content: `✅ **Backup selesai!** ${sentCount}/${foundFiles.length} file berhasil dikirim.\nSilakan download semua file di atas untuk cadangan.`,
+        flags: MessageFlags.Ephemeral
+      });
+
     } catch (err) {
       console.error('[Backup Command Error]:', err);
       return interaction.editReply({
