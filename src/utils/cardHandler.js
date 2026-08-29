@@ -215,7 +215,7 @@ async function buildMemberCardEmbed(guild, member) {
       birthdayText += ` (${userCard.birthdate.age} th)`;
     }
   }
-  embed.addFields({ name: '🎂 Birthday', value: birthdayText, inline: true });
+  embed.addFields({ name: 'Birthday', value: birthdayText, inline: true });
 
   // Row 3: Zodiac / MBTI (if set or auto-detected from birthday)
   const zodiacDetected = userCard.birthdate ? getZodiac(userCard.birthdate.day, userCard.birthdate.month) : null;
@@ -243,14 +243,14 @@ async function buildMemberCardEmbed(guild, member) {
     embed.addFields({ name: 'Top Voice Companions', value: compText, inline: false });
   }
 
-  // Row 5: Achievements & Badges (Dynamic)
+  // Row 5: Badges & Recognition (Clean Minimalist Design)
   try {
     const { getUserAchievements } = require('./achievementHelper');
     const achData = getUserAchievements(guild.id, member.id, member);
     if (achData.unlocked.length > 0) {
-      const badgeList = achData.unlocked.map(a => `${a.emoji} ${a.name}`).join(' • ');
+      const badgeList = achData.unlocked.map(a => `\`${a.tag} ${a.name}\``).join('  ');
       embed.addFields({
-        name: `🎖️ Badges & Gelar (${achData.unlocked.length})`,
+        name: `Titles & Badges (${achData.unlocked.length})`,
         value: badgeList,
         inline: false
       });

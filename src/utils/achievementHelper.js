@@ -2,96 +2,96 @@ const storage = require('./storage');
 const { getVoiceStats } = require('./voiceTracker');
 
 /**
- * Daftar Master Achievements Server
+ * Master Achievements & Badges List (Clean, Aesthetic & Elegant)
  */
 const MASTER_ACHIEVEMENTS = [
   {
+    id: 'card_creator',
+    name: 'Verified Resident',
+    tag: '✦',
+    desc: 'Terdaftar secara resmi di direktori member server',
+    category: 'Profile',
+    check: (stats) => stats.hasCard
+  },
+  {
+    id: 'banner_artist',
+    name: 'Visual Curator',
+    tag: '✦',
+    desc: 'Menghiasi profil dengan custom visual banner',
+    category: 'Profile',
+    check: (stats) => stats.hasBanner
+  },
+  {
+    id: 'birthday_star',
+    name: 'Star Born',
+    tag: '✦',
+    desc: 'Mencantumkan tanggal kelahiran pada profil',
+    category: 'Profile',
+    check: (stats) => stats.hasBirthday
+  },
+  {
+    id: 'social_star',
+    name: 'Distinguished',
+    tag: '✦',
+    desc: 'Mendapatkan apresiasi Like dan Respect dari komunitas',
+    category: 'Social',
+    check: (stats) => stats.totalReactions >= 3
+  },
+  {
     id: 'voice_starter',
-    name: 'Voice Newbie',
-    emoji: '🎙️',
-    desc: 'Menghabiskan minimal 1 jam di Voice Channel',
+    name: 'Voice Initiate',
+    tag: '◈',
+    desc: 'Menghabiskan akumulasi 1 jam di Voice Channel',
     category: 'Voice',
     check: (stats) => stats.voiceMinutes >= 60
   },
   {
     id: 'voice_warrior',
-    name: 'Voice Warrior',
-    emoji: '⚔️',
-    desc: 'Menghabiskan minimal 10 jam di Voice Channel',
+    name: 'Constant Speaker',
+    tag: '◈',
+    desc: 'Menghabiskan akumulasi 10 jam di Voice Channel',
     category: 'Voice',
     check: (stats) => stats.voiceMinutes >= 600
   },
   {
     id: 'voice_legend',
-    name: 'Voice Legend',
-    emoji: '👑',
-    desc: 'Menghabiskan minimal 50 jam di Voice Channel',
+    name: 'Pillar of Voice',
+    tag: '◈',
+    desc: 'Menghabiskan akumulasi 50 jam di Voice Channel',
     category: 'Voice',
     check: (stats) => stats.voiceMinutes >= 3000
   },
   {
-    id: 'card_creator',
-    name: 'Identity Unlocked',
-    emoji: '🎴',
-    desc: 'Membuat dan mempublikasikan Kartu Profil Member',
-    category: 'Profile',
-    check: (stats) => stats.hasCard
-  },
-  {
-    id: 'birthday_star',
-    name: 'Birthday Star',
-    emoji: '🎂',
-    desc: 'Mengisi tanggal lahir di Kartu Profil Member',
-    category: 'Profile',
-    check: (stats) => stats.hasBirthday
-  },
-  {
-    id: 'banner_artist',
-    name: 'Aesthetic Sense',
-    emoji: '🖼️',
-    desc: 'Memasang custom banner di Kartu Profil Member',
-    category: 'Profile',
-    check: (stats) => stats.hasBanner
-  },
-  {
     id: 'gacha_first',
-    name: 'First Gamble',
-    emoji: '🎲',
-    desc: 'Melakukan Gacha Harian pertama kali',
-    category: 'Gacha',
+    name: 'Fortune Seeker',
+    tag: '✧',
+    desc: 'Membuka misteri harian untuk pertama kali',
+    category: 'Relics',
     check: (stats) => stats.gachaPulls >= 1
   },
   {
     id: 'gacha_addict',
-    name: 'Gacha Enthusiast',
-    emoji: '🎰',
-    desc: 'Melakukan minimal 5 kali Gacha Harian',
-    category: 'Gacha',
+    name: 'Relic Collector',
+    tag: '✧',
+    desc: 'Membuka minimal 5 kali peti misteri harian',
+    category: 'Relics',
     check: (stats) => stats.gachaPulls >= 5
   },
   {
     id: 'gacha_lucky',
-    name: 'Chosen One',
-    emoji: '🌟',
-    desc: 'Mendapatkan item LEGENDARY dari Gacha',
-    category: 'Gacha',
+    name: 'Golden Aura',
+    tag: '✧',
+    desc: 'Memperoleh relik bertingkat Legendary',
+    category: 'Relics',
     check: (stats) => stats.hasLegendaryGacha
   },
   {
     id: 'music_quiz_champ',
-    name: 'Music Maestro',
-    emoji: '🎵',
-    desc: 'Mencapai minimal 1 kemenangan di Music Quiz',
+    name: 'Melody Virtuoso',
+    tag: '◇',
+    desc: 'Meraih kemenangan dalam kompetisi Music Quiz',
     category: 'Music',
     check: (stats) => stats.quizWins >= 1
-  },
-  {
-    id: 'social_star',
-    name: 'Social Star',
-    emoji: '💖',
-    desc: 'Mendapatkan minimal 3 Like atau Respect di Kartu Profil',
-    category: 'Profile',
-    check: (stats) => stats.totalReactions >= 3
   }
 ];
 
@@ -115,7 +115,7 @@ function getUserAchievements(guildId, userId, member) {
   const gachaData = storage.read('gacha_data');
   const userGacha = gachaData[guildId]?.[userId] || null;
   const gachaPulls = userGacha?.pulls || 0;
-  const hasLegendaryGacha = Boolean(userGacha?.badges?.some(b => b.includes('Sultan') || b.includes('Bintang')));
+  const hasLegendaryGacha = Boolean(userGacha?.badges?.some(b => b.includes('Sultan') || b.includes('Bintang') || b.includes('Legendary')));
 
   // 4. Music Quiz Data
   const quizData = storage.read('musicquiz_lb');
