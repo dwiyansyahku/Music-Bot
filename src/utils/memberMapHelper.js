@@ -1,4 +1,7 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const {
+  EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
+  StringSelectMenuBuilder
+} = require('discord.js');
 const storage = require('./storage');
 const { parseLocation } = require('./locationHelper');
 
@@ -11,18 +14,18 @@ function createProgressBar(percent, length = 10) {
 }
 
 /**
- * Ambil data sebaran lokasi yang valid
+ * Ambil data sebaran lokasi yang valid beserta daftar user ID di tiap kota
  */
 function getMemberMapData(guildId) {
   const cardsData = storage.read('cards');
   const guildCards = cardsData[guildId] || {};
-  const usersWithCard = Object.values(guildCards);
 
   const locCounts = {};
   const locMetadata = {};
+  const locMembers = {}; // cityKey -> [ { userId, card } ]
   let totalValidLocations = 0;
 
-  for (const card of usersWithCard) {
+  for (const [userId, card] of Object.entries(guildCards)) {
     const rawAsal = card.asal || card.location?.display || '';
     if (!rawAsal || rawAsal.trim() === '') continue;
 
@@ -41,6 +44,10 @@ function getMemberMapData(guildId) {
     if (!locMetadata[cityKey]) {
       locMetadata[cityKey] = { flag, region };
     }
+    if (!locMembers[cityKey]) {
+      locMembers[cityKey] = [];
+    }
+    locMembers[cityKey].push({ userId, card });
     totalValidLocations++;
   }
 
@@ -50,14 +57,15 @@ function getMemberMapData(guildId) {
   return {
     sorted,
     locMetadata,
+    locMembers,
     totalValidLocations,
-    totalCards: usersWithCard.length,
+    totalCards: Object.keys(guildCards).length,
     totalPages
   };
 }
 
 /**
- * Buat Embed Halaman Spesifik (Clean & Dark Minimalist)
+ * Buat Embed Halaman Spesifik (Dengan daftar member per kota)
  */
 function buildMemberMapEmbed(guild, pageIndex = 0) {
   const data = getMemberMapData(guild.id);
@@ -85,7 +93,13 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
     const regionText = meta?.region ? ` *(${meta.region})*` : '';
     const flagText = meta?.flag ? ` ${meta.flag}` : '';
 
-    return `${rankLabel} **${loc}**${regionText}${flagText} — \`${count} Member\` (${pct}%)\n   \`${bar}\``;
+    const members = data.locMembers[loc] || [];
+    let memberMentions = members.slice(0, 4).map(m => `<@${m.userId}>`).join(', ');
+    if (members.length > 4) {
+      memberMentions += ` *(+${members.length - 4} lainnya)*`;
+    }
+
+    return `${rankLabel} **${loc}**${regionText}${flagText} — \`${count} Member\` (${pct}%)\n   \`${bar}\`\n   └ ${memberMentions}`;
   }).join('\n\n');
 
   return new EmbedBuilder()
@@ -104,47 +118,122 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
       { name: 'Total Wilayah', value: `**${data.sorted.length}** Daerah`, inline: true },
       { name: 'Halaman', value: `**${safePage + 1}** dari **${data.totalPages}**`, inline: true }
     )
-    .setFooter({ text: 'Navigasi halaman melalui tombol di bawah' })
+    .setFooter({ text: 'Pilih daerah pada menu di bawah untuk melihat detail profil member' })
     .setTimestamp();
 }
 
 /**
- * Buat Action Row Tombol Navigasi (Stateless via CustomId)
+ * Buat Action Rows (Select Menu + Tombol Navigasi)
  */
-function buildMemberMapComponents(pageIndex, totalPages) {
-  if (totalPages <= 1) return [];
-
+function buildMemberMapComponents(pageIndex, totalPages, guildId) {
+  const data = getMemberMapData(guildId);
   const safePage = Math.max(0, Math.min(pageIndex, totalPages - 1));
 
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('mmap_first')
-        .setLabel('⏮')
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(safePage === 0),
-      new ButtonBuilder()
-        .setCustomId(`mmap_prev:${Math.max(0, safePage - 1)}`)
-        .setLabel('◀ Prev')
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(safePage === 0),
-      new ButtonBuilder()
-        .setCustomId('mmap_info')
-        .setLabel(`${safePage + 1} / ${totalPages}`)
-        .setStyle(ButtonStyle.Primary)
-        .setDisabled(true),
-      new ButtonBuilder()
-        .setCustomId(`mmap_next:${Math.min(totalPages - 1, safePage + 1)}`)
-        .setLabel('Next ▶')
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(safePage >= totalPages - 1),
-      new ButtonBuilder()
-        .setCustomId(`mmap_last:${totalPages - 1}`)
-        .setLabel('⏭')
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(safePage >= totalPages - 1)
+  const rows = [];
+
+  // 1. Select Menu: Pilih kota di halaman ini untuk lihat detail member
+  const start = safePage * ITEMS_PER_PAGE;
+  const end = start + ITEMS_PER_PAGE;
+  const pageItems = data.sorted.slice(start, end);
+
+  if (pageItems.length > 0) {
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId('mmap_select_city')
+      .setPlaceholder('Pilih kota/wilayah untuk melihat detail member...')
+      .addOptions(
+        pageItems.map(([loc, count]) => {
+          const meta = data.locMetadata[loc];
+          const desc = meta?.region ? `Provinsi: ${meta.region}` : `Total ${count} member terdaftar`;
+          return {
+            label: `${loc} (${count} Member)`,
+            description: desc.substring(0, 100),
+            value: loc.substring(0, 100)
+          };
+        })
+      );
+
+    rows.push(new ActionRowBuilder().addComponents(selectMenu));
+  }
+
+  // 2. Button Pagination (Jika lebih dari 1 halaman)
+  if (totalPages > 1) {
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('mmap_first')
+          .setLabel('⏮')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(safePage === 0),
+        new ButtonBuilder()
+          .setCustomId(`mmap_prev:${Math.max(0, safePage - 1)}`)
+          .setLabel('◀ Prev')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(safePage === 0),
+        new ButtonBuilder()
+          .setCustomId('mmap_info')
+          .setLabel(`${safePage + 1} / ${totalPages}`)
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(true),
+        new ButtonBuilder()
+          .setCustomId(`mmap_next:${Math.min(totalPages - 1, safePage + 1)}`)
+          .setLabel('Next ▶')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(safePage >= totalPages - 1),
+        new ButtonBuilder()
+          .setCustomId(`mmap_last:${totalPages - 1}`)
+          .setLabel('⏭')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(safePage >= totalPages - 1)
+      )
+    );
+  }
+
+  return rows;
+}
+
+/**
+ * Buat Embed Detail Member untuk Kota Tertentu
+ */
+async function buildCityDetailEmbed(guild, cityKey) {
+  const data = getMemberMapData(guild.id);
+  const members = data.locMembers[cityKey] || [];
+  const meta = data.locMetadata[cityKey];
+  const regionText = meta?.region ? ` (${meta.region})` : '';
+  const flagText = meta?.flag ? ` ${meta.flag}` : '';
+
+  const settings = storage.read('settings');
+  const targetChannelId = settings[guild.id]?.cardResultChannel;
+
+  const memberLines = [];
+  for (let i = 0; i < members.length; i++) {
+    const item = members[i];
+    const memberObj = await guild.members.fetch(item.userId).catch(() => null);
+    const displayName = memberObj ? memberObj.displayName : `User <@${item.userId}>`;
+    const bioText = item.card.bio ? `\n   > _"${item.card.bio}"_` : '';
+
+    let jumpLink = '';
+    if (targetChannelId && item.card.publishedMessageId) {
+      jumpLink = ` • [Lihat Kartu ↗](https://discord.com/channels/${guild.id}/${targetChannelId}/${item.card.publishedMessageId})`;
+    }
+
+    memberLines.push(`\`#${(i + 1).toString().padStart(2, '0')}\` **${displayName}** (<@${item.userId}>)${jumpLink}${bioText}`);
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `MEMBER DIRECTORY — ${guild.name.toUpperCase()}`,
+      iconURL: guild.iconURL({ dynamic: true }) || undefined
+    })
+    .setTitle(`Daftar Member: ${cityKey}${regionText}${flagText}`)
+    .setDescription(
+      `Berikut adalah daftar **${members.length} member** yang berdomisili di **${cityKey}**:\n\n` +
+      (memberLines.join('\n\n') || '_Tidak ada member yang ditemukan._')
     )
-  ];
+    .setFooter({ text: 'Data diambil realtime dari kartu profil member server' })
+    .setTimestamp();
+
+  return embed;
 }
 
 /**
@@ -185,5 +274,6 @@ module.exports = {
   getMemberMapData,
   buildMemberMapEmbed,
   buildMemberMapComponents,
+  buildCityDetailEmbed,
   createMemberMapPanelPayload
 };

@@ -317,7 +317,7 @@ module.exports = {
 
         if (interaction.customId === 'mmap_open_panel') {
           const embed = buildMemberMapEmbed(guild, 0);
-          const components = buildMemberMapComponents(0, data.totalPages);
+          const components = buildMemberMapComponents(0, data.totalPages, guild.id);
 
           return interaction.reply({
             embeds: [embed],
@@ -343,7 +343,7 @@ module.exports = {
 
         targetPage = Math.max(0, Math.min(targetPage, data.totalPages - 1));
         const embed = buildMemberMapEmbed(guild, targetPage);
-        const components = buildMemberMapComponents(targetPage, data.totalPages);
+        const components = buildMemberMapComponents(targetPage, data.totalPages, guild.id);
 
         return interaction.update({
           embeds: [embed],
@@ -351,6 +351,23 @@ module.exports = {
         });
       } catch (err) {
         await safeErrorReply(err, 'Gagal memproses navigasi peta member.');
+      }
+      return;
+    }
+
+    // ====== Select Menu Interaction (Pilih Kota untuk Pop-up Member) ======
+    if (interaction.isStringSelectMenu() && interaction.customId === 'mmap_select_city') {
+      const { buildCityDetailEmbed } = require('../utils/memberMapHelper');
+      try {
+        const selectedCity = interaction.values[0];
+        const detailEmbed = await buildCityDetailEmbed(interaction.guild, selectedCity);
+
+        return interaction.reply({
+          embeds: [detailEmbed],
+          flags: MessageFlags.Ephemeral
+        });
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal membuka detail member daerah ini.');
       }
       return;
     }
