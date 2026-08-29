@@ -368,17 +368,43 @@ module.exports = {
 
         // 2. Sync published cards in gallery
         const cardsData = storage.read('cards');
-        const { publishCardToChannel } = require('../utils/cardHandler');
+        const { publishCardToChannel, GALLERY_CHANNEL_ID } = require('../utils/cardHandler');
         for (const guild of client.guilds.cache.values()) {
           const guildCards = cardsData[guild.id] || {};
+          let cardsChanged = false;
+
           for (const [userId, userCard] of Object.entries(guildCards)) {
-            if (!userCard.publishedMessageId) continue;
-            if (isUserInVoice(guild.id, userId)) {
-              const member = await guild.members.fetch(userId).catch(() => null);
-              if (member) {
-                await publishCardToChannel(guild, member, client, true).catch(() => {});
+            const member = await guild.members.fetch(userId).catch(() => null);
+
+            // Jika member sudah tidak ada di server, bersihkan kartu galeri mereka
+            if (!member) {
+              if (userCard.publishedMessageId) {
+                const settings = storage.read('settings');
+                const targetChannelId = settings[guild.id]?.cardResultChannel || GALLERY_CHANNEL_ID;
+                const galleryChannel = guild.channels.cache.get(targetChannelId)
+                  || await client.channels.fetch(targetChannelId).catch(() => null);
+
+                if (galleryChannel) {
+                  const oldMsg = await galleryChannel.messages.fetch(userCard.publishedMessageId).catch(() => null);
+                  if (oldMsg) {
+                    await oldMsg.delete().catch(() => {});
+                    console.log(`🧹 [Card Sweeper] Menghapus kartu usang milik user ${userId} di #${galleryChannel.name} (Sudah keluar).`);
+                  }
+                }
               }
+              delete guildCards[userId];
+              cardsChanged = true;
+              continue;
             }
+
+            // Sync live status jika member sedang ada di Voice Channel
+            if (userCard.publishedMessageId && isUserInVoice(guild.id, userId)) {
+              await publishCardToChannel(guild, member, client, true).catch(() => {});
+            }
+          }
+
+          if (cardsChanged) {
+            storage.write('cards', cardsData);
           }
         }
       } catch (err) {
