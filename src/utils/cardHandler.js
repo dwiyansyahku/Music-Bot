@@ -301,6 +301,8 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   const respectsCount = (userCard.respects || []).length;
   const components = createPublishedCardComponents(userId, likesCount, respectsCount);
 
+  let publishedMsgId = userCard.publishedMessageId;
+
   // CASE 1: Edit existing published message
   if (userCard.publishedMessageId) {
     try {
@@ -310,7 +312,8 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
           embeds: [embed],
           components: components
         });
-        return;
+        const jumpUrl = `https://discord.com/channels/${guildId}/${targetChannelId}/${userCard.publishedMessageId}`;
+        return { messageId: userCard.publishedMessageId, jumpUrl };
       }
     } catch (err) {
       console.warn(`[CardHandler] Edit existing card message failed, will repost:`, err.message);
@@ -326,8 +329,11 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
 
     userCard.publishedMessageId = newMessage.id;
     storage.write('cards', cardsData);
+    const jumpUrl = `https://discord.com/channels/${guildId}/${targetChannelId}/${newMessage.id}`;
+    return { messageId: newMessage.id, jumpUrl };
   } catch (err) {
     console.error(`[CardHandler] Failed to publish new card message:`, err.message);
+    return null;
   }
 }
 
@@ -626,10 +632,27 @@ async function handleCardModalSubmit(interaction, client) {
   });
 
   try {
-    await publishCardToChannel(interaction.guild, interaction.member, client);
-    await interaction.editReply({
-      content: `**Profile saved & published to <#${targetChannelId}>!**`
-    }).catch(() => {});
+    const result = await publishCardToChannel(interaction.guild, interaction.member, client);
+    const jumpUrl = result?.jumpUrl || (userCard.publishedMessageId ? `https://discord.com/channels/${guildId}/${targetChannelId}/${userCard.publishedMessageId}` : null);
+
+    if (jumpUrl) {
+      const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Lihat Kartu Profil ↗')
+          .setStyle(ButtonStyle.Link)
+          .setURL(jumpUrl)
+      );
+
+      await interaction.editReply({
+        content: `✅ **Profil berhasil disimpan & diperbarui di <#${targetChannelId}>!**\nKlik tombol di bawah untuk langsung menuju ke kartumu:`,
+        components: [row]
+      }).catch(() => {});
+    } else {
+      await interaction.editReply({
+        content: `✅ **Profil berhasil disimpan & dipublikasikan di <#${targetChannelId}>!**`
+      }).catch(() => {});
+    }
   } catch (err) {
     console.error('[CardHandler] Publish failed:', err.message);
     await interaction.editReply({
