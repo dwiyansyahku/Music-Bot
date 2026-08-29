@@ -204,7 +204,7 @@ module.exports = {
           const celebratedUsers = new Set();
 
           try {
-            // A. CEK ULANG TAHUN ASLI MEMBER DARI DATA KARTU PROFIL
+            // CEK ULANG TAHUN ASLI MEMBER DARI DATA KARTU PROFIL
             const guildCards = cardsData[guildId] || {};
             for (const [userId, card] of Object.entries(guildCards)) {
               if (!card.birthdate || !card.birthdate.day || !card.birthdate.month) continue;
@@ -227,39 +227,6 @@ module.exports = {
 
                 celebratedUsers.add(userId);
                 console.log(`🎂 [Birthday] Ucapan ulang tahun asli terkirim untuk ${member.user.tag} di ${guild.name}`);
-              }
-            }
-
-            // B. CEK DISCORD ACCOUNT ANNIVERSARY (Hanya untuk yang belum dirayakan ulang tahun asli)
-            const members = await guild.members.fetch().catch(() => guild.members.cache);
-            for (const member of members.values()) {
-              if (member.user.bot || celebratedUsers.has(member.id)) continue;
-
-              const createdAt = member.user.createdAt;
-              const bdayDay = createdAt.getDate();
-              const bdayMonth = createdAt.getMonth() + 1;
-
-              if (bdayDay === currentDay && bdayMonth === currentMonth) {
-                const age = currentYear - createdAt.getFullYear();
-                if (age <= 0) continue;
-
-                const wishFn = BIRTHDAY_WISHES[Math.floor(Math.random() * BIRTHDAY_WISHES.length)];
-                const { EmbedBuilder } = require('discord.js');
-
-                const embed = new EmbedBuilder()
-                  .setColor(0xFF69B4)
-                  .setTitle('🎂 HAPPY DISCORD ANNIVERSARY! 🎉')
-                  .setDescription(`${wishFn(member.displayName, age)}\n\n🎊 Rayakan hari jadi akun Discord-nya bersama di server! 🥳`)
-                  .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
-                  .setFooter({ text: `${guild.name} • Akun dibuat pada ${createdAt.toLocaleDateString('id-ID')}`, iconURL: guild.iconURL({ dynamic: true }) || undefined })
-                  .setTimestamp();
-
-                await channel.send({
-                  content: `🎉 <@${member.id}> 🎂`,
-                  embeds: [embed],
-                }).catch(err => console.error(`[Birthday Scheduler] Gagal mengirim ucapan anniversary:`, err.message));
-
-                console.log(`🎂 [Birthday] Ucapan anniversary terkirim untuk ${member.user.tag} (Umur akun: ${age} tahun) di ${guild.name}`);
               }
             }
           } catch (fetchErr) {
