@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, AttachmentBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { isBotOwner } = require('../utils/helpers');
 const fs = require('fs');
 const path = require('path');
@@ -6,12 +6,15 @@ const path = require('path');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('backup')
-    .setDescription('Download salinan seluruh database bot sebagai file attachment (Owner Only)'),
+    .setDescription('Download salinan seluruh database bot sebagai file attachment (Owner / Admin Only)'),
 
   async execute(interaction, client) {
-    if (!isBotOwner(interaction.user.id)) {
+    const isOwner = await isBotOwner(interaction, client);
+    const isAdmin = interaction.member?.permissions?.has(PermissionFlagsBits.Administrator);
+
+    if (!isOwner && !isAdmin) {
       return interaction.reply({
-        content: '❌ Perintah ini khusus untuk Bot Owner.',
+        content: '❌ Perintah ini khusus untuk **Bot Owner** atau **Server Administrator**.',
         flags: MessageFlags.Ephemeral
       });
     }
