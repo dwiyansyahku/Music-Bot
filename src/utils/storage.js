@@ -12,15 +12,30 @@ function getFilePath(name) {
   return path.join(DATA_DIR, `${name}.json`);
 }
 
+const SEEDS_DIR = path.join(process.cwd(), 'seeds');
+
 // In-Memory Cache untuk performa super cepat (0ms disk I/O)
 const memoryCache = new Map();
 
-/** Baca seluruh isi file JSON (dengan in-memory caching) */
+/** Baca seluruh isi file JSON (dengan in-memory caching & auto-seed) */
 function read(name) {
   if (memoryCache.has(name)) {
     return memoryCache.get(name);
   }
   const fp = getFilePath(name);
+  if (!fs.existsSync(fp)) {
+    // Auto-seed dari folder seeds/ jika data/ masih kosong (fresh deployment / volume baru)
+    const seedPath = path.join(SEEDS_DIR, `${name}.json`);
+    if (fs.existsSync(seedPath)) {
+      try {
+        fs.copyFileSync(seedPath, fp);
+        console.log(`[Storage] Auto-seeding database ${name}.json dari seeds/`);
+      } catch (seedErr) {
+        console.error(`[Storage] Gagal auto-seed ${name}.json:`, seedErr.message);
+      }
+    }
+  }
+
   if (!fs.existsSync(fp)) {
     memoryCache.set(name, {});
     return {};

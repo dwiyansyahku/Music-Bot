@@ -1,0 +1,25 @@
+{
+  "1396245234693963878": {
+    "cardHubChannelId": "1532222435250929735",
+    "cardHubMessageId": "1536363763245121707",
+    "cardResultChannel": "1532290934396555354",
+    "welcome": {
+      "enabled": true,
+      "channelId": "1396428545684672542"
+    },
+    "jail": {
+      "roleId": "1524880481211125840",
+      "channelId": "1524893405212180580",
+      "voiceChannelId": "1524884294575591546"
+    },
+    "birthday": {
+      "channelId": "1396428545684672542"
+    },
+    "morning": {
+      "enabled": true,
+      "channelId": "1396428545684672542",
+      "hour": 7,
+      "minute": 0
+    }
+  }
+}
