@@ -65,22 +65,22 @@ module.exports = {
             .setDescription('Pilih negara / genre lagu yang ingin dimainkan (default: Campuran Dunia)')
             .setRequired(false)
             .addChoices(
-              { name: '🎲 Semua Negara (Campuran Dunia)', value: 'all' },
-              { name: '🇮🇩 Indonesia (Pop, Rock, Koplo, Indie)', value: 'indo' },
-              { name: '🌍 Western & Global (US, UK, Pop)', value: 'western' },
-              { name: '🎌 Jepang & Anime (J-Pop, Anime OST)', value: 'japan' },
-              { name: '🇰🇷 Korea Selatan (K-Pop & OST)', value: 'korea' },
-              { name: '🇸🇦 Arab & Timur Tengah (Arabic Pop)', value: 'arabic' },
-              { name: '🇹🇭 Thailand (T-Pop & Thai Hits)', value: 'thailand' },
-              { name: '💃 Amerika Latin (Reggaeton, Pop)', value: 'latin' }
+              { name: 'Semua Negara (Campuran Dunia)', value: 'all' },
+              { name: 'Indonesia (Pop, Rock, Koplo, Indie)', value: 'indo' },
+              { name: 'Western & Global (US, UK, Pop)', value: 'western' },
+              { name: 'Jepang & Anime (J-Pop, Anime OST)', value: 'japan' },
+              { name: 'Korea Selatan (K-Pop & OST)', value: 'korea' },
+              { name: 'Arab & Timur Tengah (Arabic Pop)', value: 'arabic' },
+              { name: 'Thailand (T-Pop & Thai Hits)', value: 'thailand' },
+              { name: 'Amerika Latin (Reggaeton, Pop)', value: 'latin' }
             )
         )
         .addIntegerOption(opt =>
           opt.setName('ronde')
-            .setDescription('Jumlah ronde pertanyaan (1-15, default: 5)')
+            .setDescription('Jumlah ronde pertanyaan (1-20, default: 5)')
             .setRequired(false)
             .setMinValue(1)
-            .setMaxValue(15)
+            .setMaxValue(20)
         )
     )
     .addSubcommand(sub =>
@@ -148,7 +148,7 @@ module.exports = {
         embeds: [
           new EmbedBuilder()
             .setColor(0x2B2D31)
-            .setDescription('🛑 **Music Quiz telah dihentikan.** Terima kasih sudah bermain!')
+            .setDescription('**Music Quiz dihentikan.** Terima kasih telah berpartisipasi.')
         ]
       });
     }
@@ -245,6 +245,24 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   const game = activeGames.get(guildId);
   if (!game || !game.active) return;
 
+  // 1. Cek apakah Voice Channel masih ada pemain (auto-stop jika kosong)
+  const currentVC = textChannel.guild.channels.cache.get(voiceChannel.id) || voiceChannel;
+  const humanMembers = currentVC.members?.filter(m => !m.user.bot);
+  if (!humanMembers || humanMembers.size === 0) {
+    activeGames.delete(guildId);
+    try {
+      const q = client.distube.getQueue(guildId);
+      if (q) q.stop().catch(() => {});
+    } catch (_) {}
+    return textChannel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0x2B2D31)
+          .setDescription('**Music Quiz dihentikan otomatis** karena semua pemain telah meninggalkan Voice Channel.')
+      ]
+    });
+  }
+
   if (game.currentRound >= game.totalRounds) {
     return finishGame(textChannel, guildId, client);
   }
@@ -254,19 +272,22 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   const q = game.questions[game.currentRound - 1];
   const options = generateQuestionOptions(q, game.songPool);
 
+  // Tata letak tombol 2x2 Grid (A & B di baris 1, C & D di baris 2)
   const letters = ['A', 'B', 'C', 'D'];
-  const row = new ActionRowBuilder();
+  const row1 = new ActionRowBuilder();
+  const row2 = new ActionRowBuilder();
 
   options.forEach((opt, idx) => {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`quiz_ans_${game.currentRound}_${idx}_${opt === q.title ? 'correct' : 'wrong'}`)
-        .setLabel(`${letters[idx]}. ${opt}`)
-        .setStyle(ButtonStyle.Secondary)
-    );
+    const btn = new ButtonBuilder()
+      .setCustomId(`quiz_ans_${game.currentRound}_${idx}_${opt === q.title ? 'correct' : 'wrong'}`)
+      .setLabel(`${letters[idx]}. ${opt.length > 75 ? opt.substring(0, 72) + '...' : opt}`)
+      .setStyle(ButtonStyle.Secondary);
+
+    if (idx < 2) row1.addComponents(btn);
+    else row2.addComponents(btn);
   });
 
-  // 1. Tampilkan status memuat audio terlebih dahulu
+  // 2. Tampilkan status memuat audio terlebih dahulu
   const loadingEmbed = new EmbedBuilder()
     .setColor(0x2B2D31)
     .setAuthor({
@@ -286,19 +307,21 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   const msg = await textChannel.send({ embeds: [loadingEmbed] }).catch(() => null);
   if (!msg) return activeGames.delete(guildId);
 
-  // 2. Pencarian Cerdas YouTube: Gunakan nama artis dan judul resmi
+  // 3. Pencarian Cerdas YouTube: Gunakan nama artis dan judul resmi
   const searchQuery = `${q.artist} - ${q.title} Official Audio`;
 
-  // Tentukan potongan acak: 0s (awal), 30s (verse), 50s (reff/chorus), 75s (bridge)
+  // Tentukan potongan acak: 0s (awal), 30s (verse), 45s (pre-chorus), 60s (reff), 75s (bridge)
   const randomOffsets = [0, 30, 45, 60, 75];
   const chosenOffset = randomOffsets[Math.floor(Math.random() * randomOffsets.length)];
 
+  let playSuccess = false;
   try {
     await client.distube.play(voiceChannel, searchQuery, {
       member: voiceChannel.guild.members.me,
       textChannel: textChannel,
       metadata: { isQuiz: true }
     });
+    playSuccess = true;
 
     let queue = client.distube.getQueue(guildId);
     if (queue) queue.isQuiz = true;
@@ -323,12 +346,22 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
       } catch (_) {}
     }, SNIPPET_DURATION * 1000);
   } catch (err) {
-    console.warn(`[MusicQuiz] Pencarian audio gagal untuk "${searchQuery}":`, err.message);
+    console.warn(`[MusicQuiz] Gagal memutar lagu "${searchQuery}":`, err.message);
+  }
+
+  // Fallback jika audio gagal dimuat (langsung lanjut ke ronde berikutnya agar tidak hening)
+  if (!playSuccess) {
+    const errorEmbed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setDescription(`Audio untuk ronde ${game.currentRound} gagal dimuat. Melanjutkan ke ronde berikutnya...`);
+    await msg.edit({ embeds: [errorEmbed], components: [] }).catch(() => {});
+    if (!game.active) return;
+    return setTimeout(() => runNextRound(textChannel, voiceChannel, guildId, client), 3000);
   }
 
   if (!game.active) return;
 
-  // 3. Audio sudah berjalan — Sekarang perbarui Embed dan munculkan tombol pilihan jawaban!
+  // 4. Audio sudah berjalan — Perbarui Embed dan munculkan tombol pilihan jawaban (Grid 2x2)
   const activeQuestionEmbed = new EmbedBuilder()
     .setColor(0x2B2D31)
     .setAuthor({
@@ -345,9 +378,9 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
     .setFooter({ text: `Durasi Musik: ${SNIPPET_DURATION}s • Waktu Menjawab: ${ANSWER_TIME}s` })
     .setTimestamp();
 
-  await msg.edit({ embeds: [activeQuestionEmbed], components: [row] }).catch(() => {});
+  await msg.edit({ embeds: [activeQuestionEmbed], components: [row1, row2] }).catch(() => {});
 
-  // 4. Kumpulkan Jawaban Peserta
+  // 5. Kumpulkan Jawaban Peserta
   const startTime = Date.now();
   let firstCorrectWinner = null;
 
@@ -382,12 +415,12 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
       }
 
       return i.reply({
-        content: `🎯 **BENAR!** Kamu mendapatkan **+${points} Poin**!`,
+        content: `**Benar!** Kamu memperoleh **+${points} Poin**.`,
         flags: MessageFlags.Ephemeral
       });
     } else {
       return i.reply({
-        content: `❌ **SALAH!** Jawaban yang benar adalah **${q.title}**.`,
+        content: `**Salah.** Jawaban yang benar adalah **${q.title}**.`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -399,28 +432,30 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
       if (currentQueue) currentQueue.stop().catch(() => {});
     } catch (_) {}
 
-    // Kunci tombol & highlight jawaban yang benar
-    const disabledRow = new ActionRowBuilder();
+    // Kunci tombol & highlight jawaban yang benar (Grid 2x2)
+    const disabledRow1 = new ActionRowBuilder();
+    const disabledRow2 = new ActionRowBuilder();
     options.forEach((opt, idx) => {
-      disabledRow.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`quiz_done_${game.currentRound}_${idx}`)
-          .setLabel(`${letters[idx]}. ${opt}`)
-          .setStyle(opt === q.title ? ButtonStyle.Success : ButtonStyle.Secondary)
-          .setDisabled(true)
-      );
+      const btn = new ButtonBuilder()
+        .setCustomId(`quiz_done_${game.currentRound}_${idx}`)
+        .setLabel(`${letters[idx]}. ${opt.length > 75 ? opt.substring(0, 72) + '...' : opt}`)
+        .setStyle(opt === q.title ? ButtonStyle.Success : ButtonStyle.Secondary)
+        .setDisabled(true);
+
+      if (idx < 2) disabledRow1.addComponents(btn);
+      else disabledRow2.addComponents(btn);
     });
 
-    await msg.edit({ components: [disabledRow] }).catch(() => {});
+    await msg.edit({ components: [disabledRow1, disabledRow2] }).catch(() => {});
 
     // Tampilkan hasil ronde
     const roundResultEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)
       .setTitle(`Ronde ${game.currentRound} Selesai`)
       .setDescription(
-        `✅ **Jawaban Benar:** **${q.title}** — *${q.artist}*\n\n` +
+        `• **Jawaban Benar:** **${q.title}** — *${q.artist}*\n\n` +
         (firstCorrectWinner
-          ? `⚡ **Penjawab Tercepat:** **${firstCorrectWinner}** 🔥`
+          ? `• **Penjawab Tercepat:** **${firstCorrectWinner}**`
           : `*Tidak ada yang menjawab dengan benar di ronde ini.*`)
       );
 
@@ -467,7 +502,7 @@ async function finishGame(textChannel, guildId, client) {
   if (sortedScores.length === 0) {
     const emptyEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setDescription('🏁 **Music Quiz Selesai.** Tidak ada yang mencetak poin pada sesi kali ini.');
+      .setDescription('**Music Quiz Selesai.** Tidak ada skor yang dicetak pada sesi kali ini.');
     return textChannel.send({ embeds: [emptyEmbed] });
   }
 
@@ -484,7 +519,7 @@ async function finishGame(textChannel, guildId, client) {
       name: `HASIL AKHIR MUSIC QUIZ`,
       iconURL: textChannel.guild.iconURL({ dynamic: true }) || undefined
     })
-    .setTitle(`🏆 Juara: ${winner.name}`)
+    .setTitle(`Pemenang: ${winner.name}`)
     .setDescription(
       `Skor tertinggi **${winner.score} Poin** dengan total **${winner.correctCount} jawaban benar**.\n\n` +
       `**Papan Peringkat Akhir:**\n${scoreBoard}`
