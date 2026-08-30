@@ -288,7 +288,7 @@ async function buildMemberCardEmbed(guild, member) {
   }
   embed.addFields({ name: 'Live VC', value: liveVcText, inline: true });
 
-  // Row 2: Voice Time | Location | Birthday (3 Inline Columns)
+  // Row 2: Voice Time | Location | Zodiac / MBTI (3 Balanced Inline Columns)
   const voiceStats = getVoiceStats(guild.id, targetUser.id, guild);
   embed.addFields({ name: 'Voice Time', value: voiceStats.formattedTime, inline: true });
 
@@ -296,17 +296,7 @@ async function buildMemberCardEmbed(guild, member) {
   const locDisplay = userCard.location?.display || userCard.asal || '-';
   embed.addFields({ name: 'Location', value: locDisplay, inline: true });
 
-  // Birthday display
-  let birthdayText = '-';
-  if (userCard.birthdate && userCard.birthdate.formatted) {
-    birthdayText = userCard.birthdate.formatted;
-    if (userCard.birthdate.age) {
-      birthdayText += ` (${userCard.birthdate.age} th)`;
-    }
-  }
-  embed.addFields({ name: 'Birthday', value: birthdayText, inline: true });
-
-  // Row 3: Zodiac / MBTI (Zodiak dihitung otomatis dari tanggal lahir)
+  // Zodiac / MBTI (Zodiak dihitung otomatis dari tanggal lahir yang tersimpan di sistem)
   let zodiacSymbolAndName = null;
   if (userCard.birthdate && userCard.birthdate.day && userCard.birthdate.month) {
     const zodiacObj = getZodiac(userCard.birthdate.day, userCard.birthdate.month);
@@ -314,7 +304,7 @@ async function buildMemberCardEmbed(guild, member) {
   }
   const mbtiText = userCard.mbti ? userCard.mbti.toUpperCase() : null;
 
-  let zodiacMbtiDisplay = null;
+  let zodiacMbtiDisplay = '-';
   if (zodiacSymbolAndName && mbtiText) {
     zodiacMbtiDisplay = `${zodiacSymbolAndName} • ${mbtiText}`;
   } else if (zodiacSymbolAndName) {
@@ -323,11 +313,9 @@ async function buildMemberCardEmbed(guild, member) {
     zodiacMbtiDisplay = mbtiText;
   }
 
-  if (zodiacMbtiDisplay) {
-    embed.addFields({ name: 'Zodiac / MBTI', value: zodiacMbtiDisplay, inline: true });
-  }
+  embed.addFields({ name: 'Zodiac / MBTI', value: zodiacMbtiDisplay, inline: true });
 
-  // Row 3 (or 4): Social Link (Elegan & rapi)
+  // Row 3: Social Link (Elegan & rapi)
   if (userCard.linkUrl && /^https?:\/\/[^\s]+$/i.test(userCard.linkUrl)) {
     const linkTitle = userCard.linkTitle || 'Visit Link';
     embed.addFields({

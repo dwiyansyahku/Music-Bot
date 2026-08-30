@@ -976,11 +976,14 @@ const latinData = [
   }
 ];
 
+const { traditionalIndoSongs } = require('./catalogs/traditionalIndo');
+
 // ══════════════════════════════════════════════════════════════
-// BUILD ALL 7 COUNTRY CATALOGS TO EXACTLY 1.500 EACH
+// BUILD ALL COUNTRY CATALOGS (INCLUDING TRADISIONAL INDONESIA)
 // ══════════════════════════════════════════════════════════════
 const masterCatalog = {
   indo: buildCatalogWithFill(indoData, 1500),
+  traditional_indo: traditionalIndoSongs,
   western: buildCatalogWithFill(westernData, 1500),
   japan: buildCatalogWithFill(japanData, 1500),
   korea: buildCatalogWithFill(koreaData, 1500),
@@ -997,13 +1000,14 @@ const totalAll = Object.values(masterCatalog).reduce((acc, curr) => acc + curr.l
 console.log(`\n======================================================`);
 console.log(`🎉 DATABASE SUKSES DIBANGUN LENGKAP!`);
 console.log(`======================================================`);
-console.log(`🇮🇩 Indonesia  : ${masterCatalog.indo.length} Lagu`);
-console.log(`🌍 Western    : ${masterCatalog.western.length} Lagu`);
-console.log(`🎌 Jepang     : ${masterCatalog.japan.length} Lagu`);
-console.log(`🇰🇷 Korea      : ${masterCatalog.korea.length} Lagu`);
-console.log(`🇸🇦 Arab       : ${masterCatalog.arabic.length} Lagu`);
-console.log(`🇹🇭 Thailand   : ${masterCatalog.thailand.length} Lagu`);
-console.log(`💃 Latin      : ${masterCatalog.latin.length} Lagu`);
+console.log(`🇮🇩 Indonesia Pop/Rock/Koplo : ${masterCatalog.indo.length} Lagu`);
+console.log(`🌺 Lagu Tradisional Daerah  : ${masterCatalog.traditional_indo.length} Lagu (38 Provinsi)`);
+console.log(`🌍 Western & Global         : ${masterCatalog.western.length} Lagu`);
+console.log(`🎌 Jepang & Anime           : ${masterCatalog.japan.length} Lagu`);
+console.log(`🇰🇷 Korea Selatan            : ${masterCatalog.korea.length} Lagu`);
+console.log(`🇸🇦 Arab & Timur Tengah      : ${masterCatalog.arabic.length} Lagu`);
+console.log(`🇹🇭 Thailand                 : ${masterCatalog.thailand.length} Lagu`);
+console.log(`💃 Amerika Latin            : ${masterCatalog.latin.length} Lagu`);
 console.log(`------------------------------------------------------`);
-console.log(`TOTAL SEMUA   : ${totalAll} Lagu Siap Dimainkan! 🚀`);
+console.log(`TOTAL SEMUA                 : ${totalAll} Lagu Siap Dimainkan! 🚀`);
 console.log(`======================================================\n`);

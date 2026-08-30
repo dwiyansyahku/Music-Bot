@@ -67,6 +67,7 @@ module.exports = {
             .addChoices(
               { name: 'Semua Negara (Campuran Dunia)', value: 'all' },
               { name: 'Indonesia (Pop, Rock, Koplo, Indie)', value: 'indo' },
+              { name: 'Tradisional Indonesia (Lagu Daerah 38 Provinsi)', value: 'traditional_indo' },
               { name: 'Western & Global (US, UK, Pop)', value: 'western' },
               { name: 'Jepang & Anime (J-Pop, Anime OST)', value: 'japan' },
               { name: 'Korea Selatan (K-Pop & OST)', value: 'korea' },
@@ -187,6 +188,7 @@ module.exports = {
       const categoryLabels = {
         all: 'Semua Negara (Campuran Dunia)',
         indo: 'Indonesia (Pop, Rock, Koplo, Indie)',
+        traditional_indo: 'Tradisional Indonesia (Lagu Daerah 38 Provinsi)',
         western: 'Western & Global (US, UK, Pop)',
         japan: 'Jepang & Anime (J-Pop, Anime OST)',
         korea: 'Korea Selatan (K-Pop & OST)',
