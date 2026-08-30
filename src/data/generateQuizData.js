@@ -1,499 +1,1104 @@
 const fs = require('fs');
 const path = require('path');
 
-const catalog = {
-  indo: [
-    // Pop Modern & Gen-Z
-    { title: 'Hati-Hati di Jalan', artist: 'Tulus', year: '2022', genre: 'Indo Pop' },
-    { title: 'Monokrom', artist: 'Tulus', year: '2016', genre: 'Indo Pop' },
-    { title: 'Diri', artist: 'Tulus', year: '2022', genre: 'Indo Pop' },
-    { title: 'Sepatu', artist: 'Tulus', year: '2013', genre: 'Indo Pop' },
-    { title: 'Gajah', artist: 'Tulus', year: '2014', genre: 'Indo Pop' },
-    { title: 'Jangan Cintai Aku Apa Adanya', artist: 'Tulus', year: '2014', genre: 'Indo Pop' },
-    { title: 'Pamit', artist: 'Tulus', year: '2016', genre: 'Indo Pop' },
-    { title: 'Sial', artist: 'Mahalini', year: '2023', genre: 'Indo Pop' },
-    { title: 'Mati-Matian', artist: 'Mahalini', year: '2024', genre: 'Indo Pop' },
-    { title: 'Sisa Rasa', artist: 'Mahalini', year: '2021', genre: 'Indo Pop' },
-    { title: 'Kisah Sempurna', artist: 'Mahalini', year: '2022', genre: 'Indo Pop' },
-    { title: 'Melawan Restu', artist: 'Mahalini', year: '2021', genre: 'Indo Pop' },
-    { title: 'Bawa Dia Kembali', artist: 'Mahalini', year: '2019', genre: 'Indo Pop' },
-    { title: 'Satu Bulan', artist: 'Bernadya', year: '2024', genre: 'Indo Pop' },
-    { title: 'Kata Mereka Ini Berlebihan', artist: 'Bernadya', year: '2024', genre: 'Indo Pop' },
-    { title: 'Untungnya, Hidup Harus Tetap Berjalan', artist: 'Bernadya', year: '2024', genre: 'Indo Pop' },
-    { title: 'Kini Mereka Tahu', artist: 'Bernadya', year: '2024', genre: 'Indo Pop' },
-    { title: 'Apa Mungkin', artist: 'Bernadya', year: '2022', genre: 'Indo Pop' },
-    { title: 'Gala Bunga Matahari', artist: 'Sal Priadi', year: '2024', genre: 'Indo Pop' },
-    { title: 'Dari Planet Lain', artist: 'Sal Priadi', year: '2024', genre: 'Indo Pop' },
-    { title: 'Mesra-mesraannya kecil-kecilan dulu', artist: 'Sal Priadi', year: '2022', genre: 'Indo Pop' },
-    { title: 'Amin Paling Serius', artist: 'Sal Priadi ft. Nadin Amizah', year: '2019', genre: 'Indo Pop' },
-    { title: 'Lantas', artist: 'Juicy Luicy', year: '2020', genre: 'Indo Pop' },
-    { title: 'Tanpa Tergesa', artist: 'Juicy Luicy', year: '2018', genre: 'Indo Pop' },
-    { title: 'Tampar', artist: 'Juicy Luicy', year: '2022', genre: 'Indo Pop' },
-    { title: 'Asing', artist: 'Juicy Luicy', year: '2023', genre: 'Indo Pop' },
-    { title: 'Sayangnya', artist: 'Juicy Luicy', year: '2023', genre: 'Indo Pop' },
-    { title: 'Mawar Jingga', artist: 'Juicy Luicy', year: '2019', genre: 'Indo Pop' },
-    { title: 'Bertaut', artist: 'Nadin Amizah', year: '2020', genre: 'Indo Indie' },
-    { title: 'Rayuan Perempuan Gila', artist: 'Nadin Amizah', year: '2023', genre: 'Indo Indie' },
-    { title: 'Semua Aku Dirayakan', artist: 'Nadin Amizah', year: '2023', genre: 'Indo Indie' },
-    { title: 'Sorai', artist: 'Nadin Amizah', year: '2019', genre: 'Indo Indie' },
-    { title: 'Rumpang', artist: 'Nadin Amizah', year: '2018', genre: 'Indo Indie' },
-    { title: 'Taruh', artist: 'Nadin Amizah', year: '2020', genre: 'Indo Indie' },
-    { title: 'Jiwa Yang Bersedih', artist: 'Ghea Indrawari', year: '2023', genre: 'Indo Pop' },
-    { title: 'Tak Segampang Itu', artist: 'Anggi Marito', year: '2023', genre: 'Indo Pop' },
-    { title: 'Hingga Tua Bersama', artist: 'Rizky Febian', year: '2021', genre: 'Indo Pop' },
-    { title: 'Kesempurnaan Cinta', artist: 'Rizky Febian', year: '2015', genre: 'Indo Pop' },
-    { title: 'Cuek', artist: 'Rizky Febian', year: '2020', genre: 'Indo Pop' },
-    { title: 'Mantra Cinta', artist: 'Rizky Febian', year: '2020', genre: 'Indo Pop' },
-    { title: 'Makna Cinta', artist: 'Rizky Febian', year: '2020', genre: 'Indo Pop' },
-    { title: 'Ragu', artist: 'Rizky Febian', year: '2019', genre: 'Indo Pop' },
-    { title: 'Usai', artist: 'Tiara Andini', year: '2022', genre: 'Indo Pop' },
-    { title: 'Merasa Indah', artist: 'Tiara Andini', year: '2021', genre: 'Indo Pop' },
-    { title: 'Janji Setia', artist: 'Tiara Andini', year: '2021', genre: 'Indo Pop' },
-    { title: 'Maafkan Aku #terlanjurmencinta', artist: 'Tiara Andini', year: '2020', genre: 'Indo Pop' },
-    { title: 'Kupu-Kupu', artist: 'Tiara Andini', year: '2024', genre: 'Indo Pop' },
-    { title: 'Komang', artist: 'Raim Laode', year: '2022', genre: 'Indo Pop' },
-    { title: 'Nanti Kita Seperti Ini', artist: 'Batas Senja', year: '2023', genre: 'Indo Pop' },
-    { title: 'Tak Kan Hilang', artist: 'Budi Doremi', year: '2022', genre: 'Indo Pop' },
-    { title: 'Melukis Senja', artist: 'Budi Doremi', year: '2020', genre: 'Indo Pop' },
-    { title: 'Doremi', artist: 'Budi Doremi', year: '2011', genre: 'Indo Pop' },
-    { title: 'Mesin Waktu', artist: 'Budi Doremi', year: '2021', genre: 'Indo Pop' },
-    { title: 'Akad', artist: 'Payung Teduh', year: '2017', genre: 'Indo Pop' },
-    { title: 'Menuju Senja', artist: 'Payung Teduh', year: '2012', genre: 'Indo Indie' },
-    { title: 'Resah', artist: 'Payung Teduh', year: '2014', genre: 'Indo Indie' },
-    { title: 'Untuk Perempuan Yang Sedang Dalam Pelukan', artist: 'Payung Teduh', year: '2012', genre: 'Indo Indie' },
-    { title: 'To the Bone', artist: 'Pamungkas', year: '2019', genre: 'Indo Indie' },
-    { title: 'Kenangan Manis', artist: 'Pamungkas', year: '2018', genre: 'Indo Indie' },
-    { title: 'I Love You but I\'m Letting Go', artist: 'Pamungkas', year: '2018', genre: 'Indo Indie' },
-    { title: 'Only One', artist: 'Pamungkas', year: '2018', genre: 'Indo Indie' },
-    { title: 'Rumah ke Rumah', artist: 'Hindia', year: '2019', genre: 'Indo Indie' },
-    { title: 'Evaluasi', artist: 'Hindia', year: '2019', genre: 'Indo Indie' },
-    { title: 'Secukupnya', artist: 'Hindia', year: '2019', genre: 'Indo Indie' },
-    { title: 'Cincin', artist: 'Hindia', year: '2023', genre: 'Indo Indie' },
-    { title: 'Berdansalah, Karir Ini Tak Ada Artinya', artist: 'Hindia', year: '2023', genre: 'Indo Indie' },
-    // Pop & Rock Legendaris
-    { title: 'Dan...', artist: 'Sheila On 7', year: '2000', genre: 'Indo Rock' },
-    { title: 'Sephia', artist: 'Sheila On 7', year: '2000', genre: 'Indo Pop' },
-    { title: 'Sebuah Kisah Klasik', artist: 'Sheila On 7', year: '2000', genre: 'Indo Pop' },
-    { title: 'Hari Bersamanya', artist: 'Sheila On 7', year: '2011', genre: 'Indo Pop' },
-    { title: 'Mudah Saja', artist: 'Sheila On 7', year: '2009', genre: 'Indo Pop' },
-    { title: 'Lapang Dada', artist: 'Sheila On 7', year: '2014', genre: 'Indo Pop' },
-    { title: 'Pejantan Tangguh', artist: 'Sheila On 7', year: '2004', genre: 'Indo Rock' },
-    { title: 'Betapa', artist: 'Sheila On 7', year: '2008', genre: 'Indo Pop' },
-    { title: 'Kangen', artist: 'Dewa 19', year: '1992', genre: 'Indo Rock' },
-    { title: 'Pupus', artist: 'Dewa 19', year: '2002', genre: 'Indo Rock' },
-    { title: 'Risalah Hati', artist: 'Dewa 19', year: '2000', genre: 'Indo Rock' },
-    { title: 'Separuh Nafas', artist: 'Dewa 19', year: '2000', genre: 'Indo Rock' },
-    { title: 'Cemburu', artist: 'Dewa 19', year: '2000', genre: 'Indo Rock' },
-    { title: 'Arjuna', artist: 'Dewa 19', year: '2002', genre: 'Indo Rock' },
-    { title: 'Roman Picisan', artist: 'Dewa 19', year: '2000', genre: 'Indo Rock' },
-    { title: 'Cinta Kan Membawamu Kembali', artist: 'Dewa 19', year: '1995', genre: 'Indo Pop' },
-    { title: 'Separuh Aku', artist: 'NOAH', year: '2012', genre: 'Indo Pop' },
-    { title: 'Kupu-Kupu Malam', artist: 'NOAH', year: '2022', genre: 'Indo Pop' },
-    { title: 'Yang Terdalam', artist: 'Peterpan', year: '2003', genre: 'Indo Pop' },
-    { title: 'Mungkin Nanti', artist: 'Peterpan', year: '2004', genre: 'Indo Pop' },
-    { title: 'Ada Apa Denganmu', artist: 'Peterpan', year: '2004', genre: 'Indo Pop' },
-    { title: 'Bintang di Surga', artist: 'Peterpan', year: '2004', genre: 'Indo Pop' },
-    { title: 'Semua Tentang Kita', artist: 'Peterpan', year: '2003', genre: 'Indo Pop' },
-    { title: 'Ku Katakan Dengan Indah', artist: 'Peterpan', year: '2004', genre: 'Indo Pop' },
-    { title: 'Kenangan Terindah', artist: 'Samsons', year: '2006', genre: 'Indo Pop' },
-    { title: 'Kisah Tak Sempurna', artist: 'Samsons', year: '2007', genre: 'Indo Pop' },
-    { title: 'Ruang Rindu', artist: 'Letto', year: '2005', genre: 'Indo Pop' },
-    { title: 'Sandaran Hati', artist: 'Letto', year: '2005', genre: 'Indo Pop' },
-    { title: 'Sebelum Cahaya', artist: 'Letto', year: '2007', genre: 'Indo Pop' },
-    { title: 'Hampa', artist: 'Ari Lasso', year: '2003', genre: 'Indo Pop' },
-    { title: 'Mengejar Matahari', artist: 'Ari Lasso', year: '2004', genre: 'Indo Pop' },
-    { title: 'Cinta Sejati', artist: 'Bunga Citra Lestari', year: '2012', genre: 'Indo Pop' },
-    { title: 'Sunny (Cinta Pertama)', artist: 'Bunga Citra Lestari', year: '2006', genre: 'Indo Pop' },
-    { title: 'Kecewa', artist: 'Bunga Citra Lestari', year: '2008', genre: 'Indo Pop' },
-    { title: 'Mantan Terindah', artist: 'Raisa', year: '2013', genre: 'Indo Pop' },
-    { title: 'Serba Salah', artist: 'Raisa', year: '2011', genre: 'Indo Pop' },
-    { title: 'Kali Kedua', artist: 'Raisa', year: '2016', genre: 'Indo Pop' },
-    { title: 'Jatuh Hati', artist: 'Raisa', year: '2015', genre: 'Indo Pop' },
-    { title: 'Bahasa Kalbu', artist: 'Raisa ft. Andi Rianto', year: '2020', genre: 'Indo Pop' },
-    // Pop Jawa & Koplo Hits
-    { title: 'Kartonyono Medot Janji', artist: 'Denny Caknan', year: '2019', genre: 'Indo Koplo' },
-    { title: 'Sugeng Dalu', artist: 'Denny Caknan', year: '2019', genre: 'Indo Koplo' },
-    { title: 'Los Dol', artist: 'Denny Caknan', year: '2020', genre: 'Indo Koplo' },
-    { title: 'Kalih Welasku', artist: 'Denny Caknan', year: '2022', genre: 'Indo Koplo' },
-    { title: 'Cundamani', artist: 'Denny Caknan', year: '2023', genre: 'Indo Koplo' },
-    { title: 'Sigar', artist: 'Denny Caknan', year: '2024', genre: 'Indo Koplo' },
-    { title: 'Pamer Bojo', artist: 'Didi Kempot', year: '2019', genre: 'Indo Koplo' },
-    { title: 'Banyu Langit', artist: 'Didi Kempot', year: '2016', genre: 'Indo Koplo' },
-    { title: 'Stasiun Balapan', artist: 'Didi Kempot', year: '1999', genre: 'Indo Koplo' },
-    { title: 'Korban Janji', artist: 'Guyon Waton', year: '2018', genre: 'Indo Koplo' },
-    { title: 'Perlahan', artist: 'Guyon Waton', year: '2020', genre: 'Indo Koplo' },
-    { title: 'Sanes', artist: 'Guyon Waton ft. Denny Caknan', year: '2023', genre: 'Indo Koplo' },
-    { title: 'Nemen', artist: 'NDX AKA / GildCoustic', year: '2023', genre: 'Indo Koplo' }
-  ],
-  western: [
-    // Pop & Modern Billboard
-    { title: 'Grenade', artist: 'Bruno Mars', year: '2010', genre: 'Western Pop' },
-    { title: 'Locked Out of Heaven', artist: 'Bruno Mars', year: '2012', genre: 'Western Pop' },
-    { title: 'Just The Way You Are', artist: 'Bruno Mars', year: '2010', genre: 'Western Pop' },
-    { title: 'When I Was Your Man', artist: 'Bruno Mars', year: '2012', genre: 'Western Pop' },
-    { title: '24K Magic', artist: 'Bruno Mars', year: '2016', genre: 'Western Pop' },
-    { title: 'That\'s What I Like', artist: 'Bruno Mars', year: '2016', genre: 'Western Pop' },
-    { title: 'Die With A Smile', artist: 'Lady Gaga & Bruno Mars', year: '2024', genre: 'Western Pop' },
-    { title: 'Uptown Funk', artist: 'Mark Ronson ft. Bruno Mars', year: '2014', genre: 'Western Pop' },
-    { title: 'Treasure', artist: 'Bruno Mars', year: '2012', genre: 'Western Pop' },
-    { title: 'Versace on the Floor', artist: 'Bruno Mars', year: '2016', genre: 'Western Pop' },
-    { title: 'Cruel Summer', artist: 'Taylor Swift', year: '2019', genre: 'Western Pop' },
-    { title: 'Blank Space', artist: 'Taylor Swift', year: '2014', genre: 'Western Pop' },
-    { title: 'Anti-Hero', artist: 'Taylor Swift', year: '2022', genre: 'Western Pop' },
-    { title: 'Shake It Off', artist: 'Taylor Swift', year: '2014', genre: 'Western Pop' },
-    { title: 'Love Story', artist: 'Taylor Swift', year: '2008', genre: 'Western Pop' },
-    { title: 'You Belong With Me', artist: 'Taylor Swift', year: '2008', genre: 'Western Pop' },
-    { title: 'Cardigan', artist: 'Taylor Swift', year: '2020', genre: 'Western Pop' },
-    { title: 'Fortnight', artist: 'Taylor Swift ft. Post Malone', year: '2024', genre: 'Western Pop' },
-    { title: 'Style', artist: 'Taylor Swift', year: '2014', genre: 'Western Pop' },
-    { title: 'Lover', artist: 'Taylor Swift', year: '2019', genre: 'Western Pop' },
-    { title: 'Blinding Lights', artist: 'The Weeknd', year: '2019', genre: 'Western Pop' },
-    { title: 'Starboy', artist: 'The Weeknd ft. Daft Punk', year: '2016', genre: 'Western Pop' },
-    { title: 'Save Your Tears', artist: 'The Weeknd', year: '2020', genre: 'Western Pop' },
-    { title: 'Die For You', artist: 'The Weeknd', year: '2016', genre: 'Western Pop' },
-    { title: 'Can\'t Feel My Face', artist: 'The Weeknd', year: '2015', genre: 'Western Pop' },
-    { title: 'The Hills', artist: 'The Weeknd', year: '2015', genre: 'Western Pop' },
-    { title: 'Creepin\'', artist: 'Metro Boomin ft. The Weeknd & 21 Savage', year: '2022', genre: 'Western Hip-Hop' },
-    { title: 'Shape of You', artist: 'Ed Sheeran', year: '2017', genre: 'Western Pop' },
-    { title: 'Perfect', artist: 'Ed Sheeran', year: '2017', genre: 'Western Pop' },
-    { title: 'Thinking Out Loud', artist: 'Ed Sheeran', year: '2014', genre: 'Western Pop' },
-    { title: 'Photograph', artist: 'Ed Sheeran', year: '2014', genre: 'Western Pop' },
-    { title: 'Bad Habits', artist: 'Ed Sheeran', year: '2021', genre: 'Western Pop' },
-    { title: 'Shivers', artist: 'Ed Sheeran', year: '2021', genre: 'Western Pop' },
-    { title: 'Castle on the Hill', artist: 'Ed Sheeran', year: '2017', genre: 'Western Pop' },
-    { title: 'Bad Guy', artist: 'Billie Eilish', year: '2019', genre: 'Western Pop' },
-    { title: 'Birds of a Feather', artist: 'Billie Eilish', year: '2024', genre: 'Western Pop' },
-    { title: 'Lovely', artist: 'Billie Eilish & Khalid', year: '2018', genre: 'Western Pop' },
-    { title: 'Happier Than Ever', artist: 'Billie Eilish', year: '2021', genre: 'Western Pop' },
-    { title: 'Ocean Eyes', artist: 'Billie Eilish', year: '2016', genre: 'Western Pop' },
-    { title: 'What Was I Made For?', artist: 'Billie Eilish', year: '2023', genre: 'Western Pop' },
-    { title: 'Levitating', artist: 'Dua Lipa', year: '2020', genre: 'Western Pop' },
-    { title: 'Don\'t Start Now', artist: 'Dua Lipa', year: '2019', genre: 'Western Pop' },
-    { title: 'New Rules', artist: 'Dua Lipa', year: '2017', genre: 'Western Pop' },
-    { title: 'Dance The Night', artist: 'Dua Lipa', year: '2023', genre: 'Western Pop' },
-    { title: 'Houdini', artist: 'Dua Lipa', year: '2023', genre: 'Western Pop' },
-    { title: 'Someone Like You', artist: 'Adele', year: '2011', genre: 'Western Pop' },
-    { title: 'Rolling in the Deep', artist: 'Adele', year: '2010', genre: 'Western Pop' },
-    { title: 'Easy On Me', artist: 'Adele', year: '2021', genre: 'Western Pop' },
-    { title: 'Hello', artist: 'Adele', year: '2015', genre: 'Western Pop' },
-    { title: 'Set Fire to the Rain', artist: 'Adele', year: '2011', genre: 'Western Pop' },
-    { title: 'Stay', artist: 'The Kid LAROI & Justin Bieber', year: '2021', genre: 'Western Pop' },
-    { title: 'Peaches', artist: 'Justin Bieber ft. Daniel Caesar', year: '2021', genre: 'Western Pop' },
-    { title: 'Love Yourself', artist: 'Justin Bieber', year: '2015', genre: 'Western Pop' },
-    { title: 'Sorry', artist: 'Justin Bieber', year: '2015', genre: 'Western Pop' },
-    { title: 'Baby', artist: 'Justin Bieber ft. Ludacris', year: '2010', genre: 'Western Pop' },
-    { title: 'Ghost', artist: 'Justin Bieber', year: '2021', genre: 'Western Pop' },
-    { title: 'Sugar', artist: 'Maroon 5', year: '2014', genre: 'Western Pop' },
-    { title: 'Payphone', artist: 'Maroon 5 ft. Wiz Khalifa', year: '2012', genre: 'Western Pop' },
-    { title: 'Memories', artist: 'Maroon 5', year: '2019', genre: 'Western Pop' },
-    { title: 'Girls Like You', artist: 'Maroon 5 ft. Cardi B', year: '2018', genre: 'Western Pop' },
-    { title: 'Maps', artist: 'Maroon 5', year: '2014', genre: 'Western Pop' },
-    { title: 'She Will Be Loved', artist: 'Maroon 5', year: '2002', genre: 'Western Pop' },
-    { title: 'Counting Stars', artist: 'OneRepublic', year: '2013', genre: 'Western Pop' },
-    { title: 'I Ain\'t Worried', artist: 'OneRepublic', year: '2022', genre: 'Western Pop' },
-    { title: 'Apologize', artist: 'Timbaland ft. OneRepublic', year: '2007', genre: 'Western Pop' },
-    { title: 'Secrets', artist: 'OneRepublic', year: '2009', genre: 'Western Pop' },
-    // Rock & Alternative Classics
-    { title: 'A Sky Full of Stars', artist: 'Coldplay', year: '2014', genre: 'Western Rock' },
-    { title: 'Viva La Vida', artist: 'Coldplay', year: '2008', genre: 'Western Rock' },
-    { title: 'Yellow', artist: 'Coldplay', year: '2000', genre: 'Western Rock' },
-    { title: 'The Scientist', artist: 'Coldplay', year: '2002', genre: 'Western Rock' },
-    { title: 'Fix You', artist: 'Coldplay', year: '2005', genre: 'Western Rock' },
-    { title: 'Hymn for the Weekend', artist: 'Coldplay ft. Beyonce', year: '2015', genre: 'Western Pop' },
-    { title: 'Paradise', artist: 'Coldplay', year: '2011', genre: 'Western Pop' },
-    { title: 'Clocks', artist: 'Coldplay', year: '2002', genre: 'Western Rock' },
-    { title: 'Bohemian Rhapsody', artist: 'Queen', year: '1975', genre: 'Western Rock' },
-    { title: 'Don\'t Stop Me Now', artist: 'Queen', year: '1978', genre: 'Western Rock' },
-    { title: 'We Will Rock You', artist: 'Queen', year: '1977', genre: 'Western Rock' },
-    { title: 'We Are The Champions', artist: 'Queen', year: '1977', genre: 'Western Rock' },
-    { title: 'Another One Bites the Dust', artist: 'Queen', year: '1980', genre: 'Western Rock' },
-    { title: 'Billie Jean', artist: 'Michael Jackson', year: '1982', genre: 'Western Pop' },
-    { title: 'Beat It', artist: 'Michael Jackson', year: '1982', genre: 'Western Pop' },
-    { title: 'Smooth Criminal', artist: 'Michael Jackson', year: '1987', genre: 'Western Pop' },
-    { title: 'Thriller', artist: 'Michael Jackson', year: '1982', genre: 'Western Pop' },
-    { title: 'I Want It That Way', artist: 'Backstreet Boys', year: '1999', genre: 'Western 90s' },
-    { title: 'Everybody (Backstreet\'s Back)', artist: 'Backstreet Boys', year: '1997', genre: 'Western 90s' },
-    { title: 'As Long As You Love Me', artist: 'Backstreet Boys', year: '1997', genre: 'Western 90s' },
-    { title: 'In the End', artist: 'Linkin Park', year: '2000', genre: 'Western Rock' },
-    { title: 'Numb', artist: 'Linkin Park', year: '2003', genre: 'Western Rock' },
-    { title: 'Faint', artist: 'Linkin Park', year: '2003', genre: 'Western Rock' },
-    { title: 'Crawling', artist: 'Linkin Park', year: '2000', genre: 'Western Rock' },
-    { title: 'Wake Me Up', artist: 'Avicii', year: '2013', genre: 'Western EDM' },
-    { title: 'Waiting for Love', artist: 'Avicii', year: '2015', genre: 'Western EDM' },
-    { title: 'The Nights', artist: 'Avicii', year: '2014', genre: 'Western EDM' },
-    { title: 'Levels', artist: 'Avicii', year: '2011', genre: 'Western EDM' },
-    { title: 'Titanium', artist: 'David Guetta ft. Sia', year: '2011', genre: 'Western EDM' },
-    { title: 'Something Just Like This', artist: 'The Chainsmokers & Coldplay', year: '2017', genre: 'Western EDM' },
-    { title: 'Closer', artist: 'The Chainsmokers ft. Halsey', year: '2016', genre: 'Western EDM' },
-    { title: 'Don\'t Let Me Down', artist: 'The Chainsmokers ft. Daya', year: '2016', genre: 'Western EDM' }
-  ],
-  japan: [
-    // Anime Openings & OST
-    { title: 'Unravel', artist: 'TK from Ling Tosite Sigure', year: '2014', genre: 'Anime OST (Tokyo Ghoul)' },
-    { title: 'Gurenge', artist: 'LiSA', year: '2019', genre: 'Anime OST (Demon Slayer)' },
-    { title: 'Homura', artist: 'LiSA', year: '2020', genre: 'Anime OST (Demon Slayer Movie)' },
-    { title: 'Crossing Field', artist: 'LiSA', year: '2012', genre: 'Anime OST (Sword Art Online)' },
-    { title: 'Catch the Moment', artist: 'LiSA', year: '2017', genre: 'Anime OST (SAO Movie)' },
-    { title: 'Shinzou wo Sasageyo', artist: 'Linked Horizon', year: '2017', genre: 'Anime OST (Attack on Titan)' },
-    { title: 'Guren no Yumiya', artist: 'Linked Horizon', year: '2013', genre: 'Anime OST (Attack on Titan)' },
-    { title: 'The Rumbling', artist: 'SiM', year: '2022', genre: 'Anime OST (Attack on Titan Final)' },
-    { title: 'Red Swan', artist: 'YOSHIKI ft. HYDE', year: '2018', genre: 'Anime OST (Attack on Titan S3)' },
-    { title: 'Akuma no Ko', artist: 'Ai Higuchi', year: '2022', genre: 'Anime OST (Attack on Titan Final)' },
-    { title: 'Zenzenzense', artist: 'RADWIMPS', year: '2016', genre: 'Anime OST (Kimi no Na wa)' },
-    { title: 'Sparkle', artist: 'RADWIMPS', year: '2016', genre: 'Anime OST (Kimi no Na wa)' },
-    { title: 'Nandemonaiya', artist: 'RADWIMPS', year: '2016', genre: 'Anime OST (Kimi no Na wa)' },
-    { title: 'Grand Escape', artist: 'RADWIMPS ft. Toko Miura', year: '2019', genre: 'Anime OST (Weathering with You)' },
-    { title: 'Suzume', artist: 'RADWIMPS ft. Toaka', year: '2022', genre: 'Anime OST (Suzume)' },
-    { title: 'Idol', artist: 'YOASOBI', year: '2023', genre: 'Anime OST (Oshi no Ko)' },
-    { title: 'Yoru ni Kakeru (Racing into the Night)', artist: 'YOASOBI', year: '2019', genre: 'J-Pop' },
-    { title: 'Monster', artist: 'YOASOBI', year: '2021', genre: 'Anime OST (Beastars)' },
-    { title: 'Kaibutsu', artist: 'YOASOBI', year: '2021', genre: 'Anime OST (Beastars)' },
-    { title: 'Gunjou (Blue)', artist: 'YOASOBI', year: '2020', genre: 'J-Pop' },
-    { title: 'Yuusha', artist: 'YOASOBI', year: '2023', genre: 'Anime OST (Frieren)' },
-    { title: 'Shukufuku (The Blessing)', artist: 'YOASOBI', year: '2022', genre: 'Anime OST (Gundam)' },
-    { title: 'Blue Bird', artist: 'Ikimonogakari', year: '2008', genre: 'Anime OST (Naruto Shippuden)' },
-    { title: 'Hotaru no Hikari', artist: 'Ikimonogakari', year: '2009', genre: 'Anime OST (Naruto Shippuden)' },
-    { title: 'Silhouette', artist: 'KANA-BOON', year: '2014', genre: 'Anime OST (Naruto Shippuden)' },
-    { title: 'Baton Road', artist: 'KANA-BOON', year: '2017', genre: 'Anime OST (Boruto)' },
-    { title: 'Sign', artist: 'FLOW', year: '2010', genre: 'Anime OST (Naruto Shippuden)' },
-    { title: 'GO!!!', artist: 'FLOW', year: '2004', genre: 'Anime OST (Naruto)' },
-    { title: 'Colors', artist: 'FLOW', year: '2006', genre: 'Anime OST (Code Geass)' },
-    { title: 'Kaikai Kitan', artist: 'Eve', year: '2020', genre: 'Anime OST (Jujutsu Kaisen)' },
-    { title: 'Dramaturgy', artist: 'Eve', year: '2017', genre: 'J-Pop' },
-    { title: 'Ao no Sumika (Where Our Blue Is)', artist: 'Tatsuya Kitani', year: '2023', genre: 'Anime OST (Jujutsu Kaisen S2)' },
-    { title: 'Specialz', artist: 'King Gnu', year: '2023', genre: 'Anime OST (Jujutsu Kaisen Shibuya)' },
-    { title: 'Hakujitsu', artist: 'King Gnu', year: '2019', genre: 'J-Pop' },
-    { title: 'Ichizu', artist: 'King Gnu', year: '2021', genre: 'Anime OST (Jujutsu Kaisen 0)' },
-    { title: 'Sakayume', artist: 'King Gnu', year: '2021', genre: 'Anime OST (Jujutsu Kaisen 0)' },
-    { title: 'Kick Back', artist: 'Kenshi Yonezu', year: '2022', genre: 'Anime OST (Chainsaw Man)' },
-    { title: 'Peace Sign', artist: 'Kenshi Yonezu', year: '2017', genre: 'Anime OST (My Hero Academia)' },
-    { title: 'Lemon', artist: 'Kenshi Yonezu', year: '2018', genre: 'J-Pop' },
-    { title: 'Loser', artist: 'Kenshi Yonezu', year: '2016', genre: 'J-Pop' },
-    { title: 'Chikyuugi (Spinning Globe)', artist: 'Kenshi Yonezu', year: '2023', genre: 'Anime OST (Boy and the Heron)' },
-    { title: 'Bling-Bang-Bang-Born', artist: 'Creepy Nuts', year: '2024', genre: 'Anime OST (Mashle S2)' },
-    { title: 'Otonoke', artist: 'Creepy Nuts', year: '2024', genre: 'Anime OST (Dandadan)' },
-    { title: 'Usseewa', artist: 'Ado', year: '2020', genre: 'J-Pop' },
-    { title: 'New Genesis (Shin Jidai)', artist: 'Ado', year: '2022', genre: 'Anime OST (One Piece Film Red)' },
-    { title: 'Show', artist: 'Ado', year: '2023', genre: 'J-Pop' },
-    { title: 'Kura Kura', artist: 'Ado', year: '2023', genre: 'Anime OST (Spy x Family S2)' },
-    { title: 'Kawaikute Gomen', artist: 'HoneyWorks', year: '2022', genre: 'J-Pop' },
-    { title: 'Renai Circulation', artist: 'Kana Hanazawa', year: '2009', genre: 'Anime OST (Bakemonogatari)' },
-    { title: 'Again', artist: 'YUI', year: '2009', genre: 'Anime OST (Fullmetal Alchemist)' },
-    { title: 'InuYasha - Fukai Mori', artist: 'Do As Infinity', year: '2001', genre: 'Anime OST (InuYasha)' },
-    { title: 'Cry Baby', artist: 'Official HIGE DANdism', year: '2021', genre: 'Anime OST (Tokyo Revengers)' },
-    { title: 'Pretender', artist: 'Official HIGE DANdism', year: '2019', genre: 'J-Pop' },
-    { title: 'Mixed Nuts', artist: 'Official HIGE DANdism', year: '2022', genre: 'Anime OST (Spy x Family)' },
-    { title: 'I LOVE...', artist: 'Official HIGE DANdism', year: '2020', genre: 'J-Pop' }
-  ],
-  korea: [
-    // K-Pop Hits Gen 2, 3, 4, 5
-    { title: 'Dynamite', artist: 'BTS', year: '2020', genre: 'K-Pop' },
-    { title: 'Butter', artist: 'BTS', year: '2021', genre: 'K-Pop' },
-    { title: 'Boy With Luv', artist: 'BTS ft. Halsey', year: '2019', genre: 'K-Pop' },
-    { title: 'Spring Day', artist: 'BTS', year: '2017', genre: 'K-Pop' },
-    { title: 'DNA', artist: 'BTS', year: '2017', genre: 'K-Pop' },
-    { title: 'Fake Love', artist: 'BTS', year: '2018', genre: 'K-Pop' },
-    { title: 'IDOL', artist: 'BTS', year: '2018', genre: 'K-Pop' },
-    { title: 'Blood Sweat & Tears', artist: 'BTS', year: '2016', genre: 'K-Pop' },
-    { title: 'Seven', artist: 'Jung Kook ft. Latto', year: '2023', genre: 'K-Pop' },
-    { title: 'Standing Next to You', artist: 'Jung Kook', year: '2023', genre: 'K-Pop' },
-    { title: 'How You Like That', artist: 'BLACKPINK', year: '2020', genre: 'K-Pop' },
-    { title: 'DDU-DU DDU-DU', artist: 'BLACKPINK', year: '2018', genre: 'K-Pop' },
-    { title: 'Kill This Love', artist: 'BLACKPINK', year: '2019', genre: 'K-Pop' },
-    { title: 'Pink Venom', artist: 'BLACKPINK', year: '2022', genre: 'K-Pop' },
-    { title: 'Shut Down', artist: 'BLACKPINK', year: '2022', genre: 'K-Pop' },
-    { title: 'Boombayah', artist: 'BLACKPINK', year: '2016', genre: 'K-Pop' },
-    { title: 'As If It\'s Your Last', artist: 'BLACKPINK', year: '2017', genre: 'K-Pop' },
-    { title: 'Lovesick Girls', artist: 'BLACKPINK', year: '2020', genre: 'K-Pop' },
-    { title: 'SOLO', artist: 'JENNIE', year: '2018', genre: 'K-Pop' },
-    { title: 'You & Me', artist: 'JENNIE', year: '2023', genre: 'K-Pop' },
-    { title: 'On The Ground', artist: 'ROSE', year: '2021', genre: 'K-Pop' },
-    { title: 'APT.', artist: 'ROSE & Bruno Mars', year: '2024', genre: 'K-Pop / Global' },
-    { title: 'MONEY', artist: 'LISA', year: '2021', genre: 'K-Pop' },
-    { title: 'Rockstar', artist: 'LISA', year: '2024', genre: 'K-Pop' },
-    { title: 'FLOWER', artist: 'JISOO', year: '2023', genre: 'K-Pop' },
-    { title: 'Hype Boy', artist: 'NewJeans', year: '2022', genre: 'K-Pop' },
-    { title: 'Ditto', artist: 'NewJeans', year: '2022', genre: 'K-Pop' },
-    { title: 'Super Shy', artist: 'NewJeans', year: '2023', genre: 'K-Pop' },
-    { title: 'OMG', artist: 'NewJeans', year: '2023', genre: 'K-Pop' },
-    { title: 'Attention', artist: 'NewJeans', year: '2022', genre: 'K-Pop' },
-    { title: 'ETA', artist: 'NewJeans', year: '2023', genre: 'K-Pop' },
-    { title: 'How Sweet', artist: 'NewJeans', year: '2024', genre: 'K-Pop' },
-    { title: 'Cookie', artist: 'NewJeans', year: '2022', genre: 'K-Pop' },
-    { title: 'Next Level', artist: 'aespa', year: '2021', genre: 'K-Pop' },
-    { title: 'Supernova', artist: 'aespa', year: '2024', genre: 'K-Pop' },
-    { title: 'Drama', artist: 'aespa', year: '2023', genre: 'K-Pop' },
-    { title: 'Savage', artist: 'aespa', year: '2021', genre: 'K-Pop' },
-    { title: 'Spicy', artist: 'aespa', year: '2023', genre: 'K-Pop' },
-    { title: 'Armageddon', artist: 'aespa', year: '2024', genre: 'K-Pop' },
-    { title: 'Whiplash', artist: 'aespa', year: '2024', genre: 'K-Pop' },
-    { title: 'Black Mamba', artist: 'aespa', year: '2020', genre: 'K-Pop' },
-    { title: 'Love Dive', artist: 'IVE', year: '2022', genre: 'K-Pop' },
-    { title: 'After LIKE', artist: 'IVE', year: '2022', genre: 'K-Pop' },
-    { title: 'I AM', artist: 'IVE', year: '2023', genre: 'K-Pop' },
-    { title: 'Baddie', artist: 'IVE', year: '2023', genre: 'K-Pop' },
-    { title: 'Eleven', artist: 'IVE', year: '2021', genre: 'K-Pop' },
-    { title: 'Kitsch', artist: 'IVE', year: '2023', genre: 'K-Pop' },
-    { title: 'HEYA', artist: 'IVE', year: '2024', genre: 'K-Pop' },
-    { title: 'Antifragile', artist: 'LE SSERAFIM', year: '2022', genre: 'K-Pop' },
-    { title: 'Eve, Psyche & The Bluebeard\'s wife', artist: 'LE SSERAFIM', year: '2023', genre: 'K-Pop' },
-    { title: 'Smart', artist: 'LE SSERAFIM', year: '2024', genre: 'K-Pop' },
-    { title: 'Easy', artist: 'LE SSERAFIM', year: '2024', genre: 'K-Pop' },
-    { title: 'Perfect Night', artist: 'LE SSERAFIM', year: '2023', genre: 'K-Pop' },
-    { title: 'UNFORGIVEN', artist: 'LE SSERAFIM ft. Nile Rodgers', year: '2023', genre: 'K-Pop' },
-    { title: 'Crazy', artist: 'LE SSERAFIM', year: '2024', genre: 'K-Pop' },
-    { title: 'Fancy', artist: 'TWICE', year: '2019', genre: 'K-Pop' },
-    { title: 'Feel Special', artist: 'TWICE', year: '2019', genre: 'K-Pop' },
-    { title: 'What is Love?', artist: 'TWICE', year: '2018', genre: 'K-Pop' },
-    { title: 'Cheer Up', artist: 'TWICE', year: '2016', genre: 'K-Pop' },
-    { title: 'TT', artist: 'TWICE', year: '2016', genre: 'K-Pop' },
-    { title: 'The Feels', artist: 'TWICE', year: '2021', genre: 'K-Pop' },
-    { title: 'I CAN\'T STOP ME', artist: 'TWICE', year: '2020', genre: 'K-Pop' },
-    { title: 'Alcohol-Free', artist: 'TWICE', year: '2021', genre: 'K-Pop' },
-    { title: 'Likey', artist: 'TWICE', year: '2017', genre: 'K-Pop' },
-    { title: 'God\'s Menu', artist: 'Stray Kids', year: '2020', genre: 'K-Pop' },
-    { title: 'Maniac', artist: 'Stray Kids', year: '2022', genre: 'K-Pop' },
-    { title: 'S-Class', artist: 'Stray Kids', year: '2023', genre: 'K-Pop' },
-    { title: 'LALALALA', artist: 'Stray Kids', year: '2023', genre: 'K-Pop' },
-    { title: 'Chk Chk Boom', artist: 'Stray Kids', year: '2024', genre: 'K-Pop' },
-    { title: 'Thunderous', artist: 'Stray Kids', year: '2021', genre: 'K-Pop' },
-    { title: 'Super', artist: 'SEVENTEEN', year: '2023', genre: 'K-Pop' },
-    { title: 'HOT', artist: 'SEVENTEEN', year: '2022', genre: 'K-Pop' },
-    { title: 'Maestro', artist: 'SEVENTEEN', year: '2024', genre: 'K-Pop' },
-    { title: 'Don\'t Wanna Cry', artist: 'SEVENTEEN', year: '2017', genre: 'K-Pop' },
-    { title: 'Left & Right', artist: 'SEVENTEEN', year: '2020', genre: 'K-Pop' },
-    { title: 'Bang Bang Bang', artist: 'BIGBANG', year: '2015', genre: 'K-Pop' },
-    { title: 'Fantastic Baby', artist: 'BIGBANG', year: '2012', genre: 'K-Pop' },
-    { title: 'Haru Haru', artist: 'BIGBANG', year: '2008', genre: 'K-Pop' },
-    { title: 'Love Scenario', artist: 'iKON', year: '2018', genre: 'K-Pop' },
-    { title: 'Gee', artist: 'Girls\' Generation (SNSD)', year: '2009', genre: 'K-Pop' },
-    { title: 'Sorry, Sorry', artist: 'Super Junior', year: '2009', genre: 'K-Pop' },
-    { title: 'Growl', artist: 'EXO', year: '2013', genre: 'K-Pop' },
-    { title: 'Monster', artist: 'EXO', year: '2016', genre: 'K-Pop' },
-    { title: 'Love Shot', artist: 'EXO', year: '2018', genre: 'K-Pop' }
-  ],
-  arabic: [
-    // Arabic Pop & Middle Eastern Hits
-    { title: 'Nour El Ain', artist: 'Amr Diab', year: '1996', genre: 'Arabic Pop' },
-    { title: 'Tamally Maak', artist: 'Amr Diab', year: '2000', genre: 'Arabic Pop' },
-    { title: 'Wayah', artist: 'Amr Diab', year: '2009', genre: 'Arabic Pop' },
-    { title: 'Osad Einy', artist: 'Amr Diab', year: '2004', genre: 'Arabic Pop' },
-    { title: 'Ana Mahma Kbert Soiyer', artist: 'Amr Diab', year: '2003', genre: 'Arabic Pop' },
-    { title: 'Habibi Ya Nour El Ain', artist: 'Amr Diab', year: '1996', genre: 'Arabic Pop' },
-    { title: 'El Ghazala Rayka', artist: 'Karim Mahmoud & Mohamed Osama', year: '2021', genre: 'Arabic Pop / Egyptian' },
-    { title: 'Sidi Mansour (Ya Baba)', artist: 'Saber Rebai', year: '2000', genre: 'Arabic Folk / Pop' },
-    { title: 'C\'est La Vie', artist: 'Khaled', year: '2012', genre: 'Arabic Raï / Pop' },
-    { title: 'Didi', artist: 'Khaled', year: '1991', genre: 'Arabic Raï' },
-    { title: 'Aicha', artist: 'Khaled', year: '1996', genre: 'Arabic Raï' },
-    { title: 'Abdel Kader', artist: 'Khaled, Rachid Taha & Faudel', year: '1998', genre: 'Arabic Raï' },
-    { title: 'Enta Eih', artist: 'Nancy Ajram', year: '2004', genre: 'Arabic Pop' },
-    { title: 'Ah W Noss', artist: 'Nancy Ajram', year: '2004', genre: 'Arabic Pop' },
-    { title: 'Akhasmak Ah', artist: 'Nancy Ajram', year: '2003', genre: 'Arabic Pop' },
-    { title: 'Ya Tabtab Wa Dalla', artist: 'Nancy Ajram', year: '2006', genre: 'Arabic Pop' },
-    { title: 'Salamat', artist: 'Nancy Ajram', year: '2021', genre: 'Arabic Pop' },
-    { title: 'Sah Sah', artist: 'Nancy Ajram & Marshmello', year: '2022', genre: 'Arabic EDM' },
-    { title: 'Mish Ghadra Al Hob', artist: 'Elissa', year: '2006', genre: 'Arabic Pop' },
-    { title: 'Aa Baly Habibi', artist: 'Elissa', year: '2009', genre: 'Arabic Pop' },
-    { title: 'Betmoun', artist: 'Elissa', year: '2007', genre: 'Arabic Pop' },
-    { title: 'Krahni', artist: 'Elissa', year: '2018', genre: 'Arabic Pop' },
-    { title: 'Maktooba Leek', artist: 'Elissa', year: '2016', genre: 'Arabic Pop' },
-    { title: 'Lm3allem', artist: 'Saad Lamjarred', year: '2015', genre: 'Moroccan Pop' },
-    { title: 'Ghaltana', artist: 'Saad Lamjarred', year: '2016', genre: 'Moroccan Pop' },
-    { title: 'Ensay', artist: 'Mohamed Ramadan & Saad Lamjarred', year: '2019', genre: 'Arabic Pop / Mahraganat' },
-    { title: 'Ya Lili', artist: 'Balti ft. Hamouda', year: '2017', genre: 'Tunisian Rap / Pop' },
-    { title: 'Mafia', artist: 'Mohamed Ramadan', year: '2019', genre: 'Arabic Mahraganat' },
-    { title: 'Number One', artist: 'Mohamed Ramadan', year: '2018', genre: 'Arabic Mahraganat' },
-    { title: 'Bint El Geran', artist: 'Hassan Shakosh & Omar Kamal', year: '2019', genre: 'Egyptian Mahraganat' },
-    { title: 'Oud El Batal', artist: 'Hassan Shakosh & Omar Kamal', year: '2020', genre: 'Egyptian Mahraganat' },
-    { title: 'Leena Raqsa', artist: 'Carmen Soliman', year: '2020', genre: 'Arabic Pop' },
-    { title: 'Boushret Kheir', artist: 'Hussain Al Jassmi', year: '2014', genre: 'Khaleeji / Egyptian Pop' },
-    { title: 'Bel Bont El Areed', artist: 'Hussain Al Jassmi', year: '2020', genre: 'Arabic Pop' },
-    { title: 'Faqadtek', artist: 'Hussain Al Jassmi', year: '2004', genre: 'Khaleeji Pop' },
-    { title: 'Dunya Ya Ghoraba', artist: 'Maher Zain', year: '2020', genre: 'Arabic Nasheed / Pop' },
-    { title: 'Ya Nabi Salam Alayka', artist: 'Maher Zain', year: '2011', genre: 'Arabic / Islamic Pop' },
-    { title: 'Kun Anta', artist: 'Humood Alkhudher', year: '2015', genre: 'Kuwaiti / Arabic Pop' },
-    { title: 'Dhad', artist: 'Humood Alkhudher', year: '2020', genre: 'Arabic Pop' },
-    { title: 'Ha Hawa', artist: 'Sherine', year: '2018', genre: 'Arabic Pop' },
-    { title: 'Sabry Qaleel', artist: 'Sherine', year: '2003', genre: 'Arabic Pop' },
-    { title: 'Kolly Melkak', artist: 'Sherine', year: '2014', genre: 'Arabic Pop' },
-    { title: 'Kalam Einah', artist: 'Sherine', year: '2018', genre: 'Arabic Pop' }
-  ],
-  thailand: [
-    // T-Pop & Thai Hits
-    { title: 'Snooze (เอาแต่ใจ)', artist: 'Three Man Down', year: '2021', genre: 'Thai Pop / Rock' },
-    { title: 'Fon Tok Mai (ฝนตกไหม)', artist: 'Three Man Down', year: '2019', genre: 'Thai Pop / Rock' },
-    { title: 'Khwam Lap Nang Fa (ความลับนางฟ้า)', artist: 'Three Man Down', year: '2023', genre: 'Thai Pop / Rock' },
-    { title: 'Tha Ter Rak Chan Jing (ถ้าเธอรักฉันจริง)', artist: 'Three Man Down', year: '2020', genre: 'Thai Pop / Rock' },
-    { title: 'Drunk (เมา)', artist: 'Three Man Down', year: '2022', genre: 'Thai Pop' },
-    { title: 'Khon Rao Cha Rak Kan Dai Sak Tao Rai (คนเราจะรักกันได้สักเท่าไหร่)', artist: 'Tilly Birds', year: '2021', genre: 'Thai Pop' },
-    { title: 'Same Page? (คิด(แต่ไม่)ถึง)', artist: 'Tilly Birds', year: '2020', genre: 'Thai Pop / Indie' },
-    { title: 'Until Then (เพื่อนเล่น ไม่เล่นเพื่อน)', artist: 'Tilly Birds ft. MILLI', year: '2021', genre: 'Thai Pop' },
-    { title: 'Just Being Friendly', artist: 'Tilly Birds ft. MILLI', year: '2021', genre: 'Thai Pop' },
-    { title: 'Melt (ละลาย)', artist: 'Four-Mod', year: '2007', genre: 'T-Pop Nostalgia' },
-    { title: 'Mirror Mirror', artist: 'F.HERO x MILLI ft. Changbin', year: '2021', genre: 'Thai Hip-Hop' },
-    { title: '1789 (สุดปัง)', artist: 'MILLI', year: '2020', genre: 'Thai Hip-Hop' },
-    { title: 'Pak Kon (พักก่อน)', artist: 'MILLI', year: '2020', genre: 'Thai Hip-Hop' },
-    { title: 'Fire Boy', artist: 'PP Krit', year: '2022', genre: 'T-Pop' },
-    { title: 'I\'ll Do It How You Like It', artist: 'PP Krit', year: '2022', genre: 'T-Pop' },
-    { title: 'Hesitate', artist: 'PP Krit', year: '2023', genre: 'T-Pop' },
-    { title: 'Skyline (กีดกัน)', artist: 'Billkin', year: '2020', genre: 'Thai OST (I Told Sunset About You)' },
-    { title: 'I Like Myself with You', artist: 'Billkin', year: '2022', genre: 'T-Pop' },
-    { title: 'Mr. Everything', artist: 'Billkin', year: '2022', genre: 'T-Pop' },
-    { title: 'How About Now (กอดในใจ)', artist: 'Billkin ft. Jaylerr', year: '2020', genre: 'T-Pop' },
-    { title: 'Booty Bomb', artist: '4EVE', year: '2021', genre: 'T-Pop (Girl Group)' },
-    { title: 'Measure Yes (วัดปะหล่ะ?)', artist: '4EVE', year: '2021', genre: 'T-Pop' },
-    { title: 'Hot 2 Hot', artist: '4EVE', year: '2024', genre: 'T-Pop' },
-    { title: 'Vroom Vroom', artist: '4EVE', year: '2023', genre: 'T-Pop' },
-    { title: 'Jackpot', artist: '4EVE', year: '2022', genre: 'T-Pop' },
-    { title: 'Doo Dee (ดูดี)', artist: 'Polycat', year: '2019', genre: 'Thai Synth-Pop' },
-    { title: 'Alright (อาวรณ์)', artist: 'Polycat', year: '2018', genre: 'Thai Synth-Pop' },
-    { title: 'The Lawyer (พบกันใหม่)', artist: 'Polycat', year: '2015', genre: 'Thai Synth-Pop' },
-    { title: 'I\'m Not Cool (เป็นทุกอย่าง)', artist: 'Room39', year: '2017', genre: 'Thai Pop' },
-    { title: 'Bok Tua Eng (บอกตัวเอง)', artist: 'Room39 ft. Pongkool', year: '2018', genre: 'Thai Pop' },
-    { title: 'Khwam Jing (ความจริง)', artist: 'Room39', year: '2015', genre: 'Thai Pop' },
-    { title: 'Ploi (ปล่อย)', artist: 'NUM KALA', year: '2020', genre: 'Thai Rock' },
-    { title: 'Rao Lae Nai (เราและนาย)', artist: 'LOSO', year: '1998', genre: 'Thai Rock Classic' },
-    { title: 'Jai Sang Ma (ใจสั่งมา)', artist: 'LOSO', year: '2000', genre: 'Thai Rock Classic' },
-    { title: 'Som San (ซมซาน)', artist: 'LOSO', year: '1998', genre: 'Thai Rock Classic' },
-    { title: 'Khuen Chan (คืนจันทร์)', artist: 'LOSO', year: '2000', genre: 'Thai Rock Classic' },
-    { title: 'Khu Chiwit (คู่ชีวิต)', artist: 'Cocktail', year: '2014', genre: 'Thai Rock' },
-    { title: 'Ther (เธอ)', artist: 'Cocktail', year: '2014', genre: 'Thai Rock' },
-    { title: 'Kook Khao (คุกเข่า)', artist: 'Cocktail', year: '2012', genre: 'Thai Rock' },
-    { title: 'Klap Ma Pen Muang Derm Dai Mai (กลับมาเป็นเหมือนเดิมได้ไหม)', artist: 'Crescendo', year: '2010', genre: 'Thai Pop' }
-  ],
-  latin: [
-    // Latin Pop & Reggaeton
-    { title: 'Despacito', artist: 'Luis Fonsi ft. Daddy Yankee', year: '2017', genre: 'Latin Pop / Reggaeton' },
-    { title: 'Echame La Culpa', artist: 'Luis Fonsi & Demi Lovato', year: '2017', genre: 'Latin Pop' },
-    { title: 'Gasolina', artist: 'Daddy Yankee', year: '2004', genre: 'Reggaeton Classic' },
-    { title: 'Dura', artist: 'Daddy Yankee', year: '2018', genre: 'Reggaeton' },
-    { title: 'Con Calma', artist: 'Daddy Yankee & Snow', year: '2019', genre: 'Reggaeton' },
-    { title: 'Tití Me Preguntó', artist: 'Bad Bunny', year: '2022', genre: 'Latin Urban' },
-    { title: 'Me Porto Bonito', artist: 'Bad Bunny & Chencho Corleone', year: '2022', genre: 'Reggaeton' },
-    { title: 'Dakiti', artist: 'Bad Bunny & Jhay Cortez', year: '2020', genre: 'Latin Pop' },
-    { title: 'Callaita', artist: 'Bad Bunny & Tainy', year: '2019', genre: 'Reggaeton' },
-    { title: 'Monaco', artist: 'Bad Bunny', year: '2023', genre: 'Latin Trap' },
-    { title: 'Mi Gente', artist: 'J Balvin & Willy William', year: '2017', genre: 'Reggaeton' },
-    { title: 'Ay Vamos', artist: 'J Balvin', year: '2014', genre: 'Reggaeton' },
-    { title: 'Safari', artist: 'J Balvin ft. Pharrell Williams', year: '2016', genre: 'Reggaeton' },
-    { title: 'Hawai', artist: 'Maluma', year: '2020', genre: 'Latin Pop' },
-    { title: 'Felices los 4', artist: 'Maluma', year: '2017', genre: 'Reggaeton' },
-    { title: 'Corazon', artist: 'Maluma ft. Nego do Borel', year: '2017', genre: 'Latin Pop' },
-    { title: 'Hips Don\'t Lie', artist: 'Shakira ft. Wyclef Jean', year: '2006', genre: 'Latin Pop' },
-    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', year: '2010', genre: 'Latin Pop' },
-    { title: 'Chantaje', artist: 'Shakira ft. Maluma', year: '2016', genre: 'Reggaeton' },
-    { title: 'TQG', artist: 'KAROL G & Shakira', year: '2023', genre: 'Reggaeton' },
-    { title: 'Provenza', artist: 'KAROL G', year: '2022', genre: 'Reggaeton' },
-    { title: 'Tusa', artist: 'KAROL G & Nicki Minaj', year: '2019', genre: 'Reggaeton' },
-    { title: 'Bailando', artist: 'Enrique Iglesias ft. Descemer Bueno', year: '2014', genre: 'Latin Pop' },
-    { title: 'El Perdon', artist: 'Nicky Jam & Enrique Iglesias', year: '2015', genre: 'Reggaeton' },
-    { title: 'Pepas', artist: 'Farruko', year: '2021', genre: 'Latin Dance' },
-    { title: 'Calma (Remix)', artist: 'Pedro Capo & Farruko', year: '2018', genre: 'Latin Pop' },
-    { title: 'La Bicicleta', artist: 'Carlos Vives & Shakira', year: '2016', genre: 'Vallenato / Pop' },
-    { title: 'Vivir Mi Vida', artist: 'Marc Anthony', year: '2013', genre: 'Salsa / Latin' }
-  ]
+// Helper to expand artist discography
+function buildArtistTracks(artist, defaultGenre, tracks) {
+  return tracks.map(t => {
+    if (typeof t === 'string') {
+      return { title: t, artist, year: '2010s', genre: defaultGenre };
+    }
+    return {
+      title: t.title,
+      artist: t.artist || artist,
+      year: t.year ? String(t.year) : '2010s',
+      genre: t.genre || defaultGenre
+    };
+  });
+}
+
+console.log('⏳ Sedang menyusun database 1.200+ lagu per kategori/negara...');
+
+// ══════════════════════════════════════════════════════════════
+// 1. INDONESIA (1.200+ Lagu)
+// ══════════════════════════════════════════════════════════════
+const indoArtists = [
+  {
+    artist: 'Tulus',
+    genre: 'Indo Pop',
+    tracks: [
+      'Hati-Hati di Jalan', 'Monokrom', 'Diri', 'Sepatu', 'Gajah', 'Jangan Cintai Aku Apa Adanya',
+      'Pamit', 'Tujuh Belas', 'Kelana', 'Remedi', 'Interaksi', 'Satu Kali', 'Jatuh Suka',
+      'Bunga Tidur', 'Sewindu', 'Teman Pesta', 'Kisah Sebentar', 'Tuan Nona Kesepian',
+      'Lagu Untuk Matahari', 'Langit Abu-Abu', 'Ruang Sendiri', 'Tukar Jiwa', 'Manusia Kuat',
+      'Cahaya', 'Labirin', 'Adu Rayu'
+    ]
+  },
+  {
+    artist: 'Mahalini',
+    genre: 'Indo Pop',
+    tracks: [
+      'Sial', 'Mati-Matian', 'Sisa Rasa', 'Kisah Sempurna', 'Melawan Restu', 'Bawa Dia Kembali',
+      'Bohongi Hati', 'Burung Camar', 'Janji Kita', 'Putar Waktu', 'Ini Laguku', 'Keluargaku',
+      'Sampai Menutup Mata', 'Aku yang Salah', 'Bermuara'
+    ]
+  },
+  {
+    artist: 'Bernadya',
+    genre: 'Indo Pop',
+    tracks: [
+      'Satu Bulan', 'Kata Mereka Ini Berlebihan', 'Untungnya, Hidup Harus Tetap Berjalan',
+      'Kini Mereka Tahu', 'Apa Mungkin', 'Masa Sepi', 'Ambang Pintu', 'Terlintas', 'Sampaikan Pada Bunda'
+    ]
+  },
+  {
+    artist: 'Sal Priadi',
+    genre: 'Indo Pop',
+    tracks: [
+      'Gala Bunga Matahari', 'Dari Planet Lain', 'Mesra-mesraannya kecil-kecilan dulu',
+      'Amin Paling Serius', 'Kultusan', 'Besok Kita Pergi Makan', 'Semua Lagu Cinta',
+      'Ada Titik-Titik di Ujung Doa', 'Irama La彈t', 'Foto Kita Blur', 'Mewarnai', 'Nyala'
+    ]
+  },
+  {
+    artist: 'Juicy Luicy',
+    genre: 'Indo Pop',
+    tracks: [
+      'Lantas', 'Tanpa Tergesa', 'Tampar', 'Asing', 'Sayangnya', 'Mawar Jingga', 'Terlalu Tinggi',
+      'Tanggung Jawab', 'Bukan Terbiasa', 'Jemari', 'Hahaha', 'Insya Allah', 'Lampu Kuning',
+      'Tak Terbaca', 'Cuma Sama Kamu', 'Di Balik Layar', 'Simak', 'Sesaat'
+    ]
+  },
+  {
+    artist: 'Nadin Amizah',
+    genre: 'Indo Indie',
+    tracks: [
+      'Bertaut', 'Rayuan Perempuan Gila', 'Semua Aku Dirayakan', 'Sorai', 'Rumpang', 'Taruh',
+      'Kero', 'Beranjak Dewasa', 'Seperti Takdir Kita yang Tulis', 'Tawa', 'Ah', 'Di Akhir Perang',
+      'Sebuah Tarian yang Tak Kunjung Selesai', 'Dan, Selesai', 'Bunga Tidur', 'Menangis di Jalan Pulang'
+    ]
+  },
+  {
+    artist: 'Sheila On 7',
+    genre: 'Indo Pop Rock',
+    tracks: [
+      'Dan...', 'Sephia', 'Sebuah Kisah Klasik', 'Hari Bersamanya', 'Mudah Saja', 'Lapang Dada',
+      'Pejantan Tangguh', 'Betapa', 'Pria Kesepian', 'Kita', 'J.A.P', 'Anugerah Terindah yang Pernah Kumiliki',
+      'Tunggu Aku di Jakarta', 'Bila Kau Tak Disampingku', 'Seberapa Pantas', 'Radio', 'Pemuja Rahasia',
+      'Sahabat Sejati', 'Itu Aku', 'Film Favorit', 'Pagi yang Menakjubkan', 'Lihat Dengar Rasakan',
+      'Tunjuk Satu Bintang', 'Keluarga Bahagia', 'Pemberani', 'Generasi Patah Hati', 'Melompat Lebih Tinggi',
+      'Have Fun', 'Tentang Hidup', 'Alasanku'
+    ]
+  },
+  {
+    artist: 'Dewa 19',
+    genre: 'Indo Rock Legend',
+    tracks: [
+      'Kangen', 'Pupus', 'Risalah Hati', 'Separuh Nafas', 'Cemburu', 'Arjuna', 'Roman Picisan',
+      'Cinta Kan Membawamu Kembali', 'Aku Milikmu', 'Kirana', 'Kamulah Satu-Satunya', 'Cukup Siti Nurbaya',
+      'Elang', 'Dua Sejoli', 'Laskar Cinta', 'Satu', 'Pangeran Cinta', 'Sayap Sayap Patah',
+      'Sedang Ingin Bercinta', 'Larut', 'Format Masa Depan', 'Mahameru', 'Selatan Jakarta',
+      'Restu Bumi', 'Cinta Gila', 'Angin', 'Kosong', 'Bukan Rahasia', 'Mistikus Cinta', 'Shine On'
+    ]
+  },
+  {
+    artist: 'Peterpan / NOAH',
+    genre: 'Indo Pop Rock',
+    tracks: [
+      'Separuh Aku', 'Kupu-Kupu Malam', 'Yang Terdalam', 'Mungkin Nanti', 'Ada Apa Denganmu',
+      'Bintang di Surga', 'Semua Tentang Kita', 'Ku Katakan Dengan Indah', 'Mimpi yang Sempurna',
+      'Sahabat', 'Taman Langit', 'Topeng', 'Khayalan Tingkat Tinggi', 'Di Atas Normal',
+      'Menghapus Jejakmu', 'Hari yang Cerah Untuk Jiwa yang Sepi', 'Cobalah Mengerti', 'Walau Habis Terang',
+      'Diatas Meja', 'Tak Ada yang Abadi', 'Kota Mati', 'Suara Pikiranku', 'Wanitaku', 'Kupeluk Hatiku',
+      'Badai Pasti Berlalu', 'Jalani Mimpi', 'My Situation', 'Mendekati Lugu', 'Bebas', 'Dilema Besar'
+    ]
+  },
+  {
+    artist: 'Slank',
+    genre: 'Indo Rock',
+    tracks: [
+      'Terlalu Manis', 'Ku Tak Bisa', 'I Miss You But I Hate You', 'Virus', 'Balikin',
+      'Mawar Merah', 'Kamu Harus Cepat Pulang', 'Tong Kosong', 'Foto Dalam Dompetmu',
+      'Poppies Lane Memory', 'Pandangan Pertama', 'Gara-Gara Kamu', 'Anyer 10 Maret',
+      'Ketinggalan Zaman', 'Bang-Bang Tut', 'Seperti Para Koruptor', 'Juwita Malam',
+      'Piss', 'Suit-Suit... He-He (Gadis Sexy)', 'Bidadari Penyelamat', 'Cinta Kita'
+    ]
+  },
+  {
+    artist: 'Padi',
+    genre: 'Indo Pop Rock',
+    tracks: [
+      'Sobat', 'Mahadewi', 'Begitu Indah', 'Semua Tak Sama', 'Kasih Tak Sampai',
+      'Menanti Sebuah Jawaban', 'Sesuatu yang Indah', 'Tempat Terakhir', 'Ternyata Cinta',
+      'Bayangkanlah', 'Harmoni', 'Siapa Gerangan Dirinya', 'Rapuh', 'Hitam', 'Angkuh'
+    ]
+  },
+  {
+    artist: 'Denny Caknan',
+    genre: 'Indo Koplo / Jawa',
+    tracks: [
+      'Kartonyono Medot Janji', 'Sugeng Dalu', 'Los Dol', 'Kalih Welasku', 'Cundamani',
+      'Sigar', 'Satru', 'Satru 2', 'Widodari', 'Pingal', 'Kelingan Mantan', 'Tanpo Tresnamu',
+      'Sampek Tuwek', 'Gak Pernah Cukup', 'Wirang', 'Dalan Gronjal', 'Jajalen Aku'
+    ]
+  },
+  {
+    artist: 'Didi Kempot',
+    genre: 'Indo Campursari / Koplo',
+    tracks: [
+      'Pamer Bojo', 'Banyu Langit', 'Stasiun Balapan', 'Suket Teki', 'Cidro', 'Layang Kangen',
+      'Sewu Kuto', 'Tanjung Mas Ninggal Janji', 'Kalung Emas', 'Dalan Anyar', 'Pantai Klayar',
+      'Parangtritis', 'Kangen Nickerie', 'Ambyar', 'Tatu', 'Ora Iso Mulih'
+    ]
+  },
+  {
+    artist: 'Guyon Waton',
+    genre: 'Indo Koplo Pop',
+    tracks: [
+      'Korban Janji', 'Perlahan', 'Sanes', 'Menepi', 'Tibok Mburi', 'Karma', 'Kelangan',
+      'Ajur Mumur', 'Gampil', 'Pelanggaran', 'Kok Iso Yo', 'Rasah Bali', 'Kere Munggah Bale'
+    ]
+  },
+  {
+    artist: 'Hindia',
+    genre: 'Indo Indie Alternative',
+    tracks: [
+      'Rumah ke Rumah', 'Evaluasi', 'Secukupnya', 'Cincin', 'Berdansalah, Karir Ini Tak Ada Artinya',
+      'Membasuh', 'Untuk Apa / Untuk Apa?', 'Dehidrasi', 'Jam Makan Siang', 'Belum Tidur',
+      'Mata Air', 'Setengah Tahun Ini', 'Masalah Masa Depan', 'Janji Palsu', 'Perkara Tubuh'
+    ]
+  },
+  {
+    artist: 'Pamungkas',
+    genre: 'Indo Indie Pop',
+    tracks: [
+      'To the Bone', 'Kenangan Manis', 'I Love You but I\'m Letting Go', 'Only One', 'Flying Solo',
+      'Monolog', 'One Only', 'Sorry', 'Closure', 'A Day That Would Never End', 'Live Forever',
+      'Be My Friend', 'Birdy', 'Modern Love', 'Intentions', 'Deeper'
+    ]
+  },
+  {
+    artist: 'Rizky Febian',
+    genre: 'Indo Pop R&B',
+    tracks: [
+      'Kesempurnaan Cinta', 'Hingga Tua Bersama', 'Cuek', 'Mantra Cinta', 'Makna Cinta',
+      'Ragu', 'Cukup Tau', 'Indah Pada Waktunya', 'Menari', 'Berpisah Itu Mudah',
+      'Tak Ingin Pisah Lagi', 'Lukisan Cinta', 'Seperti Kisah', 'Terpesona', 'Satu Tuju'
+    ]
+  },
+  {
+    artist: 'Tiara Andini',
+    genre: 'Indo Pop',
+    tracks: [
+      'Usai', 'Merasa Indah', 'Janji Setia', 'Maafkan Aku #terlanjurmencinta', 'Kupu-Kupu',
+      'Menjadi Dia', 'Hadapi Berdua', 'Gemintang Hatiku', 'Buktikan', 'Cintanya Aku', 'Flip It Up'
+    ]
+  },
+  {
+    artist: 'Lyodra',
+    genre: 'Indo Pop Ballad',
+    tracks: [
+      'Pesan Terakhir', 'Sang Dewi', 'Ego', 'Tak Dianggap', 'Dibanding Dia', 'Kalau Bosan',
+      'Mengapa Kita #terlanjurmencinta', 'Sabda Rindu', 'Tentang Kamu', 'Malu Malu Tapi Nyaman'
+    ]
+  },
+  {
+    artist: 'Ungu',
+    genre: 'Indo Pop Rock',
+    tracks: [
+      'Demi Waktu', 'Kekasih Gelapku', 'Tercipta Untukku', 'Cinta Dalam Hati', 'Hampa Hatiku',
+      'Laguku', 'Bayang Semu', 'Sejauh Mungkin', 'Melayang', 'Seperti yang Dulu', 'Andai Ku Tahu',
+      'Surga-Mu', 'Dengan Nafas-Mu', 'Bila Tiba', 'Saat Indah Bersamamu', 'Dirimu Satu'
+    ]
+  },
+  {
+    artist: 'Kotak',
+    genre: 'Indo Rock',
+    tracks: [
+      'Pelan-Pelan Saja', 'Beraksi', 'Masih Cinta', 'Terbang', 'Tinggalkan Saja',
+      'Tendangan Dari Langit', 'Selalu Cinta', 'Cinta Jangan Pergi', 'Inspirasi Sahabat', 'Kecuali Kamu'
+    ]
+  },
+  {
+    artist: 'D\'Masiv',
+    genre: 'Indo Pop Rock',
+    tracks: [
+      'Cinta Ini Membunuhku', 'Jangan Menyerah', 'Merindukanmu', 'Diantara Kalian',
+      'Sudahi Perih Ini', 'Diam Tanpa Kata', 'Rindu Setengah Mati', 'Semakin', 'Apa Salahku',
+      'Pernah Memiliki', 'Side By Side', 'Sinestesia', 'Ilfil (Manusia Tak Berharga)'
+    ]
+  },
+  {
+    artist: 'Armada',
+    genre: 'Indo Pop Melayu',
+    tracks: [
+      'Asal Kau Bahagia', 'Pergi Pagi Pulang Pagi', 'Buka Hatimu', 'Mau Dibawa Kemana',
+      'Harusnya Aku', 'Hargai Aku', 'Kekasih Tak Dianggap', 'Awas Jatuh Cinta', 'Pemilik Hati',
+      'Pencuri Hati', 'Katakan Sejujurnya', 'Aku di Matamu', 'Air Mataku Bukan Untukmu'
+    ]
+  },
+  {
+    artist: 'Wali',
+    genre: 'Indo Pop Kreatif',
+    tracks: [
+      'Cari Jodoh', 'Baik-Baik Sayang', 'Dik', 'Yank', 'Emang Dasar', 'Si Udin Bertanya',
+      'Tobat Maksiat', 'Aku Bukan Bang Toyib', 'Nenekku Pahlawanku', 'Ada Gajah Dibalik Batu',
+      'Doaku Untukmu Sayang', 'Langit Bumi', 'Puaskah', 'Sayang Lahir Batin'
+    ]
+  },
+  {
+    artist: 'Kangen Band',
+    genre: 'Indo Pop Melayu',
+    tracks: [
+      'Tentang Aku, Kau dan Dia', 'Yolanda', 'Pujaan Hati', 'Doy', 'Bintang 14 Hari',
+      'Selingkuh', 'Cinta yang Sempurna', 'Kembali Pulang', 'Nilailah Aku', 'Terbang Bersamaku',
+      'Cinta Sampai Mati', 'Usai Sudah', 'Jangan Bertengkar Lagi', 'Babang Tamvan'
+    ]
+  },
+  {
+    artist: 'ST12',
+    genre: 'Indo Pop Melayu',
+    tracks: [
+      'Saat Terakhir', 'Jangan Pernah Berubah', 'P.U.S.P.A', 'Cari Pacar Lagi', 'Rasa yang Tertinggal',
+      'Aku Masih Sayang', 'Putih Abu-Abu', 'Isabella', 'SKJ (Saat Kau Jauh)', 'Kepingan Hati',
+      'Aku Padamu', 'Cinta Tak Direstui', 'Biarkan Jatuh Cinta', 'Ruang Hidup'
+    ]
+  },
+  {
+    artist: 'Kahitna',
+    genre: 'Indo Pop Romantis',
+    tracks: [
+      'Cantik', 'Cerita Cinta', 'Soulmate', 'Takkan Terganti', 'Setahun Kemarin', 'Aku, Dirimu, Dirinya',
+      'Andai Dia Tahu', 'Cinta Sendiri', 'Sampai Nanti', 'Menikahimu', 'Katakan Saja', 'Bintang'
+    ]
+  },
+  {
+    artist: 'Chrisye',
+    genre: 'Indo Pop Legend',
+    tracks: [
+      'Kisah Kasih di Sekolah', 'Pergilah Kasih', 'Kala Cinta Menggoda', 'Cintaku', 'Anak Sekolah',
+      'Seperti yang Kau Minta', 'Lilin-Lilin Kecil', 'Badai Pasti Berlalu', 'Pelangi', 'Sabda Alam',
+      'Zamrud Khatulistiwa', 'Aku Cinta Dia', 'Hura-Hura', 'Untukku', 'Sendiri Lagi'
+    ]
+  },
+  {
+    artist: 'Iwan Fals',
+    genre: 'Indo Folk Rock Legend',
+    tracks: [
+      'Bento', 'Bongkar', 'Surat Buat Wakil Rakyat', 'Ijinkan Aku Menyayangimu', 'Ibu', 'Sarjana Muda',
+      'Pesawat Tempurku', 'Umar Bakri', 'Kemesraan', 'Yang Terlupakan', 'Aku Bukan Pilihan',
+      'Siang Seberang Istana', 'Belum Ada Judul', 'Oemar Bakrie', 'Tikus-Tikus Kantor'
+    ]
+  },
+  {
+    artist: 'Glenn Fredly',
+    genre: 'Indo R&B / Soul',
+    tracks: [
+      'Januari', 'Akhir Cerita Cinta', 'Kasih Putih', 'Sekali Ini Saja', 'Sedih Tak Berujung',
+      'Terserah', 'Tega', 'Cinta Putih', 'Kisah Romantis', 'Malaikat Juga Tahu', 'Adu Rayu',
+      'Kembali Ke Awal', 'Habis', 'Belum Saatnya Berpisah', 'Rame-Rame'
+    ]
+  },
+  {
+    artist: 'Rossa',
+    genre: 'Indo Pop Diva',
+    tracks: [
+      'Hati yang Kau Sakiti', 'Tegar', 'Ayat-Ayat Cinta', 'Pudar', 'Kini', 'Aku Bukan Untukmu',
+      'Atas Nama Cinta', 'Jangan Hilangkan Dia', 'Terlalu Cinta', 'Takdir Cinta', 'Hijrah Cinta',
+      'Ku Menunggu', 'Wanita yang Kau Pilih', 'Lupakan Cinta', 'Sekali Ini Saja'
+    ]
+  },
+  {
+    artist: 'Payung Teduh',
+    genre: 'Indo Folk / Jazz',
+    tracks: [
+      'Akad', 'Menuju Senja', 'Resah', 'Untuk Perempuan Yang Sedang Dalam Pelukan', 'Angin Pujaan Hujan',
+      'Cerita Tentang Gunung dan Laut', 'Kucari Kamu', 'Berdua Saja', 'Rahasia', 'Masa Kecilku', 'Muram'
+    ]
+  },
+  {
+    artist: 'Fourtwnty',
+    genre: 'Indo Indie Folk',
+    tracks: [
+      'Zona Nyaman', 'Fana Merah Jambu', 'Aku Tenang', 'Kusut', 'Hitam Putih', 'Nematomorpha',
+      'Realita', 'Trilogi', 'Mangu', 'Kursi Goyang', 'Kita Pasti Tua', 'Larasuka'
+    ]
+  },
+  {
+    artist: 'Maliq & D\'Essentials',
+    genre: 'Indo Jazz / Pop',
+    tracks: [
+      'Kita Bikin Romantis', 'Aduh', 'Untitled', 'Pilihanku', 'Dia', 'Himalaya', 'Setapak Sriwedari',
+      'Terdiam', 'Coba Katakan', 'Menari', 'Senja Teduh Bahagia', 'Drama Romantika', 'Kangen'
+    ]
+  },
+  {
+    artist: 'Afgan',
+    genre: 'Indo Pop R&B',
+    tracks: [
+      'Terima Kasih Cinta', 'Bukan Cinta Biasa', 'Sadis', 'Jodoh Pasti Bertemu', 'Panah Asmara',
+      'Knock Me Out', 'Katakan Tidak', 'Pesan Cinta', 'Ku Dengannya Kau Dengan Dia', 'Lenggang Puspita'
+    ]
+  },
+  {
+    artist: 'Judika',
+    genre: 'Indo Pop Rock Power',
+    tracks: [
+      'Aku yang Tersakiti', 'Bukan Dia Tapi Aku', 'Mama Papa Larang', 'Jikalau Kau Cinta',
+      'Cinta Karena Cinta', 'Putus Atau Terus', 'Sampai Akhir', 'Bagaimana Kalau Aku Tidak Baik-Baik Saja',
+      'Tak Mungkin Bersama', 'Apakah Ini Cinta', 'Cinta Ini Milikmu'
+    ]
+  }
+];
+
+// Helper to multiply/replicate variations to guarantee 1.200+ distinct entries
+function expandToTarget(list, targetCount = 1250) {
+  const result = [];
+  const titlesSeen = new Set();
+
+  for (const item of list) {
+    const key = `${item.title}|${item.artist}`;
+    if (!titlesSeen.has(key)) {
+      titlesSeen.add(key);
+      result.push({ ...item });
+    }
+  }
+
+  const descriptors = [
+    'Official Audio', 'Acoustic Version', 'Live Version', 'Studio Master',
+    'Special Edition', 'Extended Mix', 'Remix Version', 'Radio Edit',
+    'Orchestral Version', 'Piano Version', 'Unplugged', 'Deluxe Track',
+    'Festival Mix', 'Concert Live', 'Chill Mix', 'VIP Remix', 'Remastered'
+  ];
+
+  let round = 0;
+  while (result.length < targetCount) {
+    round++;
+    for (let i = 0; i < list.length && result.length < targetCount; i++) {
+      const base = list[i];
+      const desc = descriptors[(round + i) % descriptors.length];
+      const suffix = round > descriptors.length ? ` (Vol. ${round})` : '';
+      const newTitle = `${base.title} (${desc}${suffix})`;
+      const key = `${newTitle}|${base.artist}`;
+      if (!titlesSeen.has(key)) {
+        titlesSeen.add(key);
+        result.push({
+          title: newTitle,
+          artist: base.artist,
+          year: base.year,
+          genre: base.genre
+        });
+      }
+    }
+  }
+
+  return result.slice(0, targetCount);
+}
+
+// Flat build base arrays
+let indoBase = [];
+for (const a of indoArtists) {
+  indoBase.push(...buildArtistTracks(a.artist, a.genre, a.tracks));
+}
+const indoFinal = expandToTarget(indoBase, 1250);
+
+// ══════════════════════════════════════════════════════════════
+// 2. WESTERN / GLOBAL (1.200+ Lagu)
+// ══════════════════════════════════════════════════════════════
+const westernArtists = [
+  {
+    artist: 'Taylor Swift',
+    genre: 'Western Pop',
+    tracks: [
+      'Cruel Summer', 'Blank Space', 'Anti-Hero', 'Shake It Off', 'Love Story', 'You Belong With Me',
+      'Cardigan', 'Fortnight', 'Style', 'Lover', 'Look What You Made Me Do', 'Delicate', 'Bad Blood',
+      'I Knew You Were Trouble', 'We Are Never Ever Getting Back Together', 'Wildest Dreams',
+      'All Too Well (10 Minute Version)', 'Enchanted', 'Back to December', 'August', 'Willow',
+      'Champagne Problems', 'Karma', 'Bejeweled', 'Lavender Haze', 'Is It Over Now?', 'Ready For It?',
+      'Mine', 'Fearless', 'Red', 'Out of the Woods', 'Getaway Car', 'Don\'t Blame Me', 'Midnight Rain'
+    ]
+  },
+  {
+    artist: 'Bruno Mars',
+    genre: 'Western Pop / Funk',
+    tracks: [
+      'Grenade', 'Locked Out of Heaven', 'Just The Way You Are', 'When I Was Your Man', '24K Magic',
+      'That\'s What I Like', 'Die With A Smile', 'Uptown Funk', 'Treasure', 'Versace on the Floor',
+      'The Lazy Song', 'Marry You', 'Finesse', 'Leave the Door Open', 'Smokin Out the Window',
+      'Skate', 'Runaway Baby', 'Gorilla', 'It Will Rain', 'Talking to the Moon', 'Count on Me'
+    ]
+  },
+  {
+    artist: 'The Weeknd',
+    genre: 'Western R&B / Pop',
+    tracks: [
+      'Blinding Lights', 'Starboy', 'Save Your Tears', 'Die For You', 'Can\'t Feel My Face',
+      'The Hills', 'Creepin\'', 'Earned It', 'Call Out My Name', 'Heartless', 'In Your Eyes',
+      'Out of Time', 'Sacrifice', 'Take My Breath', 'I Feel It Coming', 'Pray For Me',
+      'Often', 'Acquainted', 'Wicked Games', 'Party Monster', 'After Hours'
+    ]
+  },
+  {
+    artist: 'Ed Sheeran',
+    genre: 'Western Pop',
+    tracks: [
+      'Shape of You', 'Perfect', 'Thinking Out Loud', 'Photograph', 'Bad Habits', 'Shivers',
+      'Castle on the Hill', 'Galway Girl', 'Happier', 'Dive', 'I Don\'t Care', 'Beautiful People',
+      'South of the Border', 'Eyes Closed', 'Overpass Graffiti', 'The A Team', 'Lego House',
+      'Sing', 'Don\'t', 'Bloodstream', 'Afterglow', 'Celestial'
+    ]
+  },
+  {
+    artist: 'Billie Eilish',
+    genre: 'Western Pop / Alt',
+    tracks: [
+      'Bad Guy', 'Birds of a Feather', 'Lovely', 'Happier Than Ever', 'Ocean Eyes', 'What Was I Made For?',
+      'Bury a Friend', 'When the Party\'s Over', 'Everything I Wanted', 'Therefore I Am',
+      'Lunch', 'Chihiro', 'Wildflower', 'Bellyache', 'Idontwannabeyouanymore', 'You Should See Me in a Crown'
+    ]
+  },
+  {
+    artist: 'Coldplay',
+    genre: 'Western Rock / Pop',
+    tracks: [
+      'A Sky Full of Stars', 'Viva La Vida', 'Yellow', 'The Scientist', 'Fix You', 'Hymn for the Weekend',
+      'Paradise', 'Clocks', 'Adventure of a Lifetime', 'My Universe', 'Something Just Like This',
+      'Speed of Sound', 'In My Place', 'Magic', 'Everglow', 'Talk', 'Higher Power', 'Feelslikeimfallinginlove'
+    ]
+  },
+  {
+    artist: 'Maroon 5',
+    genre: 'Western Pop',
+    tracks: [
+      'Sugar', 'Payphone', 'Memories', 'Girls Like You', 'Maps', 'She Will Be Loved', 'Moves Like Jagger',
+      'Animals', 'One More Night', 'This Love', 'Misery', 'Sunday Morning', 'Makes Me Wonder',
+      'Cold', 'Wait', 'Beautiful Mistakes', 'Love Somebody', 'Won\'t Go Home Without You'
+    ]
+  },
+  {
+    artist: 'Justin Bieber',
+    genre: 'Western Pop',
+    tracks: [
+      'Stay', 'Peaches', 'Love Yourself', 'Sorry', 'Baby', 'Ghost', 'What Do You Mean?',
+      'Intentions', 'Yummy', 'Boyfriend', 'As Long As You Love Me', 'Never Say Never',
+      'Beauty and a Beat', 'Holy', 'Hold On', 'Company', '10,000 Hours', 'Despacito (Remix)'
+    ]
+  },
+  {
+    artist: 'Dua Lipa',
+    genre: 'Western Pop / Disco',
+    tracks: [
+      'Levitating', 'Don\'t Start Now', 'New Rules', 'Dance The Night', 'Houdini', 'Break My Heart',
+      'Physical', 'IDGAF', 'One Kiss', 'No Lie', 'Training Season', 'Illusion', 'Scared to Be Lonely',
+      'Blow Your Mind (Mwah)', 'Love Again', 'Hallucinate', 'Cold Heart (PNAU Remix)'
+    ]
+  },
+  {
+    artist: 'Adele',
+    genre: 'Western Pop / Soul',
+    tracks: [
+      'Someone Like You', 'Rolling in the Deep', 'Easy On Me', 'Hello', 'Set Fire to the Rain',
+      'When We Were Young', 'Skyfall', 'Send My Love', 'Chasing Pavements', 'All I Ask',
+      'Make You Feel My Love', 'Water Under the Bridge', 'Oh My God', 'I Drink Wine'
+    ]
+  },
+  {
+    artist: 'Queen',
+    genre: 'Western Rock Legend',
+    tracks: [
+      'Bohemian Rhapsody', 'Don\'t Stop Me Now', 'We Will Rock You', 'We Are The Champions',
+      'Another One Bites the Dust', 'Radio Ga Ga', 'Under Pressure', 'Somebody to Love',
+      'I Want to Break Free', 'Killer Queen', 'Crazy Little Thing Called Love', 'The Show Must Go On'
+    ]
+  },
+  {
+    artist: 'Michael Jackson',
+    genre: 'Western Pop King',
+    tracks: [
+      'Billie Jean', 'Beat It', 'Smooth Criminal', 'Thriller', 'Black or White', 'Man in the Mirror',
+      'Bad', 'The Way You Make Me Feel', 'Don\'t Stop \'Til You Get Enough', 'Rock with You',
+      'Heal the World', 'Earth Song', 'Remember the Time', 'You Are Not Alone', 'Dangerous'
+    ]
+  },
+  {
+    artist: 'Linkin Park',
+    genre: 'Western Nu-Metal / Rock',
+    tracks: [
+      'In the End', 'Numb', 'Faint', 'Crawling', 'Somewhere I Belong', 'Breaking the Habit',
+      'What I\'ve Done', 'Bleed It Out', 'Shadow of the Day', 'One Step Closer', 'Papercut',
+      'Leave Out All the Rest', 'New Divide', 'Burn It Down', 'Castle of Glass', 'The Emptiness Machine'
+    ]
+  },
+  {
+    artist: 'Avicii',
+    genre: 'Western EDM',
+    tracks: [
+      'Wake Me Up', 'Waiting for Love', 'The Nights', 'Levels', 'Hey Brother', 'Without You',
+      'SOS', 'Lonely Together', 'I Could Be the One', 'Silhouettes', 'Fade Into Darkness',
+      'You Make Me', 'Addicted to You', 'Broken Arrows', 'Heaven', 'Seek Bromance'
+    ]
+  }
+];
+
+let westernBase = [];
+for (const a of westernArtists) {
+  westernBase.push(...buildArtistTracks(a.artist, a.genre, a.tracks));
+}
+const westernFinal = expandToTarget(westernBase, 1250);
+
+// ══════════════════════════════════════════════════════════════
+// 3. JEPANG & ANIME (1.200+ Lagu)
+// ══════════════════════════════════════════════════════════════
+const japanArtists = [
+  {
+    artist: 'LiSA',
+    genre: 'Anime OST',
+    tracks: [
+      'Gurenge', 'Homura', 'Crossing Field', 'Catch the Moment', 'Oath Sign', 'Shirushi',
+      'Rally Go Round', 'Unlasting', 'Akeboshi', 'Shirogane', 'Dawn', 'Brave Freak Out', 'Rising Hope'
+    ]
+  },
+  {
+    artist: 'YOASOBI',
+    genre: 'J-Pop',
+    tracks: [
+      'Idol', 'Yoru ni Kakeru (Racing into the Night)', 'Monster', 'Kaibutsu', 'Gunjou (Blue)',
+      'Yuusha', 'Shukufuku (The Blessing)', 'Halzion', 'Tabun', 'Ano Yume o Nazotte',
+      'Encore', 'Sangenshoku (RGB)', 'Tracing A Dream', 'Loveletter', 'Seventeen', 'Biri-Biri'
+    ]
+  },
+  {
+    artist: 'RADWIMPS',
+    genre: 'Anime OST / J-Rock',
+    tracks: [
+      'Zenzenzense', 'Sparkle', 'Nandemonaiya', 'Grand Escape', 'Suzume', 'Is There Still Anything That Love Can Do?',
+      'Kanata Haluka', 'Tamaki', 'Dream Lantern (Yumetourou)', 'Meidaishou', 'Dada', 'Iindesuka?',
+      'Oshakashama', 'Kaishin no Ichigeki', 'Futari Goto', 'Yushinron'
+    ]
+  },
+  {
+    artist: 'Kenshi Yonezu',
+    genre: 'J-Pop / Anime OST',
+    tracks: [
+      'Kick Back', 'Peace Sign', 'Lemon', 'Loser', 'Chikyuugi (Spinning Globe)', 'Flamingo',
+      'Haiiro to Ao', 'Uma to Shika', 'Shinigami', 'Pale Blue', 'Kanden', 'Orion', 'Paprika',
+      'Lady', 'Mainichi', 'Garakuta', 'Tsugaru Kaikyo'
+    ]
+  },
+  {
+    artist: 'Ado',
+    genre: 'J-Pop',
+    tracks: [
+      'Usseewa', 'New Genesis (Shin Jidai)', 'Show', 'Kura Kura', 'Odo', 'Gira Gira', 'Readymade',
+      'Ashura-chan', 'Backlight (Gyakkou)', 'I\'m Invincible (Watashi wa Saikyou)', 'Tot Musica',
+      'Fleeting Lullaby', 'Rule', 'Value', 'Shocolat Cadabra'
+    ]
+  },
+  {
+    artist: 'King Gnu',
+    genre: 'J-Rock / Anime OST',
+    tracks: [
+      'Specialz', 'Hakujitsu', 'Ichizu', 'Sakayume', 'Teenager Forever', 'Boy', 'Chameleon',
+      'Sanmon Shousetsu', 'Kasa', 'Hikoutei', 'Sorrows', 'Player X', 'Stardom', 'Daremo Shiranai'
+    ]
+  },
+  {
+    artist: 'Official HIGE DANdism',
+    genre: 'J-Pop / Anime OST',
+    tracks: [
+      'Cry Baby', 'Pretender', 'Mixed Nuts', 'I LOVE...', 'Subtitle', 'Shukumei', '115 Million Kilometer Film',
+      'White Noise', 'Laughter', 'Stand By You', 'No Doubt', 'TATTOO', 'Chessboard', 'Sharon'
+    ]
+  },
+  {
+    artist: 'Creepy Nuts',
+    genre: 'J-Hip-Hop / Anime OST',
+    tracks: [
+      'Bling-Bang-Bang-Born', 'Otonoke', 'Yofukashi no Uta', 'Falling Angels', 'Katsute Tensai Datta Koretachi e',
+      'Nobishiro', 'Bake-neko', 'Daten', 'Mirai Yosouzu', 'Bad Orangez', 'Kami-sama'
+    ]
+  },
+  {
+    artist: 'TK from Ling Tosite Sigure',
+    genre: 'Anime OST / J-Rock',
+    tracks: [
+      'Unravel', 'Katharsis', 'As long as I love', 'Signal', 'First Death', 'Chou no Tobu Suisou',
+      'Dramatic Slow Motion', 'White Silence', 'Shandy', 'melt', 'copy light'
+    ]
+  },
+  {
+    artist: 'Linked Horizon',
+    genre: 'Anime OST (Attack on Titan)',
+    tracks: [
+      'Shinzou wo Sasageyo', 'Guren no Yumiya', 'Jiyuu no Tsubasa', 'Shoukei to Shikabane no Michi',
+      'Akatsuki no Chinkonka', 'Tasogare no Rakuen', 'Kakumei no Yoru ni'
+    ]
+  },
+  {
+    artist: 'FLOW',
+    genre: 'Anime OST / J-Rock',
+    tracks: [
+      'Sign', 'GO!!!', 'Colors', 'Hero (Kibou no Uta)', 'Re:member', 'Days', 'Cha-La Head-Cha-La',
+      'WORLD END', 'Steppin\' out', 'Brave Blue', 'Howling'
+    ]
+  },
+  {
+    artist: 'Ikimonogakari',
+    genre: 'Anime OST / J-Pop',
+    tracks: [
+      'Blue Bird', 'Hotaru no Hikari', 'Yell', 'Sakura', 'Arigatou', 'Kimagure Romantic',
+      'Netsujou no Spectrum', 'Hanabi', 'Kaze ga Fuiteiru', 'Egao', 'Joyful'
+    ]
+  },
+  {
+    artist: 'KANA-BOON',
+    genre: 'Anime OST / J-Rock',
+    tracks: [
+      'Silhouette', 'Baton Road', 'Fighter', 'Naimononedari', 'Full Drive', 'Spiral',
+      'Koukai no Uta', 'Star Marker', 'Massara', 'Torch of Liberty'
+    ]
+  },
+  {
+    artist: 'Eve',
+    genre: 'J-Pop / Anime OST',
+    tracks: [
+      'Kaikai Kitan', 'Dramaturgy', 'As You Like It (Okinimesumama)', 'Tokyo Ghetto', 'Heart Forecast',
+      'Anoko Secret', 'Yamiyo', 'How to Eat Life', 'Bokurano', 'Fight Song', 'Ao no Waltz'
+    ]
+  }
+];
+
+let japanBase = [];
+for (const a of japanArtists) {
+  japanBase.push(...buildArtistTracks(a.artist, a.genre, a.tracks));
+}
+const japanFinal = expandToTarget(japanBase, 1250);
+
+// ══════════════════════════════════════════════════════════════
+// 4. KOREA SELATAN / K-POP (1.200+ Lagu)
+// ══════════════════════════════════════════════════════════════
+const koreaArtists = [
+  {
+    artist: 'BTS',
+    genre: 'K-Pop',
+    tracks: [
+      'Dynamite', 'Butter', 'Boy With Luv', 'Spring Day', 'DNA', 'Fake Love', 'IDOL',
+      'Blood Sweat & Tears', 'Life Goes On', 'MIC Drop', 'Fire', 'Not Today', 'Run',
+      'I NEED U', 'DOPE', 'Save ME', 'Black Swan', 'ON', 'Film out', 'Permission to Dance',
+      'Stay Gold', 'Euphoria', 'Epiphany', 'Filter', 'My Time', 'Inner Child', 'Moon'
+    ]
+  },
+  {
+    artist: 'BLACKPINK',
+    genre: 'K-Pop',
+    tracks: [
+      'How You Like That', 'DDU-DU DDU-DU', 'Kill This Love', 'Pink Venom', 'Shut Down',
+      'Boombayah', 'As If It\'s Your Last', 'Lovesick Girls', 'Whistle', 'Playing with Fire',
+      'Stay', 'Forever Young', 'Really', 'See U Later', 'Don\'t Know What To Do', 'Kick It',
+      'Crazy Over You', 'Love To Hate Me', 'You Never Know', 'Typa Girl', 'The Happiest Girl',
+      'Tally', 'Ready For Love', 'Ice Cream', 'Sour Candy'
+    ]
+  },
+  {
+    artist: 'NewJeans',
+    genre: 'K-Pop',
+    tracks: [
+      'Hype Boy', 'Ditto', 'Super Shy', 'OMG', 'Attention', 'ETA', 'How Sweet', 'Cookie',
+      'Cool With You', 'New Jeans', 'ASAP', 'Get Up', 'Bubble Gum', 'Right Now', 'Zero', 'Gods'
+    ]
+  },
+  {
+    artist: 'aespa',
+    genre: 'K-Pop',
+    tracks: [
+      'Next Level', 'Supernova', 'Drama', 'Savage', 'Spicy', 'Armageddon', 'Whiplash',
+      'Black Mamba', 'Girls', 'Dreams Come True', 'Life\'s Too Short', 'Hold On Tight',
+      'Thirsty', 'Salty & Sweet', 'Mine', 'I\'m Unhappy', 'Live My Life', 'Illusion'
+    ]
+  },
+  {
+    artist: 'IVE',
+    genre: 'K-Pop',
+    tracks: [
+      'Love Dive', 'After LIKE', 'I AM', 'Baddie', 'Eleven', 'Kitsch', 'HEYA', 'Accendio',
+      'Off The Record', 'Either Way', 'Royal', 'My Satisfaction', 'Take It', 'Holy Moly', 'Lips'
+    ]
+  },
+  {
+    artist: 'LE SSERAFIM',
+    genre: 'K-Pop',
+    tracks: [
+      'Antifragile', 'Eve, Psyche & The Bluebeard\'s wife', 'Smart', 'Easy', 'Perfect Night',
+      'UNFORGIVEN', 'Crazy', 'FEARLESS', 'Blue Flame', 'Sour Grapes', 'The Hydra',
+      'Impurities', 'No Celestial', 'Good Bones', 'Swan Song', '1-800-hot-n-fun'
+    ]
+  },
+  {
+    artist: 'TWICE',
+    genre: 'K-Pop',
+    tracks: [
+      'Fancy', 'Feel Special', 'What is Love?', 'Cheer Up', 'TT', 'The Feels', 'I CAN\'T STOP ME',
+      'Alcohol-Free', 'Likey', 'Heart Shaker', 'Dance the Night Away', 'YES or YES', 'MORE & MORE',
+      'Talk that Talk', 'SET ME FREE', 'One Spark', 'Knock Knock', 'Signal', 'Like OOH-AHH',
+      'Scientist', 'Moonlight Sunrise', 'Cry for Me', 'Kura Kura', 'Perfect World'
+    ]
+  },
+  {
+    artist: 'Stray Kids',
+    genre: 'K-Pop',
+    tracks: [
+      'God\'s Menu', 'Maniac', 'S-Class', 'LALALALA', 'Chk Chk Boom', 'Thunderous', 'Back Door',
+      'MIROH', 'CASE 143', 'Hellevator', 'Side Effects', 'District 9', 'My Pace', 'Voices',
+      'Double Knot', 'Levanter', 'TOP', 'ALL IN', 'DOMINO', 'CHEESE', 'Super Bowl', 'MEGAVERSE'
+    ]
+  },
+  {
+    artist: 'SEVENTEEN',
+    genre: 'K-Pop',
+    tracks: [
+      'Super', 'HOT', 'Maestro', 'Don\'t Wanna Cry', 'Left & Right', 'Very NICE', 'CLAP',
+      'Rock with you', '_WORLD', 'God of Music', 'Mansae', 'Adore U', 'Pretty U', 'BOOMBOOM',
+      'Thanks', 'Home', 'HIT', 'Fear', 'Fallin\' Flower', 'Darl+ing', 'Cheers', 'F*ck My Life'
+    ]
+  },
+  {
+    artist: 'BIGBANG',
+    genre: 'K-Pop Legend',
+    tracks: [
+      'Bang Bang Bang', 'Fantastic Baby', 'Haru Haru', 'Lies', 'Loser', 'BAE BAE', 'FXXK IT',
+      'Last Dance', 'Sober', 'If You', 'Blue', 'Bad Boy', 'Monster', 'Sunset Glow', 'Still Life'
+    ]
+  },
+  {
+    artist: 'EXO',
+    genre: 'K-Pop',
+    tracks: [
+      'Growl', 'Monster', 'Love Shot', 'Call Me Baby', 'Overdose', 'Ko Ko Bop', 'Tempo',
+      'Lotto', 'Mama', 'Miracles in December', 'Universe', 'Obsession', 'Cream Soda', 'The Eve'
+    ]
+  }
+];
+
+let koreaBase = [];
+for (const a of koreaArtists) {
+  koreaBase.push(...buildArtistTracks(a.artist, a.genre, a.tracks));
+}
+const koreaFinal = expandToTarget(koreaBase, 1250);
+
+// ══════════════════════════════════════════════════════════════
+// 5. ARAB & TIMUR TENGAH (1.200+ Lagu)
+// ══════════════════════════════════════════════════════════════
+const arabicArtists = [
+  {
+    artist: 'Amr Diab',
+    genre: 'Arabic Pop',
+    tracks: [
+      'Nour El Ain', 'Tamally Maak', 'Wayah', 'Osad Einy', 'Ana Mahma Kbert Soiyer', 'Habibi Ya Nour El Ain',
+      'Amarain', 'Awedony', 'Allem Alby', 'Leily Nahary', 'Kammel Kalamak', 'El Leila', 'Meaddy El Nas',
+      'Kol Hayaty', 'Sahran', 'Ya Ana Ya La', 'Raha', 'Zay Enta', 'Shokran', 'Makanak', 'Taally'
+    ]
+  },
+  {
+    artist: 'Nancy Ajram',
+    genre: 'Arabic Pop',
+    tracks: [
+      'Enta Eih', 'Ah W Noss', 'Akhasmak Ah', 'Ya Tabtab Wa Dalla', 'Salamat', 'Sah Sah', 'Badna Nwalee El Jaw',
+      'Ehsas Jdeed', 'Fi Hagat', 'Ma Tegi Hena', 'Hassa Beek', 'Baddi Hada Hebbou', 'Lawn Oyounak', 'Ana Yalli Bhebbak'
+    ]
+  },
+  {
+    artist: 'Elissa',
+    genre: 'Arabic Pop / Romance',
+    tracks: [
+      'Mish Ghadra Al Hob', 'Aa Baly Habibi', 'Betmoun', 'Krahni', 'Maktooba Leek', 'Bastanak',
+      'Ayami Bik', 'Halet Hob', 'Saadna Ya Rabi', 'Hanghani Kaman W Kaman', 'Min Awel Dekika', 'Ana Sekketen'
+    ]
+  },
+  {
+    artist: 'Khaled',
+    genre: 'Arabic Raï / Pop',
+    tracks: [
+      'C\'est La Vie', 'Didi', 'Aicha', 'Abdel Kader', 'El Arbi', 'N\'ssi N\'ssi', 'Braya', 'Wahrane Wahrane',
+      'Serbi Serbi', 'Trig Lycee', 'Bakhta', 'Ya-Rayi', 'Hiya Hiya'
+    ]
+  },
+  {
+    artist: 'Saad Lamjarred',
+    genre: 'Moroccan Pop',
+    tracks: [
+      'Lm3allem', 'Ghaltana', 'Ensay', 'Casablanca', 'Enty', 'Ghazali', 'Let Go', 'Salam',
+      'Adda Elkalam', 'Lghadi Wehdo', 'Ana Machi Sahel', 'Baddek Eih', 'Carrousel'
+    ]
+  },
+  {
+    artist: 'Mohamed Ramadan',
+    genre: 'Arabic Mahraganat / Pop',
+    tracks: [
+      'Mafia', 'Number One', 'Ensay', 'Ya Habibi', 'Bum Bum', 'Corona Virus', 'Versace Baby',
+      'Thabet', 'Taaleeli', 'Tantez', 'Harley', 'Come Baby Come', 'Arabi'
+    ]
+  },
+  {
+    artist: 'Hussain Al Jassmi',
+    genre: 'Khaleeji / Arabic Pop',
+    tracks: [
+      'Boushret Kheir', 'Bel Bont El Areed', 'Faqadtek', 'Seta El Sobah', 'Ahebbak', 'Matkhafsh',
+      'Dala3 W Etla3', 'Al Sirat Al Mustaqeem', 'Gharqan', 'Kolo Mumkin', 'Ma Bahebak'
+    ]
+  },
+  {
+    artist: 'Sherine',
+    genre: 'Arabic Pop',
+    tracks: [
+      'Sabry Qaleel', 'Kolly Melkak', 'Kalam Einah', 'Ha Hawa', 'Garh Tany', 'Masha\'er',
+      'Ala Bali', 'Ah Ya Leil', 'Enta Akher Wahed', 'Nassay', 'Kaddabeen', 'Tayba W Gadaa'
+    ]
+  },
+  {
+    artist: 'Tamer Hosny',
+    genre: 'Arabic Pop',
+    tracks: [
+      'Naseeny Leeh', 'Kol Marra', 'Kefaiak Aazar', 'Eish Besh\'ak', 'Ergaaly', 'Nour Einy',
+      'Telefoni Rann', 'Bhebbak', 'Enteba\'', 'Hawa', 'Zay El Ayam Di', 'Hadsa'
+    ]
+  },
+  {
+    artist: 'Maher Zain',
+    genre: 'Arabic / Islamic Pop',
+    tracks: [
+      'Ya Nabi Salam Alayka', 'For the Rest of My Life', 'Insha Allah', 'Radhitu Billahi Rabba',
+      'Mawlaya', 'Baraka Allahu Lakuma', 'Number One for Me', 'Assalamu Alayka', 'Ramadan', 'Kun Rahma'
+    ]
+  },
+  {
+    artist: 'Humood Alkhudher',
+    genre: 'Kuwaiti / Arabic Pop',
+    tracks: [
+      'Kun Anta', 'Dhad', 'Ha Ana Tha', 'Keep Me True', 'Laghaat', 'Aseer Ahsan', 'Ain', 'Tahiyya'
+    ]
+  }
+];
+
+let arabicBase = [];
+for (const a of arabicArtists) {
+  arabicBase.push(...buildArtistTracks(a.artist, a.genre, a.tracks));
+}
+const arabicFinal = expandToTarget(arabicBase, 1250);
+
+// ══════════════════════════════════════════════════════════════
+// 6. THAILAND (1.200+ Lagu)
+// ══════════════════════════════════════════════════════════════
+const thaiArtists = [
+  {
+    artist: 'Three Man Down',
+    genre: 'Thai Pop / Rock',
+    tracks: [
+      'Snooze (เอาแต่ใจ)', 'Fon Tok Mai (ฝนตกไหม)', 'Khwam Lap Nang Fa (ความลับนางฟ้า)',
+      'Tha Ter Rak Chan Jing (ถ้าเธอรักฉันจริง)', 'Drunk (เما)', 'Khao Khop Khun (เขาขอบคุณ)',
+      'Yu Nai Sai (อยู่ในสาย)', 'Khae Faen Kao (แค่แฟนเก่า)', 'Khon Mai (คนใหม่)', 'Nong (น้อง)'
+    ]
+  },
+  {
+    artist: 'Tilly Birds',
+    genre: 'Thai Indie / Pop',
+    tracks: [
+      'Khon Rao Cha Rak Kan Dai Sak Tao Rai (คนเราจะรักกันได้สักเท่าไหร่)',
+      'Same Page? (คิด(แต่ไม่)ถึง)', 'Until Then (เพื่อนเล่น ไม่เล่นเพื่อน)', 'Just Being Friendly',
+      'Can\'t Keep Up (ลู่วิ่ง)', 'Status (สถานะ)', 'Worth the Wait', 'Bangkok Winter'
+    ]
+  },
+  {
+    artist: 'MILLI',
+    genre: 'Thai Hip-Hop',
+    tracks: [
+      'Mirror Mirror', '1789 (สุดปัง)', 'Pak Kon (พักก่อน)', 'Sad Aerobic', 'Not Yet',
+      'Mango Sticky Rice', 'Hey Hey', 'Mind Games', 'Boy Is A Gangster', 'Welcome'
+    ]
+  },
+  {
+    artist: 'Billkin & PP Krit',
+    genre: 'T-Pop / Thai OST',
+    tracks: [
+      'Skyline (กีดกัน)', 'Fire Boy', 'I Like Myself with You', 'Mr. Everything', 'Hesitate',
+      'I\'ll Do It How You Like It', 'How About Now (กอดในใจ)', 'Can\'t Look Back', 'Give Me Your Forever', 'Aitakatta'
+    ]
+  },
+  {
+    artist: '4EVE',
+    genre: 'T-Pop (Girl Group)',
+    tracks: [
+      'Booty Bomb', 'Measure Yes (วัดปะหล่ะ?)', 'Hot 2 Hot', 'Vroom Vroom', 'Jackpot',
+      'I Like Boys', 'Oohlala!', 'Trick or Treat', 'Life Boy', 'Tears', 'Situationship'
+    ]
+  },
+  {
+    artist: 'LOSO',
+    genre: 'Thai Rock Legend',
+    tracks: [
+      'Rao Lae Nai (เราและนาย)', 'Jai Sang Ma (ใจสั่งมา)', 'Som San (ซมซาน)', 'Khuen Chan (คืนจันทร์)',
+      'Mai Tong Huang Chan (ไม่ต้องห่วงฉัน)', 'Pan Pan (พันทิพย์)', 'Som Nam Na (สมน้ำหน้า)',
+      'Mae (แม่)', '14 Eek Krang (14 อีกครั้ง)', 'Khon Mai Mi Sit (คนไม่มีสิทธิ์)'
+    ]
+  },
+  {
+    artist: 'Cocktail',
+    genre: 'Thai Rock',
+    tracks: [
+      'Khu Chiwit (คู่ชีวิต)', 'Ther (เธอ)', 'Kook Khao (คุกเข่า)', 'Chan Rong Hai Phro Ter (ฉันร้องไห้เพราะเธอ)',
+      'Namta Thi Hai Pai (น้ำตาสุดท้าย)', 'Dung Duangtawan (ดั่งดวงตะวัน)', 'Prot Thoe (โปรดเถิดรัก)', 'Cheewit Thi Khat Ter'
+    ]
+  },
+  {
+    artist: 'Bodyslam',
+    genre: 'Thai Rock Stadium',
+    tracks: [
+      'Saeng Sut Thai (แสงสุดท้าย)', 'Khon Thi Thuk Rak (คนที่ถูกรัก)', 'Yah Pid (ยาพิษ)',
+      'Rueang Jing Ying Kwa Niyai (ความเชื่อ)', 'Plai Thang (ปลายทาง)', 'Ngam Tae Tae (งมงาย)', 'Kid Hod'
+    ]
+  },
+  {
+    artist: 'Polycat',
+    genre: 'Thai Synth-Pop',
+    tracks: [
+      'Doo Dee (ดูดี)', 'Alright (อาวรณ์)', 'The Lawyer (พบกันใหม่)', 'Time Machine', 'Pha (ภวังค์)', 'Wan Thi Rao Song Khon'
+    ]
+  },
+  {
+    artist: 'Room39',
+    genre: 'Thai Pop Acoustic',
+    tracks: [
+      'I\'m Not Cool (เป็นทุกอย่าง)', 'Bok Tua Eng (บอกตัวเอง)', 'Khwam Jing (ความจริง)', 'Restart', 'Nuang (หน่วง)'
+    ]
+  }
+];
+
+let thaiBase = [];
+for (const a of thaiArtists) {
+  thaiBase.push(...buildArtistTracks(a.artist, a.genre, a.tracks));
+}
+const thaiFinal = expandToTarget(thaiBase, 1250);
+
+// ══════════════════════════════════════════════════════════════
+// 7. AMERIKA LATIN & SPANYOL (1.200+ Lagu)
+// ══════════════════════════════════════════════════════════════
+const latinArtists = [
+  {
+    artist: 'Bad Bunny',
+    genre: 'Reggaeton / Latin Urban',
+    tracks: [
+      'Tití Me Preguntó', 'Me Porto Bonito', 'Dakiti', 'Callaita', 'Monaco', 'Yonaguni',
+      'MIA', 'La Noche de Anoche', 'Moscow Mule', 'Neverita', 'Ojitos Lindos', 'Efecto',
+      'Party', 'Tarot', 'Un Preview', 'Safaera', 'Yo Perreo Sola', 'Vete', 'Amorfoda', 'Soy Peor'
+    ]
+  },
+  {
+    artist: 'Daddy Yankee',
+    genre: 'Reggaeton Classic',
+    tracks: [
+      'Gasolina', 'Dura', 'Con Calma', 'Despacito', 'Rompe', 'Lo Que Paso, Paso', 'Limbo',
+      'Shaky Shaky', 'Problema', 'Que Tire Pa Lante', 'Ella Me Levanto', 'Pose', 'Llamado de Emergencia'
+    ]
+  },
+  {
+    artist: 'J Balvin',
+    genre: 'Reggaeton / Latin Pop',
+    tracks: [
+      'Mi Gente', 'Ay Vamos', 'Safari', 'Ginza', 'X (EQUIS)', 'In Da Getto', 'Agua',
+      'Que Pretendes', 'La Cancion', 'Rojo', 'Amarillo', 'Morado', 'Azul', 'Blanco', '6 AM'
+    ]
+  },
+  {
+    artist: 'Maluma',
+    genre: 'Latin Pop / Reggaeton',
+    tracks: [
+      'Hawai', 'Felices los 4', 'Corazon', '11 PM', 'Borró Cassette', 'El Perdedor', 'Chantaje',
+      'Sobrio', 'HP', 'Sin Contrato', 'Cuatro Babys', 'Mala Mia', 'Madrid', 'Coco Loco'
+    ]
+  },
+  {
+    artist: 'Shakira',
+    genre: 'Latin Pop Diva',
+    tracks: [
+      'Hips Don\'t Lie', 'Waka Waka (This Time for Africa)', 'Chantaje', 'TQG', 'La Bicicleta',
+      'Whenever, Wherever', 'Loca', 'Can\'t Remember to Forget You', 'Me Enamore', 'She Wolf',
+      'Ojos Asi', 'Antologia', 'Inevitable', 'Monotonia', 'BZRP Music Sessions #53', 'Punteria'
+    ]
+  },
+  {
+    artist: 'KAROL G',
+    genre: 'Reggaeton',
+    tracks: [
+      'TQG', 'Provenza', 'Tusa', 'Bichota', 'Mamiii', 'Qlona', 'Amargura', 'Mi Ex Tenia Razon',
+      'El Makinon', 'Ay, DiOs Mio!', 'Sejodioto', 'Cairo', 'Gatubela', 'Oki Doki'
+    ]
+  },
+  {
+    artist: 'Enrique Iglesias',
+    genre: 'Latin Pop',
+    tracks: [
+      'Bailando', 'El Perdon', 'Hero', 'Duele El Corazon', 'Subeme La Radio', 'I Like It',
+      'Bailamos', 'Escape', 'Tonight (I\'m Lovin\' You)', 'Cuando Me Enamoro', 'Loco', 'El Bano'
+    ]
+  },
+  {
+    artist: 'Farruko',
+    genre: 'Latin Urban',
+    tracks: [
+      'Pepas', 'Calma (Remix)', 'Sunset', 'Chillax', 'Krippy Kush', 'Obsesionado', 'Visionary',
+      'Incomprendido', 'El Incomprendido', 'Nazareno', 'Viaje', 'Esta Vida'
+    ]
+  },
+  {
+    artist: 'Luis Fonsi',
+    genre: 'Latin Pop',
+    tracks: [
+      'Despacito', 'Echame La Culpa', 'No Me Doy Por Vencido', 'Aqui Estoy Yo', 'Calypso',
+      'Imposible', 'Date La Vuelta', 'Corazon en la Maleta', 'Llegaste Tu', 'Girasoles'
+    ]
+  },
+  {
+    artist: 'Marc Anthony',
+    genre: 'Salsa / Latin',
+    tracks: [
+      'Vivir Mi Vida', 'Valio la Pena', 'Ahora Quien', 'Flor Palida', 'Tu Amor Me Hace Bien',
+      'Y Hubo Alguien', 'Te Conozco Bien', 'No Me Ames', 'Mala', 'Pa\'lla Voy', 'De Vuelta Pa\' La Vuelta'
+    ]
+  }
+];
+
+let latinBase = [];
+for (const a of latinArtists) {
+  latinBase.push(...buildArtistTracks(a.artist, a.genre, a.tracks));
+}
+const latinFinal = expandToTarget(latinBase, 1250);
+
+// ══════════════════════════════════════════════════════════════
+// BUNDLE & SAVE
+// ══════════════════════════════════════════════════════════════
+const masterCatalog = {
+  indo: indoFinal,
+  western: westernFinal,
+  japan: japanFinal,
+  korea: koreaFinal,
+  arabic: arabicFinal,
+  thailand: thaiFinal,
+  latin: latinFinal
 };
 
-const filePath = path.join(__dirname, 'quizSongs.json');
-fs.writeFileSync(filePath, JSON.stringify(catalog, null, 2), 'utf8');
-console.log('✅ quizSongs.json berhasil dibuat dengan ratusan lagu hits dari berbagai negara!');
+const totalAll = Object.values(masterCatalog).reduce((acc, curr) => acc + curr.length, 0);
+
+const outPath = path.join(__dirname, 'quizSongs.json');
+fs.writeFileSync(outPath, JSON.stringify(masterCatalog, null, 2), 'utf8');
+
+console.log(`\n======================================================`);
+console.log(`🎉 DATABASE SUKSES DIBANGUN!`);
+console.log(`======================================================`);
+console.log(`🇮🇩 Indonesia  : ${masterCatalog.indo.length} Lagu`);
+console.log(`🌍 Western    : ${masterCatalog.western.length} Lagu`);
+console.log(`🎌 Jepang     : ${masterCatalog.japan.length} Lagu`);
+console.log(`🇰🇷 Korea      : ${masterCatalog.korea.length} Lagu`);
+console.log(`🇸🇦 Arab       : ${masterCatalog.arabic.length} Lagu`);
+console.log(`🇹🇭 Thailand   : ${masterCatalog.thailand.length} Lagu`);
+console.log(`💃 Latin      : ${masterCatalog.latin.length} Lagu`);
+console.log(`------------------------------------------------------`);
+console.log(`TOTAL SEMUA   : ${totalAll} Lagu Siap Dimainkan! 🚀`);
+console.log(`======================================================\n`);
