@@ -290,16 +290,27 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       return await executeYtdlpRaw(url, flags, timeoutMs);
     }
 
-    // Auto-fallback: Jika cookies kadaluarsa / rotated oleh browser, coba 1x tanpa cookies menggunakan client android
-    if (flags.cookies && (errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') || errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot'))) {
-      console.warn('🔄 [Cookies Fallback] Cookies terindikasi rotated/invalid. Mencoba fallback tanpa cookies dengan client android...');
-      const fallbackFlags = { ...flags };
-      delete fallbackFlags.cookies;
-      fallbackFlags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=android,web_safari';
-      try {
-        return await executeYtdlpRaw(url, fallbackFlags, timeoutMs);
-      } catch (fallbackErr) {
-        console.error('❌ [Cookies Fallback] Fallback gagal:', fallbackErr.message);
+    // Auto-fallback: Jika cookies kadaluarsa / bot check, coba client ios,mweb / android
+    if (errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') ||
+        errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')) {
+      console.warn('🔄 [Cookies Fallback] YouTube bot-check/login terdeteksi. Mencoba multi-client fallback...');
+      
+      const fallbackClients = [
+        'youtubetab:skip=authcheck;youtube:player_client=ios,mweb',
+        'youtubetab:skip=authcheck;youtube:player_client=android,web_safari',
+        'youtubetab:skip=authcheck;youtube:player_client=tv_embedded,web'
+      ];
+
+      for (const clientArgs of fallbackClients) {
+        const fallbackFlags = { ...flags };
+        delete fallbackFlags.cookies;
+        fallbackFlags.extractorArgs = clientArgs;
+        try {
+          console.log(`🔄 [Cookies Fallback] Mencoba fallback dengan extractorArgs: "${clientArgs}"...`);
+          return await executeYtdlpRaw(url, fallbackFlags, timeoutMs);
+        } catch (fErr) {
+          console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
+        }
       }
     }
 
@@ -1056,6 +1067,9 @@ client.distube
   })
   .on('finish', async (queue) => {
     stopLiveProgressUpdater(queue);
+    // Jika sedang dalam sesi Music Quiz, abaikan notifikasi antrean selesai
+    if (queue.isQuiz) return;
+
     // Update pesan NowPlaying — antrean selesai
     if (queue._nowPlayingMsg) {
       queue._nowPlayingMsg.edit({ embeds: [], content: '✅ **Antrean lagu telah selesai.**' }).catch(() => {});
