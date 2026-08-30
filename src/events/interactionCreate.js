@@ -372,6 +372,28 @@ module.exports = {
       return;
     }
 
+    // ====== Select Menu Interaction (Pusat Panduan & Direktori Fitur Bot) ======
+    if (interaction.isStringSelectMenu() && (interaction.customId === 'help_guide_select' || interaction.customId === 'help_category')) {
+      const { buildHelpEmbed } = require('./helpEmbeds');
+      try {
+        const category = interaction.values[0];
+        const embed = buildHelpEmbed(category, client, interaction.guild);
+
+        // Jika interaksi berasal dari pesan ephemeral / view sendiri, update. Jika dari panel publik, reply ephemeral.
+        if (interaction.message?.flags?.has(MessageFlags.Ephemeral)) {
+          return await interaction.update({ embeds: [embed] });
+        } else {
+          return await interaction.reply({
+            embeds: [embed],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal membuka panduan fitur ini.');
+      }
+      return;
+    }
+
     // ====== Modal Submit Interaction (Pop-up Form Card Member) ======
     if (interaction.isModalSubmit() && interaction.customId === 'card_modal_submit') {
       try {

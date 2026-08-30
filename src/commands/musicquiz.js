@@ -3,215 +3,138 @@ const {
   ButtonBuilder, ButtonStyle, MessageFlags
 } = require('discord.js');
 const storage = require('../utils/storage');
-const { checkVoiceChannel } = require('../utils/helpers');
 
 /**
- * Bank Soal Musik — Setiap soal memiliki link YouTube & posisi seek ke bagian yang ikonik
- * seekStart = detik awal potongan (biasanya reff/chorus agar mudah dikenali)
+ * Bank Lagu Dinamis (100+ Lagu Populer Multi-Genre)
+ * Bot mencari audio secara otomatis via query pencarian di YouTube tanpa perlu hardcode URL.
  */
-const SONG_DATABASE = [
-  // ═══════════════ INDONESIA ═══════════════
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=9II3OGZETo4',
-    seekStart: 60,
-    genre: 'Indo Hits',
-    year: '2022',
-    artist: 'Tulus',
-    correct: 'Hati-Hati di Jalan',
-    options: ['Hati-Hati di Jalan', 'Monokrom', 'Diri', 'Sepatu']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=o67r_WjD4C4',
-    seekStart: 55,
-    genre: 'Indo Nostalgia',
-    year: '2008',
-    artist: 'ST12',
-    correct: 'Jangan Pernah Berubah',
-    options: ['Jangan Pernah Berubah', 'Saat Terakhir', 'Cari Pacar Lagi', 'P.U.S.P.A']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=QSWYyoF79oE',
-    seekStart: 50,
-    genre: 'Indo Pop',
-    year: '2023',
-    artist: 'Mahalini',
-    correct: 'Sial',
-    options: ['Sial', 'Mati-Matian', 'Kisah Sempurna', 'Melawan Restu']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=yLfJwZkFQgc',
-    seekStart: 45,
-    genre: 'Indo Hits',
-    year: '2000',
-    artist: 'Sheila On 7',
-    correct: 'Dan...',
-    options: ['Dan...', 'Sephia', 'Pria Kesepian', 'Sebuah Kisah Klasik']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=viW0M5R2BLo',
-    seekStart: 30,
-    genre: 'Indo Pop',
-    year: '2017',
-    artist: 'Payung Teduh',
-    correct: 'Akad',
-    options: ['Akad', 'Menuju Senja', 'Resah', 'Angin Pujaan Hujan']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=t9VWICGOD90',
-    seekStart: 50,
-    genre: 'Indo Hits',
-    year: '2023',
-    artist: 'Ghea Indrawari',
-    correct: 'Jiwa Yang Bersedih',
-    options: ['Jiwa Yang Bersedih', 'Rasa Cinta Ini', 'Bucketlist', 'Kembara']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=r9M6_H18q14',
-    seekStart: 55,
-    genre: 'Indo Pop',
-    year: '2023',
-    artist: 'Anggi Marito',
-    correct: 'Tak Segampang Itu',
-    options: ['Tak Segampang Itu', 'Kisah Bahagia', 'Cara Mencintaimu', 'Kisah Yang Salah']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=b5ZQob-mDGM',
-    seekStart: 55,
-    genre: 'Indo Hits',
-    year: '2021',
-    artist: 'Rizky Febian',
-    correct: 'Hingga Tua Bersama',
-    options: ['Hingga Tua Bersama', 'Kesempurnaan Cinta', 'Mantra Cinta', 'Cuek']
-  },
+const SONG_CATALOG = {
+  indo: [
+    { title: 'Hati-Hati di Jalan', artist: 'Tulus', year: '2022' },
+    { title: 'Monokrom', artist: 'Tulus', year: '2016' },
+    { title: 'Sial', artist: 'Mahalini', year: '2023' },
+    { title: 'Mati-Matian', artist: 'Mahalini', year: '2024' },
+    { title: 'Dan...', artist: 'Sheila On 7', year: '2000' },
+    { title: 'Sephia', artist: 'Sheila On 7', year: '2000' },
+    { title: 'Sebuah Kisah Klasik', artist: 'Sheila On 7', year: '2000' },
+    { title: 'Akad', artist: 'Payung Teduh', year: '2017' },
+    { title: 'Jiwa Yang Bersedih', artist: 'Ghea Indrawari', year: '2023' },
+    { title: 'Tak Segampang Itu', artist: 'Anggi Marito', year: '2023' },
+    { title: 'Hingga Tua Bersama', artist: 'Rizky Febian', year: '2021' },
+    { title: 'Kesempurnaan Cinta', artist: 'Rizky Febian', year: '2015' },
+    { title: 'Satu Bulan', artist: 'Bernadya', year: '2024' },
+    { title: 'Kata Mereka Ini Berlebihan', artist: 'Bernadya', year: '2024' },
+    { title: 'Gala Bunga Matahari', artist: 'Sal Priadi', year: '2024' },
+    { title: 'Lantas', artist: 'Juicy Luicy', year: '2020' },
+    { title: 'Tanpa Tergesa', artist: 'Juicy Luicy', year: '2018' },
+    { title: 'Bertaut', artist: 'Nadin Amizah', year: '2020' },
+    { title: 'Rayuan Perempuan Gila', artist: 'Nadin Amizah', year: '2023' },
+    { title: 'Separuh Aku', artist: 'NOAH', year: '2012' },
+    { title: 'Kangen', artist: 'Dewa 19', year: '1992' },
+    { title: 'Pupus', artist: 'Dewa 19', year: '2002' },
+    { title: 'Risalah Hati', artist: 'Dewa 19', year: '2000' },
+    { title: 'To the Bone', artist: 'Pamungkas', year: '2019' },
+    { title: 'Rumah ke Rumah', artist: 'Hindia', year: '2019' },
+    { title: 'Evaluasi', artist: 'Hindia', year: '2019' },
+    { title: 'Usai', artist: 'Tiara Andini', year: '2022' },
+    { title: 'Komang', artist: 'Raim Laode', year: '2022' },
+    { title: 'Nanti Kita Seperti Ini', artist: 'Batas Senja', year: '2023' },
+    { title: 'Tak Kan Hilang', artist: 'Budi Doremi', year: '2022' }
+  ],
+  western: [
+    { title: 'Grenade', artist: 'Bruno Mars', year: '2010' },
+    { title: 'Locked Out of Heaven', artist: 'Bruno Mars', year: '2012' },
+    { title: 'Just The Way You Are', artist: 'Bruno Mars', year: '2010' },
+    { title: 'We Found Love', artist: 'Rihanna ft. Calvin Harris', year: '2011' },
+    { title: 'Diamonds', artist: 'Rihanna', year: '2012' },
+    { title: 'I Want It That Way', artist: 'Backstreet Boys', year: '1999' },
+    { title: 'A Sky Full of Stars', artist: 'Coldplay', year: '2014' },
+    { title: 'Viva La Vida', artist: 'Coldplay', year: '2008' },
+    { title: 'Yellow', artist: 'Coldplay', year: '2000' },
+    { title: 'Blinding Lights', artist: 'The Weeknd', year: '2019' },
+    { title: 'Starboy', artist: 'The Weeknd ft. Daft Punk', year: '2016' },
+    { title: 'Cruel Summer', artist: 'Taylor Swift', year: '2019' },
+    { title: 'Blank Space', artist: 'Taylor Swift', year: '2014' },
+    { title: 'Shape of You', artist: 'Ed Sheeran', year: '2017' },
+    { title: 'Perfect', artist: 'Ed Sheeran', year: '2017' },
+    { title: 'Bad Guy', artist: 'Billie Eilish', year: '2019' },
+    { title: 'Levitating', artist: 'Dua Lipa', year: '2020' },
+    { title: 'Sugar', artist: 'Maroon 5', year: '2014' },
+    { title: 'Payphone', artist: 'Maroon 5', year: '2012' },
+    { title: 'Counting Stars', artist: 'OneRepublic', year: '2013' },
+    { title: 'Someone Like You', artist: 'Adele', year: '2011' },
+    { title: 'Rolling in the Deep', artist: 'Adele', year: '2010' },
+    { title: 'Stay', artist: 'The Kid LAROI & Justin Bieber', year: '2021' },
+    { title: 'Sunflower', artist: 'Post Malone & Swae Lee', year: '2018' },
+    { title: 'Circles', artist: 'Post Malone', year: '2019' },
+    { title: 'I Took a Pill in Ibiza', artist: 'Mike Posner', year: '2016' },
+    { title: 'Wake Me Up', artist: 'Avicii', year: '2013' },
+    { title: 'Something Just Like This', artist: 'The Chainsmokers & Coldplay', year: '2017' },
+    { title: 'Closer', artist: 'The Chainsmokers ft. Halsey', year: '2016' },
+    { title: 'See You Again', artist: 'Wiz Khalifa ft. Charlie Puth', year: '2015' }
+  ],
+  anime: [
+    { title: 'Unravel', artist: 'TK from Ling Tosite Sigure', year: '2014' },
+    { title: 'Gurenge', artist: 'LiSA', year: '2019' },
+    { title: 'Homura', artist: 'LiSA', year: '2020' },
+    { title: 'Crossing Field', artist: 'LiSA', year: '2012' },
+    { title: 'Shinzou wo Sasageyo', artist: 'Linked Horizon', year: '2017' },
+    { title: 'Guren no Yumiya', artist: 'Linked Horizon', year: '2013' },
+    { title: 'The Rumbling', artist: 'SiM', year: '2022' },
+    { title: 'Zenzenzense', artist: 'RADWIMPS', year: '2016' },
+    { title: 'Sparkle', artist: 'RADWIMPS', year: '2016' },
+    { title: 'Nandemonaiya', artist: 'RADWIMPS', year: '2016' },
+    { title: 'Idol', artist: 'YOASOBI', year: '2023' },
+    { title: 'Yoru ni Kakeru (Racing into the Night)', artist: 'YOASOBI', year: '2019' },
+    { title: 'Monster', artist: 'YOASOBI', year: '2021' },
+    { title: 'Kaibutsu', artist: 'YOASOBI', year: '2021' },
+    { title: 'Blue Bird', artist: 'Ikimonogakari', year: '2008' },
+    { title: 'Silhouette', artist: 'KANA-BOON', year: '2014' },
+    { title: 'Sign', artist: 'FLOW', year: '2010' },
+    { title: 'GO!!!', artist: 'FLOW', year: '2004' },
+    { title: 'Kaikai Kitan', artist: 'Eve', year: '2020' },
+    { title: 'Kick Back', artist: 'Kenshi Yonezu', year: '2022' },
+    { title: 'Peace Sign', artist: 'Kenshi Yonezu', year: '2017' },
+    { title: 'Lemon', artist: 'Kenshi Yonezu', year: '2018' },
+    { title: 'Specialz', artist: 'King Gnu', year: '2023' },
+    { title: 'Bling-Bang-Bang-Born', artist: 'Creepy Nuts', year: '2024' },
+    { title: 'Suzume', artist: 'RADWIMPS ft. Toaka', year: '2022' }
+  ],
+  kpop: [
+    { title: 'Dynamite', artist: 'BTS', year: '2020' },
+    { title: 'Butter', artist: 'BTS', year: '2021' },
+    { title: 'Boy With Luv', artist: 'BTS ft. Halsey', year: '2019' },
+    { title: 'Spring Day', artist: 'BTS', year: '2017' },
+    { title: 'How You Like That', artist: 'BLACKPINK', year: '2020' },
+    { title: 'DDU-DU DDU-DU', artist: 'BLACKPINK', year: '2018' },
+    { title: 'Kill This Love', artist: 'BLACKPINK', year: '2019' },
+    { title: 'Pink Venom', artist: 'BLACKPINK', year: '2022' },
+    { title: 'Next Level', artist: 'aespa', year: '2021' },
+    { title: 'Supernova', artist: 'aespa', year: '2024' },
+    { title: 'Drama', artist: 'aespa', year: '2023' },
+    { title: 'Hype Boy', artist: 'NewJeans', year: '2022' },
+    { title: 'Ditto', artist: 'NewJeans', year: '2022' },
+    { title: 'Super Shy', artist: 'NewJeans', year: '2023' },
+    { title: 'OMG', artist: 'NewJeans', year: '2023' },
+    { title: 'Love Dive', artist: 'IVE', year: '2022' },
+    { title: 'After LIKE', artist: 'IVE', year: '2022' },
+    { title: 'I AM', artist: 'IVE', year: '2023' },
+    { title: 'Fancy', artist: 'TWICE', year: '2019' },
+    { title: 'Feel Special', artist: 'TWICE', year: '2019' },
+    { title: 'What is Love?', artist: 'TWICE', year: '2018' },
+    { title: 'Antifragile', artist: 'LE SSERAFIM', year: '2022' },
+    { title: 'Eve, Psyche & The Bluebeard\'s wife', artist: 'LE SSERAFIM', year: '2023' },
+    { title: 'Smart', artist: 'LE SSERAFIM', year: '2024' },
+    { title: 'God\'s Menu', artist: 'Stray Kids', year: '2020' },
+    { title: 'Maniac', artist: 'Stray Kids', year: '2022' },
+    { title: 'Super', artist: 'SEVENTEEN', year: '2023' }
+  ]
+};
 
-  // ═══════════════ WESTERN / POP BARAT ═══════════════
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=SR6iYWJxHqs',
-    seekStart: 40,
-    genre: 'Western Pop',
-    year: '2010',
-    artist: 'Bruno Mars',
-    correct: 'Grenade',
-    options: ['Grenade', 'Just The Way You Are', 'Locked Out of Heaven', 'When I Was Your Man']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=tg00YEETFzg',
-    seekStart: 45,
-    genre: 'Western Pop / EDM',
-    year: '2011',
-    artist: 'Rihanna ft. Calvin Harris',
-    correct: 'We Found Love',
-    options: ['We Found Love', 'Diamonds', 'This Is What You Came For', 'Only Girl (In the World)']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=4fndeDfaWCg',
-    seekStart: 30,
-    genre: 'Western 90s',
-    year: '1999',
-    artist: 'Backstreet Boys',
-    correct: 'I Want It That Way',
-    options: ['I Want It That Way', 'Everybody', 'As Long As You Love Me', 'Show Me the Meaning']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=e-fA-gBCkj0',
-    seekStart: 35,
-    genre: 'Western Pop',
-    year: '2012',
-    artist: 'Bruno Mars',
-    correct: 'Locked Out of Heaven',
-    options: ['Locked Out of Heaven', 'Treasure', '24K Magic', 'Gorilla']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=VPRjCeoBqrI',
-    seekStart: 55,
-    genre: 'Western Alternative',
-    year: '2014',
-    artist: 'Coldplay',
-    correct: 'A Sky Full of Stars',
-    options: ['A Sky Full of Stars', 'Yellow', 'Viva La Vida', 'Fix You']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=foE1mO2yM04',
-    seekStart: 30,
-    genre: 'Western EDM',
-    year: '2016',
-    artist: 'Mike Posner (Seeb Remix)',
-    correct: 'I Took a Pill in Ibiza',
-    options: ['I Took a Pill in Ibiza', 'Cooler Than Me', 'Wake Me Up', 'Heroes']
-  },
-
-  // ═══════════════ ANIME & JAPANESE ═══════════════
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=8uTEp-0Q_V0',
-    seekStart: 25,
-    genre: 'Anime OST (Tokyo Ghoul)',
-    year: '2014',
-    artist: 'TK from Ling Tosite Sigure',
-    correct: 'Unravel',
-    options: ['Unravel', 'Katharsis', 'Gurenge', 'Kaikai Kitan']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=CwkzK-F0Y00',
-    seekStart: 30,
-    genre: 'Anime OST (Demon Slayer)',
-    year: '2019',
-    artist: 'LiSA',
-    correct: 'Gurenge',
-    options: ['Gurenge', 'Homura', 'Akeboshi', 'Crossing Field']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=PbA63a7H0bo',
-    seekStart: 15,
-    genre: 'Anime OST (Attack on Titan)',
-    year: '2017',
-    artist: 'Linked Horizon',
-    correct: 'Shinzou wo Sasageyo',
-    options: ['Shinzou wo Sasageyo', 'Guren no Yumiya', 'The Rumbling', 'Red Swan']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=PDSkFeMVNFs',
-    seekStart: 30,
-    genre: 'Anime OST (Kimi no Na wa)',
-    year: '2016',
-    artist: 'RADWIMPS',
-    correct: 'Zenzenzense',
-    options: ['Zenzenzense', 'Sparkle', 'Nandemonaiya', 'Grand Escape']
-  },
-
-  // ═══════════════ K-POP ═══════════════
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=gdZLi9oWNZg',
-    seekStart: 40,
-    genre: 'K-Pop',
-    year: '2020',
-    artist: 'BTS',
-    correct: 'Dynamite',
-    options: ['Dynamite', 'Butter', 'Boy With Luv', 'Life Goes On']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=ioNng23DkIM',
-    seekStart: 35,
-    genre: 'K-Pop',
-    year: '2020',
-    artist: 'BLACKPINK',
-    correct: 'How You Like That',
-    options: ['How You Like That', 'Kill This Love', 'DDU-DU DDU-DU', 'Pink Venom']
-  },
-  {
-    youtubeUrl: 'https://www.youtube.com/watch?v=4TWR90KJl84',
-    seekStart: 30,
-    genre: 'K-Pop',
-    year: '2021',
-    artist: 'aespa',
-    correct: 'Next Level',
-    options: ['Next Level', 'Savage', 'Supernova', 'Drama']
-  }
-];
-
-// ═══════════════ STATE MANAGEMENT ═══════════════
-const activeGames = new Map(); // guildId -> gameState
-const SNIPPET_DURATION = 10; // detik potongan musik per ronde
-const ANSWER_TIME = 20;      // detik waktu menjawab (termasuk durasi snippet)
+// State sesi permainan per server
+const activeGames = new Map();
+const SNIPPET_DURATION = 10; // Durasi audio berbunyi (10 detik)
+const ANSWER_TIME = 20;      // Waktu menjawab peserta (20 detik)
 
 function shuffleArray(arr) {
   const copy = [...arr];
@@ -222,20 +145,61 @@ function shuffleArray(arr) {
   return copy;
 }
 
+/**
+ * Ambil daftar lagu berdasarkan kategori yang dipilih
+ */
+function getSongPool(category) {
+  if (category === 'indo') return SONG_CATALOG.indo.map(s => ({ ...s, genre: 'Indo Hits' }));
+  if (category === 'western') return SONG_CATALOG.western.map(s => ({ ...s, genre: 'Western Pop' }));
+  if (category === 'anime') return SONG_CATALOG.anime.map(s => ({ ...s, genre: 'Anime OST & J-Pop' }));
+  if (category === 'kpop') return SONG_CATALOG.kpop.map(s => ({ ...s, genre: 'K-Pop' }));
+
+  // Default: 'all' (Campuran semua kategori)
+  return [
+    ...SONG_CATALOG.indo.map(s => ({ ...s, genre: 'Indo Hits' })),
+    ...SONG_CATALOG.western.map(s => ({ ...s, genre: 'Western Pop' })),
+    ...SONG_CATALOG.anime.map(s => ({ ...s, genre: 'Anime OST & J-Pop' })),
+    ...SONG_CATALOG.kpop.map(s => ({ ...s, genre: 'K-Pop' }))
+  ];
+}
+
+/**
+ * Generate 4 pilihan ganda acak dari pool lagu (1 benar + 3 pengecoh)
+ */
+function generateQuestionOptions(correctSong, songPool) {
+  const otherSongs = songPool.filter(s => s.title !== correctSong.title);
+  const shuffledOthers = shuffleArray(otherSongs);
+  const distractors = shuffledOthers.slice(0, 3).map(s => s.title);
+  const options = shuffleArray([correctSong.title, ...distractors]);
+  return options;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('musicquiz')
-    .setDescription('Main game tebak lagu interaktif — dengarkan potongan musik & tebak judulnya!')
+    .setDescription('Main game tebak lagu interaktif — dengarkan potongan musik 10 detik & tebak judulnya!')
     .addSubcommand(sub =>
       sub
         .setName('start')
-        .setDescription('Mulai sesi Music Quiz berbasis audio')
+        .setDescription('Mulai sesi Music Quiz interaktif di voice channel')
+        .addStringOption(opt =>
+          opt.setName('kategori')
+            .setDescription('Pilih genre lagu yang ingin dimainkan (default: Campuran)')
+            .setRequired(false)
+            .addChoices(
+              { name: '🎲 Semua Kategori (Campuran)', value: 'all' },
+              { name: '🇮🇩 Indo Hits & Populer', value: 'indo' },
+              { name: '🌍 Western & Global Hits', value: 'western' },
+              { name: '🎌 Anime OST & J-Pop', value: 'anime' },
+              { name: '🇰🇷 K-Pop Hits', value: 'kpop' }
+            )
+        )
         .addIntegerOption(opt =>
           opt.setName('ronde')
-            .setDescription('Jumlah ronde pertanyaan (1-10, default: 5)')
+            .setDescription('Jumlah ronde pertanyaan (1-15, default: 5)')
             .setRequired(false)
             .setMinValue(1)
-            .setMaxValue(10)
+            .setMaxValue(15)
         )
     )
     .addSubcommand(sub =>
@@ -262,7 +226,7 @@ module.exports = {
         });
       }
 
-      const rankSymbols = ['#1', '#2', '#3', '#4', '#5', '#6', '#7', '#8', '#9', '#10'];
+      const rankSymbols = ['#01', '#02', '#03', '#04', '#05', '#06', '#07', '#08', '#09', '#10'];
       const list = sorted.slice(0, 10).map(([uId, data], idx) => {
         return `\`${rankSymbols[idx]}\` **${data.name}** — \`${data.score} Poin\` (${data.wins || 0}x Menang)`;
       }).join('\n');
@@ -274,7 +238,7 @@ module.exports = {
           iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
         })
         .setDescription(list)
-        .setFooter({ text: 'Skor akumulasi dari seluruh sesi quiz' })
+        .setFooter({ text: 'Skor akumulasi juara Music Quiz' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });
@@ -293,7 +257,6 @@ module.exports = {
       game.active = false;
       activeGames.delete(guildId);
 
-      // Stop musik quiz jika masih bermain
       try {
         const queue = client.distube.getQueue(guildId);
         if (queue) queue.stop().catch(() => {});
@@ -303,14 +266,13 @@ module.exports = {
         embeds: [
           new EmbedBuilder()
             .setColor(0x2B2D31)
-            .setDescription('**Music Quiz telah dihentikan.** Terima kasih sudah bermain!')
+            .setDescription('🛑 **Music Quiz telah dihentikan.** Terima kasih sudah bermain!')
         ]
       });
     }
 
     // ═══ 3. START QUIZ ═══
     if (sub === 'start') {
-      // Cek apakah sudah ada quiz berjalan
       if (activeGames.has(guildId)) {
         return interaction.reply({
           content: '**Music Quiz sedang berlangsung di server ini.** Tunggu selesai atau gunakan `/musicquiz stop`.',
@@ -318,7 +280,6 @@ module.exports = {
         });
       }
 
-      // Cek admin harus di voice channel
       const voiceChannel = interaction.member?.voice?.channel;
       if (!voiceChannel) {
         return interaction.reply({
@@ -327,7 +288,6 @@ module.exports = {
         });
       }
 
-      // Cek apakah bot sedang memutar musik
       const existingQueue = client.distube.getQueue(guildId);
       if (existingQueue && existingQueue.songs.length > 0) {
         return interaction.reply({
@@ -336,17 +296,30 @@ module.exports = {
         });
       }
 
+      const category = interaction.options.getString('kategori') || 'all';
       const totalRounds = interaction.options.getInteger('ronde') || 5;
-      const questions = shuffleArray(SONG_DATABASE).slice(0, totalRounds);
+
+      const songPool = getSongPool(category);
+      const shuffledQuestions = shuffleArray(songPool).slice(0, totalRounds);
+
+      const categoryLabels = {
+        all: '🎲 Semua Kategori (Campuran)',
+        indo: '🇮🇩 Indo Hits & Populer',
+        western: '🌍 Western & Global Hits',
+        anime: '🎌 Anime OST & J-Pop',
+        kpop: '🇰🇷 K-Pop Hits'
+      };
 
       const gameState = {
         active: true,
         guildId,
         channelId: interaction.channel.id,
         voiceChannelId: voiceChannel.id,
+        category,
         currentRound: 0,
         totalRounds,
-        questions,
+        questions: shuffledQuestions,
+        songPool,
         scores: {},
         answeredUsers: new Set(),
       };
@@ -361,18 +334,19 @@ module.exports = {
         })
         .setTitle('Sesi Music Quiz Dimulai!')
         .setDescription(
-          `Bersiaplah mendengarkan potongan musik dan tebak judul lagunya.\n\n` +
-          `\`Total Ronde\` **${totalRounds}**\n` +
-          `\`Durasi Audio\` **${SNIPPET_DURATION} detik** per ronde\n` +
-          `\`Waktu Jawab\` **${ANSWER_TIME} detik**\n\n` +
-          `*Ronde pertama dimulai dalam 5 detik...*`
+          `Dengarkan potongan musik 10 detik di voice channel dan tebak judulnya secepat mungkin!\n\n` +
+          `\`Kategori\` **${categoryLabels[category]}**\n` +
+          `\`Total Ronde\` **${totalRounds} Ronde**\n` +
+          `\`Durasi Audio\` **${SNIPPET_DURATION} Detik**\n` +
+          `\`Waktu Jawab\` **${ANSWER_TIME} Detik**\n\n` +
+          `*Ronde pertama dimulai dalam 4 detik...*`
         )
-        .setFooter({ text: 'Dengarkan baik-baik, lalu klik tombol jawaban yang benar!' })
+        .setFooter({ text: 'Dengarkan baik-baik dan klik tombol jawaban pilihanmu!' })
         .setTimestamp();
 
       await interaction.reply({ embeds: [startEmbed] });
 
-      setTimeout(() => runNextRound(interaction.channel, voiceChannel, guildId, client), 5000);
+      setTimeout(() => runNextRound(interaction.channel, voiceChannel, guildId, client), 4000);
     }
   }
 };
@@ -380,7 +354,7 @@ module.exports = {
 // ═══════════════ GAME ENGINE ═══════════════
 
 /**
- * Jalankan ronde berikutnya — putar potongan musik lalu tampilkan pilihan jawaban
+ * Jalankan ronde berikutnya dari Music Quiz
  */
 async function runNextRound(textChannel, voiceChannel, guildId, client) {
   const game = activeGames.get(guildId);
@@ -393,71 +367,64 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   game.currentRound++;
   game.answeredUsers = new Set();
   const q = game.questions[game.currentRound - 1];
-  const shuffledOptions = shuffleArray(q.options);
+  const options = generateQuestionOptions(q, game.songPool);
 
-  // ─── Embed pertanyaan (tanpa hint lirik — murni audio) ───
+  const letters = ['A', 'B', 'C', 'D'];
+  const row = new ActionRowBuilder();
+
+  options.forEach((opt, idx) => {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`quiz_ans_${game.currentRound}_${idx}_${opt === q.title ? 'correct' : 'wrong'}`)
+        .setLabel(`${letters[idx]}. ${opt}`)
+        .setStyle(ButtonStyle.Secondary)
+    );
+  });
+
   const questionEmbed = new EmbedBuilder()
     .setColor(0x2B2D31)
     .setAuthor({
       name: `RONDE ${game.currentRound} / ${game.totalRounds}`,
       iconURL: client.user.displayAvatarURL()
     })
-    .setTitle('Dengarkan potongan musik berikut...')
+    .setTitle('Dengarkan potongan musik di Voice Channel...')
     .setDescription(
-      `Musik sedang diputar di voice channel. Dengarkan baik-baik!\n\n` +
+      `Audio sedang dimainkan di <#${voiceChannel.id}>. Tebak judul lagunya!\n\n` +
       `\`Kategori\` **${q.genre}**\n` +
-      `\`Tahun\` **${q.year}**\n\n` +
+      `\`Tahun Rilis\` **${q.year}**\n\n` +
       `Pilih jawaban yang benar dari tombol di bawah:`
     )
     .setFooter({ text: `Waktu menjawab: ${ANSWER_TIME} detik` })
     .setTimestamp();
 
-  // ─── Tombol jawaban A/B/C/D ───
-  const row = new ActionRowBuilder();
-  const letters = ['A', 'B', 'C', 'D'];
-
-  shuffledOptions.forEach((opt, idx) => {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`quiz_ans_${game.currentRound}_${idx}_${opt === q.correct ? 'correct' : 'wrong'}`)
-        .setLabel(`${letters[idx]}. ${opt}`)
-        .setStyle(ButtonStyle.Secondary)
-    );
-  });
-
   const msg = await textChannel.send({ embeds: [questionEmbed], components: [row] }).catch(() => null);
   if (!msg) return activeGames.delete(guildId);
 
-  // ─── Putar potongan musik via DisTube ───
+  // ─── Putar Audio Dinamis via Search Query di YouTube ───
+  const searchQuery = `${q.artist} - ${q.title} Official Audio`;
+
   try {
-    await client.distube.play(voiceChannel, q.youtubeUrl, {
+    await client.distube.play(voiceChannel, searchQuery, {
       member: voiceChannel.guild.members.me,
       textChannel: textChannel,
+      metadata: { isQuiz: true }
     });
 
-    // Tunggu sebentar agar lagu mulai dimainkan, lalu seek ke posisi reff
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    let queue = client.distube.getQueue(guildId);
+    if (queue) queue.isQuiz = true;
 
-    const queue = client.distube.getQueue(guildId);
-    if (queue && q.seekStart > 0) {
-      await queue.seek(q.seekStart).catch(() => {});
-    }
-
-    // Stop musik setelah SNIPPET_DURATION detik
-    setTimeout(async () => {
+    // Hentikan snippet setelah SNIPPET_DURATION detik
+    setTimeout(() => {
       try {
         const currentQueue = client.distube.getQueue(guildId);
-        if (currentQueue) {
-          currentQueue.stop().catch(() => {});
-        }
+        if (currentQueue) currentQueue.stop().catch(() => {});
       } catch (_) {}
     }, SNIPPET_DURATION * 1000);
   } catch (err) {
-    console.warn(`[MusicQuiz] Gagal memutar audio ronde ${game.currentRound}:`, err.message);
-    // Lanjutkan quiz meskipun audio gagal diputar
+    console.warn(`[MusicQuiz] Pencarian audio gagal untuk "${searchQuery}":`, err.message);
   }
 
-  // ─── Kumpulkan jawaban ───
+  // ─── Kumpulkan Jawaban Peserta ───
   const startTime = Date.now();
   let firstCorrectWinner = null;
 
@@ -466,13 +433,12 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   });
 
   collector.on('collect', async (i) => {
-    // Pastikan custom ID milik ronde yang benar
     if (!i.customId.startsWith(`quiz_ans_${game.currentRound}_`)) {
       return i.reply({ content: 'Ronde ini sudah berakhir.', flags: MessageFlags.Ephemeral });
     }
 
     if (game.answeredUsers.has(i.user.id)) {
-      return i.reply({ content: 'Kamu sudah menjawab untuk ronde ini.', flags: MessageFlags.Ephemeral });
+      return i.reply({ content: '⚠️ Kamu sudah menjawab untuk ronde ini.', flags: MessageFlags.Ephemeral });
     }
     game.answeredUsers.add(i.user.id);
 
@@ -493,61 +459,60 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
       }
 
       return i.reply({
-        content: `**Benar!** Kamu mendapatkan **+${points} Poin**.`,
+        content: `🎯 **BENAR!** Kamu mendapatkan **+${points} Poin**!`,
         flags: MessageFlags.Ephemeral
       });
     } else {
       return i.reply({
-        content: `**Salah.** Jawaban yang benar adalah **${q.correct}**.`,
+        content: `❌ **SALAH!** Jawaban yang benar adalah **${q.title}**.`,
         flags: MessageFlags.Ephemeral
       });
     }
   });
 
   collector.on('end', async () => {
-    // Stop musik jika masih bermain
+    // Pastikan audio distop
     try {
       const currentQueue = client.distube.getQueue(guildId);
       if (currentQueue) currentQueue.stop().catch(() => {});
     } catch (_) {}
 
-    // Disable semua tombol & highlight jawaban benar
+    // Kunci tombol & highlight jawaban yang benar
     const disabledRow = new ActionRowBuilder();
-    shuffledOptions.forEach((opt, idx) => {
+    options.forEach((opt, idx) => {
       disabledRow.addComponents(
         new ButtonBuilder()
           .setCustomId(`quiz_done_${game.currentRound}_${idx}`)
           .setLabel(`${letters[idx]}. ${opt}`)
-          .setStyle(opt === q.correct ? ButtonStyle.Success : ButtonStyle.Secondary)
+          .setStyle(opt === q.title ? ButtonStyle.Success : ButtonStyle.Secondary)
           .setDisabled(true)
       );
     });
 
     await msg.edit({ components: [disabledRow] }).catch(() => {});
 
-    // Embed hasil ronde
+    // Tampilkan hasil ronde
     const roundResultEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)
       .setTitle(`Ronde ${game.currentRound} Selesai`)
       .setDescription(
-        `**Jawaban:** ${q.correct} — *${q.artist}*\n` +
+        `✅ **Jawaban Benar:** **${q.title}** — *${q.artist}*\n\n` +
         (firstCorrectWinner
-          ? `**Penjawab Tercepat:** ${firstCorrectWinner}`
-          : `*Tidak ada yang menjawab dengan benar di ronde ini.*`)
+          ? `⚡ **Penjawab Tercepat:** **${firstCorrectWinner}** 🔥`
+          : `😴 *Tidak ada yang menjawab dengan benar di ronde ini.*`)
       );
 
     await textChannel.send({ embeds: [roundResultEmbed] }).catch(() => {});
 
-    // Cek apakah game masih aktif (bisa saja di-stop saat ronde berjalan)
     if (!game.active) return;
 
-    // Jeda 5 detik sebelum ronde berikutnya
-    setTimeout(() => runNextRound(textChannel, voiceChannel, guildId, client), 5000);
+    // Jeda 4 detik sebelum ronde berikutnya
+    setTimeout(() => runNextRound(textChannel, voiceChannel, guildId, client), 4000);
   });
 }
 
 /**
- * Selesaikan Music Quiz dan umumkan pemenang
+ * Selesaikan Music Quiz dan umumkan juara
  */
 async function finishGame(textChannel, guildId, client) {
   const game = activeGames.get(guildId);
@@ -555,7 +520,6 @@ async function finishGame(textChannel, guildId, client) {
 
   activeGames.delete(guildId);
 
-  // Stop musik jika masih bermain
   try {
     const queue = client.distube.getQueue(guildId);
     if (queue) queue.stop().catch(() => {});
@@ -581,12 +545,12 @@ async function finishGame(textChannel, guildId, client) {
   if (sortedScores.length === 0) {
     const emptyEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setDescription('**Music Quiz Selesai.** Tidak ada yang mencetak poin pada sesi kali ini.');
+      .setDescription('🏁 **Music Quiz Selesai.** Tidak ada yang mencetak poin pada sesi kali ini.');
     return textChannel.send({ embeds: [emptyEmbed] });
   }
 
   const winner = sortedScores[0][1];
-  const rankLabels = ['#1', '#2', '#3', '#4', '#5'];
+  const rankLabels = ['#01', '#02', '#03', '#04', '#05'];
 
   const scoreBoard = sortedScores.slice(0, 5).map(([uId, d], i) => {
     return `\`${rankLabels[i]}\` **${d.name}** — **${d.score} Poin** (${d.correctCount} benar)`;
@@ -598,10 +562,10 @@ async function finishGame(textChannel, guildId, client) {
       name: `HASIL AKHIR MUSIC QUIZ`,
       iconURL: textChannel.guild.iconURL({ dynamic: true }) || undefined
     })
-    .setTitle(`Pemenang: ${winner.name}`)
+    .setTitle(`🏆 Juara: ${winner.name}`)
     .setDescription(
-      `Skor tertinggi **${winner.score} Poin** dengan ${winner.correctCount} jawaban benar.\n\n` +
-      `**Papan Skor:**\n${scoreBoard}`
+      `Skor tertinggi **${winner.score} Poin** dengan total **${winner.correctCount} jawaban benar**.\n\n` +
+      `**Papan Peringkat Akhir:**\n${scoreBoard}`
     )
     .setFooter({ text: 'Gunakan /musicquiz leaderboard untuk melihat klasemen server' })
     .setTimestamp();

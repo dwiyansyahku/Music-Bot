@@ -1,384 +1,351 @@
 const { EmbedBuilder } = require('discord.js');
 
-// Info owner
 const OWNER = {
   name: 'Dwiyansyah Oktavyudi',
   github: 'https://github.com/dwiyansyahku',
   tag: '<@&1396396538686607410>',
 };
 
-const CATEGORIES = {
-  home: {
-    label: '🏠 Home',
-    color: 0x5865F2,
-  },
-  music: {
-    label: '🎵 Musik',
-    color: 0x1DB954,
-  },
-  card: {
-    label: '🎴 Card Profil',
-    color: 0x9B59B6,
-  },
-  mod: {
-    label: '🛡️ Moderasi',
-    color: 0xED4245,
-  },
-  daily: {
-    label: '🌅 Harian & Jadwal',
-    color: 0xFFD93D,
-  },
-  fun: {
-    label: '🎉 Fun & Usilan',
-    color: 0xFF6B6B,
-  },
-  settings: {
-    label: '⚙️ Info & Settings',
-    color: 0x99AAB5,
-  },
-};
+function buildHelpEmbed(category, client, guild = null) {
+  const guildName = guild ? guild.name : 'QUMPRUY';
 
-function buildHelpEmbed(category, client) {
   switch (category) {
     case 'home':
+    case 'overview':
     default:
       return new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle('🤖 QUMPRUY Bot — Pusat Bantuan')
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `PUSAT PANDUAN & DIREKTORI FITUR — ${guildName.toUpperCase()}`,
+          iconURL: guild?.iconURL({ dynamic: true }) || client?.user?.displayAvatarURL()
+        })
+        .setTitle('Direktori Panduan Penggunaan Bot')
         .setDescription(
-          `Bot multifungsi para BESTIE MPRUY\n` +
-          `Mendukung pemutar musik lengkap, kartu profil interaktif, moderasi, pengingat harian, dan fitur hiburan.\n\n` +
-          `**Pilih menu kategori di bawah untuk melihat rincian setiap command.**`
+          `Selamat datang di **Pusat Panduan & Direktori Fitur** server **${guildName}**!\n` +
+          `Semua fitur bot dirancang untuk mempermudah, meramaikan, dan mempererat interaksi seluruh member di komunitas kita.\n\n` +
+          `**Pilih salah satu fitur pada menu pilihan di bawah** untuk melihat penjelasan lengkap, fungsi, dan cara menggunakannya step-by-step:`
         )
         .addFields(
-          { name: '🎵 Musik (20+ Fitur)', value: 'YouTube, Spotify, SoundCloud + Lirik, Filter & Tombol Kontrol', inline: true },
-          { name: '🎴 Card Profil', value: 'Sistem identitas member, Live Voice & Reputasi Like/Respect', inline: true },
-          { name: '🛡️ Moderasi', value: 'Warn auto-punish, Mute, Kick, Ban, dan Clear chat', inline: true },
-          { name: '🌅 Harian & Jadwal', value: 'Reminder, Ultah, Pengumuman, AFK & Event Server', inline: true },
-          { name: '🎉 Fun & Usilan', value: 'Polling interaktif, Sistem Penjara (Jail), Roast, Fakequote & Wanted', inline: true },
-          { name: '⚙️ Info & Settings', value: 'Serverinfo, Userinfo, Welcome greeting, Ping & Setup bot', inline: true },
-          {
-            name: '👤 Developer',
-            value: `**${OWNER.name}**\n🐙 [GitHub](${OWNER.github})`,
-            inline: false,
-          }
+          { name: '🎵 Pemutar Musik & Audio', value: 'Putar lagu dari YouTube/Spotify, lirik berjalan, & filter audio.', inline: true },
+          { name: '🎮 Music Quiz (Tebak Lagu)', value: 'Game kuis audio 10 detik, leaderboard, & variasi genre.', inline: true },
+          { name: '🪪 Member Profile Card', value: 'Kartu profil server, foto banner/GIF, bio, & voice companions.', inline: true },
+          { name: '🗺️ Peta Persebaran Wilayah', value: 'Lihat persebaran domisili member & cari teman satu daerah.', inline: true },
+          { name: '🎰 Gacha & Koleksi Kartu', value: 'Daily gacha gratis, koleksi kartu rarity Common s/d Mythic.', inline: true },
+          { name: '⏳ Kapsul Waktu (Time Capsule)', value: 'Kirim pesan rahasia yang baru terbuka otomatis di masa depan.', inline: true },
+          { name: '🎂 Ulang Tahun & Sapaan', value: 'Pengumuman ultah jam 00:00 WIB, sapaan pagi/malam, & event.', inline: true },
+          { name: '🎙️ Voice Tracking & Badges', value: 'Catatan durasi aktif voice channel & lencana pencapaian.', inline: true },
+          { name: '🛡️ Moderasi & Keamanan', value: 'Sistem peringatan, mute otomatis, dan pembersihan chat.', inline: true }
         )
-        .setFooter({ text: `QUMPRUY Bot • Made with ❤️ by ${OWNER.name}` })
+        .setFooter({ text: 'Pilih kategori pada menu dropdown di bawah untuk membaca panduan' })
         .setTimestamp();
 
     case 'music':
       return new EmbedBuilder()
-        .setColor('#2B2D31')
-        .setTitle('🎵 Command Musik')
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • PEMUTAR MUSIK & AUDIO' })
+        .setTitle('🎵 Pemutar Musik & Radio 24/7')
         .setDescription(
-          'Dukungan multi-platform (YouTube, Spotify, SoundCloud) dengan kontrol interaktif dan audio filters.'
+          '**Fungsi Utama:**\n' +
+          'Memutar musik berkecepatan tinggi dengan audio jernih dari **YouTube**, **Spotify**, dan **SoundCloud** langsung di dalam Voice Channel.\n\n' +
+          '📝 **Cara Menggunakannya (Langkah demi Langkah):**\n' +
+          '1. Masuklah ke salah satu **Voice Channel** server terlebih dahulu.\n' +
+          '2. Ketik perintah pemutaran di text channel:\n' +
+          '   • **`qp [judul lagu/link]`** *(Cara Cepat)*\n' +
+          '   • **`/play [judul lagu/link]`** *(Slash Command)*\n' +
+          '3. Bot akan otomatis bergabung ke voice channel kamu dan mulai memutar lagu.\n' +
+          '4. Gunakan **tombol interaktif** di bawah kartu player untuk Jeda (⏸️), Lanjut (▶️), Lewati (⏭️), Lirik (📜), atau Antrian (📋).\n\n' +
+          '⚡ **Fitur & Perintah Bermanfaat:**\n' +
+          '• `/search [query]` — Cari lagu dan pilih dari menu dropdown 5 hasil teratas.\n' +
+          '• `/lyrics` atau `!lyrics` — Menampilkan lirik lagu yang sedang diputar secara langsung.\n' +
+          '• `/filter [bassboost/nightcore/8d/vaporwave]` — Tambahkan efek suara seru.\n' +
+          '• `/autoplay` — Otomatis memutar lagu rekomendasi serupa saat antrian habis.\n' +
+          '• `/q247` — Mode 24/7 agar bot tetap standby di Voice Channel.'
         )
-        .addFields(
-          {
-            name: '▶️ Pemutaran Dasar',
-            value: [
-              '`/play [lagu/url]` — Putar lagu atau playlist',
-              '`/search [query]` — Cari & pilih lagu dari 5 hasil dropdown',
-              '`/nowplaying` — Info lagu yang sedang diputar + progress bar visual',
-              '`/queue [halaman]` — Lihat daftar antrian lagu',
-              '`/skip` — Loncat ke lagu berikutnya',
-              '`/pause` — Jeda pemutaran musik sementara',
-              '`/resume` — Lanjutkan lagu yang di-pause',
-              '`/stop` — Hentikan musik & bersihkan antrian *(bot tetap di VC)*',
-              '`/leave` — Keluarkan bot dari Voice Channel *(Owner only)*',
-              '`/join` — Panggil bot bergabung ke Voice Channel kamu',
-            ].join('\n'),
-          },
-          {
-            name: '🎛️ Kontrol Lanjutan & Efek Audio',
-            value: [
-              '`/volume [0-150]` — Atur volume pemutaran',
-              '`/loop [off/song/queue]` — Mode pengulangan lagu atau antrian',
-              '`/shuffle` — Acak urutan daftar antrian',
-              '`/seek [detik]` — Melompat ke durasi waktu tertentu dalam lagu',
-              '`/remove [nomor]` — Hapus lagu tertentu dari antrian',
-              '`/clearqueue` — Kosongkan seluruh antrian lagu berikutnya',
-              '`/filter [efek]` — Audio filter (`bassboost`, `nightcore`, `vaporwave`, `3d`, `karaoke`, `treble`, `clear`)',
-              '`/lyrics [judul?]` — Cari lirik lagu via LRCLIB (otomatis jika judul dikosongkan)',
-              '`/autoplay` — Toggle otomatis mencari & memutar lagu serupa',
-              '`/q247` — Toggle mode 24/7 agar bot standby di Voice Channel *(Owner/Mod)*',
-            ].join('\n'),
-          },
-          {
-            name: '🖲️ Tombol Kontrol Interaktif',
-            value: 'Pesan **Now Playing** dilengkapi 5 tombol instan: `⏮️ Prev`, `⏯️ Pause/Play`, `⏭️ Skip`, `⏹️ Stop`, dan `🔀 Shuffle`.',
-          },
-          {
-            name: '💡 Prefix Commands (Awalan `q`)',
-            value: 'Semua command musik dapat dijalankan lewat pesan teks biasa menggunakan awalan `q`:\nContoh: `qp [judul]`, `qnp`, `qs`, `qvol 80`, `qloop`, `qfilter bassboost`, `qlyrics`, `qstop`, `qleave`.',
-          }
+        .setFooter({ text: 'Gunakan tombol kontrol musik untuk kendali tanpa mengetik command' });
+
+    case 'quiz':
+      return new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • GAME MUSIC QUIZ' })
+        .setTitle('🎮 Music Quiz Interaktif (Tebak Lagu)')
+        .setDescription(
+          '**Fungsi Utama:**\n' +
+          'Game kuis seru di mana bot akan memutar **potongan musik selama 10 detik** di Voice Channel, dan seluruh member berlomba menebak judul lagunya secepat mungkin.\n\n' +
+          '📝 **Cara Menggunakannya (Langkah demi Langkah):**\n' +
+          '1. Masuk ke **Voice Channel** bersama teman-temanmu.\n' +
+          '2. Ketik perintah **`/musicquiz start`** di text channel.\n' +
+          '   *(Kamu bisa memilih genre: Indo Hits, Western Pop, Anime OST, K-Pop, atau Campuran, serta jumlah ronde 1-15)*.\n' +
+          '3. Bot akan memutar potongan musik selama 10 detik.\n' +
+          '4. Klik tombol **A, B, C, atau D** pada text channel sebelum waktu 20 detik habis!\n' +
+          '5. Semakin cepat kamu menjawab dengan benar, semakin banyak poin yang didapatkan.\n' +
+          '6. Di akhir ronde, bot akan mengumumkan Juara dan menyimpannya di Leaderboard!\n\n' +
+          '⚡ **Perintah Terkait:**\n' +
+          '• `/musicquiz start` — Memulai sesi kuis baru.\n' +
+          '• `/musicquiz leaderboard` — Melihat klasemen juara tebak lagu server.\n' +
+          '• `/musicquiz stop` — Menghentikan sesi kuis yang sedang berjalan.'
         )
-        .setFooter({ text: 'QUMPRUY Bot • Sistem Musik' });
+        .setFooter({ text: 'Jawaban benar dihitung berdasarkan kecepatan klik tombol' });
 
     case 'card':
       return new EmbedBuilder()
-        .setColor(0x9B59B6)
-        .setTitle('🎴 Sistem Card Profil Member')
-        .setDescription('Kartu identitas digital member interaktif tanpa perlu mengetik perintah rumit!')
-        .addFields(
-          {
-            name: '📝 Pengisian Profil (Pop-up Form Modal)',
-            value: [
-              '1. Kunjungi channel **Member Card** di server.',
-              '2. Klik tombol **`Edit Profile`** untuk membuka form pop-up.',
-              '3. Isi **Bio**, **Kota Asal**, **Tanggal Lahir** *(Contoh: 15-08-2000)*, **Zodiac/Social Link**, dan **Banner Image URL**.',
-              '4. Kartu profil akan otomatis diterbitkan dan diperbarui di gallery.',
-            ].join('\n'),
-          },
-          {
-            name: '👤 Tampilkan & Lihat Card',
-            value: [
-              '`/card` — Tampilkan card profil milikmu secara privat (Ephemeral)',
-              '`/card member:@user` — Lihat card profil member lain secara privat',
-              'Atau klik tombol **`View My Card`** pada panel hub profil.',
-            ].join('\n'),
-          },
-          {
-            name: '🎂 Fitur Ulang Tahun & Zodiak Otomatis',
-            value: [
-              '• Bot otomatis menghitung zodiak dan usia dari tanggal lahirmu.',
-              '• Otomatis dirayakan dengan ucapan meriah di channel khusus ulang tahun saat hari spesialmu tiba!',
-            ].join('\n'),
-          },
-          {
-            name: '🎙️ Live Voice Status & Companions',
-            value: [
-              '• Otomatis mendeteksi channel Voice aktif beserta durasinya.',
-              '• Mencatat total waktu voice dan 3 partner Voice yang paling sering mengobrol bersama.',
-            ].join('\n'),
-          },
-          {
-            name: '❤️ Interaksi Sosial & Reputasi',
-            value: 'Setiap kartu di gallery dilengkapi tombol **`❤️ Like`** dan **`⭐ Respect`** yang dapat diberikan oleh member lain.',
-          },
-          {
-            name: '🗺️ Peta Wilayah Member `/membermap`',
-            value: '`/membermap` — Tampilkan statistik sebaran kota asal member berdasarkan data kartu profil!',
-          },
-          {
-            name: '🏅 Pencapaian & Gelar `/achievements`',
-            value: '`/achievements [@user?]` — Lihat status badge dan milestone yang langsung tampil di kartu profilmu!',
-          },
-          {
-            name: '📌 Pengaturan Admin',
-            value: '`/setcard channel:#channel-gallery` — Atur channel tempat hasil kartu member dipublikasikan *(Admin only)*.',
-          }
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • MEMBER PROFILE CARD' })
+        .setTitle('🪪 Member Profile Card')
+        .setDescription(
+          '**Fungsi Utama:**\n' +
+          'Kartu identitas resmi member server yang merangkum biodata, asal daerah, tanggal lahir, zodiak, tautan sosial media, gambar banner/GIF, serta statistik teman ngobrol terdekat di voice channel.\n\n' +
+          '📝 **Cara Membuat & Mengedit Kartu Profil:**\n' +
+          '1. Buka channel pembuatan kartu (biasanya di <#1532222435250929735>).\n' +
+          '2. Klik tombol **`[ 🪪 Buat/Edit Kartu ]`** pada panel.\n' +
+          '3. Isi formulir pop-up yang muncul:\n' +
+          '   • **Bio Singkat:** Deskripsi atau kata mutiara tentang dirimu.\n' +
+          '   • **Asal Daerah:** Tulis nama kota/kabupatenmu (contoh: *Bandung*, *Surabaya*, *Jakarta Selatan*).\n' +
+          '   • **Tanggal Lahir:** Format tanggal lahirmu (contoh: *15-08-2000* atau *15 Agustus*).\n' +
+          '   • **Banner Image URL:** *(Opsional)* Tautan gambar/GIF untuk banner kartumu.\n' +
+          '4. Klik **Submit**. Kartu profilmu akan otomatis dipublikasikan ke channel galeri kartu!\n' +
+          '5. Klik tombol **`[ Lihat Kartu Profil ↗ ]`** untuk langsung melompat ke kartumu.\n\n' +
+          '💡 **Tips Memasang Banner (Gambar / GIF):**\n' +
+          'Kirim gambar/GIF ke salah satu chat Discord ➔ Klik kanan (PC) atau tahan gambar (HP) ➔ Pilih **`Copy Image/Media Link`** ➔ Tempelkan di kolom Banner URL saat edit kartu.'
         )
-        .setFooter({ text: 'QUMPRUY Bot • Member Profile Card' });
+        .setFooter({ text: 'Data Top Voice Companions di kartu otomatis diperbarui setiap kali kamu aktif di Voice' });
 
-    case 'mod':
+    case 'membermap':
       return new EmbedBuilder()
-        .setColor(0xED4245)
-        .setTitle('🛡️ Command Moderasi Server')
-        .setDescription('Sistem penegakan aturan otomatis dan proteksi server.\n⚠️ Memerlukan permission **Moderate Members** atau lebih tinggi.')
-        .addFields(
-          {
-            name: '⚠️ Sistem Peringatan (Warn)',
-            value: [
-              '`/mod warn @user [alasan]` — Berikan peringatan kepada member',
-              '`/mod warnings @user` — Lihat riwayat dan jumlah warn member',
-              '`/mod clearwarns @user` — Hapus seluruh catatan warn *(Admin only)*',
-            ].join('\n'),
-          },
-          {
-            name: '🤖 Auto-Punish (Hukuman Otomatis)',
-            value: [
-              '• `3x Warn` ➔ 🔇 Auto Mute/Timeout selama 3 jam',
-              '• `5x Warn` ➔ 👢 Auto Kick dari Voice Channel',
-              '• `8x Warn` ➔ 🔨 Auto Ban permanen dari server',
-            ].join('\n'),
-          },
-          {
-            name: '🔇 Mute & Timeout',
-            value: [
-              '`/mod mute @user [menit] [alasan]` — Berikan timeout kepada member',
-              '`/mod unmute @user` — Cabut status timeout member',
-            ].join('\n'),
-          },
-          {
-            name: '🚪 Kick & Ban',
-            value: [
-              '`/mod kick @user [alasan]` — Keluarkan member dari server',
-              '`/mod ban @user [alasan]` — Blokir permanen member dari server',
-              '`/mod voicekick @user` — Tendang paksa member keluar dari Voice Channel',
-              '`/mod purge [jumlah 1-100]` — Hapus pesan dalam jumlah banyak secara massal',
-            ].join('\n'),
-          }
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • PETA PERSEBARAN WILAYAH' })
+        .setTitle('🗺️ Peta Persebaran Wilayah Member')
+        .setDescription(
+          '**Fungsi Utama:**\n' +
+          'Melihat peta persebaran asal domisili teman-teman di server, mengetahui provinsi/kota dengan komunitas terbanyak, dan mencari teman satu daerah.\n\n' +
+          '📝 **Cara Menggunakannya:**\n' +
+          '1. Pastikan kamu sudah mengisi **Asal Daerah** pada kartu profilmu.\n' +
+          '2. Ketik **`/membermap view`** atau klik tombol **`[ Buka Peta Wilayah ↗ ]`** pada panel peta server.\n' +
+          '3. Bot akan menampilkan daftar kota & provinsi yang sudah diurutkan dari yang paling banyak membernya.\n' +
+          '4. Gunakan tombol **◀ Prev / Next ▶** untuk berpindah halaman.\n' +
+          '5. **Ingin tahu siapa saja yang tinggal di kota tertentu?**\n' +
+          '   Pilih nama kota pada menu dropdown di bawah peta untuk membuka pop-up daftar nama member beserta bio dan link kartu profil mereka!\n\n' +
+          '⚡ **Privasi & Real-Time:**\n' +
+          'Sesi navigasi peta bersifat **privat (ephemeral)**, sehingga kamu bisa membuka halaman mana pun tanpa mengganggu tampilan member lain.'
         )
-        .setFooter({ text: 'QUMPRUY Bot • Moderasi • Target menerima notifikasi DM otomatis' });
+        .setFooter({ text: 'Data daerah otomatis tersinkronisasi secara real-time dari profil member' });
+
+    case 'gacha':
+      return new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • SISTEM GACHA & KOLEKSI' })
+        .setTitle('🎰 Sistem Gacha & Koleksi Kartu')
+        .setDescription(
+          '**Fungsi Utama:**\n' +
+          'Fitur hiburan gacha kartu koleksi dengan tingkat kelangkaan mulai dari **Common**, **Rare**, **Epic**, **Legendary**, hingga **Mythic**.\n\n' +
+          '📝 **Cara Menggunakannya:**\n' +
+          '1. Ketik **`/gacha daily`** setiap hari untuk mengklaim tiket gacha dan koin harian gratis.\n' +
+          '2. Ketik **`/gacha pull`** untuk melakukan tarikan gacha dan mendapatkan kartu baru.\n' +
+          '3. Cek seluruh koleksi kartumu dengan mengetik **`/gacha inventory`**.\n' +
+          '4. Lihat galeri kelengkapan album kartu server dengan **`/gacha album`**.\n\n' +
+          '💎 **Tingkat Kelangkaan (Rarity):**\n' +
+          '• ⚪ **Common** (Biasa)\n' +
+          '• 🔵 **Rare** (Langka)\n' +
+          '• 🟣 **Epic** (Sangat Langka)\n' +
+          '• 🟡 **Legendary** (Istimewa)\n' +
+          '• 🔴 **Mythic** (Paling Langka & Bernilai Tinggi)'
+        )
+        .setFooter({ text: 'Klaim hadiah gratis setiap 24 jam dengan /gacha daily' });
+
+    case 'timecapsule':
+      return new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • KAPSUL WAKTU (TIME CAPSULE)' })
+        .setTitle('⏳ Kapsul Waktu (Time Capsule)')
+        .setDescription(
+          '**Fungsi Utama:**\n' +
+          'Menyimpan surat, pesan rahasia, impian, atau kenangan untuk dirimu sendiri atau seluruh server yang **terkunci rapat dan baru akan terbuka otomatis pada tanggal di masa depan**.\n\n' +
+          '📝 **Cara Menggunakannya:**\n' +
+          '1. Ketik **`/timecapsule create`** di text channel.\n' +
+          '2. Tulis isi pesan kapsul waktumu.\n' +
+          '3. Tentukan kapan kapsul tersebut boleh dibuka (contoh: *31-12-2026*, *Tahun Baru*, atau *1 bulan lagi*).\n' +
+          '4. Pilih target kapsul: **Pribadi (DM)** atau **Publik (Channel Server)**.\n' +
+          '5. Bot akan mengunci kapsul tersebut. Saat waktu yang ditentukan tiba, bot akan otomatis mengirimkan notifikasi dan membuka isi pesannya!\n\n' +
+          '⚡ **Perintah Terkait:**\n' +
+          '• `/timecapsule list` — Melihat daftar kapsul waktu aktif milikmu.'
+        )
+        .setFooter({ text: 'Kapsul waktu yang terkunci tidak dapat dibaca oleh siapa pun sebelum tanggal bukanya' });
 
     case 'daily':
       return new EmbedBuilder()
-        .setColor(0xFFD93D)
-        .setTitle('🌅 Command Harian, Jadwal & Pengumuman')
-        .setDescription('Pengingat otomatis waktu harian, perayaan ulang tahun, dan jadwal pengumuman.')
-        .addFields(
-          {
-            name: '☀️ Ucapan Pagi `/qmorning`',
-            value: [
-              '`/qmorning setchannel #channel` — Tentukan channel pesan pagi',
-              '`/qmorning settime [jam] [menit]` — Atur jadwal jam kirim (WIB)',
-              '`/qmorning enable` / `disable` — Aktifkan atau nonaktifkan pengingat',
-              '`/qmorning test` — Preview tampilan pesan selamat pagi',
-              '`/qmorning status` — Cek konfigurasi jadwal saat ini',
-            ].join('\n'),
-          },
-          {
-            name: '🌙 Ucapan Malam `/qnight`',
-            value: [
-              '`/qnight setchannel #channel` — Tentukan channel pesan malam',
-              '`/qnight settime [jam] [menit]` — Atur jadwal jam kirim (WIB)',
-              '`/qnight enable` / `disable` — Aktifkan atau nonaktifkan pengingat',
-              '`/qnight test` — Preview tampilan pesan selamat malam',
-              '`/qnight status` — Cek konfigurasi jadwal saat ini',
-            ].join('\n'),
-          },
-          {
-            name: '🎂 Perayaan Ulang Tahun `/birthday`',
-            value: [
-              '`/birthday view [@user?]` — Lihat tanggal lahir, umur, zodiak & hitung mundur',
-              '`/birthday list` — Lihat daftar ulang tahun member terdekat di server',
-              '`/birthday setchannel #channel` — Atur channel khusus pengumuman ulang tahun *(Owner/Mod)*',
-              '`/birthday test [@user?]` — Uji coba kirim simulasi ucapan ulang tahun *(Owner/Mod)*',
-              '`/birthday status` — Cek status & channel pengumuman ulang tahun saat ini',
-              '`/birthday removechannel` — Nonaktifkan pengumuman ulang tahun *(Owner/Mod)*',
-            ].join('\n'),
-          },
-          {
-            name: '📢 Pengumuman Terjadwal `/announce`',
-            value: [
-              '`/announce send #channel [pesan]` — Kirim pengumuman langsung',
-              '`/announce schedule #channel [pesan] [jam] [menit]` — Jadwalkan pengumuman rutin setiap hari',
-              '`/announce list` — Tampilkan daftar pengumuman terjadwal aktif',
-              '`/announce remove [id]` — Batalkan/hapus jadwal pengumuman',
-            ].join('\n'),
-          },
-          {
-            name: '💤 Sistem AFK `/afk`',
-            value: [
-              '`/afk [alasan?]` — Set status AFK dengan alasan opsional',
-              '*Saat seseorang mention kamu, bot otomatis kasih tahu mereka.*',
-              '*Status AFK otomatis hilang saat kamu kembali mengetik.*',
-            ].join('\n'),
-          },
-          {
-            name: '📅 Event & Acara Server `/event`',
-            value: [
-              '`/event create [nama] [tanggal] [jam]` — Buat event baru + RSVP',
-              '`/event list` — Lihat daftar event yang akan datang',
-              '`/event info [id]` — Detail lengkap event tertentu',
-              '`/event cancel [id]` — Batalkan event *(Owner/Mod)*',
-              '*Bot otomatis kirim pengingat 30 menit sebelum event!*',
-            ].join('\n'),
-          },
-          {
-            name: '📮 Kapsul Waktu `/timecapsule`',
-            value: [
-              '`/timecapsule send [pesan] [tanggal] [jam?] [tujuan?]` — Kirim surat masa depan',
-              '`/timecapsule list` — Cek daftar kapsul aktif milikmu',
-              '`/timecapsule cancel [id]` — Batalkan kapsul waktu',
-              '*Kapsul akan otomatis terbuka dan dikirim ke DM / Channel saat tanggalnya tiba!*',
-            ].join('\n'),
-          }
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • ULANG TAHUN & JADWAL HARIAN' })
+        .setTitle('🎂 Ulang Tahun & Pengingat Harian')
+        .setDescription(
+          '**Fungsi Utama:**\n' +
+          'Sistem otomatisasi server yang merayakan ulang tahun member secara otomatis tepat pukul 00:00 WIB, sapaan pagi/malam hari, dan pengumuman event.\n\n' +
+          '📝 **Cara Mengikuti Perayaan Ulang Tahun:**\n' +
+          '1. Cukup isi tanggal lahirmu di Member Card melalui <#1532222435250929735>.\n' +
+          '2. Saat hari ulang tahunmu tiba (jam 00:00 WIB), bot akan otomatis mengirimkan kartu ucapan perayaan spesial di channel ulang tahun!\n' +
+          '3. Member lain bisa mengucapkan selamat dan merayakannya bersama.\n\n' +
+          '⚡ **Perintah Terkait:**\n' +
+          '• `/birthday upcoming` — Melihat siapa saja member yang berulang tahun dalam waktu dekat.\n' +
+          '• `/birthday check [user]` — Mengecek tanggal lahir & zodiak member tertentu.\n' +
+          '• `/event list` — Melihat jadwal kegiatan/event server mendatang.'
         )
-        .setFooter({ text: 'QUMPRUY Bot • Waktu terkonfigurasi pada WIB (UTC+7)' });
+        .setFooter({ text: 'Ulang tahun dihitung 100% dari tanggal lahir asli di Member Card' });
 
-    case 'fun':
+    case 'voice':
       return new EmbedBuilder()
-        .setColor(0xFF6B6B)
-        .setTitle('🎉 Command Fun, Usilan & Jail')
-        .setDescription('Fitur interaktif dan hiburan server. Fitur usilan & jail khusus untuk **Moderator / Admin**.')
-        .addFields(
-          {
-            name: '📊 Polling & Voting `/poll`',
-            value: [
-              '`/poll [pertanyaan] [opsi1] [opsi2]` — Buat voting 2 pilihan',
-              '`/poll [pertanyaan] [opsi1] [opsi2] [opsi3] [opsi4]` — Hingga 4 pilihan voting',
-              '*Bot otomatis menambahkan reaksi voting interaktif 🇦 🇧 🇨 🇩.*',
-            ].join('\n'),
-          },
-          {
-            name: '🔒 Sistem Penjara Server `/fun jail`',
-            value: [
-              '`/fun jailsetup [role] [channel] [voice]` — Konfigurasi sistem penjara *(Admin only)*',
-              '`/fun jail @user [menit] [alasan]` — Jebloskan member nakal ke sel penjara',
-              '`/fun bail @user` — Bebaskan tahanan dari penjara lebih awal',
-              '`/fun jailstatus @user` — Cek status hukuman dan durasi tersisa tahanan',
-              '*Tahanan akan kehilangan akses semua channel lain dan dikurung di channel penjara.*',
-            ].join('\n'),
-          },
-          {
-            name: '😂 Fitur Usilan `/fun`',
-            value: [
-              '`/fun roast @user [teks?] [#channel?]` — Kirim ejekan/roast lucu ke target',
-              '`/fun wanted @user [kejahatan]` — Buat poster buronan WANTED bergaya koboi',
-              '`/fun rename @user [nama?]` — Ganti nickname member menjadi nama unik/kocak',
-              '`/fun fakequote @user [teks]` — Buat kutipan lucu seolah dikatakan oleh target',
-              '`/fun say [pesan] [#channel?]` — Kirim pesan mengatasnamakan bot',
-            ].join('\n'),
-          },
-          {
-            name: '🎵 Music Quiz `/musicquiz`',
-            value: [
-              '`/musicquiz start [ronde?]` — Mulai tebak lagu interaktif dengan tombol A/B/C/D',
-              '`/musicquiz stop` — Hentikan quiz yang sedang berlangsung',
-              '`/musicquiz leaderboard` — Lihat papan peringkat juara tebak lagu server',
-            ].join('\n'),
-          },
-          {
-            name: '🎁 Kotak Misteri Gacha `/gacha`',
-            value: [
-              '`/gacha pull` — Buka 1 peti misteri harian (Common ⚪ hingga Legendary 🟡)',
-              '`/gacha inventory [@user?]` — Cek koleksi item, title, dan badge gachamu',
-            ].join('\n'),
-          }
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • VOICE TRACKING & ACHIEVEMENTS' })
+        .setTitle('🎙️ Voice Tracker & Lencana Pencapaian')
+        .setDescription(
+          '**Fungsi Utama:**\n' +
+          'Mencatat durasi keaktifan ngobrol di Voice Channel, mendeteksi siapa teman ngobrol terdekatmu (**Top Voice Companions**), dan membuka berbagai lencana pencapaian (Badges).\n\n' +
+          '📝 **Cara Kerjanya:**\n' +
+          '1. Cukup masuk dan nongkrong di Voice Channel mana saja seperti biasa.\n' +
+          '2. Sistem bot akan mencatat jam aktifmu secara otomatis tanpa perlu mengetik apa pun.\n' +
+          '3. Semakin sering kamu berada di voice bersama teman tertentu, namanya akan naik ke daftar **Top Voice Companions** di kartu profilmu.\n' +
+          '4. Buka lencana khusus seperti *Night Owl*, *Talkaholic*, *DJ Master*, dan banyak lagi saat mencapai target jam aktif!\n\n' +
+          '⚡ **Perintah Terkait:**\n' +
+          '• `/achievements` — Melihat daftar lencana dan pencapaianmu.\n' +
+          '• `/userinfo [user]` — Melihat profil statistik voice lengkap seseorang.'
         )
-        .setFooter({ text: 'QUMPRUY Bot • Fitur Hiburan & Interaktif' });
+        .setFooter({ text: 'Tracking berjalan otomatis dan tidak membebani performa server' });
 
-    case 'settings':
+    case 'mod':
       return new EmbedBuilder()
-        .setColor(0x99AAB5)
-        .setTitle('⚙️ Info, Utilitas & Konfigurasi')
-        .setDescription('Informasi server, member, dan pengaturan umum bot.')
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • MODERASI & KEAMANAN' })
+        .setTitle('🛡️ Sistem Moderasi Server')
+        .setDescription(
+          '**Fungsi Utama:**\n' +
+          'Alat bantu pengelolaan server untuk Staff & Moderator dalam menjaga ketertiban komunitas.\n\n' +
+          '⚡ **Daftar Perintah Moderasi:**\n' +
+          '• `/warn [user] [alasan]` — Berikan peringatan resmi ke member (otomatis auto-punish jika melebihi batas).\n' +
+          '• `/warnings [user]` — Cek riwayat peringatan yang pernah diterima seseorang.\n' +
+          '• `/clear [jumlah] [target]` — Bersihkan pesan chat dalam jumlah banyak secara instan.\n' +
+          '• `/mute [user] [durasi] [alasan]` — Berikan timeout / bisukan member sementara.\n' +
+          '• `/unmute [user]` — Lepaskan status bisu/timeout member.\n' +
+          '• `/kick [user] [alasan]` — Keluarkan member dari server.\n' +
+          '• `/ban [user] [alasan]` — Blokir permanen member dari server.'
+        )
+        .setFooter({ text: 'Perintah moderasi hanya dapat dijalankan oleh Staff / Admin yang berwenang' });
+
+    case 'all_cmds':
+      return new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setAuthor({ name: 'PANDUAN FITUR • DAFTAR SEMUA PERINTAH' })
+        .setTitle('📖 Ringkasan Semua Slash Commands')
+        .setDescription('Berikut adalah rangkuman cepat seluruh perintah slash command bot yang tersedia:')
         .addFields(
           {
-            name: 'ℹ️ Informasi Server & Member',
-            value: [
-              '`/serverinfo` — Tampilkan statistik lengkap server (Member, Boost Level, Roles, Channels)',
-              '`/userinfo [@user]` — Tampilkan profil detail member (Join date, Akun dibuat, Status VC, Role)',
-              '`/ping` — Cek status latensi koneksi bot dan Discord WebSocket',
-              '`/help` — Buka panel menu panduan bot ini',
-            ].join('\n'),
+            name: '🎵 Musik & Player',
+            value: '`/play`, `/search`, `/nowplaying`, `/queue`, `/skip`, `/pause`, `/resume`, `/stop`, `/volume`, `/loop`, `/shuffle`, `/seek`, `/lyrics`, `/filter`, `/autoplay`, `/q247`',
+            inline: false
           },
           {
-            name: '👋 Sambutan Member Baru `/qwelcome`',
-            value: [
-              '`/qwelcome setchannel #channel` — Atur channel kirim kartu sambutan',
-              '`/qwelcome enable` / `disable` — Aktifkan atau nonaktifkan sambutan',
-              '`/qwelcome test` — Uji coba kirim pesan kartu sambutan',
-              '`/qwelcome status` — Cek status konfigurasi welcome',
-            ].join('\n'),
+            name: '🎮 Games & Hiburan',
+            value: '`/musicquiz`, `/gacha`, `/poll`, `/afk`, `/roast`, `/fakequote`, `/wanted`, `/dice`, `/coinflip`, `/8ball`',
+            inline: false
           },
           {
-            name: '🎴 Pengaturan Panel Profil',
-            value: '`/setcard #channel` — Tentukan channel untuk panel hub pembuatan kartu profil member.',
+            name: '🪪 Komunitas & Profil',
+            value: '`/card`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/achievements`, `/userinfo`, `/serverinfo`',
+            inline: false
           },
           {
-            name: '👤 Informasi Developer',
-            value: [
-              `Nama: **${OWNER.name}**`,
-              `GitHub: [${OWNER.github}](${OWNER.github})`,
-              `Role: Developer & Bot Architect`,
-            ].join('\n'),
+            name: '🛡️ Moderasi & Staff',
+            value: '`/warn`, `/warnings`, `/clearwarn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/clear`, `/announce`, `/qmorning`, `/qnight`, `/backup`',
+            inline: false
           }
         )
-        .setFooter({ text: `QUMPRUY Bot • Versi 2.0 • Made with ❤️ by ${OWNER.name}` });
+        .setFooter({ text: 'Ketik / untuk melihat daftar command interaktif Discord' });
   }
 }
 
-module.exports = { buildHelpEmbed, CATEGORIES, OWNER };
+/**
+ * Buat Payload Pesan Panel Publik Panduan & Direktori Bot
+ */
+function createHelpGuidePanelPayload(guild) {
+  const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+
+  const embed = buildHelpEmbed('overview', null, guild);
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('help_guide_select')
+    .setPlaceholder('📂 Pilih fitur yang ingin kamu pelajari...')
+    .addOptions(
+      {
+        label: '🏠 Ringkasan Direktori Utama',
+        description: 'Tampilan pengantar dan gambaran umum bot',
+        value: 'overview',
+        emoji: '🏠'
+      },
+      {
+        label: '🎵 Pemutar Musik & Audio',
+        description: 'Cara putar lagu, prefix qp, lirik, filter, & radio',
+        value: 'music',
+        emoji: '🎵'
+      },
+      {
+        label: '🎮 Music Quiz (Tebak Lagu)',
+        description: 'Cara main game tebak lagu audio 10s & leaderboard',
+        value: 'quiz',
+        emoji: '🎮'
+      },
+      {
+        label: '🪪 Member Profile Card',
+        description: 'Cara buat kartu profil, pasang banner GIF, & bio',
+        value: 'card',
+        emoji: '🪪'
+      },
+      {
+        label: '🗺️ Peta Persebaran Wilayah',
+        description: 'Cara cek domisili kota & cari teman satu daerah',
+        value: 'membermap',
+        emoji: '🗺️'
+      },
+      {
+        label: '🎰 Sistem Gacha & Koleksi',
+        description: 'Daily pull gratis & kelangkaan kartu koleksi',
+        value: 'gacha',
+        emoji: '🎰'
+      },
+      {
+        label: '⏳ Kapsul Waktu (Time Capsule)',
+        description: 'Kirim surat rahasia untuk dibuka di masa depan',
+        value: 'timecapsule',
+        emoji: '⏳'
+      },
+      {
+        label: '🎂 Ulang Tahun & Sapaan',
+        description: 'Perayaan ultah jam 00:00 WIB, event, & sapaan harian',
+        value: 'daily',
+        emoji: '🎂'
+      },
+      {
+        label: '🎙️ Voice Tracking & Badges',
+        description: 'Jam voice otomatis, companions terdekat, & badges',
+        value: 'voice',
+        emoji: '🎙️'
+      },
+      {
+        label: '🛡️ Moderasi & Keamanan',
+        description: 'Panduan staff untuk warn, mute, & clear chat',
+        value: 'mod',
+        emoji: '🛡️'
+      },
+      {
+        label: '📖 Daftar Semua Perintah',
+        description: 'Rangkuman lengkap seluruh slash command',
+        value: 'all_cmds',
+        emoji: '📖'
+      }
+    );
+
+  const row = new ActionRowBuilder().addComponents(selectMenu);
+
+  return { embeds: [embed], components: [row] };
+}
+
+module.exports = {
+  buildHelpEmbed,
+  createHelpGuidePanelPayload,
+  OWNER
+};

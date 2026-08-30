@@ -923,6 +923,11 @@ const lastSongPerGuild = new Map();
 
 client.distube
   .on('playSong', async (queue, song) => {
+    // Jangan kirim kartu "Sedang Diputar" jika lagu berasal dari Music Quiz (agar tidak membocorkan jawaban!)
+    if (song.metadata?.isQuiz || queue.isQuiz) {
+      return;
+    }
+
     // Simpan lagu yang sedang diputar sebagai "lagu terakhir" untuk autoplay
     lastSongPerGuild.set(queue.id, { name: song.name, uploader: song.uploader?.name });
 
@@ -951,6 +956,11 @@ client.distube
     startLiveProgressUpdater(queue);
   })
   .on('addSong', (queue, song) => {
+    // Jangan kirim notifikasi jika lagu berasal dari Music Quiz
+    if (song.metadata?.isQuiz || queue.isQuiz) {
+      return;
+    }
+
     // Hanya tampilkan notifikasi jika lagu ditambahkan ke antrian yang SUDAH BERJALAN
     // (queue.songs.length > 1 artinya sudah ada lagu yang sedang diputar)
     if (queue.songs.length > 1) {
