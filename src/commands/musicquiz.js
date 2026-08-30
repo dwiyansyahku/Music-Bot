@@ -4,227 +4,13 @@ const {
 } = require('discord.js');
 const storage = require('../utils/storage');
 
-/**
- * Bank Lagu Dinamis Super Lengkap (200+ Lagu Populer Multi-Genre)
- * Menggunakan pencarian cerdas di YouTube tanpa perlu hardcode URL.
- */
-const SONG_CATALOG = {
-  indo: [
-    { title: 'Hati-Hati di Jalan', artist: 'Tulus', year: '2022' },
-    { title: 'Monokrom', artist: 'Tulus', year: '2016' },
-    { title: 'Diri', artist: 'Tulus', year: '2022' },
-    { title: 'Sepatu', artist: 'Tulus', year: '2013' },
-    { title: 'Gajah', artist: 'Tulus', year: '2014' },
-    { title: 'Sial', artist: 'Mahalini', year: '2023' },
-    { title: 'Mati-Matian', artist: 'Mahalini', year: '2024' },
-    { title: 'Sisa Rasa', artist: 'Mahalini', year: '2021' },
-    { title: 'Kisah Sempurna', artist: 'Mahalini', year: '2022' },
-    { title: 'Dan...', artist: 'Sheila On 7', year: '2000' },
-    { title: 'Sephia', artist: 'Sheila On 7', year: '2000' },
-    { title: 'Sebuah Kisah Klasik', artist: 'Sheila On 7', year: '2000' },
-    { title: 'Hari Bersamanya', artist: 'Sheila On 7', year: '2011' },
-    { title: 'Mudah Saja', artist: 'Sheila On 7', year: '2009' },
-    { title: 'Akad', artist: 'Payung Teduh', year: '2017' },
-    { title: 'Menuju Senja', artist: 'Payung Teduh', year: '2012' },
-    { title: 'Jiwa Yang Bersedih', artist: 'Ghea Indrawari', year: '2023' },
-    { title: 'Tak Segampang Itu', artist: 'Anggi Marito', year: '2023' },
-    { title: 'Hingga Tua Bersama', artist: 'Rizky Febian', year: '2021' },
-    { title: 'Kesempurnaan Cinta', artist: 'Rizky Febian', year: '2015' },
-    { title: 'Cuek', artist: 'Rizky Febian', year: '2020' },
-    { title: 'Mantra Cinta', artist: 'Rizky Febian', year: '2020' },
-    { title: 'Satu Bulan', artist: 'Bernadya', year: '2024' },
-    { title: 'Kata Mereka Ini Berlebihan', artist: 'Bernadya', year: '2024' },
-    { title: 'Untungnya, Hidup Harus Tetap Berjalan', artist: 'Bernadya', year: '2024' },
-    { title: 'Gala Bunga Matahari', artist: 'Sal Priadi', year: '2024' },
-    { title: 'Dari Planet Lain', artist: 'Sal Priadi', year: '2024' },
-    { title: 'Lantas', artist: 'Juicy Luicy', year: '2020' },
-    { title: 'Tanpa Tergesa', artist: 'Juicy Luicy', year: '2018' },
-    { title: 'Tampar', artist: 'Juicy Luicy', year: '2022' },
-    { title: 'Asing', artist: 'Juicy Luicy', year: '2023' },
-    { title: 'Bertaut', artist: 'Nadin Amizah', year: '2020' },
-    { title: 'Rayuan Perempuan Gila', artist: 'Nadin Amizah', year: '2023' },
-    { title: 'Semua Aku Dirayakan', artist: 'Nadin Amizah', year: '2023' },
-    { title: 'Sorai', artist: 'Nadin Amizah', year: '2019' },
-    { title: 'Separuh Aku', artist: 'NOAH', year: '2012' },
-    { title: 'Kupu-Kupu Malam', artist: 'NOAH', year: '2022' },
-    { title: 'Yang Terdalam', artist: 'Peterpan / NOAH', year: '2003' },
-    { title: 'Kangen', artist: 'Dewa 19', year: '1992' },
-    { title: 'Pupus', artist: 'Dewa 19', year: '2002' },
-    { title: 'Risalah Hati', artist: 'Dewa 19', year: '2000' },
-    { title: 'Separuh Nafas', artist: 'Dewa 19', year: '2000' },
-    { title: 'Cemburu', artist: 'Dewa 19', year: '2000' },
-    { title: 'To the Bone', artist: 'Pamungkas', year: '2019' },
-    { title: 'Kenangan Manis', artist: 'Pamungkas', year: '2018' },
-    { title: 'I Love You but I\'m Letting Go', artist: 'Pamungkas', year: '2018' },
-    { title: 'Rumah ke Rumah', artist: 'Hindia', year: '2019' },
-    { title: 'Evaluasi', artist: 'Hindia', year: '2019' },
-    { title: 'Secukupnya', artist: 'Hindia', year: '2019' },
-    { title: 'Cincin', artist: 'Hindia', year: '2023' },
-    { title: 'Usai', artist: 'Tiara Andini', year: '2022' },
-    { title: 'Merasa Indah', artist: 'Tiara Andini', year: '2021' },
-    { title: 'Janji Setia', artist: 'Tiara Andini', year: '2021' },
-    { title: 'Komang', artist: 'Raim Laode', year: '2022' },
-    { title: 'Nanti Kita Seperti Ini', artist: 'Batas Senja', year: '2023' },
-    { title: 'Tak Kan Hilang', artist: 'Budi Doremi', year: '2022' },
-    { title: 'Melukis Senja', artist: 'Budi Doremi', year: '2020' },
-    { title: 'Pernah Memiliki', artist: 'D\'Masiv ft. Rossa', year: '2018' },
-    { title: 'Jangan Menyerah', artist: 'D\'Masiv', year: '2009' }
-  ],
-  western: [
-    { title: 'Grenade', artist: 'Bruno Mars', year: '2010' },
-    { title: 'Locked Out of Heaven', artist: 'Bruno Mars', year: '2012' },
-    { title: 'Just The Way You Are', artist: 'Bruno Mars', year: '2010' },
-    { title: 'When I Was Your Man', artist: 'Bruno Mars', year: '2012' },
-    { title: '24K Magic', artist: 'Bruno Mars', year: '2016' },
-    { title: 'That\'s What I Like', artist: 'Bruno Mars', year: '2016' },
-    { title: 'Die With A Smile', artist: 'Lady Gaga & Bruno Mars', year: '2024' },
-    { title: 'We Found Love', artist: 'Rihanna ft. Calvin Harris', year: '2011' },
-    { title: 'Diamonds', artist: 'Rihanna', year: '2012' },
-    { title: 'Umbrella', artist: 'Rihanna ft. Jay-Z', year: '2007' },
-    { title: 'I Want It That Way', artist: 'Backstreet Boys', year: '1999' },
-    { title: 'Everybody (Backstreet\'s Back)', artist: 'Backstreet Boys', year: '1997' },
-    { title: 'A Sky Full of Stars', artist: 'Coldplay', year: '2014' },
-    { title: 'Viva La Vida', artist: 'Coldplay', year: '2008' },
-    { title: 'Yellow', artist: 'Coldplay', year: '2000' },
-    { title: 'The Scientist', artist: 'Coldplay', year: '2002' },
-    { title: 'Fix You', artist: 'Coldplay', year: '2005' },
-    { title: 'Blinding Lights', artist: 'The Weeknd', year: '2019' },
-    { title: 'Starboy', artist: 'The Weeknd ft. Daft Punk', year: '2016' },
-    { title: 'Save Your Tears', artist: 'The Weeknd', year: '2020' },
-    { title: 'Die For You', artist: 'The Weeknd', year: '2016' },
-    { title: 'Cruel Summer', artist: 'Taylor Swift', year: '2019' },
-    { title: 'Blank Space', artist: 'Taylor Swift', year: '2014' },
-    { title: 'Anti-Hero', artist: 'Taylor Swift', year: '2022' },
-    { title: 'Love Story', artist: 'Taylor Swift', year: '2008' },
-    { title: 'You Belong With Me', artist: 'Taylor Swift', year: '2008' },
-    { title: 'Shape of You', artist: 'Ed Sheeran', year: '2017' },
-    { title: 'Perfect', artist: 'Ed Sheeran', year: '2017' },
-    { title: 'Thinking Out Loud', artist: 'Ed Sheeran', year: '2014' },
-    { title: 'Bad Guy', artist: 'Billie Eilish', year: '2019' },
-    { title: 'Birds of a Feather', artist: 'Billie Eilish', year: '2024' },
-    { title: 'Lovely', artist: 'Billie Eilish & Khalid', year: '2018' },
-    { title: 'Levitating', artist: 'Dua Lipa', year: '2020' },
-    { title: 'Don\'t Start Now', artist: 'Dua Lipa', year: '2019' },
-    { title: 'Sugar', artist: 'Maroon 5', year: '2014' },
-    { title: 'Payphone', artist: 'Maroon 5 ft. Wiz Khalifa', year: '2012' },
-    { title: 'Memories', artist: 'Maroon 5', year: '2019' },
-    { title: 'Counting Stars', artist: 'OneRepublic', year: '2013' },
-    { title: 'I Ain\'t Worried', artist: 'OneRepublic', year: '2022' },
-    { title: 'Someone Like You', artist: 'Adele', year: '2011' },
-    { title: 'Rolling in the Deep', artist: 'Adele', year: '2010' },
-    { title: 'Easy On Me', artist: 'Adele', year: '2021' },
-    { title: 'Stay', artist: 'The Kid LAROI & Justin Bieber', year: '2021' },
-    { title: 'Peaches', artist: 'Justin Bieber ft. Daniel Caesar', year: '2021' },
-    { title: 'Sunflower', artist: 'Post Malone & Swae Lee', year: '2018' },
-    { title: 'Circles', artist: 'Post Malone', year: '2019' },
-    { title: 'I Took a Pill in Ibiza', artist: 'Mike Posner', year: '2016' },
-    { title: 'Wake Me Up', artist: 'Avicii', year: '2013' },
-    { title: 'Waiting for Love', artist: 'Avicii', year: '2015' },
-    { title: 'Something Just Like This', artist: 'The Chainsmokers & Coldplay', year: '2017' },
-    { title: 'Closer', artist: 'The Chainsmokers ft. Halsey', year: '2016' },
-    { title: 'See You Again', artist: 'Wiz Khalifa ft. Charlie Puth', year: '2015' },
-    { title: 'Attention', artist: 'Charlie Puth', year: '2017' },
-    { title: 'We Don\'t Talk Anymore', artist: 'Charlie Puth ft. Selena Gomez', year: '2016' }
-  ],
-  anime: [
-    { title: 'Unravel', artist: 'TK from Ling Tosite Sigure', year: '2014' },
-    { title: 'Gurenge', artist: 'LiSA', year: '2019' },
-    { title: 'Homura', artist: 'LiSA', year: '2020' },
-    { title: 'Crossing Field', artist: 'LiSA', year: '2012' },
-    { title: 'Shinzou wo Sasageyo', artist: 'Linked Horizon', year: '2017' },
-    { title: 'Guren no Yumiya', artist: 'Linked Horizon', year: '2013' },
-    { title: 'The Rumbling', artist: 'SiM', year: '2022' },
-    { title: 'Red Swan', artist: 'YOSHIKI ft. HYDE', year: '2018' },
-    { title: 'Zenzenzense', artist: 'RADWIMPS', year: '2016' },
-    { title: 'Sparkle', artist: 'RADWIMPS', year: '2016' },
-    { title: 'Nandemonaiya', artist: 'RADWIMPS', year: '2016' },
-    { title: 'Grand Escape', artist: 'RADWIMPS ft. Toko Miura', year: '2019' },
-    { title: 'Suzume', artist: 'RADWIMPS ft. Toaka', year: '2022' },
-    { title: 'Idol', artist: 'YOASOBI', year: '2023' },
-    { title: 'Yoru ni Kakeru (Racing into the Night)', artist: 'YOASOBI', year: '2019' },
-    { title: 'Monster', artist: 'YOASOBI', year: '2021' },
-    { title: 'Kaibutsu', artist: 'YOASOBI', year: '2021' },
-    { title: 'Gunjou (Blue)', artist: 'YOASOBI', year: '2020' },
-    { title: 'Blue Bird', artist: 'Ikimonogakari', year: '2008' },
-    { title: 'Hotaru no Hikari', artist: 'Ikimonogakari', year: '2009' },
-    { title: 'Silhouette', artist: 'KANA-BOON', year: '2014' },
-    { title: 'Sign', artist: 'FLOW', year: '2010' },
-    { title: 'GO!!!', artist: 'FLOW', year: '2004' },
-    { title: 'Colors', artist: 'FLOW', year: '2006' },
-    { title: 'Kaikai Kitan', artist: 'Eve', year: '2020' },
-    { title: 'Dramaturgy', artist: 'Eve', year: '2017' },
-    { title: 'Kick Back', artist: 'Kenshi Yonezu', year: '2022' },
-    { title: 'Peace Sign', artist: 'Kenshi Yonezu', year: '2017' },
-    { title: 'Lemon', artist: 'Kenshi Yonezu', year: '2018' },
-    { title: 'Chikyuugi (Spinning Globe)', artist: 'Kenshi Yonezu', year: '2023' },
-    { title: 'Specialz', artist: 'King Gnu', year: '2023' },
-    { title: 'Hakujitsu', artist: 'King Gnu', year: '2019' },
-    { title: 'Bling-Bang-Bang-Born', artist: 'Creepy Nuts', year: '2024' },
-    { title: 'Otonoke', artist: 'Creepy Nuts', year: '2024' },
-    { title: 'Kawaikute Gomen', artist: 'HoneyWorks', year: '2022' },
-    { title: 'Renai Circulation', artist: 'Kana Hanazawa', year: '2009' },
-    { title: 'Again', artist: 'YUI', year: '2009' },
-    { title: 'InuYasha - Fukai Mori', artist: 'Do As Infinity', year: '2001' },
-    { title: 'Cry Baby', artist: 'Official HIGE DANdism', year: '2021' },
-    { title: 'Pretender', artist: 'Official HIGE DANdism', year: '2019' },
-    { title: 'Mixed Nuts', artist: 'Official HIGE DANdism', year: '2022' }
-  ],
-  kpop: [
-    { title: 'Dynamite', artist: 'BTS', year: '2020' },
-    { title: 'Butter', artist: 'BTS', year: '2021' },
-    { title: 'Boy With Luv', artist: 'BTS ft. Halsey', year: '2019' },
-    { title: 'Spring Day', artist: 'BTS', year: '2017' },
-    { title: 'DNA', artist: 'BTS', year: '2017' },
-    { title: 'Fake Love', artist: 'BTS', year: '2018' },
-    { title: 'IDOL', artist: 'BTS', year: '2018' },
-    { title: 'How You Like That', artist: 'BLACKPINK', year: '2020' },
-    { title: 'DDU-DU DDU-DU', artist: 'BLACKPINK', year: '2018' },
-    { title: 'Kill This Love', artist: 'BLACKPINK', year: '2019' },
-    { title: 'Pink Venom', artist: 'BLACKPINK', year: '2022' },
-    { title: 'Shut Down', artist: 'BLACKPINK', year: '2022' },
-    { title: 'Boombayah', artist: 'BLACKPINK', year: '2016' },
-    { title: 'As If It\'s Your Last', artist: 'BLACKPINK', year: '2017' },
-    { title: 'Next Level', artist: 'aespa', year: '2021' },
-    { title: 'Supernova', artist: 'aespa', year: '2024' },
-    { title: 'Drama', artist: 'aespa', year: '2023' },
-    { title: 'Savage', artist: 'aespa', year: '2021' },
-    { title: 'Spicy', artist: 'aespa', year: '2023' },
-    { title: 'Armageddon', artist: 'aespa', year: '2024' },
-    { title: 'Hype Boy', artist: 'NewJeans', year: '2022' },
-    { title: 'Ditto', artist: 'NewJeans', year: '2022' },
-    { title: 'Super Shy', artist: 'NewJeans', year: '2023' },
-    { title: 'OMG', artist: 'NewJeans', year: '2023' },
-    { title: 'Attention', artist: 'NewJeans', year: '2022' },
-    { title: 'ETA', artist: 'NewJeans', year: '2023' },
-    { title: 'How Sweet', artist: 'NewJeans', year: '2024' },
-    { title: 'Love Dive', artist: 'IVE', year: '2022' },
-    { title: 'After LIKE', artist: 'IVE', year: '2022' },
-    { title: 'I AM', artist: 'IVE', year: '2023' },
-    { title: 'Baddie', artist: 'IVE', year: '2023' },
-    { title: 'Eleven', artist: 'IVE', year: '2021' },
-    { title: 'Fancy', artist: 'TWICE', year: '2019' },
-    { title: 'Feel Special', artist: 'TWICE', year: '2019' },
-    { title: 'What is Love?', artist: 'TWICE', year: '2018' },
-    { title: 'Cheer Up', artist: 'TWICE', year: '2016' },
-    { title: 'TT', artist: 'TWICE', year: '2016' },
-    { title: 'The Feels', artist: 'TWICE', year: '2021' },
-    { title: 'Antifragile', artist: 'LE SSERAFIM', year: '2022' },
-    { title: 'Eve, Psyche & The Bluebeard\'s wife', artist: 'LE SSERAFIM', year: '2023' },
-    { title: 'Smart', artist: 'LE SSERAFIM', year: '2024' },
-    { title: 'Easy', artist: 'LE SSERAFIM', year: '2024' },
-    { title: 'Perfect Night', artist: 'LE SSERAFIM', year: '2023' },
-    { title: 'God\'s Menu', artist: 'Stray Kids', year: '2020' },
-    { title: 'Maniac', artist: 'Stray Kids', year: '2022' },
-    { title: 'S-Class', artist: 'Stray Kids', year: '2023' },
-    { title: 'LALALALA', artist: 'Stray Kids', year: '2023' },
-    { title: 'Super', artist: 'SEVENTEEN', year: '2023' },
-    { title: 'HOT', artist: 'SEVENTEEN', year: '2022' },
-    { title: 'Maestro', artist: 'SEVENTEEN', year: '2024' },
-    { title: 'Bang Bang Bang', artist: 'BIGBANG', year: '2015' },
-    { title: 'Fantastic Baby', artist: 'BIGBANG', year: '2012' },
-    { title: 'Love Scenario', artist: 'iKON', year: '2018' }
-  ]
-};
+// Bank Lagu Dinamis Multi-Negara (Dimuat dari database JSON terpisah)
+let SONG_CATALOG = {};
+try {
+  SONG_CATALOG = require('../data/quizSongs.json');
+} catch (err) {
+  console.warn('[MusicQuiz] Gagal memuat quizSongs.json, menggunakan fallback internal:', err.message);
+}
 
 // State sesi permainan per server
 const activeGames = new Map();
@@ -241,20 +27,17 @@ function shuffleArray(arr) {
 }
 
 /**
- * Ambil daftar lagu berdasarkan kategori yang dipilih
+ * Ambil daftar lagu berdasarkan kategori/negara yang dipilih
  */
 function getSongPool(category) {
-  if (category === 'indo') return SONG_CATALOG.indo.map(s => ({ ...s, genre: 'Indo Hits' }));
-  if (category === 'western') return SONG_CATALOG.western.map(s => ({ ...s, genre: 'Western Pop' }));
-  if (category === 'anime') return SONG_CATALOG.anime.map(s => ({ ...s, genre: 'Anime OST & J-Pop' }));
-  if (category === 'kpop') return SONG_CATALOG.kpop.map(s => ({ ...s, genre: 'K-Pop' }));
-
-  // Default: 'all' (Campuran semua kategori)
-  return [
-    ...SONG_CATALOG.indo.map(s => ({ ...s, genre: 'Indo Hits' })),
-    ...SONG_CATALOG.western.map(s => ({ ...s, genre: 'Western Pop' })),
-    ...SONG_CATALOG.anime.map(s => ({ ...s, genre: 'Anime OST & J-Pop' })),
-    ...SONG_CATALOG.kpop.map(s => ({ ...s, genre: 'K-Pop' }))
+  if (category && SONG_CATALOG[category] && SONG_CATALOG[category].length > 0) {
+    return SONG_CATALOG[category];
+  }
+  // Default: 'all' (Campuran seluruh negara di dunia)
+  const allSongs = Object.values(SONG_CATALOG).flat();
+  return allSongs.length > 0 ? allSongs : [
+    { title: 'Hati-Hati di Jalan', artist: 'Tulus', year: '2022', genre: 'Indo Pop' },
+    { title: 'Grenade', artist: 'Bruno Mars', year: '2010', genre: 'Western Pop' }
   ];
 }
 
@@ -279,14 +62,17 @@ module.exports = {
         .setDescription('Mulai sesi Music Quiz interaktif di voice channel')
         .addStringOption(opt =>
           opt.setName('kategori')
-            .setDescription('Pilih genre lagu yang ingin dimainkan (default: Campuran)')
+            .setDescription('Pilih negara / genre lagu yang ingin dimainkan (default: Campuran Dunia)')
             .setRequired(false)
             .addChoices(
-              { name: '🎲 Semua Kategori (Campuran)', value: 'all' },
-              { name: '🇮🇩 Indo Hits & Populer', value: 'indo' },
-              { name: '🌍 Western & Global Hits', value: 'western' },
-              { name: '🎌 Anime OST & J-Pop', value: 'anime' },
-              { name: '🇰🇷 K-Pop Hits', value: 'kpop' }
+              { name: '🎲 Semua Negara (Campuran Dunia)', value: 'all' },
+              { name: '🇮🇩 Indonesia (Pop, Rock, Koplo, Indie)', value: 'indo' },
+              { name: '🌍 Western & Global (US, UK, Pop)', value: 'western' },
+              { name: '🎌 Jepang & Anime (J-Pop, Anime OST)', value: 'japan' },
+              { name: '🇰🇷 Korea Selatan (K-Pop & OST)', value: 'korea' },
+              { name: '🇸🇦 Arab & Timur Tengah (Arabic Pop)', value: 'arabic' },
+              { name: '🇹🇭 Thailand (T-Pop & Thai Hits)', value: 'thailand' },
+              { name: '💃 Amerika Latin (Reggaeton, Pop)', value: 'latin' }
             )
         )
         .addIntegerOption(opt =>
@@ -399,11 +185,14 @@ module.exports = {
       const shuffledQuestions = shuffleArray(songPool).slice(0, totalRounds);
 
       const categoryLabels = {
-        all: 'Semua Kategori (Campuran)',
-        indo: 'Indo Hits & Populer',
-        western: 'Western & Global Hits',
-        anime: 'Anime OST & J-Pop',
-        kpop: 'K-Pop Hits'
+        all: 'Semua Negara (Campuran Dunia)',
+        indo: 'Indonesia (Pop, Rock, Koplo, Indie)',
+        western: 'Western & Global (US, UK, Pop)',
+        japan: 'Jepang & Anime (J-Pop, Anime OST)',
+        korea: 'Korea Selatan (K-Pop & OST)',
+        arabic: 'Arab & Timur Tengah (Arabic Pop)',
+        thailand: 'Thailand (T-Pop & Thai Hits)',
+        latin: 'Amerika Latin (Reggaeton, Pop)'
       };
 
       const gameState = {
