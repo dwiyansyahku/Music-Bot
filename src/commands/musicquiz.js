@@ -12,7 +12,7 @@ const { checkVoiceChannel } = require('../utils/helpers');
 const SONG_DATABASE = [
   // ═══════════════ INDONESIA ═══════════════
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=RtBbinpK5XI',
+    youtubeUrl: 'https://www.youtube.com/watch?v=9II3OGZETo4',
     seekStart: 60,
     genre: 'Indo Hits',
     year: '2022',
@@ -21,7 +21,7 @@ const SONG_DATABASE = [
     options: ['Hati-Hati di Jalan', 'Monokrom', 'Diri', 'Sepatu']
   },
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=XMceNaIxMKE',
+    youtubeUrl: 'https://www.youtube.com/watch?v=o67r_WjD4C4',
     seekStart: 55,
     genre: 'Indo Nostalgia',
     year: '2008',
@@ -30,7 +30,7 @@ const SONG_DATABASE = [
     options: ['Jangan Pernah Berubah', 'Saat Terakhir', 'Cari Pacar Lagi', 'P.U.S.P.A']
   },
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=FkAzallS8cU',
+    youtubeUrl: 'https://www.youtube.com/watch?v=QSWYyoF79oE',
     seekStart: 50,
     genre: 'Indo Pop',
     year: '2023',
@@ -39,7 +39,7 @@ const SONG_DATABASE = [
     options: ['Sial', 'Mati-Matian', 'Kisah Sempurna', 'Melawan Restu']
   },
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=rh_GFDGX9KA',
+    youtubeUrl: 'https://www.youtube.com/watch?v=yLfJwZkFQgc',
     seekStart: 45,
     genre: 'Indo Hits',
     year: '2000',
@@ -48,7 +48,7 @@ const SONG_DATABASE = [
     options: ['Dan...', 'Sephia', 'Pria Kesepian', 'Sebuah Kisah Klasik']
   },
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=viW72-KmjOc',
+    youtubeUrl: 'https://www.youtube.com/watch?v=viW0M5R2BLo',
     seekStart: 30,
     genre: 'Indo Pop',
     year: '2017',
@@ -57,7 +57,7 @@ const SONG_DATABASE = [
     options: ['Akad', 'Menuju Senja', 'Resah', 'Angin Pujaan Hujan']
   },
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=5TjxhLMHJ1g',
+    youtubeUrl: 'https://www.youtube.com/watch?v=t9VWICGOD90',
     seekStart: 50,
     genre: 'Indo Hits',
     year: '2023',
@@ -66,7 +66,7 @@ const SONG_DATABASE = [
     options: ['Jiwa Yang Bersedih', 'Rasa Cinta Ini', 'Bucketlist', 'Kembara']
   },
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=CjdE2xo3J0Y',
+    youtubeUrl: 'https://www.youtube.com/watch?v=r9M6_H18q14',
     seekStart: 55,
     genre: 'Indo Pop',
     year: '2023',
@@ -75,7 +75,7 @@ const SONG_DATABASE = [
     options: ['Tak Segampang Itu', 'Kisah Bahagia', 'Cara Mencintaimu', 'Kisah Yang Salah']
   },
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=9lkZilVVckg',
+    youtubeUrl: 'https://www.youtube.com/watch?v=b5ZQob-mDGM',
     seekStart: 55,
     genre: 'Indo Hits',
     year: '2021',
@@ -142,7 +142,7 @@ const SONG_DATABASE = [
 
   // ═══════════════ ANIME & JAPANESE ═══════════════
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=7aMOurgDB-o',
+    youtubeUrl: 'https://www.youtube.com/watch?v=8uTEp-0Q_V0',
     seekStart: 25,
     genre: 'Anime OST (Tokyo Ghoul)',
     year: '2014',
@@ -160,7 +160,7 @@ const SONG_DATABASE = [
     options: ['Gurenge', 'Homura', 'Akeboshi', 'Crossing Field']
   },
   {
-    youtubeUrl: 'https://www.youtube.com/watch?v=CID-sYQNCew',
+    youtubeUrl: 'https://www.youtube.com/watch?v=PbA63a7H0bo',
     seekStart: 15,
     genre: 'Anime OST (Attack on Titan)',
     year: '2017',
