@@ -3,14 +3,17 @@ const {
   ButtonBuilder, ButtonStyle, MessageFlags
 } = require('discord.js');
 const storage = require('../utils/storage');
+const { checkVoiceChannel } = require('../utils/helpers');
 
 /**
- * Bank Soal Musik Populer (Indo Hits, Barat, Anime, K-Pop, Rock/Nostalgia)
+ * Bank Soal Musik — Setiap soal memiliki link YouTube & posisi seek ke bagian yang ikonik
+ * seekStart = detik awal potongan (biasanya reff/chorus agar mudah dikenali)
  */
 const SONG_DATABASE = [
-  // INDONESIA
+  // ═══════════════ INDONESIA ═══════════════
   {
-    hint: '“Hanya ada satu cara tuk memeluk dirimu, meski ku tahu ku takkan pernah bisa...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=RtBbinpK5XI',
+    seekStart: 60,
     genre: 'Indo Hits',
     year: '2022',
     artist: 'Tulus',
@@ -18,7 +21,8 @@ const SONG_DATABASE = [
     options: ['Hati-Hati di Jalan', 'Monokrom', 'Diri', 'Sepatu']
   },
   {
-    hint: '“Semua rasa yang dulu pernah ada, kini lenyap bersama waktu... jangan datang lagi cinta...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=XMceNaIxMKE',
+    seekStart: 55,
     genre: 'Indo Nostalgia',
     year: '2008',
     artist: 'ST12',
@@ -26,7 +30,8 @@ const SONG_DATABASE = [
     options: ['Jangan Pernah Berubah', 'Saat Terakhir', 'Cari Pacar Lagi', 'P.U.S.P.A']
   },
   {
-    hint: '“Ku bisa merelakanmu, walau ku tak rela... ku bisa melupakanmu, walau ku tak sanggup...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=FkAzallS8cU',
+    seekStart: 50,
     genre: 'Indo Pop',
     year: '2023',
     artist: 'Mahalini',
@@ -34,7 +39,8 @@ const SONG_DATABASE = [
     options: ['Sial', 'Mati-Matian', 'Kisah Sempurna', 'Melawan Restu']
   },
   {
-    hint: '“Dan bila hatimu terbangun di suatu malam, dan kau merasa hampa...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=rh_GFDGX9KA',
+    seekStart: 45,
     genre: 'Indo Hits',
     year: '2000',
     artist: 'Sheila On 7',
@@ -42,7 +48,8 @@ const SONG_DATABASE = [
     options: ['Dan...', 'Sephia', 'Pria Kesepian', 'Sebuah Kisah Klasik']
   },
   {
-    hint: '“Bila nanti saatnya tlah tiba, ku ingin kau menjadi istriku...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=viW72-KmjOc',
+    seekStart: 30,
     genre: 'Indo Pop',
     year: '2017',
     artist: 'Payung Teduh',
@@ -50,7 +57,8 @@ const SONG_DATABASE = [
     options: ['Akad', 'Menuju Senja', 'Resah', 'Angin Pujaan Hujan']
   },
   {
-    hint: '“Jiwa yang bersedih, jangan menyerah dulu... dunia tak sejahat yang kau kira...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=5TjxhLMHJ1g',
+    seekStart: 50,
     genre: 'Indo Hits',
     year: '2023',
     artist: 'Ghea Indrawari',
@@ -58,7 +66,8 @@ const SONG_DATABASE = [
     options: ['Jiwa Yang Bersedih', 'Rasa Cinta Ini', 'Bucketlist', 'Kembara']
   },
   {
-    hint: '“Tak segampang itu ku mencari pengganti dirimu... yang pernah singgah di relung hatiku...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=CjdE2xo3J0Y',
+    seekStart: 55,
     genre: 'Indo Pop',
     year: '2023',
     artist: 'Anggi Marito',
@@ -66,7 +75,8 @@ const SONG_DATABASE = [
     options: ['Tak Segampang Itu', 'Kisah Bahagia', 'Cara Mencintaimu', 'Kisah Yang Salah']
   },
   {
-    hint: '“Kau takkan pernah tahu, betapa ku menyayangimu... sampai saat kau pergi jauh dariku...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=9lkZilVVckg',
+    seekStart: 55,
     genre: 'Indo Hits',
     year: '2021',
     artist: 'Rizky Febian',
@@ -74,9 +84,10 @@ const SONG_DATABASE = [
     options: ['Hingga Tua Bersama', 'Kesempurnaan Cinta', 'Mantra Cinta', 'Cuek']
   },
 
-  // WESTERN / POP BARAT
+  // ═══════════════ WESTERN / POP BARAT ═══════════════
   {
-    hint: '“I\'d catch a grenade for ya, throw my hand on a blade for ya...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=SR6iYWJxHqs',
+    seekStart: 40,
     genre: 'Western Pop',
     year: '2010',
     artist: 'Bruno Mars',
@@ -84,7 +95,8 @@ const SONG_DATABASE = [
     options: ['Grenade', 'Just The Way You Are', 'Locked Out of Heaven', 'When I Was Your Man']
   },
   {
-    hint: '“We found love in a hopeless place... shine a light through an open door...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=tg00YEETFzg',
+    seekStart: 45,
     genre: 'Western Pop / EDM',
     year: '2011',
     artist: 'Rihanna ft. Calvin Harris',
@@ -92,7 +104,8 @@ const SONG_DATABASE = [
     options: ['We Found Love', 'Diamonds', 'This Is What You Came For', 'Only Girl (In the World)']
   },
   {
-    hint: '“I want it that way... Tell me why, ain\'t nothin\' but a heartache...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=4fndeDfaWCg',
+    seekStart: 30,
     genre: 'Western 90s',
     year: '1999',
     artist: 'Backstreet Boys',
@@ -100,7 +113,8 @@ const SONG_DATABASE = [
     options: ['I Want It That Way', 'Everybody', 'As Long As You Love Me', 'Show Me the Meaning']
   },
   {
-    hint: '“You make me feel like I\'ve been locked out of heaven for too long...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=e-fA-gBCkj0',
+    seekStart: 35,
     genre: 'Western Pop',
     year: '2012',
     artist: 'Bruno Mars',
@@ -108,7 +122,8 @@ const SONG_DATABASE = [
     options: ['Locked Out of Heaven', 'Treasure', '24K Magic', 'Gorilla']
   },
   {
-    hint: '“Cause you\'re a sky, \'cause you\'re a sky full of stars... I\'m gonna give you my heart...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=VPRjCeoBqrI',
+    seekStart: 55,
     genre: 'Western Alternative',
     year: '2014',
     artist: 'Coldplay',
@@ -116,7 +131,8 @@ const SONG_DATABASE = [
     options: ['A Sky Full of Stars', 'Yellow', 'Viva La Vida', 'Fix You']
   },
   {
-    hint: '“I took a pill in Ibiza, to show Avicii I was cool...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=foE1mO2yM04',
+    seekStart: 30,
     genre: 'Western EDM',
     year: '2016',
     artist: 'Mike Posner (Seeb Remix)',
@@ -124,9 +140,10 @@ const SONG_DATABASE = [
     options: ['I Took a Pill in Ibiza', 'Cooler Than Me', 'Wake Me Up', 'Heroes']
   },
 
-  // ANIME & JAPANESE
+  // ═══════════════ ANIME & JAPANESE ═══════════════
   {
-    hint: '“Oshiete oshiete yo sono shikumi wo... boku no naka ni dare ga iru no?”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=7aMOurgDB-o',
+    seekStart: 25,
     genre: 'Anime OST (Tokyo Ghoul)',
     year: '2014',
     artist: 'TK from Ling Tosite Sigure',
@@ -134,7 +151,8 @@ const SONG_DATABASE = [
     options: ['Unravel', 'Katharsis', 'Gurenge', 'Kaikai Kitan']
   },
   {
-    hint: '“Tsuyoku nareru riyuu wo shitta, boku wo tsurete susume!”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=CwkzK-F0Y00',
+    seekStart: 30,
     genre: 'Anime OST (Demon Slayer)',
     year: '2019',
     artist: 'LiSA',
@@ -142,7 +160,8 @@ const SONG_DATABASE = [
     options: ['Gurenge', 'Homura', 'Akeboshi', 'Crossing Field']
   },
   {
-    hint: '“Shinzou wo sasageyo! Shinzou wo sasageyo! Subete no gisei wa ima kono toki no tame ni...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=CID-sYQNCew',
+    seekStart: 15,
     genre: 'Anime OST (Attack on Titan)',
     year: '2017',
     artist: 'Linked Horizon',
@@ -150,7 +169,8 @@ const SONG_DATABASE = [
     options: ['Shinzou wo Sasageyo', 'Guren no Yumiya', 'The Rumbling', 'Red Swan']
   },
   {
-    hint: '“Mada kono sekai wa boku wo kainarashitetai mitai da... nozomi doori ii darou...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=PDSkFeMVNFs',
+    seekStart: 30,
     genre: 'Anime OST (Kimi no Na wa)',
     year: '2016',
     artist: 'RADWIMPS',
@@ -158,9 +178,10 @@ const SONG_DATABASE = [
     options: ['Zenzenzense', 'Sparkle', 'Nandemonaiya', 'Grand Escape']
   },
 
-  // K-POP
+  // ═══════════════ K-POP ═══════════════
   {
-    hint: '“\'Cause I-I-I\'m in the stars tonight, so watch me bring the fire and set the night alight...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=gdZLi9oWNZg',
+    seekStart: 40,
     genre: 'K-Pop',
     year: '2020',
     artist: 'BTS',
@@ -168,7 +189,8 @@ const SONG_DATABASE = [
     options: ['Dynamite', 'Butter', 'Boy With Luv', 'Life Goes On']
   },
   {
-    hint: '“Blackpink in your area! Look at you, now look at me... How you like that?”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=ioNng23DkIM',
+    seekStart: 35,
     genre: 'K-Pop',
     year: '2020',
     artist: 'BLACKPINK',
@@ -176,7 +198,8 @@ const SONG_DATABASE = [
     options: ['How You Like That', 'Kill This Love', 'DDU-DU DDU-DU', 'Pink Venom']
   },
   {
-    hint: '“I\'m on the next level yeah... Jeo neomeoui muneul yeoreo...”',
+    youtubeUrl: 'https://www.youtube.com/watch?v=4TWR90KJl84',
+    seekStart: 30,
     genre: 'K-Pop',
     year: '2021',
     artist: 'aespa',
@@ -185,12 +208,11 @@ const SONG_DATABASE = [
   }
 ];
 
-// In-Memory Games map: guildId -> { active, currentRound, totalRounds, scores, currentQuestion, channelId }
-const activeGames = new Map();
+// ═══════════════ STATE MANAGEMENT ═══════════════
+const activeGames = new Map(); // guildId -> gameState
+const SNIPPET_DURATION = 10; // detik potongan musik per ronde
+const ANSWER_TIME = 20;      // detik waktu menjawab (termasuk durasi snippet)
 
-/**
- * Shuffle array helper
- */
 function shuffleArray(arr) {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -203,11 +225,11 @@ function shuffleArray(arr) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('musicquiz')
-    .setDescription('Main game tebak lagu interaktif seru di server')
+    .setDescription('Main game tebak lagu interaktif — dengarkan potongan musik & tebak judulnya!')
     .addSubcommand(sub =>
       sub
         .setName('start')
-        .setDescription('Mulai sesi Music Quiz')
+        .setDescription('Mulai sesi Music Quiz berbasis audio')
         .addIntegerOption(opt =>
           opt.setName('ronde')
             .setDescription('Jumlah ronde pertanyaan (1-10, default: 5)')
@@ -227,7 +249,7 @@ module.exports = {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;
 
-    // === 1. LEADERBOARD ===
+    // ═══ 1. LEADERBOARD ═══
     if (sub === 'leaderboard') {
       const quizData = storage.read('musicquiz_lb');
       const guildLB = quizData[guildId] || {};
@@ -235,43 +257,81 @@ module.exports = {
 
       if (sorted.length === 0) {
         return interaction.reply({
-          content: '🏆 **Belum ada yang mencetak skor di Music Quiz server ini!**\nMulai game pertama dengan `/musicquiz start`!',
+          content: '**Belum ada yang mencetak skor di Music Quiz server ini.**\nMulai game pertama dengan `/musicquiz start`.',
           flags: MessageFlags.Ephemeral
         });
       }
 
-      const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+      const rankSymbols = ['#1', '#2', '#3', '#4', '#5', '#6', '#7', '#8', '#9', '#10'];
       const list = sorted.slice(0, 10).map(([uId, data], idx) => {
-        return `${medals[idx]} **${data.name}** — \`${data.score} Poin\` (${data.wins || 0}x Menang)`;
+        return `\`${rankSymbols[idx]}\` **${data.name}** — \`${data.score} Poin\` (${data.wins || 0}x Menang)`;
       }).join('\n');
 
       const embed = new EmbedBuilder()
-        .setColor('#FEE75C')
-        .setTitle(`🏆 Papan Peringkat Music Quiz — ${interaction.guild.name}`)
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `MUSIC QUIZ LEADERBOARD — ${interaction.guild.name.toUpperCase()}`,
+          iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+        })
         .setDescription(list)
-        .setFooter({ text: 'QUMPRUY Bot • Music Quiz Hall of Fame' })
+        .setFooter({ text: 'Skor akumulasi dari seluruh sesi quiz' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });
     }
 
-    // === 2. STOP QUIZ ===
+    // ═══ 2. STOP QUIZ ═══
     if (sub === 'stop') {
       if (!activeGames.has(guildId)) {
         return interaction.reply({
-          content: '❌ Tidak ada sesi Music Quiz yang sedang berjalan saat ini.',
+          content: '**Tidak ada sesi Music Quiz yang sedang berjalan saat ini.**',
           flags: MessageFlags.Ephemeral
         });
       }
+
+      const game = activeGames.get(guildId);
+      game.active = false;
       activeGames.delete(guildId);
-      return interaction.reply('🛑 **Music Quiz telah dihentikan.** Terima kasih sudah bermain!');
+
+      // Stop musik quiz jika masih bermain
+      try {
+        const queue = client.distube.getQueue(guildId);
+        if (queue) queue.stop().catch(() => {});
+      } catch (_) {}
+
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x2B2D31)
+            .setDescription('**Music Quiz telah dihentikan.** Terima kasih sudah bermain!')
+        ]
+      });
     }
 
-    // === 3. START QUIZ ===
+    // ═══ 3. START QUIZ ═══
     if (sub === 'start') {
+      // Cek apakah sudah ada quiz berjalan
       if (activeGames.has(guildId)) {
         return interaction.reply({
-          content: '⚠️ Music Quiz sedang berlangsung di server ini! Tunggu selesai atau gunakan `/musicquiz stop`.',
+          content: '**Music Quiz sedang berlangsung di server ini.** Tunggu selesai atau gunakan `/musicquiz stop`.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      // Cek admin harus di voice channel
+      const voiceChannel = interaction.member?.voice?.channel;
+      if (!voiceChannel) {
+        return interaction.reply({
+          content: '**Kamu harus berada di Voice Channel terlebih dahulu** sebelum memulai Music Quiz.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      // Cek apakah bot sedang memutar musik
+      const existingQueue = client.distube.getQueue(guildId);
+      if (existingQueue && existingQueue.songs.length > 0) {
+        return interaction.reply({
+          content: '**Bot sedang memutar musik saat ini.**\nHentikan musik terlebih dahulu menggunakan perintah `!stop` atau `/leave`, lalu coba lagi.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -283,33 +343,51 @@ module.exports = {
         active: true,
         guildId,
         channelId: interaction.channel.id,
+        voiceChannelId: voiceChannel.id,
         currentRound: 0,
         totalRounds,
         questions,
-        scores: {}, // userId -> { name, score, correctCount }
+        scores: {},
         answeredUsers: new Set(),
       };
 
       activeGames.set(guildId, gameState);
 
-      await interaction.reply({
-        content: `🎉 **Music Quiz dimulai! (${totalRounds} Ronde)** Bersiap-siaplah, ronde 1 dimulai dalam 3 detik...`
-      });
+      const startEmbed = new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `MUSIC QUIZ — ${interaction.guild.name.toUpperCase()}`,
+          iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+        })
+        .setTitle('Sesi Music Quiz Dimulai!')
+        .setDescription(
+          `Bersiaplah mendengarkan potongan musik dan tebak judul lagunya.\n\n` +
+          `\`Total Ronde\` **${totalRounds}**\n` +
+          `\`Durasi Audio\` **${SNIPPET_DURATION} detik** per ronde\n` +
+          `\`Waktu Jawab\` **${ANSWER_TIME} detik**\n\n` +
+          `*Ronde pertama dimulai dalam 5 detik...*`
+        )
+        .setFooter({ text: 'Dengarkan baik-baik, lalu klik tombol jawaban yang benar!' })
+        .setTimestamp();
 
-      setTimeout(() => runNextRound(interaction.channel, guildId), 3000);
+      await interaction.reply({ embeds: [startEmbed] });
+
+      setTimeout(() => runNextRound(interaction.channel, voiceChannel, guildId, client), 5000);
     }
   }
 };
 
+// ═══════════════ GAME ENGINE ═══════════════
+
 /**
- * Jalankan ronde berikutnya dari Music Quiz
+ * Jalankan ronde berikutnya — putar potongan musik lalu tampilkan pilihan jawaban
  */
-async function runNextRound(channel, guildId) {
+async function runNextRound(textChannel, voiceChannel, guildId, client) {
   const game = activeGames.get(guildId);
   if (!game || !game.active) return;
 
   if (game.currentRound >= game.totalRounds) {
-    return finishGame(channel, guildId);
+    return finishGame(textChannel, guildId, client);
   }
 
   game.currentRound++;
@@ -317,42 +395,84 @@ async function runNextRound(channel, guildId) {
   const q = game.questions[game.currentRound - 1];
   const shuffledOptions = shuffleArray(q.options);
 
+  // ─── Embed pertanyaan (tanpa hint lirik — murni audio) ───
+  const questionEmbed = new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `RONDE ${game.currentRound} / ${game.totalRounds}`,
+      iconURL: client.user.displayAvatarURL()
+    })
+    .setTitle('Dengarkan potongan musik berikut...')
+    .setDescription(
+      `Musik sedang diputar di voice channel. Dengarkan baik-baik!\n\n` +
+      `\`Kategori\` **${q.genre}**\n` +
+      `\`Tahun\` **${q.year}**\n\n` +
+      `Pilih jawaban yang benar dari tombol di bawah:`
+    )
+    .setFooter({ text: `Waktu menjawab: ${ANSWER_TIME} detik` })
+    .setTimestamp();
+
+  // ─── Tombol jawaban A/B/C/D ───
   const row = new ActionRowBuilder();
   const letters = ['A', 'B', 'C', 'D'];
 
   shuffledOptions.forEach((opt, idx) => {
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`quiz_ans_${idx}_${opt === q.correct ? 'correct' : 'wrong'}`)
+        .setCustomId(`quiz_ans_${game.currentRound}_${idx}_${opt === q.correct ? 'correct' : 'wrong'}`)
         .setLabel(`${letters[idx]}. ${opt}`)
-        .setStyle(ButtonStyle.Primary)
+        .setStyle(ButtonStyle.Secondary)
     );
   });
 
-  const embed = new EmbedBuilder()
-    .setColor('#5865F2')
-    .setTitle(`🎵 Music Quiz — Ronde ${game.currentRound} / ${game.totalRounds}`)
-    .setDescription(
-      `Tebak judul lagu dari petunjuk berikut!\n\n` +
-      `💬 **Lirik / Petunjuk:**\n> *${q.hint}*\n\n` +
-      `📌 **Kategori:** \`${q.genre}\` • 📅 **Tahun:** \`${q.year}\` • 🎤 **Artis:** \`${q.artist}\``
-    )
-    .setFooter({ text: '⏳ Waktu menjawab: 20 detik! Klik salah satu tombol di bawah!' })
-    .setTimestamp();
-
-  const msg = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
+  const msg = await textChannel.send({ embeds: [questionEmbed], components: [row] }).catch(() => null);
   if (!msg) return activeGames.delete(guildId);
 
+  // ─── Putar potongan musik via DisTube ───
+  try {
+    await client.distube.play(voiceChannel, q.youtubeUrl, {
+      member: voiceChannel.guild.members.me,
+      textChannel: textChannel,
+    });
+
+    // Tunggu sebentar agar lagu mulai dimainkan, lalu seek ke posisi reff
+    await new Promise(resolve => setTimeout(resolve, 2500));
+
+    const queue = client.distube.getQueue(guildId);
+    if (queue && q.seekStart > 0) {
+      await queue.seek(q.seekStart).catch(() => {});
+    }
+
+    // Stop musik setelah SNIPPET_DURATION detik
+    setTimeout(async () => {
+      try {
+        const currentQueue = client.distube.getQueue(guildId);
+        if (currentQueue) {
+          currentQueue.stop().catch(() => {});
+        }
+      } catch (_) {}
+    }, SNIPPET_DURATION * 1000);
+  } catch (err) {
+    console.warn(`[MusicQuiz] Gagal memutar audio ronde ${game.currentRound}:`, err.message);
+    // Lanjutkan quiz meskipun audio gagal diputar
+  }
+
+  // ─── Kumpulkan jawaban ───
   const startTime = Date.now();
   let firstCorrectWinner = null;
 
   const collector = msg.createMessageComponentCollector({
-    time: 20000
+    time: ANSWER_TIME * 1000
   });
 
   collector.on('collect', async (i) => {
+    // Pastikan custom ID milik ronde yang benar
+    if (!i.customId.startsWith(`quiz_ans_${game.currentRound}_`)) {
+      return i.reply({ content: 'Ronde ini sudah berakhir.', flags: MessageFlags.Ephemeral });
+    }
+
     if (game.answeredUsers.has(i.user.id)) {
-      return i.reply({ content: '⚠️ Kamu sudah menjawab untuk ronde ini!', flags: MessageFlags.Ephemeral });
+      return i.reply({ content: 'Kamu sudah menjawab untuk ronde ini.', flags: MessageFlags.Ephemeral });
     }
     game.answeredUsers.add(i.user.id);
 
@@ -364,7 +484,6 @@ async function runNextRound(channel, guildId) {
 
     if (isCorrect) {
       const elapsed = (Date.now() - startTime) / 1000;
-      // Poin 100 max, makin cepet makin gede
       const points = Math.max(40, Math.round(100 - (elapsed * 3)));
       game.scores[i.user.id].score += points;
       game.scores[i.user.id].correctCount += 1;
@@ -374,24 +493,30 @@ async function runNextRound(channel, guildId) {
       }
 
       return i.reply({
-        content: `🎯 **BENAR!** Kamu mendapatkan **+${points} Poin**! 👏`,
+        content: `**Benar!** Kamu mendapatkan **+${points} Poin**.`,
         flags: MessageFlags.Ephemeral
       });
     } else {
       return i.reply({
-        content: `❌ **SALAH!** Jawaban yang benar adalah **${q.correct}**.`,
+        content: `**Salah.** Jawaban yang benar adalah **${q.correct}**.`,
         flags: MessageFlags.Ephemeral
       });
     }
   });
 
   collector.on('end', async () => {
-    // Disable all buttons
+    // Stop musik jika masih bermain
+    try {
+      const currentQueue = client.distube.getQueue(guildId);
+      if (currentQueue) currentQueue.stop().catch(() => {});
+    } catch (_) {}
+
+    // Disable semua tombol & highlight jawaban benar
     const disabledRow = new ActionRowBuilder();
     shuffledOptions.forEach((opt, idx) => {
       disabledRow.addComponents(
         new ButtonBuilder()
-          .setCustomId(`quiz_ans_disabled_${idx}`)
+          .setCustomId(`quiz_done_${game.currentRound}_${idx}`)
           .setLabel(`${letters[idx]}. ${opt}`)
           .setStyle(opt === q.correct ? ButtonStyle.Success : ButtonStyle.Secondary)
           .setDisabled(true)
@@ -400,33 +525,45 @@ async function runNextRound(channel, guildId) {
 
     await msg.edit({ components: [disabledRow] }).catch(() => {});
 
+    // Embed hasil ronde
     const roundResultEmbed = new EmbedBuilder()
-      .setColor('#57F287')
-      .setTitle(`⏰ Ronde ${game.currentRound} Selesai!`)
+      .setColor(0x2B2D31)
+      .setTitle(`Ronde ${game.currentRound} Selesai`)
       .setDescription(
-        `✅ **Jawaban Benar:** **${q.correct}** (${q.artist})\n` +
-        (firstCorrectWinner ? `⚡ **Penjawab Pertama:** **${firstCorrectWinner}** 🔥\n` : `😴 *Tidak ada yang menjawab dengan benar di ronde ini.*\n`)
+        `**Jawaban:** ${q.correct} — *${q.artist}*\n` +
+        (firstCorrectWinner
+          ? `**Penjawab Tercepat:** ${firstCorrectWinner}`
+          : `*Tidak ada yang menjawab dengan benar di ronde ini.*`)
       );
 
-    await channel.send({ embeds: [roundResultEmbed] }).catch(() => {});
+    await textChannel.send({ embeds: [roundResultEmbed] }).catch(() => {});
 
-    // Tunggu 4 detik sebelum ronde berikutnya
-    setTimeout(() => runNextRound(channel, guildId), 4000);
+    // Cek apakah game masih aktif (bisa saja di-stop saat ronde berjalan)
+    if (!game.active) return;
+
+    // Jeda 5 detik sebelum ronde berikutnya
+    setTimeout(() => runNextRound(textChannel, voiceChannel, guildId, client), 5000);
   });
 }
 
 /**
- * Selesaikan Music Quiz dan umumkan juara
+ * Selesaikan Music Quiz dan umumkan pemenang
  */
-async function finishGame(channel, guildId) {
+async function finishGame(textChannel, guildId, client) {
   const game = activeGames.get(guildId);
   if (!game) return;
 
   activeGames.delete(guildId);
 
+  // Stop musik jika masih bermain
+  try {
+    const queue = client.distube.getQueue(guildId);
+    if (queue) queue.stop().catch(() => {});
+  } catch (_) {}
+
   const sortedScores = Object.entries(game.scores).sort((a, b) => b[1].score - a[1].score);
 
-  // Simpan ke database leaderboard permanen
+  // Simpan ke leaderboard permanen
   const quizData = storage.read('musicquiz_lb');
   if (!quizData[guildId]) quizData[guildId] = {};
 
@@ -436,31 +573,38 @@ async function finishGame(channel, guildId) {
     }
     quizData[guildId][uId].score += data.score;
     quizData[guildId][uId].name = data.name;
-    if (idx === 0) quizData[guildId][uId].wins = (quizData[guildId][uId].wins || 0) + 1;
+    if (idx === 0 && data.score > 0) quizData[guildId][uId].wins = (quizData[guildId][uId].wins || 0) + 1;
   });
 
   storage.write('musicquiz_lb', quizData);
 
   if (sortedScores.length === 0) {
-    return channel.send('🏁 **Music Quiz Selesai!** Tidak ada yang mencetak poin pada game kali ini. Sampai jumpa di game berikutnya!');
+    const emptyEmbed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setDescription('**Music Quiz Selesai.** Tidak ada yang mencetak poin pada sesi kali ini.');
+    return textChannel.send({ embeds: [emptyEmbed] });
   }
 
   const winner = sortedScores[0][1];
-  const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+  const rankLabels = ['#1', '#2', '#3', '#4', '#5'];
 
   const scoreBoard = sortedScores.slice(0, 5).map(([uId, d], i) => {
-    return `${medals[i]} **${d.name}** — **${d.score} Poin** (${d.correctCount} benar)`;
+    return `\`${rankLabels[i]}\` **${d.name}** — **${d.score} Poin** (${d.correctCount} benar)`;
   }).join('\n');
 
   const finalEmbed = new EmbedBuilder()
-    .setColor('#FEE75C')
-    .setTitle('🏆 HASIL AKHIR MUSIC QUIZ!')
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `HASIL AKHIR MUSIC QUIZ`,
+      iconURL: textChannel.guild.iconURL({ dynamic: true }) || undefined
+    })
+    .setTitle(`Pemenang: ${winner.name}`)
     .setDescription(
-      `👑 **JUARA 1:** **${winner.name}** dengan skor fantastis **${winner.score} Poin**! 🎉\n\n` +
-      `📊 **Papan Skor Akhir:**\n${scoreBoard}`
+      `Skor tertinggi **${winner.score} Poin** dengan ${winner.correctCount} jawaban benar.\n\n` +
+      `**Papan Skor:**\n${scoreBoard}`
     )
-    .setFooter({ text: 'Gunakan /musicquiz leaderboard untuk melihat klasemen server!' })
+    .setFooter({ text: 'Gunakan /musicquiz leaderboard untuk melihat klasemen server' })
     .setTimestamp();
 
-  await channel.send({ embeds: [finalEmbed] }).catch(() => {});
+  await textChannel.send({ embeds: [finalEmbed] }).catch(() => {});
 }
