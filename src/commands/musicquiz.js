@@ -133,8 +133,8 @@ const SONG_CATALOG = {
 
 // State sesi permainan per server
 const activeGames = new Map();
-const SNIPPET_DURATION = 10; // Durasi audio berbunyi (10 detik)
-const ANSWER_TIME = 20;      // Waktu menjawab peserta (20 detik)
+const SNIPPET_DURATION = 15; // Durasi audio berbunyi (15 detik — lebih puas & tidak kepotong)
+const ANSWER_TIME = 25;      // Waktu menjawab peserta (25 detik)
 
 function shuffleArray(arr) {
   const copy = [...arr];
@@ -177,7 +177,7 @@ function generateQuestionOptions(correctSong, songPool) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('musicquiz')
-    .setDescription('Main game tebak lagu interaktif — dengarkan potongan musik 10 detik & tebak judulnya!')
+    .setDescription('Main game tebak lagu interaktif — dengarkan potongan musik 15 detik & tebak judulnya!')
     .addSubcommand(sub =>
       sub
         .setName('start')
@@ -334,7 +334,7 @@ module.exports = {
         })
         .setTitle('Sesi Music Quiz Dimulai!')
         .setDescription(
-          `Dengarkan potongan musik 10 detik di voice channel dan tebak judulnya secepat mungkin!\n\n` +
+          `Dengarkan potongan musik 15 detik di voice channel dan tebak judulnya secepat mungkin!\n\n` +
           `\`Kategori\` **${categoryLabels[category]}**\n` +
           `\`Total Ronde\` **${totalRounds} Ronde**\n` +
           `\`Durasi Audio\` **${SNIPPET_DURATION} Detik**\n` +
@@ -381,26 +381,27 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
     );
   });
 
-  const questionEmbed = new EmbedBuilder()
+  // 1. Tampilkan status memuat audio terlebih dahulu
+  const loadingEmbed = new EmbedBuilder()
     .setColor(0x2B2D31)
     .setAuthor({
       name: `RONDE ${game.currentRound} / ${game.totalRounds}`,
       iconURL: client.user.displayAvatarURL()
     })
-    .setTitle('Dengarkan potongan musik di Voice Channel...')
+    .setTitle('Memuat potongan musik...')
     .setDescription(
-      `Audio sedang dimainkan di <#${voiceChannel.id}>. Tebak judul lagunya!\n\n` +
-      `\`Kategori\` **${q.genre}**\n` +
-      `\`Tahun Rilis\` **${q.year}**\n\n` +
-      `Pilih jawaban yang benar dari tombol di bawah:`
+      `Sedang memproses audio untuk <#${voiceChannel.id}>...\n\n` +
+      `• **Kategori:** \`${q.genre}\`\n` +
+      `• **Tahun Rilis:** \`${q.year}\`\n\n` +
+      `*Tombol jawaban akan aktif begitu musik mulai terdengar di Voice Channel!*`
     )
-    .setFooter({ text: `Waktu menjawab: ${ANSWER_TIME} detik` })
+    .setFooter({ text: 'Harap tunggu audio buffering...' })
     .setTimestamp();
 
-  const msg = await textChannel.send({ embeds: [questionEmbed], components: [row] }).catch(() => null);
+  const msg = await textChannel.send({ embeds: [loadingEmbed] }).catch(() => null);
   if (!msg) return activeGames.delete(guildId);
 
-  // ─── Putar Audio Dinamis via Search Query di YouTube ───
+  // 2. Putar Audio Dinamis via Search Query di YouTube
   const searchQuery = `${q.artist} - ${q.title} Official Audio`;
 
   try {
@@ -413,7 +414,10 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
     let queue = client.distube.getQueue(guildId);
     if (queue) queue.isQuiz = true;
 
-    // Hentikan snippet setelah SNIPPET_DURATION detik
+    // Beri jeda 3 detik agar audio benar-benar sudah berbunyi di voice channel sebelum menampilkan tombol
+    await new Promise(res => setTimeout(res, 3000));
+
+    // Hentikan snippet setelah SNIPPET_DURATION detik dari saat mulai terdengar
     setTimeout(() => {
       try {
         const currentQueue = client.distube.getQueue(guildId);
@@ -424,7 +428,28 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
     console.warn(`[MusicQuiz] Pencarian audio gagal untuk "${searchQuery}":`, err.message);
   }
 
-  // ─── Kumpulkan Jawaban Peserta ───
+  if (!game.active) return;
+
+  // 3. Audio sudah berjalan — Sekarang perbarui Embed dan munculkan tombol pilihan jawaban!
+  const activeQuestionEmbed = new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `RONDE ${game.currentRound} / ${game.totalRounds}`,
+      iconURL: client.user.displayAvatarURL()
+    })
+    .setTitle('Dengarkan musik di Voice Channel & Tebak Judulnya!')
+    .setDescription(
+      `Audio sedang dimainkan di <#${voiceChannel.id}>.\n\n` +
+      `• **Kategori:** \`${q.genre}\`\n` +
+      `• **Tahun Rilis:** \`${q.year}\`\n\n` +
+      `Pilih jawaban yang benar dari tombol di bawah sebelum waktu habis:`
+    )
+    .setFooter({ text: `Durasi Musik: ${SNIPPET_DURATION}s • Waktu Menjawab: ${ANSWER_TIME}s` })
+    .setTimestamp();
+
+  await msg.edit({ embeds: [activeQuestionEmbed], components: [row] }).catch(() => {});
+
+  // 4. Kumpulkan Jawaban Peserta
   const startTime = Date.now();
   let firstCorrectWinner = null;
 

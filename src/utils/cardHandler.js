@@ -106,33 +106,36 @@ function createCardHubPayload(guild) {
   const targetChannelId = settings[guild.id]?.cardResultChannel || GALLERY_CHANNEL_ID;
 
   const embed = new EmbedBuilder()
-    .setColor('#8B5CF6')
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `MEMBER IDENTITY — ${guild.name.toUpperCase()}`,
+      iconURL: guild.iconURL({ dynamic: true }) || undefined
+    })
     .setTitle('Member Profile Card')
     .setDescription(
-      'Create and customize your digital identity card in this server.\n\n' +
-      '**How It Works:**\n' +
-      `1. Click **Edit Profile** to configure your Bio, Location, Birthday (Tanggal Lahir), Zodiac / MBTI, Social Link, and Banner Image. Your card will automatically publish and update in <#${targetChannelId}>.\n` +
-      '2. **Live Voice Status:** Automatically displays your active voice channel and session duration.\n' +
-      '3. **Birthday Alert:** Fill in your birthday to receive an automatic celebration wish on your special day!\n' +
-      '4. **Banner Image:** Provide any direct image URL to display at the bottom of your card.\n' +
-      '5. Click **View My Card** to preview your profile card privately.\n' +
-      '6. Click **Reset** to clear your profile data and remove your card from the gallery.'
+      `Buat dan kelola kartu profil identitas digitalmu di server **${guild.name}**.\n\n` +
+      `◈ **Petunjuk Pembuatan:**\n` +
+      `1. Klik tombol **Buat / Edit Profil** untuk mengisi Bio, Asal Kota, Tanggal Lahir, MBTI/Sosmed, dan Foto Banner.\n` +
+      `2. Kartumu akan otomatis diterbitkan dan diperbarui di <#${targetChannelId}>.\n` +
+      `3. **Live Voice & Companions:** Menampilkan durasi ngobrol dan teman terdekatmu secara otomatis.\n` +
+      `4. **Perayaan Ultah:** Dapatkan ucapan selamat otomatis saat hari ulang tahunmu tiba.\n` +
+      `5. Klik **Lihat Kartuku** untuk pratinjau kartu secara privat, atau **Reset Data** untuk menghapus data.`
     )
-    .setFooter({ text: `${guild.name} • Member Identity System` })
+    .setFooter({ text: 'Kartu profil diperbarui secara realtime dari database' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('card_btn_edit')
-      .setLabel('Edit Profile')
+      .setLabel('Buat / Edit Profil')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('card_btn_view_self')
-      .setLabel('View My Card')
-      .setStyle(ButtonStyle.Success),
+      .setLabel('Lihat Kartuku')
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('card_btn_reset')
-      .setLabel('Reset')
+      .setLabel('Reset Data')
       .setStyle(ButtonStyle.Danger)
   );
 

@@ -130,19 +130,23 @@ module.exports = {
       const openDateFormatted = formatDateWIB(new Date(targetTimestamp));
 
       const embed = new EmbedBuilder()
-        .setColor('#5865F2')
-        .setTitle('📮 Kapsul Waktu Berhasil Disimpan & Dikunci!')
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `TIME CAPSULE — ${interaction.guild.name.toUpperCase()}`,
+          iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+        })
+        .setTitle('Kapsul Waktu Berhasil Disimpan & Dikunci')
         .setDescription(
-          `Surat masa depanmu telah disegel rapat dan akan dibuka pada:\n` +
-          `🗓️ **${openDateFormatted}**\n\n` +
-          `🎯 **Tujuan Pengiriman:** ${targetMode === 'dm' ? '📩 Direct Message (DM)' : `📍 Channel <#${interaction.channel.id}>`}\n` +
-          `🔑 **ID Kapsul:** \`${capsuleId}\` *(Simpan jika ingin membatalkan)*`
+          `Surat masa depanmu telah disegel dan dijadwalkan untuk dibuka pada:\n` +
+          `• **Tanggal Buka:** \`${openDateFormatted}\`\n` +
+          `• **Metode Pengiriman:** ${targetMode === 'dm' ? 'Direct Message (DM Pribadi)' : `Channel <#${interaction.channel.id}>`}\n` +
+          `• **ID Kapsul:** \`${capsuleId}\` *(Gunakan untuk membatalkan)*`
         )
         .addFields({
-          name: '🔒 Cuplikan Pesan Rahasia',
+          name: 'Cuplikan Pesan',
           value: `*“${message.length > 80 ? message.substring(0, 77) + '...' : message}”*`
         })
-        .setFooter({ text: 'QUMPRUY Bot • Time Capsule System' })
+        .setFooter({ text: 'Pesan terkunci rapat hingga tanggal buka tiba' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
@@ -154,7 +158,7 @@ module.exports = {
 
       if (userCapsules.length === 0) {
         return interaction.reply({
-          content: '📭 Kamu belum memiliki kapsul waktu yang terkunci di masa depan. Gunakan `/timecapsule send` untuk membuat!',
+          content: 'Kamu belum memiliki kapsul waktu aktif yang terkunci di server ini. Buat dengan `/timecapsule send`.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -162,14 +166,18 @@ module.exports = {
       const list = userCapsules.map((c, i) => {
         const dateStr = formatDateWIB(new Date(c.targetTimestamp));
         const preview = c.message.length > 50 ? c.message.substring(0, 47) + '...' : c.message;
-        return `\`${i + 1}.\` **ID: \`${c.id}\`**\n   📆 Dibuka: **${dateStr}** (${c.targetMode.toUpperCase()})\n   💬 *"${preview}"*`;
+        return `\`${i + 1}.\` **ID: \`${c.id}\`** — Dibuka: \`${dateStr}\` (${c.targetMode.toUpperCase()})\n   └ *"${preview}"*`;
       }).join('\n\n');
 
       const embed = new EmbedBuilder()
-        .setColor('#5865F2')
-        .setTitle(`📮 Kapsul Waktumu (${userCapsules.length} Kapsul Aktif)`)
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `TIME CAPSULE — ${interaction.guild.name.toUpperCase()}`,
+          iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+        })
+        .setTitle(`Daftar Kapsul Waktumu (${userCapsules.length} Aktif)`)
         .setDescription(list)
-        .setFooter({ text: 'Gunakan /timecapsule cancel [id] untuk membatalkan' })
+        .setFooter({ text: 'Gunakan /timecapsule cancel [id] untuk membatalkan kapsul' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

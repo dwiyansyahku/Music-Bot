@@ -299,7 +299,7 @@ function createMemberMapPanelPayload(guild) {
   const embed = new EmbedBuilder()
     .setColor(0x2B2D31)
     .setAuthor({
-      name: `REGIONAL HUB — ${guild.name.toUpperCase()}`,
+      name: `REGIONAL DIRECTORY — ${guild.name.toUpperCase()}`,
       iconURL: guild.iconURL({ dynamic: true }) || undefined
     })
     .setTitle(`Peta Persebaran Domisili Member`)
@@ -309,9 +309,10 @@ function createMemberMapPanelPayload(guild) {
     )
     .addFields(
       { name: 'Provinsi Terbanyak', value: topRegionInfo, inline: true },
-      { name: 'Member Terdata', value: `**${data.totalValidLocations} Member**`, inline: true }
+      { name: 'Member Terdata', value: `**${data.totalValidLocations} Member**`, inline: true },
+      { name: 'Total Wilayah', value: `**${data.sorted.length} Daerah/Kota**`, inline: true }
     )
-    .setFooter({ text: 'Sesi bersifat privat dan tidak saling mengganggu antar member' })
+    .setFooter({ text: 'Statistik diperbarui secara realtime dari database profil member' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
@@ -330,7 +331,34 @@ function createMemberMapPanelPayload(guild) {
 async function updateMemberMapPanel(guild, client) {
   try {
     const settings = storage.read('settings');
-    const panelConfig = settings[guild.id]?.memberMapPanel;
+    let panelConfig = settings[guild.id]?.memberMapPanel;
+
+    // Jika belum tersimpan di settings, coba temukan pesan panel secara otomatis di channel
+    if (!panelConfig?.channelId || !panelConfig?.messageId) {
+      for (const channel of guild.channels.cache.values()) {
+        if (channel.isTextBased() && channel.viewable) {
+          try {
+            const messages = await channel.messages.fetch({ limit: 20 }).catch(() => null);
+            if (!messages) continue;
+            const targetMsg = messages.find(m =>
+              m.author.id === client.user.id &&
+              m.components.some(r => r.components.some(c => c.customId === 'mmap_open_panel'))
+            );
+            if (targetMsg) {
+              if (!settings[guild.id]) settings[guild.id] = {};
+              settings[guild.id].memberMapPanel = {
+                channelId: channel.id,
+                messageId: targetMsg.id
+              };
+              storage.write('settings', settings);
+              panelConfig = settings[guild.id].memberMapPanel;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
     if (!panelConfig?.channelId || !panelConfig?.messageId) return;
 
     const channel = guild.channels.cache.get(panelConfig.channelId)
