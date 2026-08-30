@@ -1,0 +1,55 @@
+// ══════════════════════════════════════════════════════════════
+// LAGU WAJIB NASIONAL & PERJUANGAN INDONESIA
+// Seluruh Lagu Nasional Lengkap Pencipta & Tahun Rilis
+// ══════════════════════════════════════════════════════════════
+
+const laguNasionalIndo = [
+  { title: 'Indonesia Raya', artist: 'W.R. Supratman', year: '1928', genre: 'Lagu Wajib Nasional' },
+  { title: 'Bagimu Negeri', artist: 'Kusbini', year: '1942', genre: 'Lagu Wajib Nasional' },
+  { title: 'Indonesia Pusaka', artist: 'Ismail Marzuki', year: '1949', genre: 'Lagu Wajib Nasional' },
+  { title: 'Rayuan Pulau Kelapa', artist: 'Ismail Marzuki', year: '1944', genre: 'Lagu Wajib Nasional' },
+  { title: 'Halo-Halo Bandung', artist: 'Ismail Marzuki', year: '1946', genre: 'Lagu Wajib Nasional' },
+  { title: 'Gugur Bunga', artist: 'Ismail Marzuki', year: '1945', genre: 'Lagu Wajib Nasional' },
+  { title: 'Berkibarlah Benderaku', artist: 'Ibu Sud', year: '1947', genre: 'Lagu Wajib Nasional' },
+  { title: 'Tanah Airku', artist: 'Ibu Sud', year: '1927', genre: 'Lagu Wajib Nasional' },
+  { title: 'Hari Merdeka', artist: 'H. Mutahar', year: '1946', genre: 'Lagu Wajib Nasional' },
+  { title: 'Syukur', artist: 'H. Mutahar', year: '1945', genre: 'Lagu Wajib Nasional' },
+  { title: 'Dirgahayu Indonesia', artist: 'H. Mutahar', year: '1950', genre: 'Lagu Wajib Nasional' },
+  { title: 'Hymne Pramuka', artist: 'H. Mutahar', year: '1964', genre: 'Lagu Wajib Nasional' },
+  { title: 'Garuda Pancasila', artist: 'Sudharnoto', year: '1956', genre: 'Lagu Wajib Nasional' },
+  { title: 'Maju Tak Gentar', artist: 'Cornel Simanjuntak', year: '1945', genre: 'Lagu Wajib Nasional' },
+  { title: 'Satu Nusa Satu Bangsa', artist: 'Liberty Manik', year: '1947', genre: 'Lagu Wajib Nasional' },
+  { title: 'Dari Sabang Sampai Merauke', artist: 'R. Suharjo', year: '1960', genre: 'Lagu Wajib Nasional' },
+  { title: 'Mengheningkan Cipta', artist: 'Truno Prawit', year: '1958', genre: 'Lagu Wajib Nasional' },
+  { title: 'Ibu Kita Kartini', artist: 'W.R. Supratman', year: '1929', genre: 'Lagu Wajib Nasional' },
+  { title: 'Bangun Pemudi Pemuda', artist: 'Alfred Simanjuntak', year: '1943', genre: 'Lagu Wajib Nasional' },
+  { title: 'Sorak-Sorak Bergembira', artist: 'Cornel Simanjuntak', year: '1945', genre: 'Lagu Wajib Nasional' },
+  { title: 'Teguh Kukuh Berlapis Baja', artist: 'Cornel Simanjuntak', year: '1945', genre: 'Lagu Wajib Nasional' },
+  { title: 'Indonesia Tetap Merdeka', artist: 'Cornel Simanjuntak', year: '1945', genre: 'Lagu Wajib Nasional' },
+  { title: 'Pada Pahlawan', artist: 'Cornel Simanjuntak', year: '1946', genre: 'Lagu Wajib Nasional' },
+  { title: 'Indonesia Bersatulah', artist: 'Alfred Simanjuntak', year: '1947', genre: 'Lagu Wajib Nasional' },
+  { title: 'Sepasang Mata Bola', artist: 'Ismail Marzuki', year: '1946', genre: 'Lagu Wajib Nasional' },
+  { title: 'Selendang Sutra', artist: 'Ismail Marzuki', year: '1946', genre: 'Lagu Wajib Nasional' },
+  { title: 'Melati di Tapal Batas', artist: 'Ismail Marzuki', year: '1947', genre: 'Lagu Wajib Nasional' },
+  { title: 'Selamat Datang Pahlawan Muda', artist: 'Ismail Marzuki', year: '1949', genre: 'Lagu Wajib Nasional' },
+  { title: 'Nyiur Hijau', artist: 'Maladi', year: '1960', genre: 'Lagu Wajib Nasional' },
+  { title: 'Di Timur Matahari', artist: 'W.R. Supratman', year: '1931', genre: 'Lagu Wajib Nasional' },
+  { title: 'Pahlawan Merdeka', artist: 'W.R. Supratman', year: '1938', genre: 'Lagu Wajib Nasional' },
+  { title: 'Bendera Merah Putih', artist: 'Ibu Sud', year: '1946', genre: 'Lagu Wajib Nasional' },
+  { title: 'Hymne Guru', artist: 'Sartono', year: '1980', genre: 'Lagu Wajib Nasional' },
+  { title: 'Desaku yang Kucinta', artist: 'L. Manik', year: '1950', genre: 'Lagu Wajib Nasional' },
+  { title: 'Jembatan Merah', artist: 'Gesang', year: '1943', genre: 'Lagu Wajib Nasional' },
+  { title: 'Mars Bambu Runcing', artist: 'Kusbini', year: '1946', genre: 'Lagu Wajib Nasional' },
+  { title: 'Cinta Tanah Air', artist: 'Amir Pasaribu', year: '1955', genre: 'Lagu Wajib Nasional' },
+  { title: 'Pantang Mundur', artist: 'Titiek Puspa', year: '1964', genre: 'Lagu Wajib Nasional' },
+  { title: 'Bhinneka Tunggal Ika', artist: 'Binsar Sitompul', year: '1955', genre: 'Lagu Wajib Nasional' },
+  { title: 'Serumpun Padi', artist: 'Maladi', year: '1950', genre: 'Lagu Wajib Nasional' },
+  { title: 'Kupinta Lagi', artist: 'Ismail Marzuki', year: '1950', genre: 'Lagu Wajib Nasional' },
+  { title: 'Gagah Perwira', artist: 'Ismail Marzuki', year: '1952', genre: 'Lagu Wajib Nasional' },
+  { title: 'Kebyar-Kebyar', artist: 'Gombloh', year: '1979', genre: 'Lagu Perjuangan' },
+  { title: 'Bendera', artist: 'Cokelat', year: '2001', genre: 'Lagu Nasional Pop Rock' },
+  { title: 'Jadilah Legenda', artist: 'Superman Is Dead', year: '2013', genre: 'Lagu Nasional Punk Rock' },
+  { title: 'Merah Putih', artist: 'Gombloh', year: '1981', genre: 'Lagu Perjuangan' }
+];
+
+module.exports = { laguNasionalIndo };

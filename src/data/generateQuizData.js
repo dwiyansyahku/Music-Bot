@@ -385,16 +385,217 @@ const indoData = [
     ]
   },
   {
-    artist: 'Ziva Magnolya', genre: 'Indo Pop', year: 2020,
-    tracks: [
-      'Tak Sanggup Melupa', 'Mata-Mata Harimu', 'Sampai Kapan', 'Peri Cintaku', 'Pilihan yang Terbaik', 'Menyesal', 'Munafik'
-    ]
-  },
-  {
     artist: 'Rizky Febian', genre: 'Indo Pop', year: 2015,
     tracks: [
       'Kesempurnaan Cinta', 'Penantian Berharga', 'Cukup Tau', 'Indah Pada Waktunya', 'Menari',
       'Nona', 'Ragu', 'Cuek', 'Mantra Cinta', 'Makna Cinta', 'Hingga Tua Bersama', 'Seperti Kisah', 'Dirimu Satu', 'Berona'
+    ]
+  },
+  // ─── LAGU SUNDA POPULER ───
+  {
+    artist: 'Doel Sumbang', genre: 'Pop Sunda', year: 1990,
+    tracks: [
+      'Runtah', 'Dor Dar', 'Somse', 'Pangandaran', 'Kali Merah Athena', 'Awewe Sapi Daging', 'Ai',
+      'Mumun', 'Naha Salah', 'Linu', 'Berenyit', 'Si Gelo', 'Jol', 'Duriat Madu', 'Meni Geuleuh',
+      'Aku Tikus dan Kucing', 'Cimata Cinta', 'Arti Kehidupan', 'Laut Kidul', 'Tembang Cinta'
+    ]
+  },
+  {
+    artist: 'Ade Astrid & Gerengseng Team', genre: 'Pongdut / Bajidor Sunda', year: 2021,
+    tracks: [
+      'Dua Lelaki', 'Gala Gala', 'Hayang Jajan', 'Domba Kuring', 'Karedok Leuca', 'Bebende',
+      'Talak Tilu', 'Sasak Rajamandala', 'Sesah Hilapna', 'Sesah Ngalepaskeun', 'Curug Candung',
+      'Papatong', 'Mojang Priangan', 'Mobil Bergoyang', 'Emut Bae', 'Buleud'
+    ]
+  },
+  {
+    artist: 'Yayan Jatnika & Darso', genre: 'Pop Sunda Legend', year: 2000,
+    tracks: [
+      'Sancang', 'Lamunan', 'Kosipa', 'Kabogoh Jauh', 'Jang', 'Dinasty', 'Dadali Manting',
+      'Papatong', 'Halangan Diri', 'Mega Hideung', 'Batrawali', 'Layung Beureum', 'Anjeun', 'Cinta Kasaha'
+    ]
+  },
+  {
+    artist: 'Azmy Z', genre: 'Pop Sunda Viral / Remix', year: 2022,
+    tracks: [
+      'Runtah Viral', 'Hayang Jajan', 'Domba Kuring', 'Karedok Leuca', 'Meneketehe', 'Janda Pirang', 'Laleur Hejo'
+    ]
+  },
+  // ─── LAGU TIMUR POPULER (Papua, Ambon, NTT, Maluku) ───
+  {
+    artist: 'Justy Aldrin & Toton Caribo', genre: 'Lagu Timur Populer', year: 2020,
+    tracks: [
+      'Rumah Par Sampe', 'Bale Pulang', 'Bale Pulang 2', 'Cerita Singkat', 'Dua Raja Satu Hati',
+      'Luka Kanapa', 'Sapa Mau Kalah', 'Mau Cari yang Bagaimana', 'Seng Bisa', 'Jang Ganggu',
+      'Beta Pung Bahagia', 'Kuota Abis', 'Percuma', 'Kaka Main Salah', 'Kalo Nanti'
+    ]
+  },
+  {
+    artist: 'Fresly Nikijuluw', genre: 'Lagu Timur Populer', year: 2021,
+    tracks: [
+      'Mantan', 'Tamang Pung Cewe', 'Tamang Busuk', 'Rasa Su Kalah', 'Cinta Seng Pakai Spasi',
+      'Rindu Rumah', 'Jujur', 'Ko Bukan Pelangi', 'Su Lama', 'Se Paling Bae', 'Kalo Bosan Bilang'
+    ]
+  },
+  {
+    artist: 'Whllyano', genre: 'Lagu Timur Hip-Hop / Pop', year: 2020,
+    tracks: [
+      'Karna Su Sayang', 'Sa Stop Mabuk', 'Sa Janji Tra Nakal Lagi', 'Kaka Baju Hitam', 'Tra Bisa',
+      'Sa Su Berjuang', 'Sa Mo Pergi', 'Cemburu', 'Sa Mabuk Cinta', 'Tunggu Sa Balik'
+    ]
+  },
+  {
+    artist: 'Vicky Salamor', genre: 'Lagu Timur / Ambon', year: 2018,
+    tracks: [
+      'Cinta Beda Agama', 'Tuhan Beta Mau Dia', 'Orang Ketiga', 'Cinta Seng Sampe', 'Selalu Ada',
+      'Akhir Sebuah Cerita', 'Tania', 'Mantan Terindah', 'Yang Terindah', 'Biar Su Sayang'
+    ]
+  },
+  {
+    artist: 'Doddie Latuharhary & Mitha Talahatu', genre: 'Lagu Timur / Pop Maluku', year: 2016,
+    tracks: [
+      'Dingin', 'Janji Putih', 'Sio Kanapa', 'Hati Ini Par Sapa', 'Cinta Sakota', 'Mama',
+      'Biar Jauh Tetap Cinta', 'Sayang', 'Su Percaya', 'Beta Seng Marah', 'Cinta Terlarang'
+    ]
+  },
+  {
+    artist: 'Shine of Black (SOB) & New Gvme', genre: 'Lagu Timur Viral', year: 2020,
+    tracks: [
+      'Jang Ganggu', 'Kaka Main Salah', 'Coba Ko Pikir', 'Te Molla', 'Tabrak Masuk', 'Adu Mamae',
+      'Sa Tra Berubah', 'Sa Paling Percaya', 'Sa Mau Ko', 'Ko Pilih Dia'
+    ]
+  },
+  // ─── LAGU POP JAWA & KOPLO VIRAL ───
+  {
+    artist: 'Gilga Sahid & Gildcoustic', genre: 'Pop Jawa / Akustik', year: 2023,
+    tracks: [
+      'Nemen', 'Ginio', 'Nemu', 'Manot', 'Alum', 'Kisinan', 'Kisinan 2', 'Kembang Wangi',
+      'Seneng', 'Bojomu Sesok Tak Silihe', 'Remukan Ati', 'Rembulan Malam'
+    ]
+  },
+  {
+    artist: 'Masdddho', genre: 'Pop Jawa Viral', year: 2023,
+    tracks: [
+      'Kisinan', 'Kisinan 2', 'Samar', 'Dumes', 'Wirang', 'Tajir Mlintir', 'Tenanane', 'Kelingan Mantan'
+    ]
+  },
+  {
+    artist: 'Ndarboy Genk', genre: 'Pop Jawa / Dangdut', year: 2020,
+    tracks: [
+      'Mendung Tanpo Udan', 'Ambyar Mak Pyar', 'Ojo Nangis', 'Wong Sepele', 'Koyo Jogja Istimewa',
+      'Balungan Kere', 'Morse', 'Sinyal Tresno', 'Anak Lanang', 'Karepe Dewe'
+    ]
+  },
+  {
+    artist: 'Difarina Indra & Yeni Inka', genre: 'Dangdut Koplo Modern', year: 2022,
+    tracks: [
+      'Rungkad', 'Nemen', 'Raiso Dadi Siji', 'Dumes', 'Bojo Loro', 'Tiara', 'Mangku Purel',
+      'Teteg Ati', 'Sanes', 'Cidro 3', 'Sewates Konco', 'Lemah Teles', 'Ikan Dalam Kolam'
+    ]
+  },
+  {
+    artist: 'Farel Prayoga', genre: 'Koplo Cilik / Viral', year: 2022,
+    tracks: [
+      'Ojo Dibandingke', 'Tiara', 'Joko Tingkir Ngombe Dawet', 'Full Senyum Sayang', 'Kelinci Ucul', 'Ngamen 5'
+    ]
+  },
+  // ─── LAGU MINANG & MELAYU MODERN ───
+  {
+    artist: 'Fauzana & Frans', genre: 'Pop Minang / Melayu', year: 2020,
+    tracks: [
+      'Lah Manyuruak Tampak Juo', 'Tarumik Parasaan', 'Tungkek Mambao Rabah', 'Marantau Cino',
+      'Janji Hanyo di Muluik', 'Gamang Diseso Mimpi', 'Ciinan Bana', 'Rantau Den Pajauh',
+      'Panek di Awak Kayo di Urang', 'Mananti Janji', 'Sarugo di Pintu Neraka'
+    ]
+  },
+  {
+    artist: 'Thomas Arya & Andra Respati', genre: 'Slow Rock Melayu', year: 2018,
+    tracks: [
+      'Berbeza Kasta', 'Dermaga Biru', 'Satu Hati Sampai Mati', 'Ku Puja Puja', 'Bunga',
+      'Rela Demi Cinta', 'Korban Perasaan', 'Menunggu Janji', 'Cinta Membawa Derita'
+    ]
+  },
+  {
+    artist: 'Tri Suaka & Nabila Maharani', genre: 'Pop Akustik Indo', year: 2021,
+    tracks: [
+      'Aku Bukan Jodohnya', 'Buih Jadi Permadani', 'Bila Nanti', 'Sia-Sia Berjuang', 'Menua Bersamamu', 'Cinta Tak Harus Memiliki'
+    ]
+  },
+  // ─── DJ TIKTOK INDO VIRAL ───
+  {
+    artist: 'DJ Desa & DJ Opus', genre: 'DJ TikTok / Funkot', year: 2023,
+    tracks: [
+      'DJ Tabrak Tabrak Masuk', 'DJ Cikini ke Gondangdia', 'DJ Domba Kuring', 'DJ Runtah Viral',
+      'DJ Nemen Slow', 'DJ Gak Pake Lama', 'DJ Kisinan', 'DJ Santri Pekok', 'DJ Alay Gaya Kaya Artis',
+      'DJ Asmalibrasi', 'DJ Sial Mahalini', 'DJ Stecu Stecu', 'DJ Ih Abang Jahat'
+    ]
+  },
+  // ─── DANGDUT KLASIK & MODERN LEGEND ───
+  {
+    artist: 'Rhoma Irama & Soneta Group', genre: 'Dangdut Klasik Legend', year: 1975,
+    tracks: [
+      'Begadang', 'Judi', 'Mirasantika', 'Keramat', 'Darah Muda', 'Ani', 'Terajana', 'Syahdu',
+      'Pertemuan', 'Malam Terakhir', 'Sebujur Bangkai', 'Penasaran', 'Ghibah', 'Tabir Kepalsuan',
+      'Piano', 'Kehilangan', 'Cuma Kamu', 'Gitar Tua', 'Kegagalan Cinta', 'Gulali', 'Haram', 'Santai', 'Kata Pujangga', 'Lari Pagi'
+    ]
+  },
+  {
+    artist: 'Meggy Z', genre: 'Dangdut Klasik', year: 1985,
+    tracks: [
+      'Mahal', 'Anggur Merah', 'Jatuh Bangun', 'Lebih Baik Sakit Gigi', 'Benang Biru', 'Gubuk Bambu',
+      'Senyum Membawa Luka', 'Berdayung Cinta', 'Mandi Kembang', 'Tajamnya Kuku', 'Terlanjur Basah'
+    ]
+  },
+  {
+    artist: 'Mansyur S', genre: 'Dangdut Klasik', year: 1980,
+    tracks: [
+      'Zubaedah', 'Gadis Pantura', 'Air Tuba', 'Kertas dan Api', 'Pagar Makan Tanaman', 'Jangan Menangis Sayang',
+      'Pelaminan Kelabu', 'Rembulan Bersinar Lagi', 'Khana', 'Sengsara', 'Dua Dua'
+    ]
+  },
+  {
+    artist: 'Elvy Sukaesih', genre: 'Dangdut Klasik / Ratu Dangdut', year: 1978,
+    tracks: [
+      'Bisik-Bisik Tetangga', 'Sekuntum Mawar Merah', 'Gula-Gula', 'Kereta Malam', 'Pesta Panen',
+      'Mandi Madu', 'Cubit-Cubitan', 'Sumpah Benang Emas', 'Bimbang', 'Cincin Kepalsuan'
+    ]
+  },
+  {
+    artist: 'Rita Sugiarto', genre: 'Dangdut Klasik Legend', year: 1982,
+    tracks: [
+      'Oleh-Oleh', 'Dua Kursi', 'Pacar Dunia Akhirat', 'Iming-Iming', 'Tulang Rusuk', 'Biarlah Merana',
+      'Jacky', 'Tersisih', 'Ku Ingin', 'Cinta Berawan', 'Zaenal', 'Makan Hati'
+    ]
+  },
+  {
+    artist: 'Ayu Ting Ting', genre: 'Dangdut Pop Modern', year: 2011,
+    tracks: [
+      'Alamat Palsu', 'Sik Asik', 'Minyak Wangi', 'Sambalado', 'Geboy Mujaer', 'Suara Hati', 'Jangan Gitu Dong', 'Tatitut'
+    ]
+  },
+  {
+    artist: 'Lesti Kejora', genre: 'Dangdut Modern / Melayu', year: 2014,
+    tracks: [
+      'Kejora', 'Zapin Melayu', 'Tirani', 'Kulepas Dengan Ikhlas', 'Bawa Aku ke Penghulu', 'Lentera',
+      'Sekali Seumur Hidup', 'Insan Biasa', 'Angin', 'Bukan Cinta Biasa'
+    ]
+  },
+  {
+    artist: 'Inul Daratista & Dewi Perssik', genre: 'Dangdut Modern', year: 2003,
+    tracks: [
+      'Goyang Inul', 'Masa Lalu', 'Buaya Buntung', 'Mawar Putih', 'Kocok-Kocok', 'Mimpi Manis', 'Indah Pada Waktunya', 'Hikayat Cinta'
+    ]
+  },
+  {
+    artist: 'Siti Badriah & Cita Citata', genre: 'Dangdut Pop Viral', year: 2014,
+    tracks: [
+      'Lagi Syantik', 'Brondong Tua', 'Bergek', 'Sakitnya Tuh Disini', 'Goyang Dumang', 'Meriang', 'Perawan Atau Janda', 'Aku Mah Apa Atuh'
+    ]
+  },
+  {
+    artist: 'Imam S Arifin & Hamdan ATT', genre: 'Dangdut Klasik', year: 1988,
+    tracks: [
+      'Menari di Atas Luka', 'Jangan Tinggalkan Aku', 'Dia Lelaki Aku Lelaki', 'Jandaku', 'Termiskin di Dunia', 'Bekas Pacar', 'Gubuk Derita'
     ]
   }
 ];
@@ -968,6 +1169,54 @@ const latinData = [
     ]
   },
   {
+    artist: 'FloyyMenor & Cris Mj', genre: 'Latin Urban / Reggaeton', year: 2024,
+    tracks: [
+      'Gata Only', 'Peligrosa', 'Apaga el Cel', 'Mecha', 'Un Besito', 'Tu Me Calientas'
+    ]
+  },
+  {
+    artist: 'Don Omar & Lucenzo', genre: 'Reggaeton / Latin Dance', year: 2010,
+    tracks: [
+      'Danza Kuduro', 'Dile', 'Dale Don Dale', 'Pobre Diabla', 'Bandoleros', 'Virtual Diva', 'Taboo', 'Salió El Sol', 'Vem Dançar Kuduro'
+    ]
+  },
+  {
+    artist: 'Pedro Capó & Farruko', genre: 'Latin Pop / Dance', year: 2018,
+    tracks: [
+      'Calma', 'Pepas', 'La Tóxica', 'Buena Suerte', 'Tutu', 'El Efecto', 'Si Me Dices Que Sí'
+    ]
+  },
+  {
+    artist: 'Becky G & Natti Natasha', genre: 'Reggaeton / Latin Pop', year: 2017,
+    tracks: [
+      'Mayores', 'Sin Pijama', 'MAMIII', 'Criminal', 'Ram Pam Pam', 'La Loto', 'Fulanito', 'Bailé Con Mi Ex'
+    ]
+  },
+  {
+    artist: 'DJ Snake, Ozuna & Cardi B', genre: 'Latin / Global Pop', year: 2018,
+    tracks: [
+      'Taki Taki', 'Loco Contigo', 'Lean On', 'Let Me Love You', 'Middle', 'Selfish Love'
+    ]
+  },
+  {
+    artist: 'Camila Cabello', genre: 'Latin Pop', year: 2017,
+    tracks: [
+      'Havana', 'Never Be the Same', 'Señorita', 'My Oh My', 'Liar', 'Don\'t Go Yet', 'Bam Bam', 'I LUV IT'
+    ]
+  },
+  {
+    artist: 'Aya Nakamura, Nej & Oxlade', genre: 'Afrobeats / French Pop / Viral', year: 2020,
+    tracks: [
+      'Copines', 'Djadja', 'Pookie', 'Paro', 'Ku Lo Sa', 'Love Nwantiti', 'Calm Down', 'Rush'
+    ]
+  },
+  {
+    artist: 'Spice, Sean Paul & Shaggy', genre: 'Dancehall / Reggae', year: 2021,
+    tracks: [
+      'Go Down Deh', 'Temperature', 'Get Busy', 'No Lie', 'Boombastic', 'It Wasn\'t Me', 'Angel'
+    ]
+  },
+  {
     artist: 'Marc Anthony', genre: 'Salsa', year: 1993,
     tracks: [
       'Hasta Que Te Conocí', 'Y Hubo Alguien', 'Te Conozco Bien', 'No Me Ames', 'Valió la Pena',
@@ -977,19 +1226,23 @@ const latinData = [
 ];
 
 const { traditionalIndoSongs } = require('./catalogs/traditionalIndo');
+const { laguNasionalIndo } = require('./catalogs/nasionalIndo');
+const { brazilArtistGroups } = require('./catalogs/brazil');
 
 // ══════════════════════════════════════════════════════════════
-// BUILD ALL COUNTRY CATALOGS (INCLUDING TRADISIONAL INDONESIA)
+// BUILD ALL COUNTRY CATALOGS (MASSIVE ULTRA-DATABASE: 22.800+ LAGU)
 // ══════════════════════════════════════════════════════════════
 const masterCatalog = {
-  indo: buildCatalogWithFill(indoData, 1500),
+  indo: buildCatalogWithFill(indoData, 5000),
   traditional_indo: traditionalIndoSongs,
-  western: buildCatalogWithFill(westernData, 1500),
-  japan: buildCatalogWithFill(japanData, 1500),
-  korea: buildCatalogWithFill(koreaData, 1500),
-  arabic: buildCatalogWithFill(arabicData, 1500),
-  thailand: buildCatalogWithFill(thaiData, 1500),
-  latin: buildCatalogWithFill(latinData, 1500)
+  nasional_indo: laguNasionalIndo,
+  western: buildCatalogWithFill(westernData, 3000),
+  brazil: buildCatalogWithFill(brazilArtistGroups, 3000),
+  latin: buildCatalogWithFill(latinData, 2500),
+  japan: buildCatalogWithFill(japanData, 2500),
+  korea: buildCatalogWithFill(koreaData, 2500),
+  arabic: buildCatalogWithFill(arabicData, 2000),
+  thailand: buildCatalogWithFill(thaiData, 2000)
 };
 
 const outPath = path.join(__dirname, 'quizSongs.json');
@@ -998,16 +1251,18 @@ fs.writeFileSync(outPath, JSON.stringify(masterCatalog, null, 2), 'utf8');
 const totalAll = Object.values(masterCatalog).reduce((acc, curr) => acc + curr.length, 0);
 
 console.log(`\n======================================================`);
-console.log(`🎉 DATABASE SUKSES DIBANGUN LENGKAP!`);
+console.log(`🎉 DATABASE RAKSASA SUKSES DIBANGUN LENGKAP!`);
 console.log(`======================================================`);
-console.log(`🇮🇩 Indonesia Pop/Rock/Koplo : ${masterCatalog.indo.length} Lagu`);
-console.log(`🌺 Lagu Tradisional Daerah  : ${masterCatalog.traditional_indo.length} Lagu (38 Provinsi)`);
-console.log(`🌍 Western & Global         : ${masterCatalog.western.length} Lagu`);
-console.log(`🎌 Jepang & Anime           : ${masterCatalog.japan.length} Lagu`);
-console.log(`🇰🇷 Korea Selatan            : ${masterCatalog.korea.length} Lagu`);
-console.log(`🇸🇦 Arab & Timur Tengah      : ${masterCatalog.arabic.length} Lagu`);
-console.log(`🇹🇭 Thailand                 : ${masterCatalog.thailand.length} Lagu`);
-console.log(`💃 Amerika Latin            : ${masterCatalog.latin.length} Lagu`);
+console.log(`🇮🇩 Indonesia (Pop, Koplo, Sunda, Timur) : ${masterCatalog.indo.length} Lagu`);
+console.log(`🇧🇷 Brasil (Funk Carioca & Phonk)        : ${masterCatalog.brazil.length} Lagu`);
+console.log(`🌍 Western & Global                     : ${masterCatalog.western.length} Lagu`);
+console.log(`💃 Amerika Latin & Reggaeton            : ${masterCatalog.latin.length} Lagu`);
+console.log(`🎌 Jepang & Anime OST                   : ${masterCatalog.japan.length} Lagu`);
+console.log(`🇰🇷 Korea Selatan (K-Pop)                : ${masterCatalog.korea.length} Lagu`);
+console.log(`🇸🇦 Arab & Timur Tengah                  : ${masterCatalog.arabic.length} Lagu`);
+console.log(`🇹🇭 Thailand (T-Pop & Hits)              : ${masterCatalog.thailand.length} Lagu`);
+console.log(`🌺 Lagu Tradisional Daerah              : ${masterCatalog.traditional_indo.length} Lagu (38 Provinsi)`);
+console.log(`🇮🇩 Lagu Wajib Nasional                  : ${masterCatalog.nasional_indo.length} Lagu`);
 console.log(`------------------------------------------------------`);
-console.log(`TOTAL SEMUA                 : ${totalAll} Lagu Siap Dimainkan! 🚀`);
+console.log(`TOTAL SEMUA                             : ${totalAll} Lagu Siap Dimainkan! 🚀`);
 console.log(`======================================================\n`);
