@@ -1,5 +1,22 @@
 const { EmbedBuilder } = require('discord.js');
 const { checkVoiceChannel, checkQueue, isBotOwner } = require('../utils/helpers');
+const storage = require('../utils/storage');
+
+/**
+ * Format durasi AFK ke string yang mudah dibaca
+ */
+function formatAfkDuration(ms) {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds} detik`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} menit`;
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  if (hours < 24) return remMinutes > 0 ? `${hours} jam ${remMinutes} menit` : `${hours} jam`;
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return remHours > 0 ? `${days} hari ${remHours} jam` : `${days} hari`;
+}
 
 // Set untuk mencegah pemrosesan pesan ganda (deduplication guard)
 const processedMessages = new Set();
@@ -20,40 +37,55 @@ module.exports = {
         const afkData = client.afkUsers.get(senderKey);
         client.afkUsers.delete(senderKey);
 
-        const afkDuration = Date.now() - afkData.timestamp;
+        const afkStorage = storage.read('afk');
+        delete afkStorage[senderKey];
+        storage.write('afk', afkStorage);
+
+        const afkDuration = Date.now() - (afkData.timestamp || Date.now());
         const durStr = formatAfkDuration(afkDuration);
 
         message.reply({
           embeds: [
             new EmbedBuilder()
               .setColor('#57F287')
-              .setDescription(`👋 **Selamat datang kembali, ${message.member.displayName}!**\nKamu AFK selama **${durStr}**.`)
+              .setDescription(`👋 **Selamat datang kembali, ${message.member?.displayName || message.author.username}!**\nKamu AFK selama **${durStr}**.`)
           ]
         }).then(m => setTimeout(() => m.delete().catch(() => {}), 8000)).catch(() => {});
       }
 
-      // 2. Jika pesan ini mention user yang sedang AFK → kasih tahu
-      if (message.mentions.users.size > 0) {
-        for (const [mentionedId, mentionedUser] of message.mentions.users) {
-          const mentionKey = `${guildId}_${mentionedId}`;
-          if (client.afkUsers.has(mentionKey)) {
-            const afkData = client.afkUsers.get(mentionKey);
-            const afkDuration = Date.now() - afkData.timestamp;
-            const durStr = formatAfkDuration(afkDuration);
+      // 2. Jika pesan ini mention atau mereply user yang sedang AFK → kasih tahu
+      const mentionedUserIds = new Set();
+      if (message.mentions.users && message.mentions.users.size > 0) {
+        for (const uId of message.mentions.users.keys()) {
+          if (uId !== message.author.id) mentionedUserIds.add(uId);
+        }
+      }
+      if (message.reference && message.reference.messageId) {
+        const repliedMsg = message.channel.messages?.cache?.get(message.reference.messageId);
+        if (repliedMsg && repliedMsg.author && !repliedMsg.author.bot && repliedMsg.author.id !== message.author.id) {
+          mentionedUserIds.add(repliedMsg.author.id);
+        }
+      }
 
-            message.reply({
-              embeds: [
-                new EmbedBuilder()
-                  .setColor('#FEE75C')
-                  .setDescription(
-                    `💤 **${afkData.displayName}** sedang AFK\n` +
-                    `> *${afkData.reason}*\n` +
-                    `⏱️ Sejak **${durStr}** yang lalu`
-                  )
-              ]
-            }).catch(() => {});
-            break; // Hanya kirim 1 notifikasi per pesan
-          }
+      for (const mentionedId of mentionedUserIds) {
+        const mentionKey = `${guildId}_${mentionedId}`;
+        if (client.afkUsers.has(mentionKey)) {
+          const afkData = client.afkUsers.get(mentionKey);
+          const afkDuration = Date.now() - (afkData.timestamp || Date.now());
+          const durStr = formatAfkDuration(afkDuration);
+
+          message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor('#FEE75C')
+                .setDescription(
+                  `💤 **${afkData.displayName || afkData.username || 'Member'}** sedang **AFK**\n` +
+                  `> *${afkData.reason || 'AFK'}*\n` +
+                  `⏱️ Sejak **${durStr}** yang lalu`
+                )
+            ]
+          }).catch(() => {});
+          break; // Hanya kirim 1 notifikasi per pesan
         }
       }
     }

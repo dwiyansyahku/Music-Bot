@@ -90,7 +90,14 @@ function loadAllSettings(client) {
     if (guildData.morning) client.morningSettings.set(guildId, guildData.morning);
     if (guildData.night)   client.nightSettings.set(guildId, guildData.night);
   }
-  console.log(`💾 [Storage] Settings dimuat untuk ${Object.keys(settings).length} guild.`);
+
+  // Load AFK persistent data into client.afkUsers
+  const afkData = read('afk');
+  for (const [key, value] of Object.entries(afkData)) {
+    client.afkUsers.set(key, value);
+  }
+
+  console.log(`💾 [Storage] Settings dimuat untuk ${Object.keys(settings).length} guild (${client.afkUsers.size} active AFK sessions).`);
 }
 
 /**

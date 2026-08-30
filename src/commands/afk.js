@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const storage = require('../utils/storage');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,6 +25,10 @@ module.exports = {
     // Jika sudah AFK, hapus AFK
     if (client.afkUsers.has(key)) {
       client.afkUsers.delete(key);
+      const afkData = storage.read('afk');
+      delete afkData[key];
+      storage.write('afk', afkData);
+
       return interaction.reply({
         content: '👋 **Status AFK-mu telah dihapus.** Selamat datang kembali!',
         flags: MessageFlags.Ephemeral
@@ -31,12 +36,17 @@ module.exports = {
     }
 
     // Set AFK
-    client.afkUsers.set(key, {
+    const afkInfo = {
       reason,
       timestamp: Date.now(),
       displayName: interaction.member.displayName,
       username: interaction.user.username
-    });
+    };
+
+    client.afkUsers.set(key, afkInfo);
+    const afkData = storage.read('afk');
+    afkData[key] = afkInfo;
+    storage.write('afk', afkData);
 
     const embed = new EmbedBuilder()
       .setColor('#2B2D31')
