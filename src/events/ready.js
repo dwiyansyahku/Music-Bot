@@ -358,6 +358,30 @@ module.exports = {
     console.log('✅ [Schedulers] Morning, Night, Announce, Birthday, Event, Time Capsule schedulers aktif!');
 
     // =============================================
+    // INITIAL STARTUP CARD GALLERY REFRESH (1x on boot)
+    // =============================================
+    setTimeout(async () => {
+      try {
+        const cardsData = storage.read('cards');
+        const { publishCardToChannel } = require('../utils/cardHandler');
+        for (const guild of client.guilds.cache.values()) {
+          const guildCards = cardsData[guild.id] || {};
+          for (const [userId, userCard] of Object.entries(guildCards)) {
+            if (userCard.publishedMessageId) {
+              const member = await guild.members.fetch(userId).catch(() => null);
+              if (member) {
+                await publishCardToChannel(guild, member, client, true).catch(() => {});
+              }
+            }
+          }
+        }
+        console.log('✨ [CardSync] Semua kartu profil di gallery berhasil diperbarui otomatis pada startup.');
+      } catch (err) {
+        console.warn('[CardSync] Startup refresh failed:', err.message);
+      }
+    }, 5000);
+
+    // =============================================
     // AUTO-SYNC PUBLISHED CARDS FOR ACTIVE VOICE USERS (EVERY 60s)
     // =============================================
     const { isUserInVoice, flushAllActiveSessions } = require('../utils/voiceTracker');

@@ -77,7 +77,7 @@ function parsePromoLink(input) {
     else if (lower.includes('instagram.com')) title = 'Instagram';
     else if (lower.includes('tiktok.com')) title = 'TikTok';
     else if (lower.includes('github.com')) title = 'GitHub';
-    else if (lower.includes('twitter.com') || lower.includes('x.com')) title = 'X (Twitter)';
+    else if (lower.includes('twitter.com') || lower.includes('x.com')) title = 'X / Twitter';
     else if (lower.includes('twitch.tv')) title = 'Twitch';
     else if (lower.includes('soundcloud.com')) title = 'SoundCloud';
     else if (lower.includes('discord.gg') || lower.includes('discord.com')) title = 'Discord';
@@ -93,6 +93,62 @@ function parsePromoLink(input) {
   }
 
   return { title, url };
+}
+
+/**
+ * Parse gabungan MBTI dan Social Link
+ * Contoh input:
+ * - "ENTJ | https://instagram.com/username" -> mbti: "ENTJ", link: { title: "Instagram", url: "https://..." }
+ * - "INFP" -> mbti: "INFP", link: null
+ * - "https://instagram.com/username" -> mbti: null, link: { title: "Instagram", url: "https://..." }
+ */
+function parseMbtiAndSocial(input) {
+  if (!input || !input.trim()) return { mbti: null, link: null };
+
+  let raw = input.trim();
+  let mbti = null;
+  let link = null;
+
+  // Cari apakah ada URL di dalam input
+  const urlMatch = raw.match(/(https?:\/\/[^\s|]+)/i) || raw.match(/(www\.[^\s|]+)/i);
+
+  if (urlMatch) {
+    let extractedUrl = urlMatch[1].trim();
+    if (!/^https?:\/\//i.test(extractedUrl)) extractedUrl = `https://${extractedUrl}`;
+
+    try {
+      new URL(extractedUrl);
+
+      // Ambil teks sisa selain URL
+      let remainingText = raw.replace(urlMatch[0], '').replace(/\|/g, ' ').trim();
+      const tokens = remainingText.split(/[\s/\\,]+/).filter(Boolean);
+      const mbtiRegex = /^(INTJ|INTP|ENTJ|ENTP|INFJ|INFP|ENFJ|ENFP|ISTJ|ISFJ|ESTJ|ESFJ|ISTP|ISFP|ESTP|ESFP)$/i;
+
+      let customTitle = '';
+      for (const token of tokens) {
+        if (mbtiRegex.test(token)) {
+          mbti = token.toUpperCase();
+        } else if (!customTitle && token.length > 1 && !/^(https?|link|sosmed|social)$/i.test(token)) {
+          customTitle = token;
+        }
+      }
+
+      link = parsePromoLink(customTitle ? `${customTitle} | ${extractedUrl}` : extractedUrl);
+    } catch (_) {
+      // URL tidak valid, abaikan link
+    }
+  }
+
+  if (!link) {
+    const mbtiMatch = raw.match(/\b(INTJ|INTP|ENTJ|ENTP|INFJ|INFP|ENFJ|ENFP|ISTJ|ISFJ|ESTJ|ESFJ|ISTP|ISFP|ESTP|ESFP)\b/i);
+    if (mbtiMatch) {
+      mbti = mbtiMatch[1].toUpperCase();
+    } else if (raw.length <= 25 && !raw.includes('/')) {
+      mbti = raw.trim();
+    }
+  }
+
+  return { mbti, link };
 }
 
 // Default Channel ID tempat hasil Member Card diterbitkan (#card-gallery)
@@ -115,11 +171,12 @@ function createCardHubPayload(guild) {
     .setDescription(
       `Buat dan kelola kartu profil identitas digitalmu di server **${guild.name}**.\n\n` +
       `◈ **Petunjuk Pembuatan:**\n` +
-      `1. Klik tombol **Buat / Edit Profil** untuk mengisi Bio, Asal Kota, Tanggal Lahir, MBTI/Sosmed, dan Foto Banner.\n` +
-      `2. Kartumu akan otomatis diterbitkan dan diperbarui di <#${targetChannelId}>.\n` +
-      `3. **Live Voice & Companions:** Menampilkan durasi ngobrol dan teman terdekatmu secara otomatis.\n` +
-      `4. **Perayaan Ultah:** Dapatkan ucapan selamat otomatis saat hari ulang tahunmu tiba.\n` +
-      `5. Klik **Lihat Kartuku** untuk pratinjau kartu secara privat, atau **Reset Data** untuk menghapus data.`
+      `1. Klik tombol **Buat / Edit Profil** untuk mengisi Bio, Asal Kota, Tanggal Lahir, MBTI / Sosmed, dan Foto Banner.\n` +
+      `2. **Zodiak Otomatis:** Zodiakmu akan otomatis terhitung dan ditampilkan dari tanggal lahir.\n` +
+      `3. Kartumu akan otomatis diterbitkan dan diperbarui di <#${targetChannelId}>.\n` +
+      `4. **Live Voice & Companions:** Menampilkan durasi ngobrol dan teman terdekatmu secara otomatis.\n` +
+      `5. **Perayaan Ultah:** Dapatkan ucapan selamat otomatis saat hari ulang tahunmu tiba.\n` +
+      `6. Klik **Lihat Kartuku** untuk pratinjau kartu secara privat, atau **Reset Data** untuk menghapus data.`
     )
     .setFooter({ text: 'Kartu profil diperbarui secara realtime dari database' })
     .setTimestamp();
@@ -185,7 +242,7 @@ async function getMemberJoinPosition(guild, member) {
 
 /**
  * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Includes: Live VC status, Birthday, Zodiac/MBTI, Social Link, and Direct Banner URL
+ * Includes: Live VC status, Birthday, Zodiac (auto-calculated), MBTI, Social Link, and Banner
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
@@ -249,21 +306,34 @@ async function buildMemberCardEmbed(guild, member) {
   }
   embed.addFields({ name: 'Birthday', value: birthdayText, inline: true });
 
-  // Row 3: Zodiac / MBTI (if set or auto-detected from birthday)
-  const zodiacDetected = userCard.birthdate ? getZodiac(userCard.birthdate.day, userCard.birthdate.month) : null;
-  const zodiacDisplay = userCard.zodiac || (zodiacDetected ? zodiacDetected.label : null);
+  // Row 3: Zodiac / MBTI (Zodiak dihitung otomatis dari tanggal lahir)
+  let zodiacSymbolAndName = null;
+  if (userCard.birthdate && userCard.birthdate.day && userCard.birthdate.month) {
+    const zodiacObj = getZodiac(userCard.birthdate.day, userCard.birthdate.month);
+    if (zodiacObj) zodiacSymbolAndName = zodiacObj.label;
+  }
+  const mbtiText = userCard.mbti ? userCard.mbti.toUpperCase() : null;
 
-  if (zodiacDisplay) {
-    embed.addFields({ name: 'Zodiac / MBTI', value: zodiacDisplay, inline: true });
+  let zodiacMbtiDisplay = null;
+  if (zodiacSymbolAndName && mbtiText) {
+    zodiacMbtiDisplay = `${zodiacSymbolAndName} • ${mbtiText}`;
+  } else if (zodiacSymbolAndName) {
+    zodiacMbtiDisplay = zodiacSymbolAndName;
+  } else if (mbtiText) {
+    zodiacMbtiDisplay = mbtiText;
   }
 
-  // Row 3 (or 4): Social Link (if set)
-  if (userCard.linkUrl) {
-    const linkTitle = userCard.linkTitle || 'Visit Link ↗';
+  if (zodiacMbtiDisplay) {
+    embed.addFields({ name: 'Zodiac / MBTI', value: zodiacMbtiDisplay, inline: true });
+  }
+
+  // Row 3 (or 4): Social Link (Elegan & rapi)
+  if (userCard.linkUrl && /^https?:\/\/[^\s]+$/i.test(userCard.linkUrl)) {
+    const linkTitle = userCard.linkTitle || 'Visit Link';
     embed.addFields({
       name: 'Social Link',
-      value: `[${linkTitle}](${userCard.linkUrl})`,
-      inline: Boolean(zodiacDisplay)
+      value: `[${linkTitle} ↗](${userCard.linkUrl})`,
+      inline: Boolean(zodiacMbtiDisplay)
     });
   }
 
@@ -289,7 +359,7 @@ async function buildMemberCardEmbed(guild, member) {
     }
   } catch (_) {}
 
-  // Banner image: Direct Image URL via Discord native proxy (Instant, 0 socket drops)
+  // Banner image: Direct Image URL via Discord native proxy
   if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
     embed.setImage(userCard.bannerUrl);
   }
@@ -391,39 +461,49 @@ async function handleCardButton(interaction, client) {
 
     const bioInput = new TextInputBuilder()
       .setCustomId('card_input_bio')
-      .setLabel('Bio / Quote / Status (Max 150)')
+      .setLabel('Bio / Quote / Status (Maks 150)')
       .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Tell something about yourself...')
-      .setValue(userCard.bio || '')
+      .setPlaceholder('Tuliskan sesuatu tentang dirimu...')
+      .setValue((userCard.bio || '').slice(0, 150))
       .setRequired(false)
       .setMaxLength(150);
 
     const asalInput = new TextInputBuilder()
       .setCustomId('card_input_asal')
-      .setLabel('Location / Kota Asal (Max 30)')
+      .setLabel('Location / Kota Asal (Maks 30)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: Indramayu atau Bandung (Kota/Kabupaten)')
-      .setValue(userCard.asalRaw || userCard.asal || '')
+      .setPlaceholder('Contoh: Indramayu, Bandung, Jakarta')
+      .setValue((userCard.asalRaw || userCard.asal || '').slice(0, 30))
       .setRequired(false)
       .setMaxLength(30);
 
     const birthdayInput = new TextInputBuilder()
       .setCustomId('card_input_birthdate')
-      .setLabel('Tanggal Lahir (Contoh: 15-08 atau 15-08-2000)')
+      .setLabel('Tanggal Lahir (Zodiak Otomatis)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. 15-08-2000 atau 15 Agustus')
-      .setValue(userCard.birthdateRaw || (userCard.birthdate?.formatted || ''))
+      .setPlaceholder('Contoh: 16-10-2002 atau 16 Oktober')
+      .setValue((userCard.birthdateRaw || (userCard.birthdate?.formatted || '')).slice(0, 30))
       .setRequired(false)
       .setMaxLength(30);
 
-    const zodiacInput = new TextInputBuilder()
-      .setCustomId('card_input_zodiac')
-      .setLabel('Zodiac / MBTI / Social Link')
+    // Pre-fill MBTI & Social Link
+    let mbtiSocialPrefill = '';
+    if (userCard.mbti && userCard.linkUrl) {
+      mbtiSocialPrefill = `${userCard.mbti} | ${userCard.linkUrl}`;
+    } else if (userCard.mbti) {
+      mbtiSocialPrefill = userCard.mbti;
+    } else if (userCard.linkUrl) {
+      mbtiSocialPrefill = userCard.linkTitle && userCard.linkTitle !== 'Visit Link'
+        ? `${userCard.linkTitle} | ${userCard.linkUrl}`
+        : userCard.linkUrl;
+    }
+
+    const mbtiSocialInput = new TextInputBuilder()
+      .setCustomId('card_input_mbti_social')
+      .setLabel('MBTI / Social Link (Maks 100)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Taurus / INTJ atau Instagram | https://...')
-      .setValue(
-        userCard.zodiac || (userCard.linkTitle && userCard.linkUrl ? `${userCard.linkTitle} | ${userCard.linkUrl}` : (userCard.linkUrl || ''))
-      )
+      .setPlaceholder('Contoh: ENTJ | https://instagram.com/username')
+      .setValue(mbtiSocialPrefill.slice(0, 100))
       .setRequired(false)
       .setMaxLength(100);
 
@@ -431,8 +511,8 @@ async function handleCardButton(interaction, client) {
       .setCustomId('card_input_banner')
       .setLabel('Banner Image URL')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Paste image link (Direct image URL https://...)')
-      .setValue(userCard.bannerUrl || '')
+      .setPlaceholder('Link gambar banner (Direct image URL https://...)')
+      .setValue((userCard.bannerUrl || '').slice(0, 250))
       .setRequired(false)
       .setMaxLength(250);
 
@@ -440,7 +520,7 @@ async function handleCardButton(interaction, client) {
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
       new ActionRowBuilder().addComponents(birthdayInput),
-      new ActionRowBuilder().addComponents(zodiacInput),
+      new ActionRowBuilder().addComponents(mbtiSocialInput),
       new ActionRowBuilder().addComponents(bannerInput)
     );
 
@@ -579,7 +659,15 @@ async function handleCardModalSubmit(interaction, client) {
   let bio = interaction.fields.getTextInputValue('card_input_bio').trim();
   let asal = interaction.fields.getTextInputValue('card_input_asal').trim();
   let birthdateRaw = interaction.fields.getTextInputValue('card_input_birthdate').trim();
-  let zodiacOrLink = interaction.fields.getTextInputValue('card_input_zodiac').trim();
+  
+  let mbtiSocialRaw = '';
+  try {
+    mbtiSocialRaw = (
+      interaction.fields.getTextInputValue('card_input_mbti_social') ||
+      interaction.fields.getTextInputValue('card_input_zodiac') || ''
+    ).trim();
+  } catch (_) {}
+
   let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
 
   // Save profile data
@@ -591,7 +679,7 @@ async function handleCardModalSubmit(interaction, client) {
 
   if (bio) userCard.bio = bio; else delete userCard.bio;
 
-  // Process Location (Smart Normalizer)
+  // 1. Process Location (Smart Normalizer)
   if (asal) {
     const parsedLoc = parseLocation(asal);
     if (parsedLoc) {
@@ -608,43 +696,41 @@ async function handleCardModalSubmit(interaction, client) {
     delete userCard.asalRaw;
   }
 
-  // Process Birthday
+  // 2. Process Birthday & Automatic Zodiac Calculation
   if (birthdateRaw) {
     const parsedBday = parseBirthdate(birthdateRaw);
     if (parsedBday) {
       userCard.birthdate = parsedBday;
       userCard.birthdateRaw = birthdateRaw;
+      const zodiacObj = getZodiac(parsedBday.day, parsedBday.month);
+      userCard.zodiac = zodiacObj ? zodiacObj.label : undefined;
     } else {
-      // Keep raw if unparseable but store
       userCard.birthdateRaw = birthdateRaw;
+      delete userCard.zodiac;
     }
   } else {
     delete userCard.birthdate;
     delete userCard.birthdateRaw;
+    delete userCard.zodiac;
   }
 
-  // Check if zodiacOrLink is a Social Link or Zodiac/MBTI text
-  if (zodiacOrLink) {
-    if (zodiacOrLink.includes('http://') || zodiacOrLink.includes('https://') || zodiacOrLink.includes('|')) {
-      const parsedLink = parsePromoLink(zodiacOrLink);
-      if (parsedLink) {
-        userCard.linkTitle = parsedLink.title;
-        userCard.linkUrl = parsedLink.url;
-        delete userCard.zodiac;
-      } else {
-        userCard.zodiac = zodiacOrLink;
-      }
-    } else {
-      userCard.zodiac = zodiacOrLink;
-      delete userCard.linkTitle;
-      delete userCard.linkUrl;
-    }
+  // 3. Process MBTI & Social Link
+  const parsedMbtiSocial = parseMbtiAndSocial(mbtiSocialRaw);
+  if (parsedMbtiSocial.mbti) {
+    userCard.mbti = parsedMbtiSocial.mbti;
   } else {
-    delete userCard.zodiac;
+    delete userCard.mbti;
+  }
+
+  if (parsedMbtiSocial.link && parsedMbtiSocial.link.url) {
+    userCard.linkTitle = parsedMbtiSocial.link.title;
+    userCard.linkUrl = parsedMbtiSocial.link.url;
+  } else {
     delete userCard.linkTitle;
     delete userCard.linkUrl;
   }
 
+  // 4. Process Banner Image
   let bannerWarning = '';
   if (bannerUrl) {
     const bannerCheck = isValidBannerUrl(bannerUrl);
