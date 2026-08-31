@@ -94,8 +94,6 @@ function startProxyServer() {
         retries: 3,
         fragmentRetries: 3,
         socketTimeout: 15,
-        sleepInterval: 3,
-        maxSleepInterval: 10,
         jsRuntimes: 'node',
         output: '-'
       };
@@ -140,6 +138,14 @@ function startProxyServer() {
         }
       });
 
+      ytdlpProcess.on('error', (err) => {
+        console.error(`❌ [Proxy Server] yt-dlp spawn error:`, err.message);
+        if (!res.headersSent) {
+          res.writeHead(500);
+        }
+        res.end();
+      });
+
       ytdlpProcess.on('close', (code) => {
         if (code !== 0 && code !== null) {
           console.error(`❌ [Proxy Server] yt-dlp stream exited with code ${code}. Stderr: ${errBuffer.trim()}`);
@@ -148,7 +154,9 @@ function startProxyServer() {
 
       req.on('close', () => {
         console.log(`🔌 [Proxy Server] Connection closed for: "${videoUrl}"`);
-        ytdlpProcess.kill();
+        if (ytdlpProcess && !ytdlpProcess.killed) {
+          ytdlpProcess.kill();
+        }
       });
     } else {
       res.writeHead(404);
@@ -445,8 +453,6 @@ ytdlpPlugin.resolve = async function(url, options) {
     retries: 3,
     fragmentRetries: 3,
     socketTimeout: 15,
-    sleepInterval: 3,
-    maxSleepInterval: 10,
     noPlaylist: true,
     jsRuntimes: 'node'
   };
