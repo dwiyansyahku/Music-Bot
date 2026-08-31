@@ -94,8 +94,7 @@ module.exports = {
     // ====== AUTO-MODERATION & ANTI-PHISHING SYSTEM ======
     const automodConfig = getGuildAutomodSettings(guildId);
     if (automodConfig.enabled) {
-      const isExempt = message.member?.permissions?.has(PermissionFlagsBits.Administrator) ||
-        message.member?.permissions?.has(PermissionFlagsBits.ManageMessages) ||
+      const isExempt = 
         (automodConfig.ignoredRoles.length > 0 && message.member?.roles?.cache?.some(r => automodConfig.ignoredRoles.includes(r.id))) ||
         (automodConfig.ignoredChannels.length > 0 && automodConfig.ignoredChannels.includes(message.channel.id));
 
