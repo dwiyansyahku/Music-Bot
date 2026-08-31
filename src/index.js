@@ -936,6 +936,11 @@ client.distube
   .on('playSong', async (queue, song) => {
     // Jangan kirim kartu "Sedang Diputar" jika lagu berasal dari Music Quiz (agar tidak membocorkan jawaban!)
     if (song.metadata?.isQuiz || queue.isQuiz) {
+      stopLiveProgressUpdater(queue);
+      if (queue._nowPlayingMsg) {
+        queue._nowPlayingMsg.delete().catch(() => {});
+        queue._nowPlayingMsg = null;
+      }
       return;
     }
 

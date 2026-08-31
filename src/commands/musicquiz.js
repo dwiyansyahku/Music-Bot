@@ -521,18 +521,28 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   let playSuccess = false;
 
   try {
-    const randomOffsets = [0, 30, 45, 60, 75];
-    const seekOffset = randomOffsets[Math.floor(Math.random() * randomOffsets.length)];
+    const existingQ = client.distube.getQueue(guildId);
+    if (existingQ) {
+      existingQ.isQuiz = true;
+      if (existingQ._nowPlayingMsg) {
+        existingQ._nowPlayingMsg.delete().catch(() => {});
+        existingQ._nowPlayingMsg = null;
+      }
+    }
 
     await client.distube.play(voiceChannel, searchQuery, {
-      textChannel,
       skip: true,
       position: 0,
+      metadata: { isQuiz: true }
     });
 
     const queue = client.distube.getQueue(guildId);
     if (queue) {
       queue.isQuiz = true;
+      if (queue._nowPlayingMsg) {
+        queue._nowPlayingMsg.delete().catch(() => {});
+        queue._nowPlayingMsg = null;
+      }
       queue.setVolume(75);
       if (seekOffset > 0 && typeof queue.seek === 'function') {
         setTimeout(() => {
