@@ -122,10 +122,12 @@ module.exports = {
                 `• **Alasan:** \`${phishingCheck.reason}\`\n` +
                 `• **Tindakan:** Pesan dihapus & akun di-timeout 1 jam untuk pencegahan penyebaran scam.`
               )
-              .setFooter({ text: 'Sistem Keamanan Otomatis Anti-Phishing' })
+              .setFooter({ text: 'Peringatan ini akan terhapus otomatis dalam 5 detik' })
               .setTimestamp();
 
-            message.channel.send({ embeds: [alertEmbed] }).catch(() => {});
+            message.channel.send({ embeds: [alertEmbed] })
+              .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+              .catch(() => {});
 
             // Log ke channel audit jika dikonfigurasi
             if (automodConfig.logChannelId) {
