@@ -315,53 +315,20 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       return await executeYtdlpRaw(url, flags, timeoutMs);
     }
 
-    // Auto-fallback: Jika cookies kadaluarsa / bot check, coba multi-client fallback
-    if (errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') ||
-        errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')) {
-      console.warn('🔄 [Cookies Fallback] YouTube bot-check/login terdeteksi. Mencoba multi-client fallback...');
-      
-      const fallbackClients = [
-        'youtubetab:skip=authcheck;youtube:player_client=web,mweb',
-        'youtubetab:skip=authcheck;youtube:player_client=ios,mweb',
-        'youtubetab:skip=authcheck;youtube:player_client=android,ios',
-        'youtubetab:skip=authcheck;youtube:player_client=tv_embedded,android'
-      ];
-
-      for (const clientArgs of fallbackClients) {
-        // Coba dengan cookies
-        const fallbackFlagsWithCookies = { ...flags };
-        fallbackFlagsWithCookies.extractorArgs = clientArgs;
-        try {
-          console.log(`🔄 [Cookies Fallback] Mencoba fallback dengan cookies & extractorArgs: "${clientArgs}"...`);
-          return await executeYtdlpRaw(url, fallbackFlagsWithCookies, timeoutMs);
-        } catch (_) {}
-
-        // Coba tanpa cookies jika dengan cookies tetap terblokir
-        const fallbackFlagsNoCookies = { ...flags };
-        delete fallbackFlagsNoCookies.cookies;
-        fallbackFlagsNoCookies.extractorArgs = clientArgs;
-        try {
-          console.log(`🔄 [Cookies Fallback] Mencoba fallback tanpa cookies & extractorArgs: "${clientArgs}"...`);
-          return await executeYtdlpRaw(url, fallbackFlagsNoCookies, timeoutMs);
-        } catch (fErr) {
-          console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
-        }
-      }
-    }
-
-    // Ultimate Fallback for search queries: jika YouTube diblokir total di IP datacenter Railway, alihkan ke SoundCloud
+    // 1. INSTANT FALLBACK UNTUK PENCARIAN (ytsearch):
+    // Jika query pencarian terkena blokir bot-check / 429 di YouTube, LANGSUNG alihkan ke SoundCloud dalam 1-2 detik!
+    // Jangan buang waktu 30 detik mencoba 8 client YouTube yang sama-sama terblokir di IP datacenter.
     if (url.startsWith('ytsearch') || url.startsWith('ytsearch1:')) {
       const rawQuery = url.replace(/^ytsearch[0-9]*:/, '').trim();
       const scUrl = `scsearch5:${rawQuery}`;
-      console.log(`🌐 [Smart Fallback] YouTube search terblokir. Mengalihkan pencarian otomatis ke SoundCloud: "${scUrl}"...`);
+      console.log(`🌐 [Instant Smart Fallback] YouTube search terblokir/gagal. Langsung mengalihkan pencarian ke SoundCloud: "${scUrl}"...`);
       try {
         const scFlags = { ...flags };
         delete scFlags.cookies;
         delete scFlags.extractorArgs;
-        const scResult = await executeYtdlpRaw(scUrl, scFlags, timeoutMs);
+        const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 8000));
         
         if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
-          // Score results by title similarity to avoid playing unrelated tracks
           const queryWords = new Set(rawQuery.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 1));
           
           let bestEntry = null;
@@ -382,18 +349,52 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
             }
           }
 
-          // Minimal 25% similarity agar tidak mengambil lagu ngaco
-          if (bestEntry && (bestScore >= 0.25 || scResult.entries.length === 1)) {
-            console.log(`✅ [Smart Fallback] Match relevan ditemukan di SoundCloud: "${bestEntry.title}" (Score: ${(bestScore * 100).toFixed(0)}%)`);
+          // Minimal 20% similarity atau single result
+          if (bestEntry && (bestScore >= 0.20 || scResult.entries.length === 1)) {
+            console.log(`✅ [Instant Smart Fallback] Match relevan ditemukan di SoundCloud: "${bestEntry.title}" (Score: ${(bestScore * 100).toFixed(0)}%)`);
             return bestEntry;
           } else {
-            console.warn(`⚠️ [Smart Fallback] Hasil SoundCloud tidak relevan dengan "${rawQuery}" (Best match: "${bestEntry?.title}", Score: ${(bestScore * 100).toFixed(0)}%). Batal.`);
+            console.warn(`⚠️ [Instant Smart Fallback] Hasil SoundCloud tidak relevan dengan "${rawQuery}" (Best match: "${bestEntry?.title}", Score: ${(bestScore * 100).toFixed(0)}%).`);
           }
         } else if (scResult && !Array.isArray(scResult.entries)) {
           return scResult;
         }
       } catch (scErr) {
-        console.warn('⚠️ [Smart Fallback] SoundCloud fallback gagal:', scErr.message);
+        console.warn('⚠️ [Instant Smart Fallback] SoundCloud fallback gagal:', scErr.message);
+      }
+    }
+
+    // 2. MULTI-CLIENT FALLBACK UNTUK DIRECT VIDEO URL (e.g. https://www.youtube.com/watch?v=...):
+    if (errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') ||
+        errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')) {
+      console.warn('🔄 [Cookies Fallback] YouTube bot-check terdeteksi pada video URL. Mencoba multi-client fallback...');
+      
+      const fallbackClients = [
+        'youtubetab:skip=authcheck;youtube:player_client=web,mweb',
+        'youtubetab:skip=authcheck;youtube:player_client=ios,mweb',
+        'youtubetab:skip=authcheck;youtube:player_client=android,ios',
+        'youtubetab:skip=authcheck;youtube:player_client=tv_embedded,android'
+      ];
+
+      for (const clientArgs of fallbackClients) {
+        // Coba dengan cookies (timeout 5s agar responsif)
+        const fallbackFlagsWithCookies = { ...flags };
+        fallbackFlagsWithCookies.extractorArgs = clientArgs;
+        try {
+          console.log(`🔄 [Cookies Fallback] Mencoba fallback dengan cookies & extractorArgs: "${clientArgs}"...`);
+          return await executeYtdlpRaw(url, fallbackFlagsWithCookies, Math.min(timeoutMs, 6000));
+        } catch (_) {}
+
+        // Coba tanpa cookies
+        const fallbackFlagsNoCookies = { ...flags };
+        delete fallbackFlagsNoCookies.cookies;
+        fallbackFlagsNoCookies.extractorArgs = clientArgs;
+        try {
+          console.log(`🔄 [Cookies Fallback] Mencoba fallback tanpa cookies & extractorArgs: "${clientArgs}"...`);
+          return await executeYtdlpRaw(url, fallbackFlagsNoCookies, Math.min(timeoutMs, 6000));
+        } catch (fErr) {
+          console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
+        }
       }
     }
 
