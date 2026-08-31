@@ -99,7 +99,7 @@ function startProxyServer() {
       };
 
       if (isYouTube) {
-        flags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=web,mweb,ios,android';
+        flags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb';
         const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
         if (fs.existsSync(cookiesTxtPath)) {
           flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
@@ -370,37 +370,71 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       console.warn('🔄 [Cookies Fallback] YouTube bot-check terdeteksi pada video URL. Mencoba multi-client fallback...');
       
       const fallbackClients = [
-        'youtubetab:skip=authcheck;youtube:player_client=web,mweb',
+        'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb',
         'youtubetab:skip=authcheck;youtube:player_client=ios,mweb',
-        'youtubetab:skip=authcheck;youtube:player_client=android,ios',
-        'youtubetab:skip=authcheck;youtube:player_client=tv_embedded,android'
+        'youtubetab:skip=authcheck;youtube:player_client=android,tv_embedded',
+        'youtubetab:skip=authcheck;youtube:player_client=tv_embedded,web'
       ];
 
       for (const clientArgs of fallbackClients) {
-        // Coba dengan cookies (timeout 5s agar responsif)
-        const fallbackFlagsWithCookies = { ...flags };
-        fallbackFlagsWithCookies.extractorArgs = clientArgs;
-        try {
-          console.log(`🔄 [Cookies Fallback] Mencoba fallback dengan cookies & extractorArgs: "${clientArgs}"...`);
-          return await executeYtdlpRaw(url, fallbackFlagsWithCookies, Math.min(timeoutMs, 6000));
-        } catch (_) {}
-
-        // Coba tanpa cookies
+        // Coba TANPA cookies terlebih dahulu (karena cookies kemungkinan sudah di-rotate/invalid oleh Google)
         const fallbackFlagsNoCookies = { ...flags };
         delete fallbackFlagsNoCookies.cookies;
         fallbackFlagsNoCookies.extractorArgs = clientArgs;
         try {
           console.log(`🔄 [Cookies Fallback] Mencoba fallback tanpa cookies & extractorArgs: "${clientArgs}"...`);
-          return await executeYtdlpRaw(url, fallbackFlagsNoCookies, Math.min(timeoutMs, 6000));
+          return await executeYtdlpRaw(url, fallbackFlagsNoCookies, Math.min(timeoutMs, 5000));
         } catch (fErr) {
-          console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
+          console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" tanpa cookies gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
         }
+
+        // Coba dengan cookies
+        const fallbackFlagsWithCookies = { ...flags };
+        fallbackFlagsWithCookies.extractorArgs = clientArgs;
+        try {
+          console.log(`🔄 [Cookies Fallback] Mencoba fallback dengan cookies & extractorArgs: "${clientArgs}"...`);
+          return await executeYtdlpRaw(url, fallbackFlagsWithCookies, Math.min(timeoutMs, 5000));
+        } catch (_) {}
+      }
+    }
+
+    // 3. ULTIMATE SMART FALLBACK UNTUK DIRECT YOUTUBE URL:
+    // Jika semua client YouTube terblokir di IP data center, ambil judul via YouTube oEmbed API publik (bebas blokir)
+    // lalu alihkan pemutaran otomatis ke SoundCloud!
+    if (/(?:youtube\.com|youtu\.be)/i.test(url) && !url.startsWith('ytsearch')) {
+      console.log(`🌐 [oEmbed Fallback] Mengambil judul video via YouTube oEmbed API untuk pencarian SoundCloud...`);
+      try {
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+        const oembedRes = await fetch(oembedUrl, { signal: AbortSignal.timeout(3000) });
+        if (oembedRes.ok) {
+          const oembedData = await oembedRes.json();
+          const videoTitle = oembedData.title;
+          if (videoTitle) {
+            console.log(`✅ [oEmbed Fallback] Judul video diperoleh: "${videoTitle}". Mengalihkan ke SoundCloud...`);
+            const scUrl = `scsearch5:${videoTitle}`;
+            const scFlags = { ...flags };
+            delete scFlags.cookies;
+            delete scFlags.extractorArgs;
+            const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 8000));
+            if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
+              const best = scResult.entries[0];
+              if (best) {
+                console.log(`✅ [oEmbed Fallback] Lagu berhasil dialihkan ke SoundCloud: "${best.title}"`);
+                return best;
+              }
+            } else if (scResult && !Array.isArray(scResult.entries)) {
+              return scResult;
+            }
+          }
+        }
+      } catch (oeErr) {
+        console.warn('⚠️ [oEmbed Fallback] oEmbed / SoundCloud fallback gagal:', oeErr.message);
       }
     }
 
     if (errLower.includes('sign in') || errLower.includes('login_required') ||
         errLower.includes('confirm you\'re not a bot')) {
-      console.warn(`⚠️ [Auth Error] YouTube meminta login. Pastikan cookies diexport dari Incognito dan Incognito langsung ditutup.`);
+      console.warn(`⚠️ [Auth Error] YouTube meminta login. Menggunakan mode unauthenticated android/SoundCloud fallback.`);
     }
 
     throw err;
@@ -459,7 +493,7 @@ ytdlpPlugin.resolve = async function(url, options) {
   };
 
   if (isYouTube) {
-    flags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=web,mweb,ios,android';
+    flags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb';
     // If cookies.txt exists, pass it explicitly via command line
     const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
     if (fs.existsSync(cookiesTxtPath)) {
