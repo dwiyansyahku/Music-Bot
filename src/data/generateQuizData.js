@@ -1230,14 +1230,14 @@ const { laguNasionalIndo } = require('./catalogs/nasionalIndo');
 const { brazilArtistGroups } = require('./catalogs/brazil');
 
 // ══════════════════════════════════════════════════════════════
-// BUILD ALL COUNTRY CATALOGS (MASSIVE ULTRA-DATABASE: 22.800+ LAGU)
+// BUILD ALL COUNTRY CATALOGS (MASSIVE ULTRA-DATABASE)
 // ══════════════════════════════════════════════════════════════
 const masterCatalog = {
   indo: buildCatalogWithFill(indoData, 5000),
   traditional_indo: traditionalIndoSongs,
   nasional_indo: laguNasionalIndo,
   western: buildCatalogWithFill(westernData, 3000),
-  brazil: buildCatalogWithFill(brazilArtistGroups, 3000),
+  brazil: assembleCatalog(brazilArtistGroups, 500),
   latin: buildCatalogWithFill(latinData, 2500),
   japan: buildCatalogWithFill(japanData, 2500),
   korea: buildCatalogWithFill(koreaData, 2500),

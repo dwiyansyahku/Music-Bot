@@ -14,6 +14,7 @@ try {
 
 // State sesi permainan per server
 const activeGames = new Map();
+const pendingDuels = new Map();
 const SNIPPET_DURATION = 30; // Durasi audio berbunyi penuh 30 detik
 const ANSWER_TIME = 40;      // Waktu menjawab peserta 40 detik
 
@@ -52,6 +53,34 @@ function generateQuestionOptions(correctSong, songPool) {
   return options;
 }
 
+const CATEGORY_CHOICES = [
+  { name: 'Semua Negara (Campuran Dunia)', value: 'all' },
+  { name: 'Indonesia (Pop, Rock, Koplo, Indie)', value: 'indo' },
+  { name: 'Tradisional Indonesia (Lagu Daerah 38 Provinsi)', value: 'traditional_indo' },
+  { name: 'Nasional Indonesia (Lagu Wajib & Perjuangan)', value: 'nasional_indo' },
+  { name: 'Brasil (Funk Carioca, Phonk, Sertanejo)', value: 'brazil' },
+  { name: 'Western & Global (US, UK, Pop)', value: 'western' },
+  { name: 'Jepang & Anime (J-Pop, Anime OST)', value: 'japan' },
+  { name: 'Korea Selatan (K-Pop & OST)', value: 'korea' },
+  { name: 'Arab & Timur Tengah (Arabic Pop)', value: 'arabic' },
+  { name: 'Thailand (T-Pop & Thai Hits)', value: 'thailand' },
+  { name: 'Amerika Latin (Reggaeton, Pop)', value: 'latin' }
+];
+
+const CATEGORY_LABELS = {
+  all: 'Semua Negara (Campuran Dunia)',
+  indo: 'Indonesia (Pop, Rock, Koplo, Indie)',
+  traditional_indo: 'Tradisional Indonesia (Lagu Daerah 38 Provinsi)',
+  nasional_indo: 'Nasional Indonesia (Lagu Wajib & Perjuangan)',
+  brazil: 'Brasil (Funk Carioca, Phonk, Sertanejo)',
+  western: 'Western & Global (US, UK, Pop)',
+  japan: 'Jepang & Anime (J-Pop, Anime OST)',
+  korea: 'Korea Selatan (K-Pop & OST)',
+  arabic: 'Arab & Timur Tengah (Arabic Pop)',
+  thailand: 'Thailand (T-Pop & Thai Hits)',
+  latin: 'Amerika Latin (Reggaeton, Pop)'
+};
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('musicquiz')
@@ -64,19 +93,7 @@ module.exports = {
           opt.setName('kategori')
             .setDescription('Pilih negara / genre lagu yang ingin dimainkan (default: Campuran Dunia)')
             .setRequired(false)
-            .addChoices(
-              { name: 'Semua Negara (Campuran Dunia)', value: 'all' },
-              { name: 'Indonesia (Pop, Rock, Koplo, Indie)', value: 'indo' },
-              { name: 'Tradisional Indonesia (Lagu Daerah 38 Provinsi)', value: 'traditional_indo' },
-              { name: 'Nasional Indonesia (Lagu Wajib & Perjuangan)', value: 'nasional_indo' },
-              { name: 'Brasil (Funk Carioca, Phonk, Sertanejo)', value: 'brazil' },
-              { name: 'Western & Global (US, UK, Pop)', value: 'western' },
-              { name: 'Jepang & Anime (J-Pop, Anime OST)', value: 'japan' },
-              { name: 'Korea Selatan (K-Pop & OST)', value: 'korea' },
-              { name: 'Arab & Timur Tengah (Arabic Pop)', value: 'arabic' },
-              { name: 'Thailand (T-Pop & Thai Hits)', value: 'thailand' },
-              { name: 'Amerika Latin (Reggaeton, Pop)', value: 'latin' }
-            )
+            .addChoices(...CATEGORY_CHOICES)
         )
         .addIntegerOption(opt =>
           opt.setName('ronde')
@@ -84,6 +101,29 @@ module.exports = {
             .setRequired(false)
             .setMinValue(1)
             .setMaxValue(20)
+        )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('duel')
+        .setDescription('Tantang member lain dalam duel tebak lagu 1v1 di voice channel')
+        .addUserOption(opt =>
+          opt.setName('lawan')
+            .setDescription('Pilih member yang ingin kamu tantang duel')
+            .setRequired(true)
+        )
+        .addStringOption(opt =>
+          opt.setName('kategori')
+            .setDescription('Pilih kategori lagu (default: Campuran Dunia)')
+            .setRequired(false)
+            .addChoices(...CATEGORY_CHOICES)
+        )
+        .addIntegerOption(opt =>
+          opt.setName('ronde')
+            .setDescription('Jumlah ronde duel (3-10 ronde, default: 5)')
+            .setRequired(false)
+            .setMinValue(3)
+            .setMaxValue(10)
         )
     )
     .addSubcommand(sub =>
@@ -112,7 +152,9 @@ module.exports = {
 
       const rankSymbols = ['#01', '#02', '#03', '#04', '#05', '#06', '#07', '#08', '#09', '#10'];
       const list = sorted.slice(0, 10).map(([uId, data], idx) => {
-        return `\`${rankSymbols[idx]}\` **${data.name}** — \`${data.score} Poin\` (${data.wins || 0}x Menang)`;
+        const winsText = data.wins ? ` (${data.wins}x Menang)` : '';
+        const duelWinsText = data.duelWins ? ` [${data.duelWins}x Menang Duel]` : '';
+        return `\`${rankSymbols[idx]}\` **${data.name}** — \`${data.score} Poin\`${winsText}${duelWinsText}`;
       }).join('\n');
 
       const embed = new EmbedBuilder()
@@ -156,7 +198,182 @@ module.exports = {
       });
     }
 
-    // ═══ 3. START QUIZ ═══
+    // ═══ 3. DUEL 1V1 MODE ═══
+    if (sub === 'duel') {
+      const opponent = interaction.options.getUser('lawan');
+      const challenger = interaction.user;
+
+      if (opponent.id === challenger.id) {
+        return interaction.reply({
+          content: 'Kamu tidak bisa menantang dirimu sendiri dalam mode duel.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (opponent.bot) {
+        return interaction.reply({
+          content: 'Kamu tidak bisa menantang bot dalam mode duel.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const challengerVoice = interaction.member?.voice?.channel;
+      if (!challengerVoice) {
+        return interaction.reply({
+          content: 'Kamu harus berada di Voice Channel terlebih dahulu untuk memulai duel.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const opponentMember = await interaction.guild.members.fetch(opponent.id).catch(() => null);
+      if (!opponentMember || !opponentMember.voice || !opponentMember.voice.channel) {
+        return interaction.reply({
+          content: `**${opponent.username}** harus berada di Voice Channel untuk menerima tantangan duel.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (challengerVoice.id !== opponentMember.voice.channel.id) {
+        return interaction.reply({
+          content: `Kamu dan **${opponent.username}** harus berada di Voice Channel yang sama (${challengerVoice.name}).`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (activeGames.has(guildId)) {
+        return interaction.reply({
+          content: 'Sedang ada sesi Music Quiz yang berlangsung di server ini. Tunggu selesai atau gunakan `/musicquiz stop`.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const category = interaction.options.getString('kategori') || 'all';
+      const totalRounds = interaction.options.getInteger('ronde') || 5;
+
+      const duelId = `duel_${guildId}_${Date.now()}`;
+      const acceptBtn = new ButtonBuilder()
+        .setCustomId(`duel_acc_${duelId}`)
+        .setLabel('Terima Tantangan')
+        .setStyle(ButtonStyle.Success);
+
+      const declineBtn = new ButtonBuilder()
+        .setCustomId(`duel_dec_${duelId}`)
+        .setLabel('Tolak')
+        .setStyle(ButtonStyle.Secondary);
+
+      const inviteRow = new ActionRowBuilder().addComponents(acceptBtn, declineBtn);
+
+      const inviteEmbed = new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setAuthor({
+          name: `TANTANGAN DUEL 1V1 — ${interaction.guild.name.toUpperCase()}`,
+          iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+        })
+        .setTitle(`${interaction.member.displayName} menantang ${opponentMember.displayName}`)
+        .setDescription(
+          `**${interaction.member.displayName}** menantang **${opponentMember.displayName}** dalam duel tebak lagu 1v1!\n\n` +
+          `• **Kategori:** \`${CATEGORY_LABELS[category]}\`\n` +
+          `• **Total Ronde:** \`${totalRounds} Ronde\`\n` +
+          `• **Channel:** <#${challengerVoice.id}>\n\n` +
+          `Klik tombol di bawah untuk menerima tantangan (berlaku selama 30 detik).`
+        )
+        .setFooter({ text: `Hanya ${opponentMember.displayName} yang dapat menerima tantangan ini` })
+        .setTimestamp();
+
+      const inviteMsg = await interaction.reply({
+        content: `<@${opponent.id}>`,
+        embeds: [inviteEmbed],
+        components: [inviteRow],
+        fetchReply: true
+      });
+
+      const duelCollector = inviteMsg.createMessageComponentCollector({
+        filter: i => i.user.id === opponent.id && (i.customId === `duel_acc_${duelId}` || i.customId === `duel_dec_${duelId}`),
+        time: 30000
+      });
+
+      duelCollector.on('collect', async (i) => {
+        if (i.customId === `duel_dec_${duelId}`) {
+          const cancelEmbed = new EmbedBuilder()
+            .setColor(0x2B2D31)
+            .setDescription(`**Tantangan Ditolak.** ${opponentMember.displayName} menolak tantangan duel.`);
+          await i.update({ embeds: [cancelEmbed], components: [] });
+          return;
+        }
+
+        if (i.customId === `duel_acc_${duelId}`) {
+          if (activeGames.has(guildId)) {
+            return i.update({
+              content: 'Sesi Music Quiz lain telah dimulai sebelumnya.',
+              embeds: [],
+              components: []
+            });
+          }
+
+          const songPool = getSongPool(category);
+          const shuffledQuestions = shuffleArray(songPool).slice(0, totalRounds);
+
+          const gameState = {
+            active: true,
+            guildId,
+            channelId: interaction.channel.id,
+            voiceChannelId: challengerVoice.id,
+            category,
+            currentRound: 0,
+            totalRounds,
+            questions: shuffledQuestions,
+            songPool,
+            scores: {
+              [challenger.id]: { name: interaction.member.displayName, score: 0, correctCount: 0 },
+              [opponent.id]: { name: opponentMember.displayName, score: 0, correctCount: 0 }
+            },
+            answeredUsers: new Set(),
+            isDuel: true,
+            challengerId: challenger.id,
+            opponentId: opponent.id,
+            challengerName: interaction.member.displayName,
+            opponentName: opponentMember.displayName
+          };
+
+          activeGames.set(guildId, gameState);
+
+          const startDuelEmbed = new EmbedBuilder()
+            .setColor(0x2B2D31)
+            .setAuthor({
+              name: `DUEL 1V1 DIMULAI — ${interaction.guild.name.toUpperCase()}`,
+              iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+            })
+            .setTitle(`${interaction.member.displayName} VS ${opponentMember.displayName}`)
+            .setDescription(
+              `Tantangan diterima! Pertandingan adu tebak lagu 1v1 segera dimulai.\n\n` +
+              `• **Kategori:** \`${CATEGORY_LABELS[category]}\`\n` +
+              `• **Format:** \`${totalRounds} Ronde Head-to-Head\`\n` +
+              `• **Durasi Audio:** \`${SNIPPET_DURATION} Detik\`\n` +
+              `• **Waktu Menjawab:** \`${ANSWER_TIME} Detik\`\n\n` +
+              `*Ronde pertama dimulai dalam 4 detik...*`
+            )
+            .setFooter({ text: 'Hanya kedua peserta duel yang dapat menekan tombol jawaban' })
+            .setTimestamp();
+
+          await i.update({ embeds: [startDuelEmbed], components: [] });
+
+          setTimeout(() => runNextRound(interaction.channel, challengerVoice, guildId, client), 4000);
+        }
+      });
+
+      duelCollector.on('end', async (collected, reason) => {
+        if (reason === 'time' && collected.size === 0) {
+          const timeoutEmbed = new EmbedBuilder()
+            .setColor(0x2B2D31)
+            .setDescription(`**Tantangan Berakhir.** ${opponentMember.displayName} tidak merespons dalam 30 detik.`);
+          await inviteMsg.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
+        }
+      });
+
+      return;
+    }
+
+    // ═══ 4. START STANDARD QUIZ ═══
     if (sub === 'start') {
       if (activeGames.has(guildId)) {
         return interaction.reply({
@@ -187,20 +404,6 @@ module.exports = {
       const songPool = getSongPool(category);
       const shuffledQuestions = shuffleArray(songPool).slice(0, totalRounds);
 
-      const categoryLabels = {
-        all: 'Semua Negara (Campuran Dunia)',
-        indo: 'Indonesia (Pop, Rock, Koplo, Indie)',
-        traditional_indo: 'Tradisional Indonesia (Lagu Daerah 38 Provinsi)',
-        nasional_indo: 'Nasional Indonesia (Lagu Wajib & Perjuangan)',
-        brazil: 'Brasil (Funk Carioca, Phonk, Sertanejo)',
-        western: 'Western & Global (US, UK, Pop)',
-        japan: 'Jepang & Anime (J-Pop, Anime OST)',
-        korea: 'Korea Selatan (K-Pop & OST)',
-        arabic: 'Arab & Timur Tengah (Arabic Pop)',
-        thailand: 'Thailand (T-Pop & Thai Hits)',
-        latin: 'Amerika Latin (Reggaeton, Pop)'
-      };
-
       const gameState = {
         active: true,
         guildId,
@@ -213,6 +416,7 @@ module.exports = {
         songPool,
         scores: {},
         answeredUsers: new Set(),
+        isDuel: false
       };
 
       activeGames.set(guildId, gameState);
@@ -226,7 +430,7 @@ module.exports = {
         .setTitle('Sesi Music Quiz Dimulai!')
         .setDescription(
           `Dengarkan potongan musik 30 detik di voice channel dan tebak judulnya secepat mungkin!\n\n` +
-          `• **Kategori:** \`${categoryLabels[category]}\`\n` +
+          `• **Kategori:** \`${CATEGORY_LABELS[category]}\`\n` +
           `• **Total Ronde:** \`${totalRounds} Ronde\`\n` +
           `• **Durasi Audio:** \`${SNIPPET_DURATION} Detik\`\n` +
           `• **Waktu Menjawab:** \`${ANSWER_TIME} Detik\`\n\n` +
@@ -251,41 +455,60 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   const game = activeGames.get(guildId);
   if (!game || !game.active) return;
 
-  // 1. Cek apakah Voice Channel masih ada pemain (auto-stop jika kosong)
-  const currentVC = textChannel.guild.channels.cache.get(voiceChannel.id) || voiceChannel;
-  const humanMembers = currentVC.members?.filter(m => !m.user.bot);
-  if (!humanMembers || humanMembers.size === 0) {
+  // Cek apakah masih ada member selain bot di voice channel
+  const currentVC = textChannel.guild.channels.cache.get(voiceChannel.id);
+  if (!currentVC || currentVC.members.filter(m => !m.user.bot).size === 0) {
     activeGames.delete(guildId);
     try {
       const q = client.distube.getQueue(guildId);
       if (q) q.stop().catch(() => {});
     } catch (_) {}
-    return textChannel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0x2B2D31)
-          .setDescription('**Music Quiz dihentikan otomatis** karena semua pemain telah meninggalkan Voice Channel.')
-      ]
-    });
+    const emptyEmbed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setDescription('**Music Quiz dihentikan otomatis.** Voice channel kosong.');
+    return textChannel.send({ embeds: [emptyEmbed] }).catch(() => {});
   }
 
+  // Cek apakah semua ronde sudah selesai
   if (game.currentRound >= game.totalRounds) {
     return finishGame(textChannel, guildId, client);
   }
 
-  game.currentRound++;
-  game.answeredUsers = new Set();
+  game.currentRound += 1;
+  game.answeredUsers.clear();
+
   const q = game.questions[game.currentRound - 1];
   const options = generateQuestionOptions(q, game.songPool);
-
-  // Tata letak tombol 2x2 Grid (A & B di baris 1, C & D di baris 2)
   const letters = ['A', 'B', 'C', 'D'];
+
+  // 1. Kirim Embed Pertanyaan Awal (Status: Memuat Audio)
+  const duelSubTitle = game.isDuel ? `\n• **Duel:** \`${game.challengerName} VS ${game.opponentName}\`` : '';
+  const loadingEmbed = new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `RONDE ${game.currentRound} / ${game.totalRounds}${game.isDuel ? ' (MODE DUEL 1V1)' : ''}`,
+      iconURL: client.user.displayAvatarURL()
+    })
+    .setTitle('Mempersiapkan audio pertanyaan...')
+    .setDescription(
+      `Audio sedang dimuat ke <#${voiceChannel.id}>.\n` +
+      `• **Kategori:** \`${q.genre}\`\n` +
+      `• **Tahun Rilis:** \`${q.year}\`${duelSubTitle}\n\n` +
+      `*Pilihan jawaban akan muncul saat audio mulai berbunyi...*`
+    )
+    .setFooter({ text: `Durasi Musik: ${SNIPPET_DURATION}s • Waktu Menjawab: ${ANSWER_TIME}s` })
+    .setTimestamp();
+
+  const msg = await textChannel.send({ embeds: [loadingEmbed] }).catch(() => null);
+  if (!msg) return;
+
+  // 2. Siapkan Tombol Jawaban Grid 2x2
   const row1 = new ActionRowBuilder();
   const row2 = new ActionRowBuilder();
-
   options.forEach((opt, idx) => {
+    const isCorrect = opt === q.title;
     const btn = new ButtonBuilder()
-      .setCustomId(`quiz_ans_${game.currentRound}_${idx}_${opt === q.title ? 'correct' : 'wrong'}`)
+      .setCustomId(`quiz_ans_${game.currentRound}_${idx}_${isCorrect ? 'correct' : 'wrong'}`)
       .setLabel(`${letters[idx]}. ${opt.length > 75 ? opt.substring(0, 72) + '...' : opt}`)
       .setStyle(ButtonStyle.Secondary);
 
@@ -293,58 +516,35 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
     else row2.addComponents(btn);
   });
 
-  // 2. Tampilkan status memuat audio terlebih dahulu
-  const loadingEmbed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setAuthor({
-      name: `RONDE ${game.currentRound} / ${game.totalRounds}`,
-      iconURL: client.user.displayAvatarURL()
-    })
-    .setTitle('Memuat potongan musik...')
-    .setDescription(
-      `Sedang memproses audio untuk <#${voiceChannel.id}>...\n\n` +
-      `• **Kategori:** \`${q.genre}\`\n` +
-      `• **Tahun Rilis:** \`${q.year}\`\n\n` +
-      `*Tombol jawaban akan aktif begitu musik mulai terdengar di Voice Channel!*`
-    )
-    .setFooter({ text: 'Harap tunggu audio buffering...' })
-    .setTimestamp();
-
-  const msg = await textChannel.send({ embeds: [loadingEmbed] }).catch(() => null);
-  if (!msg) return activeGames.delete(guildId);
-
-  // 3. Pencarian Cerdas YouTube: Gunakan nama artis dan judul resmi
+  // 3. Putar Potongan Musik di Voice Channel
   const searchQuery = `${q.artist} - ${q.title} Official Audio`;
-
-  // Tentukan potongan acak: 0s (awal), 30s (verse), 45s (pre-chorus), 60s (reff), 75s (bridge)
-  const randomOffsets = [0, 30, 45, 60, 75];
-  const chosenOffset = randomOffsets[Math.floor(Math.random() * randomOffsets.length)];
-
   let playSuccess = false;
+
   try {
+    const randomOffsets = [0, 30, 45, 60, 75];
+    const seekOffset = randomOffsets[Math.floor(Math.random() * randomOffsets.length)];
+
     await client.distube.play(voiceChannel, searchQuery, {
-      member: voiceChannel.guild.members.me,
-      textChannel: textChannel,
-      metadata: { isQuiz: true }
+      textChannel,
+      skip: true,
+      position: 0,
     });
-    playSuccess = true;
 
-    let queue = client.distube.getQueue(guildId);
-    if (queue) queue.isQuiz = true;
-
-    // Tunggu buffer 3 detik agar audio siap streaming
-    await new Promise(res => setTimeout(res, 3000));
-
-    // Lompat ke potongan acak jika bukan di detik ke-0
-    if (chosenOffset > 0) {
-      queue = client.distube.getQueue(guildId);
-      if (queue && queue.songs[0]) {
-        await queue.seek(chosenOffset).catch(() => {});
-        await new Promise(res => setTimeout(res, 1000));
+    const queue = client.distube.getQueue(guildId);
+    if (queue) {
+      queue.isQuiz = true;
+      queue.setVolume(75);
+      if (seekOffset > 0 && typeof queue.seek === 'function') {
+        setTimeout(() => {
+          try {
+            if (queue && queue.seek) queue.seek(seekOffset);
+          } catch (_) {}
+        }, 1000);
       }
     }
+    playSuccess = true;
 
-    // Hentikan snippet setelah SNIPPET_DURATION detik (30 detik penuh)
+    // Set timeout untuk menghentikan audio tepat setelah SNIPPET_DURATION detik
     setTimeout(() => {
       try {
         const currentQueue = client.distube.getQueue(guildId);
@@ -355,7 +555,7 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
     console.warn(`[MusicQuiz] Gagal memutar lagu "${searchQuery}":`, err.message);
   }
 
-  // Fallback jika audio gagal dimuat (langsung lanjut ke ronde berikutnya agar tidak hening)
+  // Fallback jika audio gagal dimuat
   if (!playSuccess) {
     const errorEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)
@@ -367,18 +567,18 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
 
   if (!game.active) return;
 
-  // 4. Audio sudah berjalan — Perbarui Embed dan munculkan tombol pilihan jawaban (Grid 2x2)
+  // 4. Audio sudah berjalan — Perbarui Embed dan munculkan tombol pilihan jawaban
   const activeQuestionEmbed = new EmbedBuilder()
     .setColor(0x2B2D31)
     .setAuthor({
-      name: `RONDE ${game.currentRound} / ${game.totalRounds}`,
+      name: `RONDE ${game.currentRound} / ${game.totalRounds}${game.isDuel ? ' (MODE DUEL 1V1)' : ''}`,
       iconURL: client.user.displayAvatarURL()
     })
     .setTitle('Dengarkan musik di Voice Channel & Tebak Judulnya!')
     .setDescription(
       `Audio sedang dimainkan di <#${voiceChannel.id}>.\n\n` +
       `• **Kategori:** \`${q.genre}\`\n` +
-      `• **Tahun Rilis:** \`${q.year}\`\n\n` +
+      `• **Tahun Rilis:** \`${q.year}\`${duelSubTitle}\n\n` +
       `Pilih jawaban yang benar dari tombol di bawah sebelum waktu habis:`
     )
     .setFooter({ text: `Durasi Musik: ${SNIPPET_DURATION}s • Waktu Menjawab: ${ANSWER_TIME}s` })
@@ -397,6 +597,14 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   collector.on('collect', async (i) => {
     if (!i.customId.startsWith(`quiz_ans_${game.currentRound}_`)) {
       return i.reply({ content: 'Ronde ini sudah berakhir.', flags: MessageFlags.Ephemeral });
+    }
+
+    // Jika mode Duel, hanya kedua pemain yang bisa menjawab
+    if (game.isDuel && (i.user.id !== game.challengerId && i.user.id !== game.opponentId)) {
+      return i.reply({
+        content: `Mode Duel ini dikhususkan untuk **${game.challengerName}** vs **${game.opponentName}**.`,
+        flags: MessageFlags.Ephemeral
+      });
     }
 
     if (game.answeredUsers.has(i.user.id)) {
@@ -438,7 +646,7 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
       if (currentQueue) currentQueue.stop().catch(() => {});
     } catch (_) {}
 
-    // Kunci tombol & highlight jawaban yang benar (Grid 2x2)
+    // Kunci tombol & highlight jawaban yang benar
     const disabledRow1 = new ActionRowBuilder();
     const disabledRow2 = new ActionRowBuilder();
     options.forEach((opt, idx) => {
@@ -455,6 +663,13 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
     await msg.edit({ components: [disabledRow1, disabledRow2] }).catch(() => {});
 
     // Tampilkan hasil ronde
+    let scoreDisplay = '';
+    if (game.isDuel) {
+      const p1 = game.scores[game.challengerId] || { name: game.challengerName, score: 0, correctCount: 0 };
+      const p2 = game.scores[game.opponentId] || { name: game.opponentName, score: 0, correctCount: 0 };
+      scoreDisplay = `\n\n**Skor Sementara Duel:**\n• **${p1.name}:** ${p1.score} Poin (${p1.correctCount} benar)\n• **${p2.name}:** ${p2.score} Poin (${p2.correctCount} benar)`;
+    }
+
     const roundResultEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)
       .setTitle(`Ronde ${game.currentRound} Selesai`)
@@ -462,7 +677,8 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
         `• **Jawaban Benar:** **${q.title}** — *${q.artist}*\n\n` +
         (firstCorrectWinner
           ? `• **Penjawab Tercepat:** **${firstCorrectWinner}**`
-          : `*Tidak ada yang menjawab dengan benar di ronde ini.*`)
+          : `*Tidak ada yang menjawab dengan benar di ronde ini.*`) +
+        scoreDisplay
       );
 
     await textChannel.send({ embeds: [roundResultEmbed] }).catch(() => {});
@@ -496,15 +712,60 @@ async function finishGame(textChannel, guildId, client) {
 
   sortedScores.forEach(([uId, data], idx) => {
     if (!quizData[guildId][uId]) {
-      quizData[guildId][uId] = { name: data.name, score: 0, wins: 0 };
+      quizData[guildId][uId] = { name: data.name, score: 0, wins: 0, duelWins: 0 };
     }
     quizData[guildId][uId].score += data.score;
     quizData[guildId][uId].name = data.name;
-    if (idx === 0 && data.score > 0) quizData[guildId][uId].wins = (quizData[guildId][uId].wins || 0) + 1;
+    if (idx === 0 && data.score > 0) {
+      if (game.isDuel) {
+        quizData[guildId][uId].duelWins = (quizData[guildId][uId].duelWins || 0) + 1;
+      } else {
+        quizData[guildId][uId].wins = (quizData[guildId][uId].wins || 0) + 1;
+      }
+    }
   });
 
   storage.write('musicquiz_lb', quizData);
 
+  // FORMAT DUEL FINISH EMBED
+  if (game.isDuel) {
+    const p1 = game.scores[game.challengerId] || { name: game.challengerName, score: 0, correctCount: 0 };
+    const p2 = game.scores[game.opponentId] || { name: game.opponentName, score: 0, correctCount: 0 };
+
+    let resultTitle = '';
+    let resultDesc = '';
+
+    if (p1.score > p2.score) {
+      resultTitle = `Pemenang Duel: ${p1.name}`;
+      resultDesc = `**${p1.name}** memenangkan duel atas **${p2.name}** dengan selisih **${p1.score - p2.score} Poin**!`;
+    } else if (p2.score > p1.score) {
+      resultTitle = `Pemenang Duel: ${p2.name}`;
+      resultDesc = `**${p2.name}** memenangkan duel atas **${p1.name}** dengan selisih **${p2.score - p1.score} Poin**!`;
+    } else {
+      resultTitle = 'Hasil Duel: Seri (Draw)';
+      resultDesc = `Pertandingan berakhir imbang dengan skor **${p1.score} Poin** sama rata.`;
+    }
+
+    const duelFinalEmbed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setAuthor({
+        name: `HASIL AKHIR DUEL 1V1 — ${textChannel.guild.name.toUpperCase()}`,
+        iconURL: textChannel.guild.iconURL({ dynamic: true }) || undefined
+      })
+      .setTitle(resultTitle)
+      .setDescription(
+        `${resultDesc}\n\n` +
+        `**Rincian Skor:**\n` +
+        `• **${p1.name}:** ${p1.score} Poin (${p1.correctCount}/${game.totalRounds} benar)\n` +
+        `• **${p2.name}:** ${p2.score} Poin (${p2.correctCount}/${game.totalRounds} benar)`
+      )
+      .setFooter({ text: 'Gunakan /musicquiz duel untuk memulai pertarungan baru' })
+      .setTimestamp();
+
+    return textChannel.send({ embeds: [duelFinalEmbed] }).catch(() => {});
+  }
+
+  // FORMAT STANDARD QUIZ FINISH EMBED
   if (sortedScores.length === 0) {
     const emptyEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)

@@ -1,188 +1,146 @@
 // ══════════════════════════════════════════════════════════════
-// BRAZIL SONG CATALOG (1.500+ Lagu Populer Brasil & Viral Hits)
-// Funk Carioca, Brazilian Phonk, Sertanejo, MPB, Samba, Pagode, Rock Brasil
+// BRAZIL HITS CATALOG (Lagu Brasil & Phonk yang Terkenal di Indonesia)
+// Funk Carioca, Brazilian Phonk, Sertanejo Viral & Bossa Nova Klasik
 // ══════════════════════════════════════════════════════════════
 
 const brazilArtistGroups = [
-  // ─── Mega Viral Brazilian Funk & TikTok Hits ───
+  // ─── MEGA VIRAL TIKTOK, DANCE & KONDZILLA (TERKENAL DI INDONESIA) ───
   {
-    artist: 'MC Fioti', genre: 'Funk Carioca / Viral', year: 2017,
+    artist: 'Michel Teló', genre: 'Sertanejo Pop / Viral Indo', year: 2011,
     tracks: [
-      'Bum Bum Tam Tam', 'Joga o Bum Bum Tam Tam', 'Bum Bum Granada', 'Maloquero', 'Vem Sentando'
+      'Ai Se Eu Te Pego', 'Bara Bará Bere Berê', 'Humilde Residência', 'Fugidinha', 'É Nóis Faze Parapapá', 'Amiga da Minha Irmã'
     ]
   },
   {
-    artist: 'MC Bruninho & Vitinho Ferrari', genre: 'Funk Melody / Pop Brasil', year: 2018,
+    artist: 'Gusttavo Lima', genre: 'Sertanejo Pop / Hits Indo', year: 2011,
     tracks: [
-      'Sou Favela', 'Jogo do Amor', 'Amor de Verdade', 'A Culpa É da Saudade', 'Balança', 'Beijinho Gostoso'
+      'Balada', 'Gatinha Assanhada', 'Diz Pra Mim', 'Apelido Carinhoso', 'Cem Mil', 'Bloqueado', 'A Gente Fez Amor'
     ]
   },
   {
-    artist: 'Douglas & Vinicius', genre: 'Sertanejo Pop', year: 2020,
+    artist: 'MC Fioti', genre: 'Funk Carioca / Viral Indo', year: 2017,
     tracks: [
-      'Figurinha', 'Estelionato Afetivo', 'Volume 3', 'Grave Bateu', 'Recaidinha'
+      'Bum Bum Tam Tam', 'Joga o Bum Bum Tam Tam'
     ]
   },
   {
-    artist: 'MC Gustta & MC DG', genre: 'Funk Carioca', year: 2017,
+    artist: 'MC Bruninho & Vitinho Ferrari', genre: 'Funk Melody / TikTok Indo', year: 2018,
     tracks: [
-      'Abusadamente', 'Vem Dançando', 'De Ladinho', 'Bate Foco', 'Arrasta Pra Cima'
+      'Sou Favela', 'Jogo do Amor', 'Amor de Verdade'
     ]
   },
   {
-    artist: 'MC Kevinho & MC G15', genre: 'Funk Carioca / KondZilla', year: 2016,
+    artist: 'Douglas & Vinicius', genre: 'Sertanejo / TikTok Indo', year: 2020,
     tracks: [
-      'Olha a Explosão', 'Deu Onda', 'O Grave Bater', 'Tumbalatum', 'Encaixa', 'Rabiola', 'Agora É Tudo Meu', 'Terremoto'
+      'Figurinha', 'Estelionato Afetivo'
     ]
   },
   {
-    artist: 'MC João & MC Zaac', genre: 'Funk Carioca', year: 2016,
+    artist: 'MC Gustta & MC DG', genre: 'Funk Carioca / Dance Indo', year: 2017,
     tracks: [
-      'Baile de Favela', 'Bumbum Granada', 'Vai Embrazando', 'Desce Pro Play (PA-PA-PA)', 'Toma', 'Rebolada Bruta'
+      'Abusadamente'
     ]
   },
   {
-    artist: 'MC L da Vinte & MC Gury', genre: 'Funk Carioca', year: 2018,
+    artist: 'MC Kevinho & MC G15', genre: 'Funk Carioca / Hits Indo', year: 2016,
     tracks: [
-      'Parado no Bailão', 'Balança o Popô', 'Vem na Tremedeira', 'Baile da Dz7'
+      'Olha a Explosão', 'Deu Onda', 'O Grave Bater', 'Tumbalatum', 'Encaixa', 'Rabiola', 'Terremoto', 'Agora É Tudo Meu'
     ]
   },
   {
-    artist: 'DJ LK da Escócia & MC Ryan SP', genre: 'Funk Carioca / TikTok', year: 2022,
+    artist: 'MC L da Vinte & MC Gury', genre: 'Funk Carioca / Selebrasi Neymar', year: 2018,
     tracks: [
-      'Tubarão Te Amo', 'Felina', 'Casei Com a Putaria', 'Let\'s Go 4', 'Cracolândia', 'Rei da Revoada', 'Favela Venceu'
+      'Parado no Bailão'
     ]
   },
   {
-    artist: 'Dennis DJ & MC Kevin o Chris', genre: 'Funk Carioca', year: 2019,
+    artist: 'DJ LK da Escócia & MC Ryan SP', genre: 'Funk Carioca / TikTok Trend Indo', year: 2022,
     tracks: [
-      'Ta OK', 'Ela É do Tipo', 'Evoluiu', 'Tipo Gin', 'Hit Contagiante', 'Vamos Pra Gaiola', 'Dentro do Carro', 'Agora É Tudo Meu'
+      'Tubarão Te Amo', 'Felina', 'Casei Com a Putaria', 'Let\'s Go 4', 'Cracolândia'
     ]
   },
   {
-    artist: 'Bibi Babydoll & DJ Holanda', genre: 'Brazilian Phonk / Automotivo', year: 2023,
+    artist: 'Dennis DJ & MC Kevin o Chris', genre: 'Funk Carioca / Hits Spotify Indo', year: 2019,
     tracks: [
-      'Automotivo Bibi Fogosa', 'Montagem Diamante Rosa', 'Automotivo Bibi Phonk', 'Automotivo Tan Tan', 'Montagem Rave de Favela',
-      'Montagem Anos 2000', 'Montagem Tomada', 'Montagem Coral', 'Montagem Sonic', 'Montagem Cabelo Encaracolado', 'Vitamina', 'Raindance'
+      'Ta OK', 'Ela É do Tipo', 'Evoluiu', 'Tipo Gin', 'Hit Contagiante', 'Vamos Pra Gaiola'
     ]
   },
   {
-    artist: 'Sevdaliza & Pabllo Vittar', genre: 'Global / Latin Pop', year: 2024,
+    artist: 'MC João & MC Zaac', genre: 'Funk Carioca / Hits Pesta', year: 2016,
     tracks: [
-      'Alibi', 'Ride Or Die', 'Sua Cara', 'K.O.', 'Corpo Sensual', 'Amor de Que', 'Bandida', 'Modo Turbo', 'Descontrolada'
+      'Baile de Favela', 'Bumbum Granada', 'Vai Embrazando', 'Desce Pro Play (PA-PA-PA)'
     ]
   },
   {
-    artist: 'Anitta', genre: 'Funk Brasil / Pop', year: 2013,
+    artist: 'Israel & Rodolffo', genre: 'Sertanejo / Viral Indo', year: 2021,
     tracks: [
-      'Show das Poderosas', 'Zen', 'Blá Blá Blá', 'Ritmo Perfeito', 'Na Batida', 'Bang', 'Deixa Ele Sofrer',
-      'Essa Mina É Louca', 'Cravo e Canela', 'Sim ou Não', 'Paradinha', 'Vai Malandra', 'Indecente',
-      'Medicina', 'Veneno', 'Banana', 'Bola Rebola', 'Onda Diferente', 'Fuego', 'Me Gusta', 'Girl From Rio',
-      'Faking Love', 'Envolver', 'Boys Don\'t Cry', 'Gata', 'Lobby', 'El Que Espera', 'Mil Veces', 'Joga Pra Lua', 'Bellakeo'
+      'Batom de Cereja', 'Bombonzinho'
     ]
   },
   {
-    artist: 'Marília Mendonça', genre: 'Sertanejo', year: 2015,
+    artist: 'Anitta', genre: 'Pop Brasil / Global Hits Indo', year: 2017,
     tracks: [
-      'Infiel', 'Alô Porteiro', 'Como Faz Com Ela', 'Folgado', 'Mudando de Assunto', 'Eu Sei de Cor',
-      'Amante Não Tem Lar', 'De Quem É a Culpa?', 'Transplante', 'A Culpa É Dele', 'Ciumeira', 'Bem Pior Que Eu',
-      'Bebi Liguei', 'Passa Mal', 'Sem Sal', 'Todo Mundo Vai Sofrer', 'Apaixonadinha', 'Supera', 'Tentativas',
-      'Graveto', 'Vira Homem', 'Deprê', 'Foi Por Conveniência', 'Troca de Calçada', 'Esqueça-Me Se For Capaz', 'Leão'
+      'Envolver', 'Downtown', 'Vai Malandra', 'Sua Cara', 'Show das Poderosas', 'Me Gusta', 'Bola Rebola', 'Bang', 'Paradinha', 'Bellakeo'
     ]
   },
   {
-    artist: 'Gusttavo Lima', genre: 'Sertanejo', year: 2010,
+    artist: 'Pedro Sampaio', genre: 'Funk Carioca / TikTok Indo', year: 2021,
     tracks: [
-      'Inventor dos Amores', 'Cor de Ouro', 'Balada', 'Gatinha Assanhada', 'Diz Pra Mim', 'Fui Fiel',
-      'Tô Solto na Night', 'Você Não Me Conhece', 'Que Pena Que Acabou', 'Homem de Família', 'Abre o Portão Que Eu Cheguei',
-      'Apelido Carinhoso', 'Mundo de Ilusões', 'Zé da Recaída', 'Respeita o Nosso Fim', 'Cem Mil', 'Milu',
-      'Online', 'Quem Traiu Levou', 'A Gente Fez Amor', 'Perrengue', 'Saudade Sua', 'Fala Mal de Mim', 'Bloqueado', 'Termina Comigo Antes'
+      'Dançarina', 'Sentadão', 'Galopa', 'No Chão Novinha', 'Pocpoc', 'Cavalinho', 'Atenção'
     ]
   },
   {
-    artist: 'Pedro Sampaio', genre: 'Funk Carioca / Pop', year: 2018,
+    artist: 'Ana Castela', genre: 'Agroplay / Hits Viral', year: 2022,
     tracks: [
-      'Bota Pra Tremer', 'Vai Menina', 'Chama Ela', 'Sentadão', 'Pode Dançar', 'Larissa', 'Fala Mal de Mim',
-      'Atenção', 'Galopa', 'No Chão Novinha', 'Dançarina', 'Olhadinha', 'Sal', 'Carinha de Bebê', 'Pocpoc', 'Cavalinho', 'Joia Rara'
+      'Pipoco', 'Nosso Quadro', 'Boiadeira', 'Solteiro Forçado', 'Roça em Mim'
     ]
   },
   {
-    artist: 'Luísa Sonza', genre: 'Pop Brasil', year: 2018,
+    artist: 'Giulia Be', genre: 'Pop Brasil / Viral Spotify Indo', year: 2019,
     tracks: [
-      'Devagarinho', 'Boa Menina', 'Pior Que Possa Imaginar', 'Garupa', 'Fazendo Assim', 'Bomba Relógio',
-      'Braba', 'Toma', 'Modo Turbo', 'Catenas', 'VIP *-*', 'Melhor Sozinha', 'Penhasco', 'Penhasco2',
-      'Anaconda', 'Café da Manhã ;P', 'Cachorrinhas', 'Mama.cita', 'Campo de Morango', 'Principalmente Me Sinto Arrasada', 'Chico', 'Dona Aranha'
+      'Menina Solta', 'Se Essa Vida Fosse Um Filme', 'Inolvidable'
     ]
   },
   {
-    artist: 'Ludmilla', genre: 'Funk / Pagode Brasil', year: 2014,
+    artist: 'Luísa Sonza & Pabllo Vittar', genre: 'Pop Brasil / TikTok Indo', year: 2020,
     tracks: [
-      'Sem Querer', 'Hoje', 'Te Ensinei Certin', '24 Horas Por Dia', 'Bom', 'Sou Eu', 'Cheguei',
-      'A Danada Sou Eu', 'Tipo Crazy', 'Solta a Batida', 'Din Din Din', 'Jogando Sujo', 'Clichê',
-      'Favela Chegou', 'Invocada', 'Verdinha', 'Rainha da Favela', 'Deixa de Onda', 'Gato Siamês', 'Socadona', 'Maldivas', 'Sintoma de Prazer'
+      'Modo Turbo', 'Cachorrinhas', 'Chico', 'Braba', 'Penhasco', 'K.O.', 'Corpo Sensual', 'Amor de Que'
     ]
   },
   {
-    artist: 'Ana Castela', genre: 'Agroplay / Sertanejo', year: 2021,
+    artist: 'Ludmilla', genre: 'Funk Brasil / Hits', year: 2017,
     tracks: [
-      'Boiadeira', 'Neon', 'Pipoco', 'As Menina da Pecuária', 'Roça em Mim', 'Bombonzinho', 'Dona de Mim',
-      'Palhaça', 'Nosso Quadro', 'Covardia', 'Solteiro Forçado', 'Tô Voltando', 'Deja Vu', 'Canudinho', 'Dia de Fluxo'
+      'Cheguei', 'Favela Chegou', 'Verdinha', 'Maldivas', 'Socadona'
+    ]
+  },
+
+  // ─── BRAZILIAN PHONK & MONTAGEM (SUPER VIRAL TIKTOK / JEDAG-JEDUG INDO) ───
+  {
+    artist: 'Bibi Babydoll & DJ Holanda', genre: 'Brazilian Phonk / Sound FYP Indo', year: 2023,
+    tracks: [
+      'Automotivo Bibi Fogosa', 'Montagem Diamante Rosa', 'Automotivo Bibi Phonk', 'Automotivo Tan Tan',
+      'Montagem Rave de Favela', 'Montagem Sonic', 'Montagem Coral', 'Montagem Anos 2000',
+      'Montagem Tomada', 'Vitamina', 'Raindance', 'Até Quebrar a Cama', 'Montagem Cabelo Encaracolado'
     ]
   },
   {
-    artist: 'Israel & Rodolffo', genre: 'Sertanejo', year: 2018,
+    artist: 'Sevdaliza & Pabllo Vittar', genre: 'Latin / Global Viral Indo', year: 2024,
     tracks: [
-      'Batom de Cereja', 'Faz Amor Comigo Só Hoje', 'Bombonzinho', 'Marca Evidente', 'Se Eu Me Entregar', 'Nem Namorado e Nem Ficante'
+      'Alibi', 'Ride Or Die'
+    ]
+  },
+
+  // ─── BOSSA NOVA & SAMBA KLASIK (SANGAT DIKENAL DI INDONESIA) ───
+  {
+    artist: 'Tom Jobim & Astrud Gilberto', genre: 'Bossa Nova Klasik', year: 1964,
+    tracks: [
+      'Garota de Ipanema', 'Corcovado', 'Desafinado', 'Águas de Março', 'Wave', 'Chega de Saudade'
     ]
   },
   {
-    artist: 'Michel Teló', genre: 'Sertanejo Pop', year: 2011,
+    artist: 'Jorge Ben Jor & Sergio Mendes', genre: 'Samba Rock / Tema Sepakbola', year: 1963,
     tracks: [
-      'Ei, Psiu! Beijo Me Liga', 'Fugidinha', 'Larga de Bobeira', 'Se Intrometeu', 'Ai Se Eu Te Pego',
-      'Humilde Residência', 'Bara Bará Bere Berê', 'É Nóis Faze Parapapá', 'Amiga da Minha Irmã', 'Levemente Alterado'
-    ]
-  },
-  {
-    artist: 'Jorge & Mateus', genre: 'Sertanejo Universitário', year: 2007,
-    tracks: [
-      'Pode Chorar', 'De Tanto Te Querer', 'Voa Beija-Flor', 'Querendo Te Amar', 'Amo Noite e Dia',
-      'Seu Astral', 'Aí Já Era', 'Pra Que Entender?', 'Flor', 'O Que É Que Tem?', 'Enquanto Houver Razões',
-      'Logo Eu', 'Calma', 'Os Anjos Cantam', 'Sosseguei', 'Louca de Saudade', 'Medida Certa', 'Propaganda', 'Tijolão', 'Cheirosa', 'Molhando o Volante'
-    ]
-  },
-  {
-    artist: 'Tom Jobim & João Gilberto', genre: 'Bossa Nova', year: 1959,
-    tracks: [
-      'Chega de Saudade', 'Desafinado', 'Garota de Ipanema', 'Corcovado', 'Samba de Uma Nota Só',
-      'Wave', 'Águas de Março', 'Insensatez', 'Ela É Carioca', 'Triste', 'Dindi', 'Eu Sei Que Vou Te Amar'
-    ]
-  },
-  {
-    artist: 'Jorge Ben Jor', genre: 'Samba Rock / MPB', year: 1963,
-    tracks: [
-      'Mas Que Nada', 'Chove Chuva', 'Por Causa de Você, Menina', 'Balança Pema', 'Que Maravilha',
-      'País Tropical', 'Charles, Anjo 45', 'Fio Maravilha', 'Taj Mahal', 'Os Alquimistas Estão Chegando'
-    ]
-  },
-  {
-    artist: 'Tim Maia', genre: 'Soul / MPB Brasil', year: 1970,
-    tracks: [
-      'Azul da Cor do Mar', 'Primavera', 'Coroné Antônio Bento', 'Chocolate', 'Não Quero Dinheiro',
-      'Gostava Tanto de Você', 'Descobridor dos Sete Mares', 'Me Dê Motivo', 'Um Dia de Domingo', 'Do Leme ao Pontal'
-    ]
-  },
-  {
-    artist: 'Legião Urbana', genre: 'Rock Brasil', year: 1985,
-    tracks: [
-      'Será', 'Ainda É Cedo', 'Geração Coca-Cola', 'Eduardo e Mônica', 'Quase Sem Querer', 'Tempo Perdido',
-      'Índios', 'Que País É Este', 'Faroeste Caboclo', 'Eu Sei', 'Pais e Filhos', 'Há Tempos', 'Monte Castelo', 'Vento no Litoral'
-    ]
-  },
-  {
-    artist: 'Charlie Brown Jr.', genre: 'Rock Brasil / Skate Punk', year: 1997,
-    tracks: [
-      'Proibida Pra Mim', 'Zóio de Lula', 'Te Levar', 'Não É Sério', 'Lugar ao Sol', 'Papo Reto',
-      'Só Por Uma Noite', 'Vícios e Virtudes', 'Ela Vai Voltar', 'Senhor do Tempo', 'Pontes Indestrutíveis', 'Dias de Luta Dias de Glória', 'Me Encontra', 'Só os Loucos Sabem', 'Céu Azul'
+      'Mas Que Nada', 'País Tropical', 'Taj Mahal', 'Fio Maravilha', 'Chove Chuva'
     ]
   }
 ];

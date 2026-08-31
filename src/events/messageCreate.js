@@ -1,6 +1,7 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { checkVoiceChannel, checkQueue, isBotOwner } = require('../utils/helpers');
 const storage = require('../utils/storage');
+const { checkBadWords, checkPhishing, getGuildAutomodSettings } = require('../utils/automod');
 
 /**
  * Format durasi AFK ke string yang mudah dibaca
@@ -86,6 +87,114 @@ module.exports = {
             ]
           }).catch(() => {});
           break; // Hanya kirim 1 notifikasi per pesan
+        }
+      }
+    }
+
+    // ====== AUTO-MODERATION & ANTI-PHISHING SYSTEM ======
+    const automodConfig = getGuildAutomodSettings(guildId);
+    if (automodConfig.enabled) {
+      const isExempt = message.member?.permissions?.has(PermissionFlagsBits.Administrator) ||
+        message.member?.permissions?.has(PermissionFlagsBits.ManageMessages) ||
+        (automodConfig.ignoredRoles.length > 0 && message.member?.roles?.cache?.some(r => automodConfig.ignoredRoles.includes(r.id))) ||
+        (automodConfig.ignoredChannels.length > 0 && automodConfig.ignoredChannels.includes(message.channel.id));
+
+      if (!isExempt) {
+        // 1. Deteksi Phishing / Scam / Malicious Links / MrBeast Promo & Fake QR
+        if (automodConfig.antiPhishing) {
+          const phishingCheck = checkPhishing(message);
+          if (phishingCheck.isPhishing) {
+            await message.delete().catch(() => {});
+
+            // Timeout user selama 1 jam untuk mencegah penyebaran token grabber massal
+            if (automodConfig.timeoutOnPhishing && message.member && message.member.moderatable) {
+              await message.member.timeout(60 * 60 * 1000, 'Terdeteksi mengirim link phishing/scam berbahaya').catch(() => {});
+            }
+
+            const alertEmbed = new EmbedBuilder()
+              .setColor(0x2B2D31)
+              .setAuthor({
+                name: `KEAMANAN SERVER — ${message.guild.name.toUpperCase()}`,
+                iconURL: message.guild.iconURL({ dynamic: true }) || undefined
+              })
+              .setTitle('Tautan Mencurigakan / Phishing Diamankan')
+              .setDescription(
+                `Pesan dari <@${message.author.id}> telah dihapus secara otomatis demi keamanan seluruh member server.\n\n` +
+                `• **Alasan:** \`${phishingCheck.reason}\`\n` +
+                `• **Tindakan:** Pesan dihapus & akun di-timeout 1 jam untuk pencegahan penyebaran scam.`
+              )
+              .setFooter({ text: 'Sistem Keamanan Otomatis Anti-Phishing' })
+              .setTimestamp();
+
+            message.channel.send({ embeds: [alertEmbed] }).catch(() => {});
+
+            // Log ke channel audit jika dikonfigurasi
+            if (automodConfig.logChannelId) {
+              const logChannel = message.guild.channels.cache.get(automodConfig.logChannelId);
+              if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                  .setColor(0x2B2D31)
+                  .setTitle('Log Anti-Phishing: Tautan Dihapus')
+                  .setDescription(
+                    `• **Pengirim:** <@${message.author.id}> (${message.author.tag})\n` +
+                    `• **Channel:** <#${message.channel.id}>\n` +
+                    `• **Alasan:** ${phishingCheck.reason}\n` +
+                    `• **Tautan:** \`${phishingCheck.url}\`\n` +
+                    `• **Isi Pesan Asli:**\n\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``
+                  )
+                  .setTimestamp();
+                logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+              }
+            }
+
+            return; // Hentikan pemrosesan pesan
+          }
+        }
+
+        // 2. Deteksi Kata yang Kurang Pantas & Variasinya (Bad Words & Fuzzy Filter)
+        if (automodConfig.badWords) {
+          const badWordCheck = checkBadWords(message.content, automodConfig.customBadWords, automodConfig.whitelistedWords);
+          if (badWordCheck.found) {
+            await message.delete().catch(() => {});
+
+            const warnEmbed = new EmbedBuilder()
+              .setColor(0x2B2D31)
+              .setAuthor({
+                name: `PERINGATAN AUTO-MODERATION — ${message.guild.name.toUpperCase()}`,
+                iconURL: message.guild.iconURL({ dynamic: true }) || undefined
+              })
+              .setDescription(
+                `**Pesan dari <@${message.author.id}> telah dihapus.**\n` +
+                `Pesan terdeteksi mengandung kata tidak pantas: \`${badWordCheck.word}\`\n\n` +
+                `*Peringatan ini akan terhapus otomatis dalam 5 detik.*`
+              )
+              .setFooter({ text: 'Harap gunakan bahasa yang sopan dan saling menghargai' })
+              .setTimestamp();
+
+            message.channel.send({ embeds: [warnEmbed] })
+              .then(m => setTimeout(() => m.delete().catch(() => {}), 5000)) // Otomatis terhapus setelah 5 detik
+              .catch(() => {});
+
+            // Log ke channel audit jika dikonfigurasi
+            if (automodConfig.logChannelId) {
+              const logChannel = message.guild.channels.cache.get(automodConfig.logChannelId);
+              if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                  .setColor(0x2B2D31)
+                  .setTitle('Log Auto-Mod: Kata Tidak Pantas')
+                  .setDescription(
+                    `• **Pengirim:** <@${message.author.id}> (${message.author.tag})\n` +
+                    `• **Channel:** <#${message.channel.id}>\n` +
+                    `• **Kata Terdeteksi:** \`${badWordCheck.word}\`\n` +
+                    `• **Isi Pesan Asli:**\n\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``
+                  )
+                  .setTimestamp();
+                logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+              }
+            }
+
+            return; // Hentikan pemrosesan pesan
+          }
         }
       }
     }
