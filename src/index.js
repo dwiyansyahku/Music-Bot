@@ -99,11 +99,13 @@ function startProxyServer() {
       };
 
       if (isYouTube) {
-        flags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb';
-        const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-        if (fs.existsSync(cookiesTxtPath)) {
-          flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
-          console.log(`🍪 [Proxy Server] Passing cookies file: "${flags.cookies}"`);
+        flags.extractorArgs = 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck';
+        if (process.env.USE_YOUTUBE_COOKIES === 'true') {
+          const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+          if (fs.existsSync(cookiesTxtPath)) {
+            flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+            console.log(`🍪 [Proxy Server] Passing cookies file: "${flags.cookies}"`);
+          }
         }
       }
 
@@ -370,14 +372,14 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       console.warn('🔄 [Cookies Fallback] YouTube bot-check terdeteksi pada video URL. Mencoba multi-client fallback...');
       
       const fallbackClients = [
-        'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb',
-        'youtubetab:skip=authcheck;youtube:player_client=ios,mweb',
-        'youtubetab:skip=authcheck;youtube:player_client=android,tv_embedded',
-        'youtubetab:skip=authcheck;youtube:player_client=tv_embedded,web'
+        'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
+        'youtube:player_client=ios;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
+        'youtube:player_client=android,ios;youtubetab:skip=authcheck',
+        'youtube:player_client=tv_embedded,android;youtubetab:skip=authcheck'
       ];
 
       for (const clientArgs of fallbackClients) {
-        // Coba TANPA cookies terlebih dahulu (karena cookies kemungkinan sudah di-rotate/invalid oleh Google)
+        // Coba TANPA cookies (karena cookies kemungkinan sudah di-rotate/invalid oleh Google)
         const fallbackFlagsNoCookies = { ...flags };
         delete fallbackFlagsNoCookies.cookies;
         fallbackFlagsNoCookies.extractorArgs = clientArgs;
@@ -387,14 +389,6 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
         } catch (fErr) {
           console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" tanpa cookies gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
         }
-
-        // Coba dengan cookies
-        const fallbackFlagsWithCookies = { ...flags };
-        fallbackFlagsWithCookies.extractorArgs = clientArgs;
-        try {
-          console.log(`🔄 [Cookies Fallback] Mencoba fallback dengan cookies & extractorArgs: "${clientArgs}"...`);
-          return await executeYtdlpRaw(url, fallbackFlagsWithCookies, Math.min(timeoutMs, 5000));
-        } catch (_) {}
       }
     }
 
@@ -493,14 +487,16 @@ ytdlpPlugin.resolve = async function(url, options) {
   };
 
   if (isYouTube) {
-    flags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb';
-    // If cookies.txt exists, pass it explicitly via command line
-    const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-    if (fs.existsSync(cookiesTxtPath)) {
-      flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
-      console.log(`🍪 [ytdlpPlugin.resolve] Passing cookies file: "${flags.cookies}"`);
+    flags.extractorArgs = 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck';
+    // Hanya gunakan cookies jika secara eksplisit diaktifkan via ENV
+    if (process.env.USE_YOUTUBE_COOKIES === 'true') {
+      const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+      if (fs.existsSync(cookiesTxtPath)) {
+        flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+        console.log(`🍪 [ytdlpPlugin.resolve] Passing cookies file: "${flags.cookies}"`);
+      }
     } else {
-      console.log('ℹ️ [ytdlpPlugin.resolve] No cookies.txt found, resolving without cookies.');
+      console.log('ℹ️ [ytdlpPlugin.resolve] Resolving with Android client (unauthenticated mode).');
     }
   }
 

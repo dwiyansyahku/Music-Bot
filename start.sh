@@ -6,7 +6,8 @@ if [ -n "$YOUTUBE_COOKIES" ]; then
   echo "$YOUTUBE_COOKIES" > /app/cookies.txt
   echo "✅ cookies.txt created ($(wc -l < /app/cookies.txt) lines)"
 else
-  echo "⚠️ YOUTUBE_COOKIES env not set, skipping cookies.txt generation"
+  rm -f /app/cookies.txt
+  echo "ℹ️ Running in clean unauthenticated mode (no cookies.txt)"
 fi
 
 # Start the bgutil companion server in the background
