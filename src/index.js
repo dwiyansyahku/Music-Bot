@@ -89,7 +89,7 @@ function startProxyServer() {
       
       const flags = {
         format: "ba[protocol^=http]",
-        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=tv,web_safari',
+        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb',
         userAgent: USER_AGENT,
         retries: 3,
         fragmentRetries: 3,
@@ -290,24 +290,34 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       return await executeYtdlpRaw(url, flags, timeoutMs);
     }
 
-    // Auto-fallback: Jika cookies kadaluarsa / bot check, coba client ios,mweb / android
+    // Auto-fallback: Jika cookies kadaluarsa / bot check, coba multi-client fallback
     if (errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') ||
         errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')) {
       console.warn('🔄 [Cookies Fallback] YouTube bot-check/login terdeteksi. Mencoba multi-client fallback...');
       
       const fallbackClients = [
-        'youtubetab:skip=authcheck;youtube:player_client=ios,mweb',
-        'youtubetab:skip=authcheck;youtube:player_client=android,web_safari',
-        'youtubetab:skip=authcheck;youtube:player_client=tv_embedded,web'
+        'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb',
+        'youtubetab:skip=authcheck;youtube:player_client=android,tv_embedded',
+        'youtubetab:skip=authcheck;youtube:player_client=mweb,web_creator',
+        'youtubetab:skip=authcheck;youtube:player_client=ios,mweb'
       ];
 
       for (const clientArgs of fallbackClients) {
-        const fallbackFlags = { ...flags };
-        delete fallbackFlags.cookies;
-        fallbackFlags.extractorArgs = clientArgs;
+        // Coba dengan cookies
+        const fallbackFlagsWithCookies = { ...flags };
+        fallbackFlagsWithCookies.extractorArgs = clientArgs;
         try {
-          console.log(`🔄 [Cookies Fallback] Mencoba fallback dengan extractorArgs: "${clientArgs}"...`);
-          return await executeYtdlpRaw(url, fallbackFlags, timeoutMs);
+          console.log(`🔄 [Cookies Fallback] Mencoba fallback dengan cookies & extractorArgs: "${clientArgs}"...`);
+          return await executeYtdlpRaw(url, fallbackFlagsWithCookies, timeoutMs);
+        } catch (_) {}
+
+        // Coba tanpa cookies jika dengan cookies tetap terblokir
+        const fallbackFlagsNoCookies = { ...flags };
+        delete fallbackFlagsNoCookies.cookies;
+        fallbackFlagsNoCookies.extractorArgs = clientArgs;
+        try {
+          console.log(`🔄 [Cookies Fallback] Mencoba fallback tanpa cookies & extractorArgs: "${clientArgs}"...`);
+          return await executeYtdlpRaw(url, fallbackFlagsNoCookies, timeoutMs);
         } catch (fErr) {
           console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
         }
@@ -364,7 +374,7 @@ ytdlpPlugin.resolve = async function(url, options) {
     verbose: true,
     skipDownload: true,
     simulate: true,
-    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=tv,web_safari',
+    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb',
     userAgent: USER_AGENT,
     retries: 3,
     fragmentRetries: 3,
