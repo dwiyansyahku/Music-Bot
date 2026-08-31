@@ -10,7 +10,7 @@ else
 fi
 
 # Start the bgutil companion server in the background
-cd /opt/bgutil/server
+cd /root/bgutil-ytdlp-pot-provider/server
 node build/main.js &
 
 # Wait for the companion server to start up

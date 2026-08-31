@@ -106,6 +106,12 @@ function startProxyServer() {
         console.log(`🍪 [Proxy Server] Passing cookies file: "${flags.cookies}"`);
       }
 
+      const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY;
+      if (proxyUrl) {
+        flags.proxy = proxyUrl;
+        console.log(`🌐 [Proxy Server] Using proxy: "${proxyUrl.replace(/:[^:@]+@/, ':***@')}"`);
+      }
+
       const args = formatFlags(flags);
       args.push(videoUrl);
 
@@ -392,6 +398,12 @@ ytdlpPlugin.resolve = async function(url, options) {
     console.log(`🍪 [ytdlpPlugin.resolve] Passing cookies file: "${flags.cookies}"`);
   } else {
     console.log('ℹ️ [ytdlpPlugin.resolve] No cookies.txt found, resolving without cookies.');
+  }
+
+  const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY;
+  if (proxyUrl) {
+    flags.proxy = proxyUrl;
+    console.log(`🌐 [ytdlpPlugin.resolve] Using proxy: "${proxyUrl.replace(/:[^:@]+@/, ':***@')}"`);
   }
 
   // Smart playlist detection berdasarkan jenis URL YouTube:

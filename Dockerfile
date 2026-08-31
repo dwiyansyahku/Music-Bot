@@ -10,10 +10,11 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Clone & build bgutil provider server (companion server, bukan cuma plugin python)
-RUN git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /opt/bgutil && \
-    cd /opt/bgutil/server && \
-    npm install && npx tsc
+# Clone & build bgutil PO Token provider server langsung di direktori yang dicari yt-dlp
+RUN git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /root/bgutil-ytdlp-pot-provider && \
+    cd /root/bgutil-ytdlp-pot-provider/server && \
+    npm install && npx tsc && \
+    ln -s /root/bgutil-ytdlp-pot-provider /opt/bgutil
 
 WORKDIR /app
 COPY package*.json ./
