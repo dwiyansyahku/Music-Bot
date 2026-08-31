@@ -89,7 +89,7 @@ function startProxyServer() {
       
       const flags = {
         format: "ba[protocol^=http]",
-        extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb',
+        extractorArgs: 'youtube:player_skip=webpage,configs;youtube:player_client=android;youtubetab:skip=authcheck',
         userAgent: USER_AGENT,
         retries: 3,
         fragmentRetries: 3,
@@ -296,10 +296,10 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       console.warn('🔄 [Cookies Fallback] YouTube bot-check/login terdeteksi. Mencoba multi-client fallback...');
       
       const fallbackClients = [
-        'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb',
-        'youtubetab:skip=authcheck;youtube:player_client=android,tv_embedded',
-        'youtubetab:skip=authcheck;youtube:player_client=mweb,web_creator',
-        'youtubetab:skip=authcheck;youtube:player_client=ios,mweb'
+        'youtube:player_skip=webpage,configs;youtube:player_client=android;youtubetab:skip=authcheck',
+        'youtube:player_skip=webpage,configs;youtube:player_client=android,ios;youtubetab:skip=authcheck',
+        'youtube:player_skip=webpage,configs;youtube:player_client=ios,mweb;youtubetab:skip=authcheck',
+        'youtube:player_skip=webpage,configs;youtube:player_client=tv_embedded,android;youtubetab:skip=authcheck'
       ];
 
       for (const clientArgs of fallbackClients) {
@@ -374,7 +374,7 @@ ytdlpPlugin.resolve = async function(url, options) {
     verbose: true,
     skipDownload: true,
     simulate: true,
-    extractorArgs: 'youtubetab:skip=authcheck;youtube:player_client=android,ios,mweb',
+    extractorArgs: 'youtube:player_skip=webpage,configs;youtube:player_client=android;youtubetab:skip=authcheck',
     userAgent: USER_AGENT,
     retries: 3,
     fragmentRetries: 3,
