@@ -86,10 +86,10 @@ function startProxyServer() {
       }
 
       console.log(`🔌 [Proxy Server] Streaming: "${videoUrl}"`);
+      const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(videoUrl);
       
       const flags = {
-        format: "ba[protocol^=http]",
-        extractorArgs: 'youtube:player_skip=webpage,configs;youtube:player_client=android;youtubetab:skip=authcheck',
+        format: "bestaudio/best",
         userAgent: USER_AGENT,
         retries: 3,
         fragmentRetries: 3,
@@ -100,13 +100,16 @@ function startProxyServer() {
         output: '-'
       };
 
-      const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-      if (fs.existsSync(cookiesTxtPath)) {
-        flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
-        console.log(`🍪 [Proxy Server] Passing cookies file: "${flags.cookies}"`);
+      if (isYouTube) {
+        flags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=web,mweb,ios,android';
+        const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+        if (fs.existsSync(cookiesTxtPath)) {
+          flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+          console.log(`🍪 [Proxy Server] Passing cookies file: "${flags.cookies}"`);
+        }
       }
 
-      const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY;
+      const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
       if (proxyUrl) {
         flags.proxy = proxyUrl;
         console.log(`🌐 [Proxy Server] Using proxy: "${proxyUrl.replace(/:[^:@]+@/, ':***@')}"`);
@@ -128,10 +131,18 @@ function startProxyServer() {
 
       ytdlpProcess.stdout.pipe(res);
 
+      let errBuffer = '';
       ytdlpProcess.stderr.on('data', (data) => {
         const msg = data.toString();
+        errBuffer += msg;
         if (msg.includes('ERROR:')) {
           console.error(`❌ [Proxy Server] yt-dlp error: ${msg.trim()}`);
+        }
+      });
+
+      ytdlpProcess.on('close', (code) => {
+        if (code !== 0 && code !== null) {
+          console.error(`❌ [Proxy Server] yt-dlp stream exited with code ${code}. Stderr: ${errBuffer.trim()}`);
         }
       });
 
@@ -302,10 +313,10 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       console.warn('🔄 [Cookies Fallback] YouTube bot-check/login terdeteksi. Mencoba multi-client fallback...');
       
       const fallbackClients = [
-        'youtube:player_skip=webpage,configs;youtube:player_client=android;youtubetab:skip=authcheck',
-        'youtube:player_skip=webpage,configs;youtube:player_client=android,ios;youtubetab:skip=authcheck',
-        'youtube:player_skip=webpage,configs;youtube:player_client=ios,mweb;youtubetab:skip=authcheck',
-        'youtube:player_skip=webpage,configs;youtube:player_client=tv_embedded,android;youtubetab:skip=authcheck'
+        'youtubetab:skip=authcheck;youtube:player_client=web,mweb',
+        'youtubetab:skip=authcheck;youtube:player_client=ios,mweb',
+        'youtubetab:skip=authcheck;youtube:player_client=android,ios',
+        'youtubetab:skip=authcheck;youtube:player_client=tv_embedded,android'
       ];
 
       for (const clientArgs of fallbackClients) {
@@ -332,14 +343,47 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
 
     // Ultimate Fallback for search queries: jika YouTube diblokir total di IP datacenter Railway, alihkan ke SoundCloud
     if (url.startsWith('ytsearch') || url.startsWith('ytsearch1:')) {
-      const rawQuery = url.replace(/^ytsearch[0-9]*:/, '');
-      const scUrl = `scsearch1:${rawQuery}`;
+      const rawQuery = url.replace(/^ytsearch[0-9]*:/, '').trim();
+      const scUrl = `scsearch5:${rawQuery}`;
       console.log(`🌐 [Smart Fallback] YouTube search terblokir. Mengalihkan pencarian otomatis ke SoundCloud: "${scUrl}"...`);
       try {
         const scFlags = { ...flags };
         delete scFlags.cookies;
         delete scFlags.extractorArgs;
-        return await executeYtdlpRaw(scUrl, scFlags, timeoutMs);
+        const scResult = await executeYtdlpRaw(scUrl, scFlags, timeoutMs);
+        
+        if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
+          // Score results by title similarity to avoid playing unrelated tracks
+          const queryWords = new Set(rawQuery.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 1));
+          
+          let bestEntry = null;
+          let bestScore = -1;
+
+          for (const entry of scResult.entries) {
+            const title = (entry.title || entry.fulltitle || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ');
+            const titleWords = new Set(title.split(/\s+/).filter(w => w.length > 1));
+            
+            let matches = 0;
+            for (const w of queryWords) {
+              if (titleWords.has(w)) matches++;
+            }
+            const score = (2 * matches) / ((queryWords.size || 1) + (titleWords.size || 1));
+            if (score > bestScore) {
+              bestScore = score;
+              bestEntry = entry;
+            }
+          }
+
+          // Minimal 25% similarity agar tidak mengambil lagu ngaco
+          if (bestEntry && (bestScore >= 0.25 || scResult.entries.length === 1)) {
+            console.log(`✅ [Smart Fallback] Match relevan ditemukan di SoundCloud: "${bestEntry.title}" (Score: ${(bestScore * 100).toFixed(0)}%)`);
+            return bestEntry;
+          } else {
+            console.warn(`⚠️ [Smart Fallback] Hasil SoundCloud tidak relevan dengan "${rawQuery}" (Best match: "${bestEntry?.title}", Score: ${(bestScore * 100).toFixed(0)}%). Batal.`);
+          }
+        } else if (scResult && !Array.isArray(scResult.entries)) {
+          return scResult;
+        }
       } catch (scErr) {
         console.warn('⚠️ [Smart Fallback] SoundCloud fallback gagal:', scErr.message);
       }
@@ -389,13 +433,14 @@ ytdlpPlugin.resolve = async function(url, options) {
     throw new Error(cbCheck.message);
   }
 
+  const isYouTube = !url.startsWith('scsearch') && !url.includes('soundcloud.com');
+
   const flags = {
     dumpSingleJson: true,
     noWarnings: false,
     verbose: true,
     skipDownload: true,
     simulate: true,
-    extractorArgs: 'youtube:player_skip=webpage,configs;youtube:player_client=android;youtubetab:skip=authcheck',
     userAgent: USER_AGENT,
     retries: 3,
     fragmentRetries: 3,
@@ -406,16 +451,19 @@ ytdlpPlugin.resolve = async function(url, options) {
     jsRuntimes: 'node'
   };
 
-  // If cookies.txt exists, pass it explicitly via command line
-  const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-  if (fs.existsSync(cookiesTxtPath)) {
-    flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
-    console.log(`🍪 [ytdlpPlugin.resolve] Passing cookies file: "${flags.cookies}"`);
-  } else {
-    console.log('ℹ️ [ytdlpPlugin.resolve] No cookies.txt found, resolving without cookies.');
+  if (isYouTube) {
+    flags.extractorArgs = 'youtubetab:skip=authcheck;youtube:player_client=web,mweb,ios,android';
+    // If cookies.txt exists, pass it explicitly via command line
+    const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+    if (fs.existsSync(cookiesTxtPath)) {
+      flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+      console.log(`🍪 [ytdlpPlugin.resolve] Passing cookies file: "${flags.cookies}"`);
+    } else {
+      console.log('ℹ️ [ytdlpPlugin.resolve] No cookies.txt found, resolving without cookies.');
+    }
   }
 
-  const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY;
+  const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
   if (proxyUrl) {
     flags.proxy = proxyUrl;
     console.log(`🌐 [ytdlpPlugin.resolve] Using proxy: "${proxyUrl.replace(/:[^:@]+@/, ':***@')}"`);
@@ -528,6 +576,30 @@ ytdlpPlugin.getStreamURL = async function(song) {
   const cbCheck = circuitBreaker.canRequest();
   if (!cbCheck.allowed) {
     throw new Error(cbCheck.message);
+  }
+
+  const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(song.url);
+
+  // For non-YouTube sources (SoundCloud, Spotify resolutions, Bandcamp, direct links, etc.)
+  // Resolve direct stream URL using yt-dlp without proxying to avoid ffmpeg proxy pipe issues
+  if (!isYouTube) {
+    try {
+      console.log(`🌐 [ytdlpPlugin.getStreamURL] Fetching direct stream URL for non-YouTube song: "${song.name}"`);
+      const directInfo = await executeYtdlpRaw(song.url, {
+        dumpSingleJson: true,
+        skipDownload: true,
+        simulate: true,
+        format: 'bestaudio/best',
+        userAgent: USER_AGENT,
+        noPlaylist: true
+      });
+      if (directInfo && directInfo.url) {
+        console.log(`✅ [ytdlpPlugin.getStreamURL] Direct stream URL obtained for: "${song.name}"`);
+        return directInfo.url;
+      }
+    } catch (err) {
+      console.warn(`⚠️ [ytdlpPlugin.getStreamURL] Direct stream extraction failed for non-YouTube song, trying proxy fallback:`, err.message);
+    }
   }
 
   const ageRestrictedParam = song.ageRestricted ? '&ageRestricted=true' : '';
