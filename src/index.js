@@ -330,6 +330,21 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       }
     }
 
+    // Ultimate Fallback for search queries: jika YouTube diblokir total di IP datacenter Railway, alihkan ke SoundCloud
+    if (url.startsWith('ytsearch') || url.startsWith('ytsearch1:')) {
+      const rawQuery = url.replace(/^ytsearch[0-9]*:/, '');
+      const scUrl = `scsearch1:${rawQuery}`;
+      console.log(`🌐 [Smart Fallback] YouTube search terblokir. Mengalihkan pencarian otomatis ke SoundCloud: "${scUrl}"...`);
+      try {
+        const scFlags = { ...flags };
+        delete scFlags.cookies;
+        delete scFlags.extractorArgs;
+        return await executeYtdlpRaw(scUrl, scFlags, timeoutMs);
+      } catch (scErr) {
+        console.warn('⚠️ [Smart Fallback] SoundCloud fallback gagal:', scErr.message);
+      }
+    }
+
     if (errLower.includes('sign in') || errLower.includes('login_required') ||
         errLower.includes('confirm you\'re not a bot')) {
       console.warn(`⚠️ [Auth Error] YouTube meminta login. Pastikan cookies diexport dari Incognito dan Incognito langsung ditutup.`);
