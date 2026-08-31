@@ -263,40 +263,68 @@ module.exports = {
 
       const inviteRow = new ActionRowBuilder().addComponents(acceptBtn, declineBtn);
 
+      const expiryTimestamp = Math.floor(Date.now() / 1000) + 30;
+
       const inviteEmbed = new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({
           name: `TANTANGAN DUEL 1V1 — ${interaction.guild.name.toUpperCase()}`,
           iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
         })
-        .setTitle(`${interaction.member.displayName} menantang ${opponentMember.displayName}`)
+        .setTitle(`${interaction.member.displayName} VS ${opponentMember.displayName}`)
         .setDescription(
           `**${interaction.member.displayName}** menantang **${opponentMember.displayName}** dalam duel tebak lagu 1v1!\n\n` +
           `• **Kategori:** \`${CATEGORY_LABELS[category]}\`\n` +
-          `• **Total Ronde:** \`${totalRounds} Ronde\`\n` +
-          `• **Channel:** <#${challengerVoice.id}>\n\n` +
-          `Klik tombol di bawah untuk menerima tantangan (berlaku selama 30 detik).`
+          `• **Total Ronde:** \`${totalRounds} Ronde Head-to-Head\`\n` +
+          `• **Voice Channel:** <#${challengerVoice.id}>\n` +
+          `• **Batas Waktu Konfirmasi:** <t:${expiryTimestamp}:R> (30 Detik)\n\n` +
+          `Klik tombol di bawah untuk menerima atau menolak tantangan:`
         )
-        .setFooter({ text: `Hanya ${opponentMember.displayName} yang dapat menerima tantangan ini` })
+        .setFooter({ text: `Hanya ${opponentMember.displayName} yang dapat merespons tantangan ini` })
         .setTimestamp();
 
-      const inviteMsg = await interaction.reply({
+      const response = await interaction.reply({
         content: `<@${opponent.id}>`,
         embeds: [inviteEmbed],
         components: [inviteRow],
-        fetchReply: true
+        withResponse: true
       });
 
+      const inviteMsg = response.resource?.message || await interaction.fetchReply();
+
       const duelCollector = inviteMsg.createMessageComponentCollector({
-        filter: i => i.user.id === opponent.id && (i.customId === `duel_acc_${duelId}` || i.customId === `duel_dec_${duelId}`),
+        filter: i => i.customId === `duel_acc_${duelId}` || i.customId === `duel_dec_${duelId}`,
         time: 30000
       });
 
       duelCollector.on('collect', async (i) => {
+        // Blokir jika yang menekan adalah penantang
+        if (i.user.id === challenger.id) {
+          return i.reply({
+            content: 'Kamu adalah penantang. Kamu tidak bisa menerima atau menolak tantanganmu sendiri! Menunggu respon lawan...',
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        // Blokir jika yang menekan adalah orang lain
+        if (i.user.id !== opponent.id) {
+          return i.reply({
+            content: `Hanya **${opponentMember.displayName}** yang dapat menerima atau menolak tantangan ini.`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
         if (i.customId === `duel_dec_${duelId}`) {
           const cancelEmbed = new EmbedBuilder()
             .setColor(0x2B2D31)
-            .setDescription(`**Tantangan Ditolak.** ${opponentMember.displayName} menolak tantangan duel.`);
+            .setAuthor({
+              name: `TANTANGAN DITOLAK — ${interaction.guild.name.toUpperCase()}`,
+              iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+            })
+            .setTitle('Duel 1v1 Dibatalkan')
+            .setDescription(`**${opponentMember.displayName}** menolak tantangan duel dari **${interaction.member.displayName}**.`)
+            .setTimestamp();
+
           await i.update({ embeds: [cancelEmbed], components: [] });
           return;
         }
@@ -362,10 +390,17 @@ module.exports = {
       });
 
       duelCollector.on('end', async (collected, reason) => {
-        if (reason === 'time' && collected.size === 0) {
+        if (reason === 'time' && (!collected || collected.filter(c => c.user.id === opponent.id).size === 0)) {
           const timeoutEmbed = new EmbedBuilder()
             .setColor(0x2B2D31)
-            .setDescription(`**Tantangan Berakhir.** ${opponentMember.displayName} tidak merespons dalam 30 detik.`);
+            .setAuthor({
+              name: `TANTANGAN KADALUARSA — ${interaction.guild.name.toUpperCase()}`,
+              iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+            })
+            .setTitle('Duel 1v1 Dibatalkan (Waktu Habis)')
+            .setDescription(`**${opponentMember.displayName}** tidak memberikan respons dalam waktu 30 detik.\nTantangan duel otomatis dibatalkan.`)
+            .setTimestamp();
+
           await inviteMsg.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
         }
       });
