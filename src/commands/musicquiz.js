@@ -97,10 +97,10 @@ module.exports = {
         )
         .addIntegerOption(opt =>
           opt.setName('ronde')
-            .setDescription('Jumlah ronde pertanyaan (1-20, default: 5)')
+            .setDescription('Jumlah ronde pertanyaan (1-50, default: 20)')
             .setRequired(false)
             .setMinValue(1)
-            .setMaxValue(20)
+            .setMaxValue(50)
         )
     )
     .addSubcommand(sub =>
@@ -120,10 +120,10 @@ module.exports = {
         )
         .addIntegerOption(opt =>
           opt.setName('ronde')
-            .setDescription('Jumlah ronde duel (3-10 ronde, default: 5)')
+            .setDescription('Jumlah ronde duel (1-50, default: 20)')
             .setRequired(false)
-            .setMinValue(3)
-            .setMaxValue(10)
+            .setMinValue(1)
+            .setMaxValue(50)
         )
     )
     .addSubcommand(sub =>
@@ -248,7 +248,7 @@ module.exports = {
       }
 
       const category = interaction.options.getString('kategori') || 'all';
-      const totalRounds = interaction.options.getInteger('ronde') || 5;
+      const totalRounds = interaction.options.getInteger('ronde') || 20;
 
       const duelId = `duel_${guildId}_${Date.now()}`;
       const acceptBtn = new ButtonBuilder()
@@ -434,7 +434,7 @@ module.exports = {
       }
 
       const category = interaction.options.getString('kategori') || 'all';
-      const totalRounds = interaction.options.getInteger('ronde') || 5;
+      const totalRounds = interaction.options.getInteger('ronde') || 20;
 
       const songPool = getSongPool(category);
       const shuffledQuestions = shuffleArray(songPool).slice(0, totalRounds);
@@ -556,6 +556,9 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   let playSuccess = false;
 
   try {
+    const randomOffsets = [0, 30, 45, 60, 75];
+    const seekOffset = randomOffsets[Math.floor(Math.random() * randomOffsets.length)];
+
     const existingQ = client.distube.getQueue(guildId);
     if (existingQ) {
       existingQ.isQuiz = true;
@@ -673,15 +676,20 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
         firstCorrectWinner = i.member.displayName;
       }
 
-      return i.reply({
+      await i.reply({
         content: `**Benar!** Kamu memperoleh **+${points} Poin**.`,
         flags: MessageFlags.Ephemeral
       });
     } else {
-      return i.reply({
+      await i.reply({
         content: `**Salah.** Jawaban yang benar adalah **${q.title}**.`,
         flags: MessageFlags.Ephemeral
       });
+    }
+
+    // Jika dalam mode Duel dan kedua pemain sudah menjawab, akhiri ronde lebih cepat
+    if (game.isDuel && game.answeredUsers.size >= 2) {
+      collector.stop('both_answered');
     }
   });
 
