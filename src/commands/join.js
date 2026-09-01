@@ -11,6 +11,10 @@ module.exports = {
     if (!voiceChannel) return;
 
     try {
+      const { getVoiceConnection } = require('@discordjs/voice');
+      const ghostConn = getVoiceConnection(interaction.guild.id);
+      if (ghostConn) ghostConn.destroy();
+
       await client.distube.voices.join(voiceChannel);
       await interaction.reply(`✅ **Bot telah bergabung ke <#${voiceChannel.id}>!**`);
     } catch (error) {

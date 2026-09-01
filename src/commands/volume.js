@@ -22,7 +22,7 @@ module.exports = {
       return interaction.reply(`🔊 Volume saat ini: **${queue.volume}%**`);
     }
 
-    checkVoiceChannel(interaction);
+    if (!checkVoiceChannel(interaction)) return;
     queue.setVolume(level);
     
     let icon = '🔊';

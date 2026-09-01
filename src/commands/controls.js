@@ -7,7 +7,7 @@ const skip = {
     .setName('skip')
     .setDescription('Skip lagu yang sedang diputar'),
   async execute(interaction, client) {
-    checkVoiceChannel(interaction);
+    if (!checkVoiceChannel(interaction)) return;
     const queue = checkQueue(interaction, client);
     if (!queue) return;
     if (queue.songs.length <= 1 && !queue.autoplay) {
@@ -25,7 +25,7 @@ const pause = {
     .setName('pause')
     .setDescription('Pause lagu yang sedang diputar'),
   async execute(interaction, client) {
-    checkVoiceChannel(interaction);
+    if (!checkVoiceChannel(interaction)) return;
     const queue = checkQueue(interaction, client);
     if (!queue) return;
     if (queue.paused) {
@@ -43,7 +43,7 @@ const resume = {
     .setName('resume')
     .setDescription('Lanjutkan lagu yang di-pause'),
   async execute(interaction, client) {
-    checkVoiceChannel(interaction);
+    if (!checkVoiceChannel(interaction)) return;
     const queue = checkQueue(interaction, client);
     if (!queue) return;
     if (!queue.paused) {
@@ -61,7 +61,7 @@ const stop = {
     .setName('stop')
     .setDescription('Hentikan musik dan bersihkan antrian (bot tetap di voice channel)'),
   async execute(interaction, client) {
-    checkVoiceChannel(interaction);
+    if (!checkVoiceChannel(interaction)) return;
     const queue = client.distube.getQueue(interaction.guild.id);
 
     if (queue) {

@@ -56,7 +56,7 @@ if (fs.existsSync(wingetPackagesPath)) {
 }
 
 
-const { Client, GatewayIntentBits, Collection, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, PermissionFlagsBits, AuditLogEvent, EmbedBuilder } = require('discord.js');
 const storage = require('./utils/storage');
 const circuitBreaker = require('./utils/circuitBreaker');
 const { DisTube } = require('distube');
@@ -186,6 +186,9 @@ const client = new Client({
   ],
   rest: { timeout: 30_000 }, // 30s timeout to prevent AbortError on image uploads
 });
+
+// Set higher listener limit to avoid WebSocketShard leak warning on voice reconnection
+client.setMaxListeners(100);
 
 client.commands = new Collection();
 client.welcomeSettings = new Map(); // Per-guild welcome channel config: { channelId, enabled }
@@ -763,6 +766,7 @@ if (hasSpotifyCreds) {
 }
 
 client.stay247 = new Set();
+client.stay247Settings = new Map();
 client.autoplaySettings = new Map();
 client.emptyTimeouts = new Map();
 
@@ -951,6 +955,105 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     }
   }
 
+  // Anti Force-Disconnect Tracker: Cek siapa yang mendisconnect bot
+  if (oldState.id === client.user.id && oldState.channelId && !newState.channelId) {
+    (async () => {
+      try {
+        const guild = oldState.guild;
+        if (guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
+          await new Promise(r => setTimeout(r, 600));
+          const auditLogs = await guild.fetchAuditLogs({
+            type: AuditLogEvent.MemberDisconnect,
+            limit: 1
+          }).catch(() => null);
+
+          const entry = auditLogs?.entries.first();
+          if (entry && (Date.now() - entry.createdTimestamp < 10000)) {
+            const culprit = entry.executor;
+            if (culprit && culprit.id !== client.user.id) {
+              console.log(`🚨 [Anti-Disconnect] Bot didisconnect paksa oleh ${culprit.tag} (${culprit.id}) dari channel ${oldState.channel?.name || oldState.channelId}`);
+              
+              const is247 = client.stay247 && client.stay247.has(guildId);
+              const alertEmbed = new EmbedBuilder()
+                .setColor(0xED4245)
+                .setTitle('🚨 Terdeteksi Disconnect Paksa!')
+                .setDescription(`**<@${culprit.id}>** (\`${culprit.tag}\`) baru saja memutuskan sambungan (disconnect) bot dari voice channel <#${oldState.channelId}>!${is247 ? '\n\n🛡️ *Bot akan otomatis bergabung kembali dalam beberapa detik (Mode 24/7).*' : ''}`)
+                .setFooter({ text: 'Sistem Keamanan Voice' })
+                .setTimestamp();
+
+              let targetTextChannel = oldState.channel;
+              if (!targetTextChannel || typeof targetTextChannel.send !== 'function') {
+                const queue = client.distube.getQueue(guildId);
+                targetTextChannel = queue?.textChannel || guild.systemChannel;
+              }
+
+              if (targetTextChannel && typeof targetTextChannel.send === 'function') {
+                targetTextChannel.send({ embeds: [alertEmbed] }).catch(() => {});
+              }
+            }
+          }
+        }
+      } catch (logErr) {
+        console.warn('⚠️ [AuditLog Tracker] Gagal membaca audit log disconnect:', logErr.message);
+      }
+    })();
+  }
+
+  // Anti Force-Move Tracker: Cek jika bot dipindahkan dari channel 24/7
+  if (oldState.id === client.user.id && newState.channelId && oldState.channelId && newState.channelId !== oldState.channelId) {
+    if (client.stay247 && client.stay247.has(guildId)) {
+      const designatedChannelId = client.stay247Settings?.get(guildId)?.channelId;
+      if (designatedChannelId && newState.channelId !== designatedChannelId) {
+        (async () => {
+          try {
+            const guild = newState.guild;
+            let moverTag = null;
+            let moverId = null;
+
+            if (guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
+              await new Promise(r => setTimeout(r, 600));
+              const auditLogs = await guild.fetchAuditLogs({
+                type: AuditLogEvent.MemberMove,
+                limit: 1
+              }).catch(() => null);
+
+              const entry = auditLogs?.entries.first();
+              if (entry && (Date.now() - entry.createdTimestamp < 10000)) {
+                if (entry.executor && entry.executor.id !== client.user.id) {
+                  moverId = entry.executor.id;
+                  moverTag = entry.executor.tag;
+                }
+              }
+            }
+
+            console.log(`🚨 [Anti-Move] Bot dipindahkan dari channel 24/7 ke ${newState.channelId} oleh ${moverTag || 'Unknown'}. Mengembalikan ke channel asal...`);
+
+            const alertEmbed = new EmbedBuilder()
+              .setColor(0xFEE75C)
+              .setTitle('⚠️ Bot Dipindahkan dari Channel 24/7')
+              .setDescription(
+                moverId
+                  ? `**<@${moverId}>** (\`${moverTag}\`) memindahkan bot ke <#${newState.channelId}>.\n\n🔄 *Bot otomatis kembali ke voice channel 24/7 (<#${designatedChannelId}>).*`
+                  : `Bot dipindahkan ke <#${newState.channelId}>.\n\n🔄 *Bot otomatis kembali ke voice channel 24/7 (<#${designatedChannelId}>).*`
+              )
+              .setFooter({ text: 'Sistem Keamanan Voice 24/7' })
+              .setTimestamp();
+
+            await newState.member?.voice?.setChannel(designatedChannelId).catch(() => {});
+            
+            const queue = client.distube.getQueue(guildId);
+            let notifCh = queue?.textChannel || newState.channel || guild.systemChannel;
+            if (notifCh && typeof notifCh.send === 'function') {
+              notifCh.send({ embeds: [alertEmbed] }).catch(() => {});
+            }
+          } catch (mErr) {
+            console.warn('⚠️ [Voice Move Tracker] Gagal mengembalikan bot ke channel asal:', mErr.message);
+          }
+        })();
+      }
+    }
+  }
+
   // 24/7 Enforcer: If the bot itself disconnects (or gets kicked) and 24/7 is enabled, force it to rejoin!
   if (oldState.id === client.user.id && oldState.channelId && !newState.channelId) {
     if (client.stay247 && client.stay247.has(guildId)) {
@@ -963,6 +1066,8 @@ client.on('voiceStateUpdate', (oldState, newState) => {
       if (retryCount >= 3) {
         console.warn(`♻️ [24/7 Enforcer] Sudah gagal 3x di guild ${guildId}. Menonaktifkan 24/7 sementara agar tidak spam.`);
         client.stay247.delete(guildId);
+        client.stay247Settings?.delete(guildId);
+        storage.saveGuildSetting(guildId, 'stay247', { enabled: false, channelId: null });
         client._enforcerRetries.delete(guildId);
         // Kirim notif ke text channel jika ada queue
         const queueForNotif = client.distube.getQueue(guildId);
@@ -976,20 +1081,18 @@ client.on('voiceStateUpdate', (oldState, newState) => {
       setTimeout(async () => {
         if (!client.stay247.has(guildId)) return; // Sudah dinonaktifkan saat delay
 
-        const channelToJoin = oldState.channel || client.channels.cache.get(oldState.channelId);
-        if (!channelToJoin) {
-          console.log(`♻️ [24/7 Enforcer] Channel ${oldState.channelId} tidak ditemukan (mungkin dihapus). Menonaktifkan 24/7 untuk guild ini.`);
-          client.stay247.delete(guildId);
-          client._enforcerRetries.delete(guildId);
-          return;
-        }
+        const savedChannelId = client.stay247Settings?.get(guildId)?.channelId;
+        const targetId = oldState.channelId || savedChannelId;
+        const channelToJoin = (targetId ? client.channels.cache.get(targetId) : null)
+          || (targetId ? await client.channels.fetch(targetId).catch(() => null) : null)
+          || oldState.channel;
 
-        // Cek apakah ada user (non-bot) di channel sebelum masuk
-        const humanMembers = channelToJoin.members?.filter(m => !m.user.bot);
-        if (!humanMembers || humanMembers.size === 0) {
-          console.log(`♻️ [24/7 Enforcer] Channel ${channelToJoin.name} kosong (tidak ada user). Menunggu user bergabung...`);
-          // Reset retry counter karena ini bukan kegagalan koneksi, tapi memang kosong
-          client._enforcerRetries.set(guildId, 0);
+        if (!channelToJoin) {
+          console.log(`♻️ [24/7 Enforcer] Channel ${targetId} tidak ditemukan (mungkin dihapus). Menonaktifkan 24/7 untuk guild ini.`);
+          client.stay247.delete(guildId);
+          client.stay247Settings?.delete(guildId);
+          storage.saveGuildSetting(guildId, 'stay247', { enabled: false, channelId: null });
+          client._enforcerRetries.delete(guildId);
           return;
         }
 
@@ -1036,6 +1139,58 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     });
   }
 });
+
+// ============================================================
+// 24/7 VOICE WATCHDOG & SHARD AUTO-RECOVERY
+// ============================================================
+async function restore247Voice(guildId) {
+  if (!client.stay247 || !client.stay247.has(guildId)) return;
+  const config = client.stay247Settings?.get(guildId);
+  if (!config || !config.enabled || !config.channelId) return;
+
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return;
+
+  const currentChannelId = guild.members.me?.voice?.channelId;
+  // Jika bot sudah berada di channel yang benar, tidak perlu reconnect
+  if (currentChannelId === config.channelId) return;
+
+  const channel = guild.channels.cache.get(config.channelId)
+    || await guild.channels.fetch(config.channelId).catch(() => null);
+  if (!channel) return;
+
+  try {
+    const ghostConn = getVoiceConnection(guildId);
+    if (ghostConn) ghostConn.destroy();
+    await client.distube.voices.join(channel);
+    console.log(`🔊 [24/7 Watchdog] Berhasil menyambungkan kembali bot ke ${channel.name} (${guild.name})`);
+  } catch (err) {
+    console.warn(`⚠️ [24/7 Watchdog] Gagal reconnect ke ${channel.name} (${guild.name}):`, err.message);
+  }
+}
+
+async function checkAndRestoreAll247() {
+  if (!client.stay247Settings || client.stay247Settings.size === 0) return;
+  for (const guildId of client.stay247Settings.keys()) {
+    await restore247Voice(guildId);
+  }
+}
+
+// Event saat Shard resume/reconnect ke gateway Discord
+client.on('shardResume', async (shardId) => {
+  console.log(`📶 [Shard] Shard ${shardId} berhasil resume connection ke Discord.`);
+  setTimeout(() => checkAndRestoreAll247().catch(() => {}), 3000);
+});
+
+client.on('shardReady', async (shardId) => {
+  console.log(`📶 [Shard] Shard ${shardId} siap (ready).`);
+  setTimeout(() => checkAndRestoreAll247().catch(() => {}), 3000);
+});
+
+// Watchdog timer: Cek dan pulihkan koneksi voice 24/7 setiap 30 detik
+setInterval(() => {
+  checkAndRestoreAll247().catch(() => {});
+}, 30000);
 
 // Debug logging disabled for performance
 

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { isBotOwner, replyNoAccess } = require('../utils/helpers');
+const storage = require('../utils/storage');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -19,6 +20,8 @@ module.exports = {
 
     // Disable 24/7 mode jika aktif
     client.stay247?.delete(interaction.guild.id);
+    client.stay247Settings?.delete(interaction.guild.id);
+    storage.saveGuildSetting(interaction.guild.id, 'stay247', { enabled: false, channelId: null });
 
     // Stop queue jika ada
     const queue = client.distube.getQueue(interaction.guild.id);

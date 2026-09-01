@@ -39,7 +39,7 @@ module.exports = {
       return interaction.reply({ embeds: [embed] });
     }
 
-    checkVoiceChannel(interaction);
+    if (!checkVoiceChannel(interaction)) return;
     await interaction.deferReply();
 
     try {

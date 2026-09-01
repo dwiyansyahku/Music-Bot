@@ -440,17 +440,5 @@ module.exports = {
       }
       return;
     }
-
-    // ====== Select Menu (untuk help command navigasi kategori) ======
-    if (interaction.isStringSelectMenu() && interaction.customId === 'help_category') {
-      const { buildHelpEmbed } = require('./helpEmbeds');
-      const category = interaction.values[0];
-      const embed = buildHelpEmbed(category, client);
-      try {
-        await interaction.update({ embeds: [embed] });
-      } catch (err) {
-        await safeErrorReply(err, 'Gagal memperbarui menu bantuan.');
-      }
-    }
   },
 };

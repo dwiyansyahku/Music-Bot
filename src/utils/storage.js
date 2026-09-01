@@ -84,11 +84,18 @@ function del(name, key) {
  * Dipanggil sekali di ready.js.
  */
 function loadAllSettings(client) {
+  if (!client.stay247) client.stay247 = new Set();
+  if (!client.stay247Settings) client.stay247Settings = new Map();
+
   const settings = read('settings');
   for (const [guildId, guildData] of Object.entries(settings)) {
     if (guildData.welcome) client.welcomeSettings.set(guildId, guildData.welcome);
     if (guildData.morning) client.morningSettings.set(guildId, guildData.morning);
     if (guildData.night)   client.nightSettings.set(guildId, guildData.night);
+    if (guildData.stay247 && guildData.stay247.enabled) {
+      client.stay247.add(guildId);
+      client.stay247Settings.set(guildId, guildData.stay247);
+    }
   }
 
   // Load AFK persistent data into client.afkUsers
@@ -97,7 +104,7 @@ function loadAllSettings(client) {
     client.afkUsers.set(key, value);
   }
 
-  console.log(`💾 [Storage] Settings dimuat untuk ${Object.keys(settings).length} guild (${client.afkUsers.size} active AFK sessions).`);
+  console.log(`💾 [Storage] Settings dimuat untuk ${Object.keys(settings).length} guild (${client.afkUsers.size} active AFK sessions, ${client.stay247.size} 24/7 active).`);
 }
 
 /**

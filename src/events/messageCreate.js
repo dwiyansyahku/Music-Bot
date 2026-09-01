@@ -344,6 +344,8 @@ module.exports = {
         }
 
         client.stay247?.delete(message.guild.id);
+        client.stay247Settings?.delete(message.guild.id);
+        storage.saveGuildSetting(message.guild.id, 'stay247', { enabled: false, channelId: null });
 
         const queue = client.distube.getQueue(message.guild.id);
         if (queue) {
@@ -712,19 +714,31 @@ module.exports = {
         if (!client.stay247) {
           client.stay247 = new Set();
         }
+        if (!client.stay247Settings) {
+          client.stay247Settings = new Map();
+        }
 
         const guildId = message.guild.id;
         const is247 = client.stay247.has(guildId);
 
         if (is247) {
           client.stay247.delete(guildId);
+          client.stay247Settings.delete(guildId);
+          storage.saveGuildSetting(guildId, 'stay247', { enabled: false, channelId: null });
         } else {
           client.stay247.add(guildId);
+          client.stay247Settings.set(guildId, { enabled: true, channelId: voiceChannel.id, channelName: voiceChannel.name });
+          storage.saveGuildSetting(guildId, 'stay247', { enabled: true, channelId: voiceChannel.id, channelName: voiceChannel.name });
           try {
+            const { getVoiceConnection } = require('@discordjs/voice');
+            const ghostConn = getVoiceConnection(guildId);
+            if (ghostConn) ghostConn.destroy();
             await client.distube.voices.join(voiceChannel);
           } catch (err) {
             console.error('Error joining voice channel:', err);
             client.stay247.delete(guildId);
+            client.stay247Settings.delete(guildId);
+            storage.saveGuildSetting(guildId, 'stay247', { enabled: false, channelId: null });
             return message.reply(`❌ Gagal bergabung ke voice channel: ${err.message}`);
           }
         }
@@ -735,7 +749,7 @@ module.exports = {
           .setTitle(newState ? '🟢 Mode 24/7 Aktif' : '🔴 Mode 24/7 Nonaktif')
           .setDescription(
             newState
-              ? 'Bot akan tetap stay di voice channel walaupun tidak ada orang atau lagu yang diputar.'
+              ? `Bot akan tetap standby 24/7 di <#${voiceChannel.id}> walaupun tidak ada orang, antrean habis, atau setelah bot restart.`
               : 'Bot akan keluar dari voice channel saat tidak ada orang atau saat antrean lagu selesai.'
           )
           .setFooter({ text: `Diubah oleh ${message.member?.displayName || 'Unknown'}` })

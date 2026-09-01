@@ -5,3 +5,4 @@ cookies.json
 cookies.txt
 bin/*.conf
 bin/*.txt
+data/

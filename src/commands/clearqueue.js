@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('Kosongkan semua lagu di antrian (lagu yang sedang diputar tetap berjalan)'),
 
   async execute(interaction, client) {
-    checkVoiceChannel(interaction);
+    if (!checkVoiceChannel(interaction)) return;
     const queue = checkQueue(interaction, client);
     if (!queue) return;
 

@@ -22,6 +22,32 @@ module.exports = {
     loadAllSettings(client);
     initVoiceTracker(client);
 
+    // =============================================
+    // AUTO-RECONNECT 24/7 VOICE CHANNELS
+    // =============================================
+    try {
+      const { getVoiceConnection } = require('@discordjs/voice');
+      for (const [guildId, config] of (client.stay247Settings || new Map()).entries()) {
+        if (config && config.enabled && config.channelId) {
+          const guild = client.guilds.cache.get(guildId);
+          if (!guild) continue;
+          const channel = guild.channels.cache.get(config.channelId) || await guild.channels.fetch(config.channelId).catch(() => null);
+          if (channel) {
+            try {
+              const ghostConn = getVoiceConnection(guildId);
+              if (ghostConn) ghostConn.destroy();
+              await client.distube.voices.join(channel);
+              console.log(`🔊 [24/7 Startup] Berhasil auto-join ke voice channel: ${channel.name} (${guild.name})`);
+            } catch (joinErr) {
+              console.warn(`⚠️ [24/7 Startup] Gagal auto-join ke voice channel ${channel.name} (${guild.name}):`, joinErr.message);
+            }
+          }
+        }
+      }
+    } catch (vErr) {
+      console.warn('⚠️ [24/7 Startup] Error saat inisialisasi koneksi 24/7:', vErr.message);
+    }
+
     // Auto-deploy slash commands saat bot start
     try {
       const commands = [];
