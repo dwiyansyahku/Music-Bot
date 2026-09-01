@@ -1,5 +1,5 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { checkVoiceChannel, checkQueue, isBotOwner } = require('../utils/helpers');
+const { checkVoiceChannel, checkQueue, isBotOwner, cleanMusicQuery } = require('../utils/helpers');
 const storage = require('../utils/storage');
 const { checkBadWords, checkPhishing, getGuildAutomodSettings } = require('../utils/automod');
 
@@ -221,11 +221,12 @@ module.exports = {
         const voiceChannel = checkVoiceChannel(message);
         if (!voiceChannel) return;
 
-        const query = args.join(' ');
-        if (!query) {
+        const rawQuery = args.join(' ');
+        if (!rawQuery) {
           return message.reply('❌ Tuliskan judul lagu atau URL setelah command! Contoh: `qp never gonna give you up`');
         }
 
+        const query = cleanMusicQuery(rawQuery);
         const searchingMsg = await message.reply(`🔍 Mencari: **${query}**...`);
 
         const MAX_RETRIES = 2;  // Total percobaan: 1 + 2 retry = 3x

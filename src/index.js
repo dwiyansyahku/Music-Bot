@@ -401,17 +401,41 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     if (/(?:youtube\.com|youtu\.be)/i.test(url) && !url.startsWith('ytsearch')) {
       console.log(`🌐 [oEmbed Fallback] Mengambil judul video via YouTube oEmbed API untuk pencarian SoundCloud...`);
       try {
-        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-        const oembedRes = await fetch(oembedUrl, { signal: AbortSignal.timeout(3000) });
+        const videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/i);
+        const cleanUrl = videoIdMatch ? `https://www.youtube.com/watch?v=${videoIdMatch[1]}` : url;
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`;
+        const oembedRes = await fetch(oembedUrl, {
+          headers: { 'User-Agent': USER_AGENT },
+          signal: AbortSignal.timeout(4000)
+        });
+
         if (oembedRes.ok) {
           const oembedData = await oembedRes.json();
           const videoTitle = oembedData.title;
           if (videoTitle) {
-            console.log(`✅ [oEmbed Fallback] Judul video diperoleh: "${videoTitle}". Mengalihkan ke SoundCloud...`);
-            const scUrl = `scsearch5:${videoTitle}`;
+            // Bersihkan judul dari simbol/emoji/noise agar SoundCloud search akurat
+            const cleanTitle = videoTitle
+              .replace(/\(Official.*?\)/gi, '')
+              .replace(/\[Official.*?\]/gi, '')
+              .replace(/\(Music Video\)/gi, '')
+              .replace(/\[Music Video\]/gi, '')
+              .replace(/\(Audio\)/gi, '')
+              .replace(/\[Audio\]/gi, '')
+              .replace(/\(Lyric.*?\)/gi, '')
+              .replace(/\[Lyric.*?\]/gi, '')
+              .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            const searchKeywords = cleanTitle.split(' ').slice(0, 5).join(' ');
+            console.log(`✅ [oEmbed Fallback] Judul video: "${videoTitle}" -> Kata Kunci: "${searchKeywords}". Mengalihkan ke SoundCloud...`);
+            const scUrl = `scsearch5:${searchKeywords}`;
             const scFlags = { ...flags };
             delete scFlags.cookies;
             delete scFlags.extractorArgs;
+            delete scFlags.verbose;
+            scFlags.noPlaylist = false;
+
             const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 8000));
             if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
               const best = scResult.entries[0];
@@ -477,8 +501,8 @@ ytdlpPlugin.resolve = async function(url, options) {
 
   const flags = {
     dumpSingleJson: true,
-    noWarnings: false,
-    verbose: true,
+    noWarnings: true,
+    verbose: false,
     skipDownload: true,
     simulate: true,
     userAgent: USER_AGENT,

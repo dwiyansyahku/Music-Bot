@@ -220,4 +220,38 @@ async function updateJailVisibility(guild) {
   }
 }
 
-module.exports = { checkVoiceChannel, checkQueue, isBotOwner, isOwnerOrMod, replyNoAccess, replyNoAccessMod, updateJailVisibility };
+/**
+ * Bersihkan query musik:
+ * - Hapus parameter YouTube Radio / Mix (list=RD..., list=RDMM..., start_radio=1, si=..., index=...)
+ * - Mengembalikan URL video bersih agar tidak memicu error YouTube Mix non-ekstrak
+ */
+function cleanMusicQuery(input) {
+  if (!input || typeof input !== 'string') return input;
+  let q = input.trim();
+
+  // Bersihkan link YouTube
+  if (/(?:youtube\.com|youtu\.be)/i.test(q)) {
+    try {
+      const ytMatch = q.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/i);
+      const listMatch = q.match(/[?&]list=([a-zA-Z0-9_-]+)/i);
+      const isUserPlaylist = listMatch && (listMatch[1].startsWith('PL') || listMatch[1].startsWith('OLAK'));
+
+      // Jika ada video ID dan BUKAN playlist publik (misal list=RD... auto mix), ubah jadi direct video URL
+      if (ytMatch && !isUserPlaylist) {
+        return `https://www.youtube.com/watch?v=${ytMatch[1]}`;
+      }
+    } catch (_) {}
+  }
+  return q;
+}
+
+module.exports = {
+  checkVoiceChannel,
+  checkQueue,
+  isBotOwner,
+  isOwnerOrMod,
+  replyNoAccess,
+  replyNoAccessMod,
+  updateJailVisibility,
+  cleanMusicQuery
+};

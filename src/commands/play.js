@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { checkVoiceChannel } = require('../utils/helpers');
+const { checkVoiceChannel, cleanMusicQuery } = require('../utils/helpers');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -15,7 +15,8 @@ module.exports = {
     const voiceChannel = checkVoiceChannel(interaction);
     if (!voiceChannel) return;
 
-    const query = interaction.options.getString('query');
+    const rawQuery = interaction.options.getString('query');
+    const query = cleanMusicQuery(rawQuery);
     await interaction.deferReply();
 
     try {
