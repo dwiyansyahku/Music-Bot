@@ -234,6 +234,14 @@ module.exports = {
 
         for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
           try {
+            const { getVoiceConnection } = require('@discordjs/voice');
+            const ghostConn = getVoiceConnection(message.guild.id);
+            if (ghostConn && !client.distube.voices.get(message.guild.id)) {
+              console.log(`🧹 [Play Cleaner] Destroying unmanaged ghost voice connection di guild ${message.guild.id}...`);
+              ghostConn.destroy();
+              await new Promise(r => setTimeout(r, 400));
+            }
+
             await client.distube.play(voiceChannel, query, {
               member: message.member,
               textChannel: message.channel,
@@ -246,14 +254,24 @@ module.exports = {
           } catch (error) {
             lastError = error;
             const isVoiceFail = error.errorCode === 'VOICE_CONNECT_FAILED' ||
+                                error.errorCode === 'VOICE_ALREADY_CREATED' ||
                                 error.message?.includes('Cannot connect to the voice channel');
+
+            if (error.errorCode === 'VOICE_ALREADY_CREATED') {
+              const { getVoiceConnection } = require('@discordjs/voice');
+              const ghostConn = getVoiceConnection(message.guild.id);
+              if (ghostConn) {
+                ghostConn.destroy();
+                await new Promise(r => setTimeout(r, 500));
+              }
+            }
 
             // Bersihkan queue yang terbentuk sebagian
             client.distube.getQueue(message.guild.id)?.stop().catch(() => {});
 
             if (isVoiceFail && attempt <= MAX_RETRIES) {
-              console.warn(`⚠️ [Voice] VOICE_CONNECT_FAILED (attempt ${attempt}/${MAX_RETRIES + 1}), retrying in 3s...`);
-              await searchingMsg.edit(`⏳ Koneksi voice gagal, mencoba lagi (${attempt}/${MAX_RETRIES})...`).catch(() => {});
+              console.warn(`⚠️ [Voice] ${error.errorCode || 'VOICE_FAIL'} (attempt ${attempt}/${MAX_RETRIES + 1}), retrying in 3s...`);
+              await searchingMsg.edit(`⏳ Koneksi voice sedang disinkronisasi, mencoba lagi (${attempt}/${MAX_RETRIES})...`).catch(() => {});
               await new Promise(r => setTimeout(r, 3000));
             } else {
               console.error(error);

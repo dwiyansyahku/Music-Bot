@@ -769,6 +769,7 @@ client.stay247 = new Set();
 client.stay247Settings = new Map();
 client.autoplaySettings = new Map();
 client.emptyTimeouts = new Map();
+client._voiceConnecting = new Set();
 
 // Build headers for FFmpeg from YT_COOKIES to bypass 403 Forbidden on HLS segments
 // Build global HTTP headers for FFmpeg from YT_COOKIES to bypass 403 Forbidden on HLS segments
@@ -1080,6 +1081,8 @@ client.on('voiceStateUpdate', (oldState, newState) => {
       // Delay 5 detik sebelum reconnect untuk menghindari API spam
       setTimeout(async () => {
         if (!client.stay247.has(guildId)) return; // Sudah dinonaktifkan saat delay
+        if (!client._voiceConnecting) client._voiceConnecting = new Set();
+        if (client._voiceConnecting.has(guildId)) return; // Reconnect sudah berjalan oleh watchdog
 
         const savedChannelId = client.stay247Settings?.get(guildId)?.channelId;
         const targetId = oldState.channelId || savedChannelId;
@@ -1096,13 +1099,15 @@ client.on('voiceStateUpdate', (oldState, newState) => {
           return;
         }
 
+        client._voiceConnecting.add(guildId);
         try {
-          // Bersihkan ghost connection @discordjs/voice sebelum DisTube join
+          // Bersihkan ghost connection @discordjs/voice jika tidak dikelola oleh DisTube
           const ghostConn = getVoiceConnection(guildId);
-          if (ghostConn) {
-            console.log(`♻️ [24/7 Enforcer] Destroying ghost voice connection di guild ${guildId}...`);
+          const disTubeVoice = client.distube.voices.get(guildId);
+          if (ghostConn && !disTubeVoice) {
+            console.log(`♻️ [24/7 Enforcer] Destroying unmanaged ghost voice connection di guild ${guildId}...`);
             ghostConn.destroy();
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 400));
           }
           await client.distube.voices.join(channelToJoin);
           console.log(`♻️ [24/7 Enforcer] Berhasil reconnect ke ${channelToJoin.name} di guild ${guildId}.`);
@@ -1122,6 +1127,8 @@ client.on('voiceStateUpdate', (oldState, newState) => {
               console.log(`♻️ [24/7 Enforcer] Retry counter di-reset untuk guild ${guildId}.`);
             }
           }, 2 * 60 * 1000);
+        } finally {
+          client._voiceConnecting.delete(guildId);
         }
       }, 5000); // Tunggu 5 detik sebelum coba reconnect
     }
@@ -1148,24 +1155,35 @@ async function restore247Voice(guildId) {
   const config = client.stay247Settings?.get(guildId);
   if (!config || !config.enabled || !config.channelId) return;
 
+  if (!client._voiceConnecting) client._voiceConnecting = new Set();
+  if (client._voiceConnecting.has(guildId)) return;
+
   const guild = client.guilds.cache.get(guildId);
   if (!guild) return;
 
   const currentChannelId = guild.members.me?.voice?.channelId;
-  // Jika bot sudah berada di channel yang benar, tidak perlu reconnect
-  if (currentChannelId === config.channelId) return;
+  const disTubeVoice = client.distube.voices.get(guildId);
+
+  // Jika bot sudah di channel yang benar DAN dikelola oleh DisTube, tidak perlu reconnect
+  if (currentChannelId === config.channelId && disTubeVoice) return;
 
   const channel = guild.channels.cache.get(config.channelId)
     || await guild.channels.fetch(config.channelId).catch(() => null);
   if (!channel) return;
 
+  client._voiceConnecting.add(guildId);
   try {
     const ghostConn = getVoiceConnection(guildId);
-    if (ghostConn) ghostConn.destroy();
+    if (ghostConn && !disTubeVoice) {
+      ghostConn.destroy();
+      await new Promise(r => setTimeout(r, 400));
+    }
     await client.distube.voices.join(channel);
     console.log(`🔊 [24/7 Watchdog] Berhasil menyambungkan kembali bot ke ${channel.name} (${guild.name})`);
   } catch (err) {
     console.warn(`⚠️ [24/7 Watchdog] Gagal reconnect ke ${channel.name} (${guild.name}):`, err.message);
+  } finally {
+    client._voiceConnecting.delete(guildId);
   }
 }
 
