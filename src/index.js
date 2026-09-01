@@ -1238,7 +1238,7 @@ function startLiveProgressUpdater(queue) {
         queue._nowPlayingMsg = null;
       }
     }
-  }, 6000);
+  }, 4000);
 }
 
 function stopLiveProgressUpdater(queue) {

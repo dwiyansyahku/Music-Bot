@@ -23,18 +23,19 @@ function getSourceEmoji(song) {
   return '🎵';
 }
 
-function createProgressBar(current = 0, total = 0, size = 15) {
-  if (total <= 0) return '━'.repeat(size);
-  const progress = Math.min(size, Math.max(0, Math.round((current / total) * size)));
-  const empty = size - progress;
-  return '━'.repeat(progress) + '🔘' + '━'.repeat(Math.max(0, empty - 1));
+function createProgressBar(current = 0, total = 0, size = 18) {
+  if (total <= 0) return '─'.repeat(size);
+  const progress = Math.min(size - 1, Math.max(0, Math.round((current / total) * (size - 1))));
+  const left = '─'.repeat(progress);
+  const right = '─'.repeat(Math.max(0, size - 1 - progress));
+  return `${left}●${right}`;
 }
 
 function nowPlayingEmbed(song, queue) {
   const emoji = getSourceEmoji(song);
   const current = queue?.currentTime || 0;
   const total = song?.duration || 0;
-  const progressBar = createProgressBar(current, total, 16);
+  const progressBar = createProgressBar(current, total, 18);
 
   const artist = song?.uploader?.name || 'Unknown Artist';
   const requester = song?.member?.displayName || song?.user?.username || 'Unknown';
