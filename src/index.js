@@ -1240,38 +1240,6 @@ setInterval(() => {
 const { nowPlayingEmbed, addedToQueueEmbed, addedPlaylistEmbed, autoplayEmbed } = require('./utils/embeds');
 const { createMusicControlRows } = require('./utils/musicButtons');
 
-// Helper untuk live-update progress bar Now Playing secara periodik (setiap 6s aman dari rate limit)
-function startLiveProgressUpdater(queue) {
-  if (queue._progressInterval) {
-    clearInterval(queue._progressInterval);
-    queue._progressInterval = null;
-  }
-
-  queue._progressInterval = setInterval(async () => {
-    if (!queue || !queue.playing || queue.paused || !queue.songs || queue.songs.length === 0 || !queue._nowPlayingMsg) {
-      return;
-    }
-
-    try {
-      const embed = nowPlayingEmbed(queue.songs[0], queue);
-      await queue._nowPlayingMsg.edit({ embeds: [embed] });
-    } catch (err) {
-      if (err.code === 10008) { // Unknown Message
-        clearInterval(queue._progressInterval);
-        queue._progressInterval = null;
-        queue._nowPlayingMsg = null;
-      }
-    }
-  }, 4000);
-}
-
-function stopLiveProgressUpdater(queue) {
-  if (queue && queue._progressInterval) {
-    clearInterval(queue._progressInterval);
-    queue._progressInterval = null;
-  }
-}
-
 // Track lagu terakhir per guild untuk fitur autoplay
 const lastSongPerGuild = new Map();
 
@@ -1279,7 +1247,6 @@ client.distube
   .on('playSong', async (queue, song) => {
     // Jangan kirim kartu "Sedang Diputar" jika lagu berasal dari Music Quiz (agar tidak membocorkan jawaban!)
     if (song.metadata?.isQuiz || queue.isQuiz) {
-      stopLiveProgressUpdater(queue);
       if (queue._nowPlayingMsg) {
         queue._nowPlayingMsg.delete().catch(() => {});
         queue._nowPlayingMsg = null;
@@ -1302,7 +1269,6 @@ client.distube
     if (queue._nowPlayingMsg) {
       try {
         await queue._nowPlayingMsg.edit({ embeds: [embed], components: rows });
-        startLiveProgressUpdater(queue);
         return;
       } catch {
         // Pesan dihapus atau tidak bisa diedit — kirim baru
@@ -1312,7 +1278,6 @@ client.distube
 
     // Kirim pesan baru dan simpan referensinya
     queue._nowPlayingMsg = await queue.textChannel?.send({ embeds: [embed], components: rows }).catch(() => null);
-    startLiveProgressUpdater(queue);
   })
   .on('addSong', (queue, song) => {
     // Jangan kirim notifikasi jika lagu berasal dari Music Quiz

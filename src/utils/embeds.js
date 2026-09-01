@@ -1,12 +1,9 @@
 const { EmbedBuilder } = require('discord.js');
 
-const COLOR_MAIN = '#2B2D31'; // Elegant Dark theme
-const COLOR_ACCENT = 0x5865F2; // Discord Blurple
-const COLOR_SUCCESS = 0x57F287;
-const COLOR_ERROR = 0xED4245;
+const COLOR_MAIN = '#2B2D31'; // Discord modern dark theme
 
 function formatDuration(seconds) {
-  if (seconds === Infinity) return '🔴 LIVE';
+  if (seconds === Infinity) return 'LIVE';
   if (!seconds || seconds <= 0) return '0:00';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -15,28 +12,8 @@ function formatDuration(seconds) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function getSourceEmoji(song) {
-  const url = song?.url || '';
-  if (url.includes('spotify')) return '🟢';
-  if (url.includes('soundcloud')) return '🟠';
-  if (url.includes('youtube') || url.includes('youtu.be')) return '🔴';
-  return '🎵';
-}
-
-function createProgressBar(current = 0, total = 0, size = 18) {
-  if (total <= 0) return '─'.repeat(size);
-  const progress = Math.min(size - 1, Math.max(0, Math.round((current / total) * (size - 1))));
-  const left = '─'.repeat(progress);
-  const right = '─'.repeat(Math.max(0, size - 1 - progress));
-  return `${left}●${right}`;
-}
-
 function nowPlayingEmbed(song, queue) {
-  const emoji = getSourceEmoji(song);
-  const current = queue?.currentTime || 0;
   const total = song?.duration || 0;
-  const progressBar = createProgressBar(current, total, 18);
-
   const artist = song?.uploader?.name || 'Unknown Artist';
   const requester = song?.member?.displayName || song?.user?.username || 'Unknown';
   const loopLabel = queue?.repeatMode === 0 ? 'Off' : queue?.repeatMode === 1 ? 'Lagu' : 'Antrian';
@@ -44,16 +21,16 @@ function nowPlayingEmbed(song, queue) {
 
   const embed = new EmbedBuilder()
     .setColor(COLOR_MAIN)
-    .setAuthor({ name: 'Sedang Diputar' })
-    .setTitle(`${emoji} ${song.name}`)
+    .setAuthor({ name: 'NOW PLAYING' })
+    .setTitle(song.name)
     .setURL(song.url)
     .setDescription(
       `oleh **${artist}**\n\n` +
-      `${progressBar}\n` +
-      `\`${formatDuration(current)} / ${formatDuration(total)}\`\n`
+      `Durasi: \`${formatDuration(total)}\` • Volume: \`${queue?.volume || 100}%\`\n` +
+      `Loop: \`${loopLabel}\` • Autoplay: \`${autoplayLabel}\``
     )
     .setFooter({
-      text: `Diminta oleh ${requester} • Vol ${queue?.volume || 100}% • Loop: ${loopLabel} • Autoplay: ${autoplayLabel}`,
+      text: `Diminta oleh ${requester}`,
       iconURL: song?.member?.displayAvatarURL() || null
     })
     .setTimestamp();
@@ -66,15 +43,14 @@ function nowPlayingEmbed(song, queue) {
 }
 
 function addedToQueueEmbed(song, queue) {
-  const emoji = getSourceEmoji(song);
   const requester = song?.member?.displayName || 'Unknown';
   const pos = queue?.songs?.length || 1;
 
   return new EmbedBuilder()
     .setColor(COLOR_MAIN)
     .setDescription(
-      `➕ Ditambahkan ke antrian: **[${song.name}](${song.url})**\n` +
-      `⏱️ \`${formatDuration(song.duration)}\` • Posisi: **#${pos}** • Oleh: **${requester}**`
+      `Ditambahkan ke antrian: **[${song.name}](${song.url})**\n` +
+      `Durasi: \`${formatDuration(song.duration)}\` • Posisi: **#${pos}** • Oleh: **${requester}**`
     );
 }
 
@@ -83,8 +59,8 @@ function addedPlaylistEmbed(playlist, queue) {
   return new EmbedBuilder()
     .setColor(COLOR_MAIN)
     .setDescription(
-      `📋 Playlist ditambahkan: **[${playlist.name}](${playlist.url || ''})**\n` +
-      `🎵 **${playlist.songs.length} lagu** • Total Antrian: **${queue.songs.length} lagu** • Oleh: **${requester}**`
+      `Playlist ditambahkan: **[${playlist.name}](${playlist.url || ''})**\n` +
+      `**${playlist.songs.length} lagu** • Total Antrian: **${queue.songs.length} lagu** • Oleh: **${requester}**`
     );
 }
 
@@ -95,16 +71,31 @@ function queueEmbed(queue, page = 1) {
   const totalPages = Math.max(1, Math.ceil(queue.songs.length / perPage));
   const totalDuration = queue.songs.reduce((acc, s) => acc + (s.duration || 0), 0);
 
-  const songList = songs.map((s, i) => {
-    const num = start + i;
-    const prefix = num === 0 ? '▶️ **Sedang Diputar:**' : `\`${num}.\``;
-    return `${prefix} [${s.name}](${s.url}) — \`${formatDuration(s.duration)}\``;
-  }).join('\n');
+  const currentSong = queue.songs[0];
+  const upcomingSongs = queue.songs.slice(1);
+
+  let desc = '';
+  if (page === 1 && currentSong) {
+    desc += `**Sedang Diputar:**\n[${currentSong.name}](${currentSong.url}) — \`${formatDuration(currentSong.duration)}\`\n\n`;
+    if (upcomingSongs.length > 0) {
+      desc += `**Antrian Berikutnya:**\n`;
+      desc += upcomingSongs.slice(0, perPage - 1).map((s, i) => {
+        return `\`${i + 1}.\` [${s.name}](${s.url}) — \`${formatDuration(s.duration)}\``;
+      }).join('\n');
+    } else {
+      desc += `_Tidak ada lagu berikutnya dalam antrian._`;
+    }
+  } else {
+    desc = songs.map((s, i) => {
+      const num = start + i;
+      return `\`${num}.\` [${s.name}](${s.url}) — \`${formatDuration(s.duration)}\``;
+    }).join('\n') || '_Antrian kosong_';
+  }
 
   return new EmbedBuilder()
     .setColor(COLOR_MAIN)
-    .setTitle(`📋 Antrian Lagu (${queue.songs.length} lagu • ${formatDuration(totalDuration)})`)
-    .setDescription(songList || '_Antrian kosong_')
+    .setTitle(`Antrian Musik (${queue.songs.length} lagu • ${formatDuration(totalDuration)})`)
+    .setDescription(desc)
     .setFooter({
       text: `Halaman ${page}/${totalPages} • Volume: ${queue.volume}% • Loop: ${queue.repeatMode === 0 ? 'Off' : queue.repeatMode === 1 ? 'Lagu' : 'Antrian'} • Autoplay: ${queue.autoplay ? 'On' : 'Off'}`
     });
@@ -113,7 +104,7 @@ function queueEmbed(queue, page = 1) {
 function autoplayEmbed(lastSongName) {
   return new EmbedBuilder()
     .setColor(COLOR_MAIN)
-    .setTitle('🔄 Autoplay')
+    .setTitle('Autoplay')
     .setDescription(`Mencari lagu serupa dengan:\n> **${lastSongName}**`)
     .setFooter({ text: 'Matikan autoplay dengan /autoplay' });
 }
@@ -125,6 +116,4 @@ module.exports = {
   queueEmbed,
   autoplayEmbed,
   formatDuration,
-  getSourceEmoji,
-  createProgressBar,
 };

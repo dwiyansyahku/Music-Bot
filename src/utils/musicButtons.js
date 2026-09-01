@@ -25,7 +25,7 @@ function createMusicControlRows(queue) {
   const pauseResumeBtn = new ButtonBuilder()
     .setCustomId('music_btn_pause')
     .setEmoji(isPaused ? '▶️' : '⏸️')
-    .setStyle(isPaused ? ButtonStyle.Success : ButtonStyle.Secondary);
+    .setStyle(ButtonStyle.Secondary);
 
   const skipBtn = new ButtonBuilder()
     .setCustomId('music_btn_skip')
@@ -36,7 +36,7 @@ function createMusicControlRows(queue) {
   const stopBtn = new ButtonBuilder()
     .setCustomId('music_btn_stop')
     .setEmoji('⏹️')
-    .setStyle(ButtonStyle.Danger);
+    .setStyle(ButtonStyle.Secondary);
 
   const shuffleBtn = new ButtonBuilder()
     .setCustomId('music_btn_shuffle')
@@ -46,32 +46,27 @@ function createMusicControlRows(queue) {
 
   const row1 = new ActionRowBuilder().addComponents(prevBtn, pauseResumeBtn, skipBtn, stopBtn, shuffleBtn);
 
-  // ── BARIS 2: FITUR TAMBAHAN (LOOP, AUTOPLAY, LYRICS, QUEUE, VOL) ──
-  const loopLabels = ['Loop: Off', 'Loop: Lagu', 'Loop: Antrian'];
+  // ── BARIS 2: PENGATURAN & INFORMASI (LOOP, AUTOPLAY, LIRIK, ANTRIAN) ──
+  const loopLabels = ['Loop: Off', 'Loop: Single', 'Loop: All'];
   const loopStyles = [ButtonStyle.Secondary, ButtonStyle.Primary, ButtonStyle.Primary];
-  const loopEmojis = ['🔁', '🔂', '🔁'];
 
   const loopBtn = new ButtonBuilder()
     .setCustomId('music_btn_loop')
-    .setEmoji(loopEmojis[loopMode])
     .setLabel(loopLabels[loopMode])
     .setStyle(loopStyles[loopMode]);
 
   const autoplayBtn = new ButtonBuilder()
     .setCustomId('music_btn_autoplay')
-    .setEmoji('🔄')
-    .setLabel(isAutoplay ? 'Autoplay: ON' : 'Autoplay: OFF')
-    .setStyle(isAutoplay ? ButtonStyle.Success : ButtonStyle.Secondary);
+    .setLabel(isAutoplay ? 'Autoplay: On' : 'Autoplay: Off')
+    .setStyle(isAutoplay ? ButtonStyle.Primary : ButtonStyle.Secondary);
 
   const lyricsBtn = new ButtonBuilder()
     .setCustomId('music_btn_lyrics')
-    .setEmoji('📜')
     .setLabel('Lirik')
     .setStyle(ButtonStyle.Secondary);
 
   const queueBtn = new ButtonBuilder()
     .setCustomId('music_btn_queue')
-    .setEmoji('📋')
     .setLabel('Antrian')
     .setStyle(ButtonStyle.Secondary);
 
