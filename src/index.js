@@ -1261,6 +1261,10 @@ client.distube
     if (song.metadata?.interaction) {
       song.metadata.interaction.deleteReply().catch(() => {});
     }
+    // Hapus pesan teks user (qp https://...) agar preview video hilang dan chat tetap bersih
+    if (song.metadata?.message?.deletable) {
+      song.metadata.message.delete().catch(() => {});
+    }
 
     const embed = nowPlayingEmbed(song, queue);
     const rows = createMusicControlRows(queue);

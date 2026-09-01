@@ -248,8 +248,11 @@ module.exports = {
               textChannel: message.channel,
               message,
             });
-            // Berhasil — hapus pesan "mencari..."
+            // Berhasil — hapus pesan "mencari..." dan pesan command user agar chat bersih dari preview YouTube
             await searchingMsg.delete().catch(() => {});
+            if (message.deletable) {
+              await message.delete().catch(() => {});
+            }
             success = true;
             break;
           } catch (error) {
