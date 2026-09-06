@@ -443,6 +443,24 @@ module.exports = {
         if (interaction.message?.flags?.has(MessageFlags.Ephemeral)) {
           return await interaction.update({ embeds: [embed] });
         } else {
+          // Auto-capture dan auto-update panel publik ke versi terbaru
+          if (interaction.message && interaction.guild) {
+            try {
+              const { createHelpGuidePanelPayload } = require('./helpEmbeds');
+              const storage = require('../utils/storage');
+              const settings = storage.read('settings');
+              const guildId = interaction.guild.id;
+              if (!settings[guildId]) settings[guildId] = {};
+              if (settings[guildId].helpPanelMessageId !== interaction.message.id) {
+                settings[guildId].helpPanelChannelId = interaction.channelId;
+                settings[guildId].helpPanelMessageId = interaction.message.id;
+                storage.write('settings', settings);
+              }
+              // Sinkronisasi otomatis pesan publik jika masih versi teks lama
+              interaction.message.edit(createHelpGuidePanelPayload(interaction.guild)).catch(() => {});
+            } catch (_) {}
+          }
+
           return await interaction.reply({
             embeds: [embed],
             flags: MessageFlags.Ephemeral

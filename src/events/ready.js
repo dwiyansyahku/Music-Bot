@@ -590,5 +590,30 @@ module.exports = {
     } catch (hubErr) {
       console.warn('[CardHub] Auto-update panel on startup failed:', hubErr.message);
     }
+
+    // =============================================
+    // AUTO-UPDATE HELP GUIDE PANELS ON STARTUP
+    // =============================================
+    try {
+      const settings = storage.read('settings');
+      const { createHelpGuidePanelPayload } = require('./helpEmbeds');
+      for (const guild of client.guilds.cache.values()) {
+        const guildSettings = settings[guild.id];
+        if (guildSettings?.helpPanelChannelId && guildSettings?.helpPanelMessageId) {
+          const ch = guild.channels.cache.get(guildSettings.helpPanelChannelId)
+            || await client.channels.fetch(guildSettings.helpPanelChannelId).catch(() => null);
+          if (ch) {
+            const msg = await ch.messages.fetch(guildSettings.helpPanelMessageId).catch(() => null);
+            if (msg) {
+              const payload = createHelpGuidePanelPayload(guild);
+              await msg.edit(payload).catch(() => {});
+              console.log(`📖 [HelpPanel] Direktori panduan otomatis diperbarui untuk ${guild.name}`);
+            }
+          }
+        }
+      }
+    } catch (helpErr) {
+      console.warn('[HelpPanel] Auto-update panel on startup failed:', helpErr.message);
+    }
   },
 };
