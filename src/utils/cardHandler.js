@@ -256,7 +256,12 @@ async function buildMemberCardEmbed(guild, member) {
 
   const embedColor = member.roles.color?.hexColor || '#8B5CF6';
 
-  let description = `\`@${targetUser.username}\``;
+  // Ambil Gelar Utama (Equipped Title) dari sistem Gacha
+  const gachaData = storage.read('gacha_data');
+  const userGacha = gachaData[guild.id]?.[targetUser.id] || {};
+  const equippedTitleText = userGacha.equippedTitle ? ` • ✧ \`${userGacha.equippedTitle}\`` : '';
+
+  let description = `\`@${targetUser.username}\`${equippedTitleText}`;
   if (userCard.bio) {
     description += `\n\n*"${userCard.bio}"*`;
   }

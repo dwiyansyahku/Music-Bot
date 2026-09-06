@@ -303,6 +303,66 @@ module.exports = {
       return;
     }
 
+    // ====== Button Interaction (Sistem Gacha 2.0 Interaktif) ======
+    if (interaction.isButton() && interaction.customId.startsWith('gacha_btn_')) {
+      const storage = require('../utils/storage');
+      const settingsData = storage.read('settings') || {};
+      const playChannelId = settingsData[interaction.guildId]?.gachaChannels?.play;
+      if (playChannelId && interaction.channelId !== playChannelId) {
+        const { isOwnerOrMod } = require('../utils/helpers');
+        const isAuthorized = await isOwnerOrMod(interaction, client);
+        if (!isAuthorized) {
+          const { EmbedBuilder: EB } = require('discord.js');
+          const embed = new EB()
+            .setColor(0xED4245)
+            .setTitle('Saluran Tidak Sesuai')
+            .setDescription(`Tombol Gacha hanya dapat digunakan di saluran <#${playChannelId}>.`);
+          return interaction.reply({
+            embeds: [embed],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+      }
+
+      const {
+        executeGachaPull,
+        executeGachaDaily,
+        executeGachaInventory,
+        executeGachaRates
+      } = require('../commands/gacha');
+
+      const action = interaction.customId.replace('gacha_btn_', '');
+      try {
+        if (action === 'pull_1') {
+          await interaction.deferReply();
+          return await executeGachaPull(interaction, client, 1);
+        } else if (action === 'pull_10') {
+          await interaction.deferReply();
+          return await executeGachaPull(interaction, client, 10);
+        } else if (action === 'inv') {
+          return await executeGachaInventory(interaction, interaction.user);
+        } else if (action === 'rates') {
+          return await executeGachaRates(interaction);
+        } else if (action === 'daily') {
+          return await executeGachaDaily(interaction);
+        }
+      } catch (gachaErr) {
+        return safeErrorReply(gachaErr, 'Gagal memproses aksi Gacha.');
+      }
+      return;
+    }
+
+    // ====== Button Interaction (Clash of Thrones 2.0 — Duel Tahta Gacha) ======
+    if (interaction.isButton() && (interaction.customId.startsWith('throne_duel') || interaction.customId.startsWith('throne_pick'))) {
+      const { processDuelButton } = require('../commands/gacha');
+      try {
+        await processDuelButton(interaction, client);
+      } catch (duelErr) {
+        return safeErrorReply(duelErr, 'Gagal memproses aksi Duel Tahta.');
+      }
+      return;
+    }
+
     // ====== Button Interaction (Peta Member Hub & Navigasi Mandiri) ======
     if (interaction.isButton() && (interaction.customId === 'mmap_open_panel' || interaction.customId.startsWith('mmap_'))) {
       const {

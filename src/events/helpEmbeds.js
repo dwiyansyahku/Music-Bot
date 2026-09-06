@@ -141,20 +141,25 @@ function buildHelpEmbed(category, client, guild = null) {
       return new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({ name: `PANDUAN FITUR — ${guildName.toUpperCase()}` })
-        .setTitle('Sistem Gacha & Koleksi Kartu')
+        .setTitle('🎰 Sistem Gacha & Koleksi Relik 2.0')
         .setDescription(
           `**Fungsi:**\n` +
-          `Minigame koleksi kartu karakter dengan tingkat kelangkaan mulai dari Common hingga Mythic.\n\n` +
-          `◈ **Langkah Penggunaan:**\n` +
-          `1. Ketik \`/gacha daily\` setiap hari untuk klaim tiket & koin gratis.\n` +
-          `2. Ketik \`/gacha pull\` untuk melakukan tarikan gacha.\n` +
-          `3. Ketik \`/gacha inventory\` untuk melihat koleksi kartu yang kamu miliki.\n` +
-          `4. Ketik \`/gacha album\` untuk melihat kelengkapan kartu server.\n\n` +
-          `◈ **Tingkat Kelangkaan (Rarity):**\n` +
-          `• Common (Biasa) • Rare (Langka) • Epic (Sangat Langka)\n` +
-          `• Legendary (Istimewa) • Mythic (Paling Langka)`
+          `Ekosistem unboxing misteri, koleksi 32 relik langka, Alkimia Tempa Relik, gelar profil `/card`, dan Role durasi aktif.\n\n` +
+          `◈ **Daftar Perintah:**\n` +
+          `• \`/gacha daily\` — Klaim tiket & stardust gratis setiap 24 jam.\n` +
+          `• \`/gacha pull [1x|10x]\` — Buka 1 atau 10 kotak misteri sekaligus.\n` +
+          `• \`/gacha fuse <tier>\` — ⚗️ Tempa 3 relik menjadi 1 relik bertier lebih tinggi.\n` +
+          `• \`/gacha equip <title>\` — 👑 Pasang gelar utama ke kartu profil \`/card\`.\n` +
+          `• \`/gacha inventory [user]\` — Cek tiket, stardust, sisa durasi role, & relik.\n` +
+          `• \`/gacha shop\` & \`/gacha buy\` — Toko penukaran stardust.\n` +
+          `• \`/gacha gift <user> <item>\` — Hadiahkan relik koleksi ke teman.\n` +
+          `• \`/gacha leaderboard\` — Klasemen Top Collector & Dewa Keberuntungan.\n\n` +
+          `◈ **Durasi Role Aktif (Smart Single-Role):**\n` +
+          `• 🌟 **Mythic:** 30 Hari • 🟡 **Legendary:** 14 Hari\n` +
+          `• 🟣 **Epic:** 7 Hari • 🔵 **Rare:** 3 Hari\n` +
+          `*Role otomatis di-upgrade ke tier tertinggi & durasi bertambah jika dapat tier yang sama!*`
         )
-        .setFooter({ text: 'Klaim hadiah harian gratis setiap 24 jam dengan /gacha daily' });
+        .setFooter({ text: 'Gunakan /gacha daily untuk mengumpulkan tiket setiap 24 jam' });
 
     case 'timecapsule':
       return new EmbedBuilder()

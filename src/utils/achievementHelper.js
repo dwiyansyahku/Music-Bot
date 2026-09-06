@@ -115,7 +115,10 @@ function getUserAchievements(guildId, userId, member) {
   const gachaData = storage.read('gacha_data');
   const userGacha = gachaData[guildId]?.[userId] || null;
   const gachaPulls = userGacha?.pulls || 0;
-  const hasLegendaryGacha = Boolean(userGacha?.badges?.some(b => b.includes('Sultan') || b.includes('Bintang') || b.includes('Legendary')));
+  const hasLegendaryGacha = Boolean(
+    userGacha?.badges?.some(b => b.includes('Sultan') || b.includes('Bintang') || b.includes('Legendary') || b.includes('Celestial') || b.includes('Dawnblade') || b.includes('Dragon') || b.includes('Aegis') || b.includes('Maestro') || b.includes('Chronos')) ||
+    userGacha?.inventory?.some(item => ['Cosmic Aegis of Infinity', 'Aura of the Celestial Dragon', 'Genesis Vinyl of Eternity', 'Crown of Destiny', 'Celestial Star Relic', 'Excalibur of the Dawn', 'Phoenix Flame Quill', 'Chrono Scepter'].includes(item))
+  );
 
   // 4. Music Quiz Data
   const quizData = storage.read('musicquiz_lb');

@@ -799,6 +799,20 @@ async function finishGame(textChannel, guildId, client) {
       resultDesc = `Pertandingan berakhir imbang dengan skor **${p1.score} Poin** sama rata.`;
     }
 
+    let duelRewardText = '';
+    if (p1.score > p2.score || p2.score > p1.score) {
+      const winnerId = p1.score > p2.score ? game.challengerId : game.opponentId;
+      const gachaData = storage.read('gacha_data');
+      if (!gachaData[guildId]) gachaData[guildId] = {};
+      if (!gachaData[guildId][winnerId]) {
+        gachaData[guildId][winnerId] = { tickets: 3, stardust: 50, pulls: 0, pityEpic: 0, pityLegendary: 0, lastDaily: 0, streak: 0, inventory: [], badges: [], titles: [] };
+      }
+      gachaData[guildId][winnerId].tickets = (gachaData[guildId][winnerId].tickets || 0) + 1;
+      gachaData[guildId][winnerId].stardust = (gachaData[guildId][winnerId].stardust || 0) + 25;
+      storage.write('gacha_data', gachaData);
+      duelRewardText = `\n🎁 **Hadiah Pemenang:** 🎟️ **+1 Tiket Gacha** & ✨ **+25 Stardust**!`;
+    }
+
     const duelFinalEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)
       .setAuthor({
@@ -810,7 +824,8 @@ async function finishGame(textChannel, guildId, client) {
         `${resultDesc}\n\n` +
         `**Rincian Skor:**\n` +
         `• **${p1.name}:** ${p1.score} Poin (${p1.correctCount}/${game.totalRounds} benar)\n` +
-        `• **${p2.name}:** ${p2.score} Poin (${p2.correctCount}/${game.totalRounds} benar)`
+        `• **${p2.name}:** ${p2.score} Poin (${p2.correctCount}/${game.totalRounds} benar)` +
+        duelRewardText
       )
       .setFooter({ text: 'Gunakan /musicquiz duel untuk memulai pertarungan baru' })
       .setTimestamp();
@@ -827,6 +842,22 @@ async function finishGame(textChannel, guildId, client) {
   }
 
   const winner = sortedScores[0][1];
+  const winnerUserId = sortedScores[0][0];
+
+  // Award Gacha Rewards to Winner
+  let winnerGachaRewardText = '';
+  if (winner.score > 0) {
+    const gachaData = storage.read('gacha_data');
+    if (!gachaData[guildId]) gachaData[guildId] = {};
+    if (!gachaData[guildId][winnerUserId]) {
+      gachaData[guildId][winnerUserId] = { tickets: 3, stardust: 50, pulls: 0, pityEpic: 0, pityLegendary: 0, lastDaily: 0, streak: 0, inventory: [], badges: [], titles: [] };
+    }
+    gachaData[guildId][winnerUserId].tickets = (gachaData[guildId][winnerUserId].tickets || 0) + 2;
+    gachaData[guildId][winnerUserId].stardust = (gachaData[guildId][winnerUserId].stardust || 0) + 50;
+    storage.write('gacha_data', gachaData);
+    winnerGachaRewardText = `\n\n🎁 **Hadiah Juara 1:** 🎟️ **+2 Tiket Gacha** & ✨ **+50 Stardust**!`;
+  }
+
   const rankLabels = ['#01', '#02', '#03', '#04', '#05'];
 
   const scoreBoard = sortedScores.slice(0, 5).map(([uId, d], i) => {
@@ -842,7 +873,8 @@ async function finishGame(textChannel, guildId, client) {
     .setTitle(`Pemenang: ${winner.name}`)
     .setDescription(
       `Skor tertinggi **${winner.score} Poin** dengan total **${winner.correctCount} jawaban benar**.\n\n` +
-      `**Papan Peringkat Akhir:**\n${scoreBoard}`
+      `**Papan Peringkat Akhir:**\n${scoreBoard}` +
+      winnerGachaRewardText
     )
     .setFooter({ text: 'Gunakan /musicquiz leaderboard untuk melihat klasemen server' })
     .setTimestamp();

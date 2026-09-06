@@ -379,9 +379,18 @@ module.exports = {
         if (capsuleModified) storage.write('timecapsules', capsulesData);
       }
 
+      // ====== 7. GACHA ROLE & THRONE DUEL EXPIRY CHECKER ======
+      try {
+        const { checkAndExpireGachaRoles, checkAndExpireThroneDuels } = require('../commands/gacha');
+        await checkAndExpireGachaRoles(client);
+        if (checkAndExpireThroneDuels) await checkAndExpireThroneDuels(client);
+      } catch (gachaExpErr) {
+        console.error('[Gacha Role/Duel Expiry Error]:', gachaExpErr.message);
+      }
+
     }, 60 * 1000); // cek setiap 60 detik
 
-    console.log('✅ [Schedulers] Morning, Night, Announce, Birthday, Event, Time Capsule schedulers aktif!');
+    console.log('✅ [Schedulers] Morning, Night, Announce, Birthday, Event, Time Capsule, Gacha Role Expiry schedulers aktif!');
 
     // =============================================
     // INITIAL STARTUP CARD GALLERY REFRESH (1x on boot)

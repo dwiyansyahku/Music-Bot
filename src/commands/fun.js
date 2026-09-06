@@ -203,21 +203,25 @@ const fun = {
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
-            .setColor(0xED4245)
-            .setTitle('🔒 Jail System Dikonfigurasi!')
-            .addFields(
-              { name: '⛓️ Role Penjara', value: `<@&${role.id}>`, inline: true },
-              { name: '🏛️ Channel Penjara', value: `<#${channel.id}>`, inline: true },
-              { name: '🔊 Voice Penjara', value: `<#${voiceChannel.id}>`, inline: true },
-            )
+            .setColor(0x2B2D31)
+            .setTitle('Sistem Penjara Dikonfigurasi')
             .setDescription(
-              '✅ Setup berhasil! Pastikan:\n' +
-              '1. Role penjara punya permission **Send Messages = OFF** di semua channel normal\n' +
-              '2. Role penjara punya permission **Send Messages = ON** di channel penjara\n' +
-              '3. Bot punya permission **Manage Roles** dan **Move Members** di server ini\n' +
-              '4. Role bot lebih tinggi dari role penjara'
+              'Konfigurasi jail berhasil disimpan.\n\n' +
+              '**Cara agar semua chat & voice tersembunyi dari tahanan:**\n' +
+              '1. Buka setiap **Kategori** (Chat/Voice) yang ingin disembunyikan.\n' +
+              '2. Klik kanan kategori > **Edit Category** > **Permissions**.\n' +
+              '3. Tambahkan role <@&' + role.id + '> lalu ubah **View Channel** ke **Silang Merah (❌)**.\n' +
+              '4. Channel di dalam kategori otomatis tersembunyi (*synced*).\n\n' +
+              '**Persyaratan Bot:**\n' +
+              '• Bot harus memiliki izin **Manage Roles** dan **Move Members**.\n' +
+              '• Posisi role bot harus berada di atas role penjara.'
             )
-            .setFooter({ text: 'Gunakan /fun jail @user untuk memenjarakan member!' }),
+            .addFields(
+              { name: 'Role Penjara', value: `<@&${role.id}>`, inline: true },
+              { name: 'Channel Teks', value: `<#${channel.id}>`, inline: true },
+              { name: 'Channel Voice', value: `<#${voiceChannel.id}>`, inline: true },
+            )
+            .setFooter({ text: 'Gunakan /fun jail @user untuk memasukkan member ke penjara.' }),
         ],
         flags: MessageFlags.Ephemeral,
       });
