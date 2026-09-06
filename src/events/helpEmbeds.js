@@ -39,11 +39,11 @@ function buildHelpEmbed(category, client, guild = null) {
           {
             name: '✦ Utilitas & Jadwal Server',
             value: [
-              '• **Gacha & Koleksi** — Daily claim & kartu koleksi langka',
+              '• **Gacha & Kursi Tahta** — Koleksi relik, perebutan tahta, & duel strategi',
               '• **Kapsul Waktu** — Pesan rahasia terjadwal untuk masa depan',
               '• **Jadwal & Ulang Tahun** — Perayaan otomatis & event server',
               '• **Voice & Achievements** — Tracking durasi voice & lencana',
-              '• **Moderasi & Keamanan** — Sistem warn, mute, dan clear chat'
+              '• **Moderasi & Penjara** — Sistem warn, mute, jail, dan clear chat'
             ].join('\n'),
             inline: false
           }
@@ -141,23 +141,28 @@ function buildHelpEmbed(category, client, guild = null) {
       return new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({ name: `PANDUAN FITUR — ${guildName.toUpperCase()}` })
-        .setTitle('🎰 Sistem Gacha & Koleksi Relik 2.0')
+        .setTitle('Sistem Gacha & Kursi Tahta 2.0')
         .setDescription(
           `**Fungsi:**\n` +
-          `Ekosistem unboxing misteri, koleksi 32 relik langka, Alkimia Tempa Relik, gelar profil `/card`, dan Role durasi aktif.\n\n` +
-          `◈ **Daftar Perintah:**\n` +
+          `Ekosistem kotak misteri, koleksi 32 relik langka, Alkimia Tempa Relik, gelar profil \`/card\`, dan perebutan Kursi Tahta eksklusif.\n\n` +
+          `◈ **Daftar Perintah Pemain:**\n` +
           `• \`/gacha daily\` — Klaim tiket & stardust gratis setiap 24 jam.\n` +
           `• \`/gacha pull [1x|10x]\` — Buka 1 atau 10 kotak misteri sekaligus.\n` +
-          `• \`/gacha fuse <tier>\` — ⚗️ Tempa 3 relik menjadi 1 relik bertier lebih tinggi.\n` +
-          `• \`/gacha equip <title>\` — 👑 Pasang gelar utama ke kartu profil \`/card\`.\n` +
-          `• \`/gacha inventory [user]\` — Cek tiket, stardust, sisa durasi role, & relik.\n` +
+          `• \`/gacha fuse <tier>\` — Tempa 3 relik menjadi 1 relik bertier lebih tinggi.\n` +
+          `• \`/gacha equip <title>\` — Pasang gelar utama ke kartu profil \`/card\`.\n` +
+          `• \`/gacha inventory [user]\` — Cek tiket, stardust, tahta aktif, & koleksi relik.\n` +
           `• \`/gacha shop\` & \`/gacha buy\` — Toko penukaran stardust.\n` +
-          `• \`/gacha gift <user> <item>\` — Hadiahkan relik koleksi ke teman.\n` +
-          `• \`/gacha leaderboard\` — Klasemen Top Collector & Dewa Keberuntungan.\n\n` +
-          `◈ **Durasi Role Aktif (Smart Single-Role):**\n` +
-          `• 🌟 **Mythic:** 30 Hari • 🟡 **Legendary:** 14 Hari\n` +
-          `• 🟣 **Epic:** 7 Hari • 🔵 **Rare:** 3 Hari\n` +
-          `*Role otomatis di-upgrade ke tier tertinggi & durasi bertambah jika dapat tier yang sama!*`
+          `• \`/gacha gift <user> <item>\` — Hadiahkan relik koleksi ke member lain.\n` +
+          `• \`/gacha leaderboard\` — Klasemen Top Collector & Dewa Keberuntungan.\n` +
+          `• \`/gacha listroles\` — Cek status pemegang kursi tahta & antrean penantang.\n\n` +
+          `◈ **Sistem Kursi Tahta & Duel:**\n` +
+          `• **✦ MYTHIC (1%):** Maksimal **3 Kursi** • Durasi **7 Hari**\n` +
+          `• **✧ LEGENDARY (4%):** Maksimal **5 Kursi** • Durasi **3 Hari**\n` +
+          `• **Clash of Thrones:** Jika kursi tahta penuh, penantang bertarung dalam duel strategi **Best of 3 (12 Jam)** untuk merebut tahta!\n` +
+          `• **Multi-Seat Queue:** Jika seluruh kursi sedang duel, penantang otomatis masuk antrean resmi tahta.\n\n` +
+          `◈ **Perintah Pengaturan (Admin):**\n` +
+          `• \`/gacha setchannel\` — Batasi channel bermain (\`play\`) & pengumuman (\`announcement\`).\n` +
+          `• \`/gacha setrole\` — Atur role Discord untuk tahta Mythic dan Legendary.`
         )
         .setFooter({ text: 'Gunakan /gacha daily untuk mengumpulkan tiket setiap 24 jam' });
 
@@ -222,10 +227,10 @@ function buildHelpEmbed(category, client, guild = null) {
       return new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({ name: `PANDUAN FITUR — ${guildName.toUpperCase()}` })
-        .setTitle('Sistem Moderasi Server')
+        .setTitle('Sistem Moderasi Server & Penjara')
         .setDescription(
           `**Fungsi:**\n` +
-          `Perangkat pengelolaan server untuk Staff & Moderator dalam menjaga kenyamanan dan ketertiban komunitas.\n\n` +
+          `Perangkat pengelolaan server untuk Staff & Moderator dalam menjaga kenyamanan, keamanan, dan ketertiban komunitas.\n\n` +
           `◈ **Daftar Perintah Moderasi:**\n` +
           `• \`/warn [user] [alasan]\` — Berikan teguran resmi ke member.\n` +
           `• \`/warnings [user]\` — Riwayat peringatan member.\n` +
@@ -233,7 +238,11 @@ function buildHelpEmbed(category, client, guild = null) {
           `• \`/mute [user] [durasi]\` — Timeout / bisukan member sementara.\n` +
           `• \`/unmute [user]\` — Lepaskan status timeout member.\n` +
           `• \`/kick [user]\` — Keluarkan member dari server.\n` +
-          `• \`/ban [user]\` — Blokir member dari server.`
+          `• \`/ban [user]\` — Blokir member dari server.\n\n` +
+          `◈ **Sistem Penjara (Jail System):**\n` +
+          `• \`/fun jail [user] [durasi] [alasan]\` — Masukkan member ke penjara & isolasi channel server.\n` +
+          `• \`/fun bail [user]\` — Bebaskan tahanan dari penjara lebih awal.\n` +
+          `• \`/fun jailsetup\` — Konfigurasi role dan channel teks/voice penjara (Admin).`
         )
         .setFooter({ text: 'Perintah moderasi hanya dapat digunakan oleh Staff / Moderator yang berwenang' });
 
@@ -260,8 +269,8 @@ function buildHelpEmbed(category, client, guild = null) {
             inline: false
           },
           {
-            name: '✦ Moderasi & Utilitas',
-            value: '`/warn`, `/warnings`, `/clearwarn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/clear`, `/announce`, `/qmorning`, `/qnight`, `/backup`',
+            name: '✦ Moderasi, Penjara & Utilitas',
+            value: '`/warn`, `/warnings`, `/clearwarn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/clear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/backup`',
             inline: false
           }
         )
@@ -307,8 +316,8 @@ function createHelpGuidePanelPayload(guild) {
         value: 'membermap'
       },
       {
-        label: 'Sistem Gacha & Koleksi',
-        description: 'Daily claim gratis & kelangkaan kartu koleksi',
+        label: 'Sistem Gacha & Kursi Tahta',
+        description: 'Koleksi relik, tahta terbatas 3/5 kursi, & duel strategi',
         value: 'gacha'
       },
       {
@@ -327,8 +336,8 @@ function createHelpGuidePanelPayload(guild) {
         value: 'voice'
       },
       {
-        label: 'Moderasi & Keamanan',
-        description: 'Panduan staff untuk sistem warn, mute & clear chat',
+        label: 'Moderasi & Penjara (Jail)',
+        description: 'Panduan staff untuk sistem warn, mute, jail & clear chat',
         value: 'mod'
       },
       {
