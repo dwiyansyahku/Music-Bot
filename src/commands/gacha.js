@@ -3089,7 +3089,7 @@ async function executeGachaInventory(interaction, targetUser) {
   if (interaction.replied || interaction.deferred) {
     return interaction.editReply({ embeds: [embed], components: [row] });
   }
-  return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
+  return interaction.reply({ embeds: [embed], components: [row] });
 }
 
 /**

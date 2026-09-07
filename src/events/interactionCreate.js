@@ -381,7 +381,7 @@ module.exports = {
           await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
           return await executeGachaPull(interaction, client, 10);
         } else if (action === 'inv') {
-          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          await interaction.deferReply();
           return await executeGachaInventory(interaction, interaction.user);
         } else if (action === 'rates') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
