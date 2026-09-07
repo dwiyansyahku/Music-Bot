@@ -322,9 +322,6 @@ module.exports = {
       } else if (action.startsWith('challenge_prompt')) {
         requiredChannelId = gChannels.duel || gChannels.play;
         actionLabel = 'Tantangan Tahta';
-      } else if (action === 'inv') {
-        requiredChannelId = gChannels.play;
-        actionLabel = 'Buka Inventory';
       }
 
       if (requiredChannelId && interaction.channelId !== requiredChannelId) {
@@ -381,8 +378,10 @@ module.exports = {
           await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
           return await executeGachaPull(interaction, client, 10);
         } else if (action === 'inv') {
-          await interaction.deferReply();
-          return await executeGachaInventory(interaction, interaction.user);
+          const playChId = settingsData[interaction.guildId]?.gachaChannels?.play;
+          const isOutside = playChId && interaction.channelId !== playChId;
+          await interaction.deferReply({ flags: isOutside ? MessageFlags.Ephemeral : undefined });
+          return await executeGachaInventory(interaction, interaction.user, client);
         } else if (action === 'rates') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaRates(interaction);

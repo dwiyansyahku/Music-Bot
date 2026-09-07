@@ -2965,9 +2965,12 @@ async function executeGachaDaily(interaction) {
 /**
  * Handle Inventory Display Logic with Active Role & Equipped Title
  */
-async function executeGachaInventory(interaction, targetUser) {
+async function executeGachaInventory(interaction, targetUser, client = null) {
   const guildId = interaction.guild.id;
   const user = targetUser || interaction.user;
+
+  const settingsData = storage.read('settings') || {};
+  const playChannelId = settingsData[guildId]?.gachaChannels?.play;
 
   const gachaData = storage.read('gacha_data');
   const targetData = getOrInitUserData(gachaData, guildId, user.id);
@@ -3086,6 +3089,52 @@ async function executeGachaInventory(interaction, targetUser) {
     }
   }
 
+  // Jika channel Main Gacha Umum diatur dan interaksi dilakukan di channel lain:
+  // Kirim output inventaris secara publik ke Main Gacha Umum & panggil/summon member ke sana!
+  const isOutside = playChannelId && interaction.channelId !== playChannelId;
+  let playChannel = null;
+
+  if (isOutside) {
+    playChannel = interaction.guild?.channels?.cache?.get(playChannelId) ||
+      (client?.channels?.fetch ? await client.channels.fetch(playChannelId).catch(() => null) : null);
+  }
+
+  if (isOutside && playChannel && playChannel.isTextBased()) {
+    // 1. Kirim kartu inventaris secara publik ke channel Main Gacha Umum dan tag member agar terpanggil
+    await playChannel.send({
+      content: `📢 <@${user.id}> baru saja membuka inventaris reliknya:`,
+      embeds: [embed],
+      components: [row]
+    }).catch(err => {
+      console.error('[Post Inventory to Main Gacha Error]:', err.message);
+    });
+
+    // 2. Tampilkan pesan di channel asal dengan tombol tautan langsung menuju ke Main Gacha Umum
+    const chName = playChannel.name ? `#${playChannel.name}` : 'Saluran Main Gacha';
+    const channelUrl = `https://discord.com/channels/${guildId}/${playChannelId}`;
+
+    const redirectEmbed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('Inventaris Ditampilkan di Saluran Umum')
+      .setDescription(
+        `Kartu inventarismu telah berhasil ditampilkan secara publik di saluran <#${playChannelId}>!\n\n` +
+        `Klik tombol di bawah untuk langsung menuju ke saluran tersebut!`
+      );
+
+    const redirectRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel(`Menuju ke ${chName}`.slice(0, 80))
+        .setStyle(ButtonStyle.Link)
+        .setURL(channelUrl)
+    );
+
+    if (interaction.replied || interaction.deferred) {
+      return interaction.editReply({ embeds: [redirectEmbed], components: [redirectRow] });
+    }
+    return interaction.reply({ embeds: [redirectEmbed], components: [redirectRow], flags: MessageFlags.Ephemeral });
+  }
+
+  // Jika member sudah berada di channel Main Gacha Umum (atau playChannel belum diatur)
   if (interaction.replied || interaction.deferred) {
     return interaction.editReply({ embeds: [embed], components: [row] });
   }
@@ -3465,9 +3514,10 @@ module.exports = {
       settingsData[guildId].gachaChannels.daily = null;
     }
 
-    // Pembatasan Channel Gacha (daily, pull, challenge, inventory)
+    // Pembatasan Channel Gacha (daily, pull, challenge)
     // Fitur personal lainnya seperti rates, album, shop, buy, equip, unequip, fuse, gift, leaderboard bebas diakses di mana saja
-    const channelRestrictedSubs = ['daily', 'pull', 'challenge', 'inventory'];
+    // Subcommand inventory ditangani khusus oleh executeGachaInventory agar otomatis terpanggil ke saluran Main Gacha Umum
+    const channelRestrictedSubs = ['daily', 'pull', 'challenge'];
     if (channelRestrictedSubs.includes(sub)) {
       const gChannels = settingsData[guildId].gachaChannels || {};
       let requiredChannelId = null;
@@ -3482,9 +3532,6 @@ module.exports = {
       } else if (sub === 'challenge') {
         requiredChannelId = gChannels.duel || gChannels.play;
         channelLabel = 'Tantangan Tahta (`/gacha challenge`)';
-      } else if (sub === 'inventory') {
-        requiredChannelId = gChannels.play;
-        channelLabel = 'Buka Inventory (`/gacha inventory`)';
       }
 
       if (requiredChannelId && interaction.channelId !== requiredChannelId) {
@@ -3873,7 +3920,10 @@ module.exports = {
     // === SUBCOMMAND: INVENTORY ===
     if (sub === 'inventory') {
       const targetUser = interaction.options.getUser('user') || interaction.user;
-      return executeGachaInventory(interaction, targetUser);
+      const playChId = settingsData[guildId]?.gachaChannels?.play;
+      const isOutside = playChId && interaction.channelId !== playChId;
+      await interaction.deferReply({ flags: isOutside ? MessageFlags.Ephemeral : undefined });
+      return executeGachaInventory(interaction, targetUser, client);
     }
 
     // === SUBCOMMAND: EQUIP (Pasang Gelar Utama) ===
