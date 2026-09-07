@@ -1371,7 +1371,7 @@ async function processChallengerQueue(guildId, itemTier, client) {
     ch = await client.channels.fetch(nextChallenger.channelId).catch(() => null);
   }
   if (!ch) {
-    const fallbackId = settings[guildId]?.gachaChannels?.broadcast || settings[guildId]?.gachaChannel;
+    const fallbackId = settings[guildId]?.gachaChannels?.play;
     if (fallbackId) ch = await client.channels.fetch(fallbackId).catch(() => null);
   }
 
@@ -2051,7 +2051,7 @@ async function deployGachaPanel(guild, channel, type, client) {
 /**
  * Broadcast Jackpot to configured channel (Legendary / Mythic)
  */
-async function broadcastJackpot(guild, member, item, client) {
+async function broadcastJackpot(guild, member, item, client, options = {}) {
   try {
     const settingsData = storage.read('settings');
     const targetChannelId = settingsData[guild.id]?.gachaChannels?.broadcast || settingsData[guild.id]?.gachaChannel;
@@ -2062,23 +2062,35 @@ async function broadcastJackpot(guild, member, item, client) {
     if (!channel || !channel.isTextBased()) return;
 
     const isMythic = item.tier === 'MYTHIC';
+    const user = member?.user || member;
+    const avatar = user?.displayAvatarURL ? user.displayAvatarURL({ dynamic: true }) : null;
+    const memberName = member?.displayName || user?.username || 'Member Server';
+    const memberId = member?.id || user?.id;
+
+    let sourceDesc = 'baru saja memperoleh relik';
+    if (options.source === 'FUSION') {
+      sourceDesc = 'baru saja berhasil menempa relik';
+    } else if (options.isMulti) {
+      sourceDesc = 'mendapatkan jackpot dalam 10x Multi-Pull';
+    }
+
     const embed = new EmbedBuilder()
       .setColor(isMythic ? 0xFF007F : 0xFEE75C)
       .setAuthor({
         name: `Jackpot Server — [${item.tier}]`,
-        iconURL: member.user.displayAvatarURL({ dynamic: true })
+        iconURL: avatar
       })
-      .setTitle(`${member.displayName} Memperoleh ${item.name}`)
+      .setTitle(`${memberName} Memperoleh ${item.name}`)
       .setDescription(
-        `<@${member.id}> baru saja memperoleh relik **${item.tier}**!\n\n` +
+        `<@${memberId}> ${sourceDesc} **${item.tier}**!\n\n` +
         `• **Item:** **${item.name}** (${item.stars})\n` +
         `• **Deskripsi:** *${item.desc}*\n` +
         (item.badge ? `• **Badge:** \`${item.badge}\`\n` : '') +
         (item.title ? `• **Gelar:** \`"${item.title}"\`\n` : '') +
         `\nGunakan \`/gacha pull\` atau \`/gacha daily\` untuk ikut berpartisipasi.`
       )
-      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-      .setFooter({ text: `${guild.name} • Koleksi Relik` })
+      .setThumbnail(avatar)
+      .setFooter({ text: `${guild.name} • Koleksi Relik Server` })
       .setTimestamp();
 
     await channel.send({ embeds: [embed] }).catch(() => {});
@@ -2716,9 +2728,10 @@ async function executeGachaPull(interaction, client, amount = 1) {
 
   storage.write('gacha_data', gachaData);
 
-  // Broadcast if highest item is Mythic or Legendary
-  if (highestItem && (highestItem.tier === 'MYTHIC' || highestItem.tier === 'LEGENDARY')) {
-    broadcastJackpot(interaction.guild, member, highestItem, client);
+  // Broadcast every jackpot item (Mythic & Legendary) pulled
+  const jackpotPulls = results.filter(r => r.item.tier === 'MYTHIC' || r.item.tier === 'LEGENDARY');
+  for (const p of jackpotPulls) {
+    broadcastJackpot(interaction.guild, member, p.item, client, { isMulti: true });
   }
 
   const itemsFormattedList = results.map((r, idx) => {
@@ -3974,7 +3987,7 @@ module.exports = {
 
       // Broadcast if Mythic or Legendary
       if (forgedItem.tier === 'MYTHIC' || forgedItem.tier === 'LEGENDARY') {
-        broadcastJackpot(interaction.guild, interaction.member, forgedItem, client);
+        broadcastJackpot(interaction.guild, interaction.member, forgedItem, client, { source: 'FUSION' });
       }
 
       const embed = new EmbedBuilder()
