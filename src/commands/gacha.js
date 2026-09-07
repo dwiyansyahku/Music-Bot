@@ -3452,9 +3452,10 @@ module.exports = {
       settingsData[guildId].gachaChannels.daily = null;
     }
 
-    // Pembatasan Channel Gacha (Kecuali command Admin: setchannel, setrole, listroles, panel, award)
-    const adminSubs = ['setchannel', 'setrole', 'listroles', 'panel', 'award'];
-    if (!adminSubs.includes(sub)) {
+    // Pembatasan Channel Gacha (Khusus aksi permainan: daily, pull, challenge)
+    // Fitur personal/ephemeral seperti inventory, rates, album, shop, buy, equip, unequip, fuse, gift, leaderboard bebas diakses di mana saja
+    const channelRestrictedSubs = ['daily', 'pull', 'challenge'];
+    if (channelRestrictedSubs.includes(sub)) {
       const gChannels = settingsData[guildId].gachaChannels || {};
       let requiredChannelId = null;
       let channelLabel = 'Gacha';
@@ -3468,10 +3469,6 @@ module.exports = {
       } else if (sub === 'challenge') {
         requiredChannelId = gChannels.duel || gChannels.play;
         channelLabel = 'Tantangan Tahta (`/gacha challenge`)';
-      } else {
-        // inventory, fuse, equip, unequip, album, shop, buy, gift, leaderboard
-        requiredChannelId = gChannels.play;
-        channelLabel = `Menu Gacha (\`/gacha ${sub}\`)`;
       }
 
       if (requiredChannelId && interaction.channelId !== requiredChannelId) {

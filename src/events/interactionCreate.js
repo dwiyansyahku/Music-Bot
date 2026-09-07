@@ -322,10 +322,8 @@ module.exports = {
       } else if (action.startsWith('challenge_prompt')) {
         requiredChannelId = gChannels.duel || gChannels.play;
         actionLabel = 'Tantangan Tahta';
-      } else {
-        requiredChannelId = gChannels.play;
-        actionLabel = 'Menu Gacha';
       }
+      // Note: Tombol 'inv' (Inventory) dan 'rates' (Info & Pity) bebas diakses dari panel manapun tanpa pengalihan
 
       if (requiredChannelId && interaction.channelId !== requiredChannelId) {
         const { isOwnerOrMod } = require('../utils/helpers');
