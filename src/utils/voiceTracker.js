@@ -22,10 +22,96 @@ function formatDuration(ms) {
   return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
 }
 
+let botClient = null;
+
+const VOICE_REWARD_INTERVAL_MS = 15 * 60 * 1000; // 15 menit
+const VOICE_REWARD_DUST = 15;
+const VOICE_REWARD_TICKETS = 1;
+
+/**
+ * Evaluasi apakah member berhak memperoleh reward gacha voice (Anti-AFK Filter):
+ * 1. Tidak berada di AFK Channel resmi server
+ * 2. Tidak Mute (Self-Mute atau Server-Mute / Mic mati)
+ * 3. Tidak Deafen (Self-Deaf atau Server-Deaf / Suara mati)
+ * 4. Tidak sendirian di channel (harus ada minimal 1 member manusia lain non-bot)
+ */
+function isEligibleForVoiceReward(member, guild, channel = null, voiceState = null) {
+  if (!member || (member.user && member.user.bot)) return false;
+
+  const state = voiceState || member.voice;
+  if (!state || !state.channelId) return false;
+
+  const effectiveGuild = guild || member.guild;
+  // 1. Saluran AFK Discord
+  if (effectiveGuild?.afkChannelId && state.channelId === effectiveGuild.afkChannelId) {
+    return false;
+  }
+
+  // 2. Mute (mic mati)
+  if (state.selfMute || state.serverMute) {
+    return false;
+  }
+
+  // 3. Deafen (headset/suara mati)
+  if (state.selfDeaf || state.serverDeaf) {
+    return false;
+  }
+
+  // 4. Sendirian di voice channel (harus ada minimal 1 member manusia lain)
+  const effectiveChannel = channel || state.channel || effectiveGuild?.channels?.cache?.get(state.channelId);
+  if (effectiveChannel?.members) {
+    let humanCount = 0;
+    if (typeof effectiveChannel.members.filter === 'function') {
+      const filtered = effectiveChannel.members.filter(m => !m.user?.bot);
+      humanCount = filtered.size !== undefined ? filtered.size : filtered.length;
+    }
+    if (humanCount < 2) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Berikan reward Stardust & Tiket Gacha untuk durasi voice yang terkumpul
+ */
+function checkAndAwardVoiceGachaRewards(guildId, userId, addedMs, userStats) {
+  if (!addedMs || addedMs <= 0 || !userStats) return;
+  userStats.unrewardedVoiceMs = (userStats.unrewardedVoiceMs || 0) + addedMs;
+  const intervals = Math.floor(userStats.unrewardedVoiceMs / VOICE_REWARD_INTERVAL_MS);
+  if (intervals > 0) {
+    userStats.unrewardedVoiceMs %= VOICE_REWARD_INTERVAL_MS;
+    try {
+      const gachaData = storage.read('gacha_data');
+      if (!gachaData[guildId]) gachaData[guildId] = {};
+      if (!gachaData[guildId][userId]) {
+        gachaData[guildId][userId] = {
+          tickets: 3,
+          stardust: 50,
+          pulls: 0,
+          pityEpic: 0,
+          pityLegendary: 0,
+          lastDaily: 0,
+          streak: 0,
+          inventory: [],
+          badges: [],
+          titles: []
+        };
+      }
+      const u = gachaData[guildId][userId];
+      u.tickets = (u.tickets || 0) + (intervals * VOICE_REWARD_TICKETS);
+      u.stardust = (u.stardust || 0) + (intervals * VOICE_REWARD_DUST);
+      storage.write('gacha_data', gachaData);
+    } catch (err) {
+      console.error(`[VoiceTracker] Gagal memberikan reward gacha voice untuk ${userId}:`, err);
+    }
+  }
+}
+
 /**
  * Initialize active sessions on bot ready (scans all voice channels)
  */
 function initVoiceTracker(client) {
+  botClient = client;
   let count = 0;
   const now = Date.now();
   for (const guild of client.guilds.cache.values()) {
@@ -50,6 +136,7 @@ function initVoiceTracker(client) {
  * Handle voiceStateUpdate event to track voice time and companion overlapping
  */
 function handleVoiceStateUpdate(oldState, newState, client) {
+  if (client && !botClient) botClient = client;
   const guild = oldState.guild || newState.guild;
   if (!guild) return;
 
@@ -84,6 +171,11 @@ function handleVoiceStateUpdate(oldState, newState, client) {
       userStats.totalTime = (userStats.totalTime || 0) + elapsed;
       if (!userStats.companions) userStats.companions = {};
 
+      const oldChannel = guild.channels?.cache?.get(oldChannelId);
+      if (isEligibleForVoiceReward(member, guild, oldChannel, oldState)) {
+        checkAndAwardVoiceGachaRewards(guildId, userId, elapsed, userStats);
+      }
+
       // Calculate shared time with everyone else in oldChannelId
       for (const [key, otherSession] of activeSessions.entries()) {
         if (key !== sessionKey && key.startsWith(`${guildId}_`) && otherSession.channelId === oldChannelId) {
@@ -106,6 +198,11 @@ function handleVoiceStateUpdate(oldState, newState, client) {
             // Flush partial time for B so far & advance B's joinedAt to now to prevent double-counting
             const bElapsed = now - otherSession.joinedAt;
             otherStats.totalTime = (otherStats.totalTime || 0) + bElapsed;
+
+            const otherMember = guild.members?.cache?.get(otherUserId);
+            if (isEligibleForVoiceReward(otherMember, guild, oldChannel)) {
+              checkAndAwardVoiceGachaRewards(guildId, otherUserId, bElapsed, otherStats);
+            }
             otherSession.joinedAt = now;
           }
         }
@@ -251,6 +348,13 @@ function flushAllActiveSessions() {
     userStats.totalTime = (userStats.totalTime || 0) + elapsed;
     if (!userStats.companions) userStats.companions = {};
 
+    const activeGuild = (client || botClient)?.guilds?.cache?.get(guildId);
+    const activeMember = activeGuild?.members?.cache?.get(userId);
+    const activeChannel = activeGuild?.channels?.cache?.get(session.channelId);
+    if (isEligibleForVoiceReward(activeMember, activeGuild, activeChannel)) {
+      checkAndAwardVoiceGachaRewards(guildId, userId, elapsed, userStats);
+    }
+
     for (const [cId, shared] of Object.entries(companions)) {
       userStats.companions[cId] = (userStats.companions[cId] || 0) + shared;
     }
@@ -276,5 +380,10 @@ module.exports = {
   getLiveVoiceInfo,
   formatDuration,
   isUserInVoice,
-  flushAllActiveSessions
+  flushAllActiveSessions,
+  checkAndAwardVoiceGachaRewards,
+  isEligibleForVoiceReward,
+  VOICE_REWARD_INTERVAL_MS,
+  VOICE_REWARD_DUST,
+  VOICE_REWARD_TICKETS
 };

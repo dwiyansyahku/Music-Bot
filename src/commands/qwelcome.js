@@ -4,21 +4,13 @@ const { saveGuildSetting } = require('../utils/storage');
 const storage = require('../utils/storage');
 
 const WELCOME_MESSAGES = [
-  (name, server) => `Yooo **${name}** finally joined **${server}**! 🔥\nGlad you're here, gaskeunnn~ 🚀`,
-  (name, server) => `Heyy **${name}**! Welcome to **${server}** bestie ✨\nJangan malu-malu ya, langsung gabung aja! 😄`,
-  (name, server) => `Waduh ada **${name}** nyasar ke **${server}**! 👀\nYa udah, welcome! Semoga betah di sini bro/sis 🎉`,
-  (name, server) => `Ayooo **${name}** udah join **${server}**! 🥳\nSiap-siap have fun bareng kita semua ngabbb~ 💫`,
-  (name, server) => `Hai **${name}**! You made it to **${server}** 🎊\nSelamat datang, jangan lupa say hi! 👋`,
-  (name, server) => `Welcome home, **${name}**! 🏠✨\nEnjoy your stay di **${server}**, semoga betah ya! 🙌`,
-  (name, server) => `Akhirnya yang ditunggu-tunggu dateng juga! Selamat datang **${name}** di **${server}**! 🌟`,
-  (name, server) => `Hello **${name}**! Baru landing di **${server}** nih? ✈️\nYuk langsung kenalan sama yang lain di chatroom! ☕`,
-  (name, server) => `Welcome **${name}** to the club! 🎧🔥\nLet's make some good memories here in **${server}**! ⚡`,
-  (name, server) => `Eh, ada member baru! Welcome **${name}** di **${server}**! 💫\nSering-sering mampir dan ngobrol yaa~`,
-  (name, server) => `Warmest welcome to **${name}**! 🤗\nSelamat bergabung di keluarga besar **${server}**! ❤️`,
-  (name, server) => `Look who just joined! It's **${name}**! 🤩✨\nWelcome to **${server}**, let's hang out! 🎮`,
-  (name, server) => `Selamat datang **${name}**! Semoga **${server}** bisa jadi tempat seru buat kamu ya! 🚀🌈`,
-  (name, server) => `Yuhuu **${name}** is here! 🥳🎉\nWelcome to **${server}**, have a great time! ✨`,
-  (name, server) => `Welcome aboard, **${name}**! 🚢✨\nSelamat menjelajahi **${server}**, enjoy the vibe! 🍃`,
+  (name, server) => `Selamat datang **${name}** di **${server}**!\nSenang kamu bergabung, selamat menikmati obrolan di server.`,
+  (name, server) => `Halo **${name}**! Selamat datang di **${server}**.\nJangan ragu untuk langsung bergabung dan menyapa di chatroom.`,
+  (name, server) => `Selamat bergabung, **${name}** di **${server}**!\nSemoga betah dan seru-seruan bareng di sini.`,
+  (name, server) => `Hai **${name}**! Selamat datang di keluarga besar **${server}**.\nYuk langsung kenalan dan ngobrol bareng member lainnya!`,
+  (name, server) => `Welcome home, **${name}**!\nEnjoy your stay di **${server}**, semoga harimu menyenangkan.`,
+  (name, server) => `Akhirnya yang ditunggu-tunggu hadir juga! Selamat datang **${name}** di **${server}**.`,
+  (name, server) => `Hello **${name}**! Baru mendarat di **${server}** nih?\nYuk langsung ramaikan chatroom atau mabar game di voice channel.`
 ];
 
 const qwelcome = {

@@ -247,7 +247,7 @@ module.exports = {
                 const embed = buildBirthdayAnnouncementEmbed(member, null, card.birthdate, guild);
 
                 await channel.send({
-                  content: `🎉 **HAPPY BIRTHDAY** <@${member.id}>! 🎂🥳`,
+                  content: `🎂 **Selamat Ulang Tahun, <@${member.id}>!**`,
                   embeds: [embed],
                 }).catch(err => console.error(`[Birthday Scheduler] Gagal kirim ucapan ke ${guild.name}:`, err.message));
 
@@ -339,7 +339,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
               .setColor('#5865F2')
-              .setTitle('📮 KAPSUL WAKTU TELAH DIBUKA! ⏳✨')
+              .setTitle('📮 Kapsul Waktu Telah Dibuka')
               .setDescription(
                 `Hai <@${cap.userId}>! Sebuah pesan rahasia yang kamu kunci pada masa lalu akhirnya tiba di hari ini!\n\n` +
                 `📜 **Pesan Dari Masa Lalu:**\n` +
@@ -531,12 +531,12 @@ module.exports = {
                 const { EmbedBuilder } = require('discord.js');
                 const freeEmbed = new EmbedBuilder()
                   .setColor(0x57F287)
-                  .setTitle('🔓 NARAPIDANA DIBEBASKAN!')
-                  .setDescription(`<@${userId}> telah dibebaskan dari penjara! (Masa tahanan selesai saat bot offline/restart) 🎉`)
-                  .setFooter({ text: '🏛️ Pengadilan Server' })
+                  .setTitle('Narapidana Dibebaskan')
+                  .setDescription(`<@${userId}> telah dibebaskan dari penjara (masa tahanan selesai).`)
+                  .setFooter({ text: 'Pengadilan Server' })
                   .setTimestamp();
 
-                await jailChannel.send({ content: `🎉 <@${userId}> kamu bebas!`, embeds: [freeEmbed] }).catch(() => {});
+                await jailChannel.send({ content: `<@${userId}> kamu telah bebas.`, embeds: [freeEmbed] }).catch(() => {});
               }
               console.log(`🔓 [Jail Startup] Berhasil membebaskan ${userId} di guild ${guild.name}`);
             } catch (err) {

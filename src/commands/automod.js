@@ -24,8 +24,12 @@ module.exports = {
             .addChoices(
               { name: 'Semua Fitur Auto-Mod', value: 'all' },
               { name: 'Anti-Phishing & Scam Links', value: 'phishing' },
+              { name: 'Anti-Spam & Message Flood', value: 'spam' },
+              { name: 'Anti-Malware & File Berbahaya', value: 'malware' },
+              { name: 'Perlindungan Kebocoran Token', value: 'token' },
               { name: 'Filter Kata Kurang Pantas', value: 'badwords' },
-              { name: 'Auto-Timeout Phishing Sender', value: 'timeout' }
+              { name: 'Auto-Timeout Phishing (1 Jam)', value: 'timeout' },
+              { name: 'Auto-Timeout Spam (1 Menit)', value: 'timeout_spam' }
             )
         )
         .addBooleanOption(opt =>
@@ -112,9 +116,13 @@ module.exports = {
         .setTitle('Konfigurasi Keamanan Server')
         .setDescription(
           `• **Sistem Auto-Mod:** \`${config.enabled ? 'AKTIF' : 'NONAKTIF'}\`\n` +
-          `• **Proteksi Anti-Phishing:** \`${config.antiPhishing ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Proteksi Anti-Phishing & Scam:** \`${config.antiPhishing ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Proteksi Anti-Spam (Flood/Duplikasi/Caps):** \`${config.antiSpam ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Proteksi Anti-Malware / Trojan File:** \`${config.antiMalware ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Perlindungan Kebocoran Token:** \`${config.antiTokenLeak ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Filter Kata Kurang Pantas:** \`${config.badWords ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Auto-Timeout Phishing (1 Jam):** \`${config.timeoutOnPhishing ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Auto-Timeout Spam (1 Menit):** \`${config.timeoutOnSpam ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Channel Log Audit:** ${logChannelText}\n` +
           `• **Kata Terlarang Khusus:** \`${config.customBadWords.length} kata\`\n` +
           `• **Kata Diizinkan (Whitelist):** \`${config.whitelistedWords.length} kata\`\n` +
@@ -135,7 +143,11 @@ module.exports = {
       if (feature === 'all') allSettings[guildId].automodEnabled = status;
       if (feature === 'phishing') allSettings[guildId].antiPhishing = status;
       if (feature === 'badwords') allSettings[guildId].badWords = status;
+      if (feature === 'spam') allSettings[guildId].antiSpam = status;
+      if (feature === 'malware') allSettings[guildId].antiMalware = status;
+      if (feature === 'token') allSettings[guildId].antiTokenLeak = status;
       if (feature === 'timeout') allSettings[guildId].timeoutOnPhishing = status;
+      if (feature === 'timeout_spam') allSettings[guildId].timeoutOnSpam = status;
 
       storage.write('settings', allSettings);
 

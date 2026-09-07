@@ -307,18 +307,57 @@ module.exports = {
     if (interaction.isButton() && interaction.customId.startsWith('gacha_btn_')) {
       const storage = require('../utils/storage');
       const settingsData = storage.read('settings') || {};
-      const playChannelId = settingsData[interaction.guildId]?.gachaChannels?.play;
-      if (playChannelId && interaction.channelId !== playChannelId) {
+      const gChannels = settingsData[interaction.guildId]?.gachaChannels || {};
+      const action = interaction.customId.replace('gacha_btn_', '');
+
+      let requiredChannelId = null;
+      let actionLabel = 'Gacha';
+
+      if (action === 'daily') {
+        requiredChannelId = gChannels.daily || gChannels.play;
+        actionLabel = 'Klaim Hadiah Harian';
+      } else if (action === 'pull_1' || action === 'pull_10') {
+        requiredChannelId = gChannels.pull || gChannels.play;
+        actionLabel = 'Tarik Gacha';
+      } else if (action.startsWith('challenge_prompt')) {
+        requiredChannelId = gChannels.duel || gChannels.play;
+        actionLabel = 'Tantangan Tahta';
+      } else {
+        requiredChannelId = gChannels.play;
+        actionLabel = 'Menu Gacha';
+      }
+
+      if (requiredChannelId && interaction.channelId !== requiredChannelId) {
         const { isOwnerOrMod } = require('../utils/helpers');
         const isAuthorized = await isOwnerOrMod(interaction, client);
         if (!isAuthorized) {
-          const { EmbedBuilder: EB } = require('discord.js');
+          const { EmbedBuilder: EB, ActionRowBuilder: ARB, ButtonBuilder: BB, ButtonStyle: BS } = require('discord.js');
+          const targetChannel = interaction.guild?.channels?.cache?.get(requiredChannelId);
+          const chName = targetChannel ? `#${targetChannel.name}` : 'Saluran Khusus';
+          const buttonLabel = `Menuju ke ${chName}`.slice(0, 80);
+          const channelUrl = `https://discord.com/channels/${interaction.guildId}/${requiredChannelId}`;
+
           const embed = new EB()
-            .setColor(0xED4245)
-            .setTitle('Saluran Tidak Sesuai')
-            .setDescription(`Tombol Gacha hanya dapat digunakan di saluran <#${playChannelId}>.`);
+            .setColor(0x5865F2)
+            .setTitle('Pengalihan Saluran Gacha')
+            .setDescription(
+              `Aksi **${actionLabel}** dialokasikan khusus di saluran <#${requiredChannelId}>.\n\n` +
+              `Silakan klik tombol di bawah untuk langsung menuju ke saluran tersebut!`
+            );
+
+          const row = new ARB().addComponents(
+            new BB()
+              .setLabel(buttonLabel)
+              .setStyle(BS.Link)
+              .setURL(channelUrl)
+          );
+
+          if (interaction.replied || interaction.deferred) {
+            return interaction.editReply({ embeds: [embed], components: [row] });
+          }
           return interaction.reply({
             embeds: [embed],
+            components: [row],
             flags: MessageFlags.Ephemeral
           });
         }
@@ -328,23 +367,32 @@ module.exports = {
         executeGachaPull,
         executeGachaDaily,
         executeGachaInventory,
-        executeGachaRates
+        executeGachaRates,
+        executeGachaChallengePrompt
       } = require('../commands/gacha');
 
-      const action = interaction.customId.replace('gacha_btn_', '');
       try {
         if (action === 'pull_1') {
-          await interaction.deferReply();
+          const hasResultCh = !!settingsData[interaction.guildId]?.gachaChannels?.result || true;
+          await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
           return await executeGachaPull(interaction, client, 1);
         } else if (action === 'pull_10') {
-          await interaction.deferReply();
+          const hasResultCh = !!settingsData[interaction.guildId]?.gachaChannels?.result || true;
+          await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
           return await executeGachaPull(interaction, client, 10);
         } else if (action === 'inv') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaInventory(interaction, interaction.user);
         } else if (action === 'rates') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaRates(interaction);
         } else if (action === 'daily') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaDaily(interaction);
+        } else if (action.startsWith('challenge_prompt:')) {
+          const tier = action.split(':')[1];
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          return await executeGachaChallengePrompt(interaction, client, tier);
         }
       } catch (gachaErr) {
         return safeErrorReply(gachaErr, 'Gagal memproses aksi Gacha.');
@@ -352,8 +400,15 @@ module.exports = {
       return;
     }
 
-    // ====== Button Interaction (Clash of Thrones 2.0 — Duel Tahta Gacha) ======
-    if (interaction.isButton() && (interaction.customId.startsWith('throne_duel') || interaction.customId.startsWith('throne_pick'))) {
+    // ====== Button & Select Menu Interaction (Clash of Thrones 2.0 — Duel Tahta Gacha) ======
+    if (
+      (interaction.isButton() && (
+        interaction.customId.startsWith('throne_duel') ||
+        interaction.customId.startsWith('throne_pick') ||
+        interaction.customId.startsWith('throne_challenge_random')
+      )) ||
+      (interaction.isStringSelectMenu() && interaction.customId.startsWith('throne_pick_defender'))
+    ) {
       const { processDuelButton } = require('../commands/gacha');
       try {
         await processDuelButton(interaction, client);

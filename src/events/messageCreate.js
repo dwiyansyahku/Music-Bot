@@ -1,7 +1,7 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { checkVoiceChannel, checkQueue, isBotOwner, cleanMusicQuery } = require('../utils/helpers');
 const storage = require('../utils/storage');
-const { checkBadWords, checkPhishing, getGuildAutomodSettings } = require('../utils/automod');
+const { checkBadWords, checkPhishing, checkSpam, getGuildAutomodSettings } = require('../utils/automod');
 
 /**
  * Format durasi AFK ke string yang mudah dibaca
@@ -99,13 +99,99 @@ module.exports = {
         (automodConfig.ignoredChannels.length > 0 && automodConfig.ignoredChannels.includes(message.channel.id));
 
       if (!isExempt) {
-        // 1. Deteksi Phishing / Scam / Malicious Links / MrBeast Promo & Fake QR
-        if (automodConfig.antiPhishing) {
+        // 1. Deteksi Phishing / Scam / Malware File / Jebakan QR & Kebocoran Token
+        if (automodConfig.antiPhishing || automodConfig.antiMalware || automodConfig.antiTokenLeak) {
           const phishingCheck = checkPhishing(message);
           if (phishingCheck.isPhishing) {
             await message.delete().catch(() => {});
 
-            // Timeout user selama 1 jam untuk mencegah penyebaran token grabber massal
+            // KASUS A: Kebocoran Token Discord
+            if (phishingCheck.isTokenLeak) {
+              const tokenAlertEmbed = new EmbedBuilder()
+                .setColor(0xED4245)
+                .setAuthor({
+                  name: `KEAMANAN AKUN — ${message.guild.name.toUpperCase()}`,
+                  iconURL: message.guild.iconURL({ dynamic: true }) || undefined
+                })
+                .setTitle('🛡️ Kebocoran Token Discord Diamankan')
+                .setDescription(
+                  `Pesan dari <@${message.author.id}> telah **dihapus seketika** karena mengandung **Token Discord**.\n\n` +
+                  `⚠️ **PENTING UNTUK PEMILIK AKUN:**\n` +
+                  `Demi mencegah akun atau bot Anda dibajak/diambil alih pihak tak bertanggung jawab, **segera ubah password atau reset bot token Anda sekarang!**`
+                )
+                .setFooter({ text: 'Peringatan keamanan ini akan terhapus otomatis dalam 8 detik' })
+                .setTimestamp();
+
+              message.channel.send({ embeds: [tokenAlertEmbed] })
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 8000))
+                .catch(() => {});
+
+              if (automodConfig.logChannelId) {
+                const logChannel = message.guild.channels.cache.get(automodConfig.logChannelId);
+                if (logChannel) {
+                  const logEmbed = new EmbedBuilder()
+                    .setColor(0xED4245)
+                    .setTitle('Log Keamanan: Kebocoran Token Discord Dihapus')
+                    .setDescription(
+                      `• **Pengirim:** <@${message.author.id}> (${message.author.tag})\n` +
+                      `• **Channel:** <#${message.channel.id}>\n` +
+                      `• **Alasan:** Token Discord terdeteksi dan berhasil disensor demi melindungi akun user.\n` +
+                      `• **Status Token:** [DISCORD_TOKEN_REDACTED]`
+                    )
+                    .setTimestamp();
+                  logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+                }
+              }
+
+              return;
+            }
+
+            // KASUS B: File Berbahaya / Malware / Trojan Grabber
+            if (phishingCheck.isMalware) {
+              if (automodConfig.timeoutOnPhishing && message.member && message.member.moderatable) {
+                await message.member.timeout(60 * 60 * 1000, 'Mengirim file berbahaya / trojan token stealer').catch(() => {});
+              }
+
+              const malwareAlertEmbed = new EmbedBuilder()
+                .setColor(0xED4245)
+                .setAuthor({
+                  name: `KEAMANAN SERVER — ${message.guild.name.toUpperCase()}`,
+                  iconURL: message.guild.iconURL({ dynamic: true }) || undefined
+                })
+                .setTitle('🚨 File Berbahaya / Malware Dicegah')
+                .setDescription(
+                  `Pesan dari <@${message.author.id}> telah dihapus secara otomatis demi keamanan seluruh member.\n\n` +
+                  `• **Alasan:** ${phishingCheck.reason}\n` +
+                  `• **Tindakan:** File dihapus & akun di-timeout 1 jam untuk mencegah infeksi/pembajakan.`
+                )
+                .setFooter({ text: 'Peringatan ini akan terhapus otomatis dalam 5 detik' })
+                .setTimestamp();
+
+              message.channel.send({ embeds: [malwareAlertEmbed] })
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+                .catch(() => {});
+
+              if (automodConfig.logChannelId) {
+                const logChannel = message.guild.channels.cache.get(automodConfig.logChannelId);
+                if (logChannel) {
+                  const logEmbed = new EmbedBuilder()
+                    .setColor(0xED4245)
+                    .setTitle('Log Keamanan: File Berbahaya Dihapus')
+                    .setDescription(
+                      `• **Pengirim:** <@${message.author.id}> (${message.author.tag})\n` +
+                      `• **Channel:** <#${message.channel.id}>\n` +
+                      `• **Nama File:** \`${phishingCheck.filename || phishingCheck.url}\`\n` +
+                      `• **Tindakan:** Pesan dihapus & Timeout 1 Jam.`
+                    )
+                    .setTimestamp();
+                  logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+                }
+              }
+
+              return;
+            }
+
+            // KASUS C: Link Phishing / Scam Nitro / QR Code
             if (automodConfig.timeoutOnPhishing && message.member && message.member.moderatable) {
               await message.member.timeout(60 * 60 * 1000, 'Terdeteksi mengirim link phishing/scam berbahaya').catch(() => {});
             }
@@ -151,6 +237,58 @@ module.exports = {
             return; // Hentikan pemrosesan pesan
           }
         }
+
+        // 2. Deteksi Spam Pesan (Flood, Duplikasi, Mass Mention, Capslock, Emoji)
+        if (automodConfig.antiSpam) {
+          const spamCheck = checkSpam(message, automodConfig);
+          if (spamCheck.isSpam) {
+            await message.delete().catch(() => {});
+
+            const isTimeout = spamCheck.action === 'timeout' && automodConfig.timeoutOnSpam && message.member && message.member.moderatable;
+            if (isTimeout) {
+              await message.member.timeout(60 * 1000, `Anti-Spam: ${spamCheck.reason}`).catch(() => {});
+            }
+
+            const spamEmbed = new EmbedBuilder()
+              .setColor(isTimeout ? 0xED4245 : 0xFEE75C)
+              .setAuthor({
+                name: `ANTI-SPAM — ${message.guild.name.toUpperCase()}`,
+                iconURL: message.guild.iconURL({ dynamic: true }) || undefined
+              })
+              .setDescription(
+                isTimeout
+                  ? `🔇 **<@${message.author.id}> telah di-timeout selama 1 menit.**\nAlasan: **${spamCheck.reason}**.\n\n*Peringatan ini akan terhapus otomatis dalam 5 detik.*`
+                  : `⚠️ **<@${message.author.id}>, mohon jangan melakukan spam!**\nAlasan: **${spamCheck.reason}**.\n\n*Peringatan ini akan terhapus otomatis dalam 5 detik.*`
+              )
+              .setFooter({ text: 'Jaga kenyamanan mengobrol bersama di server' })
+              .setTimestamp();
+
+            message.channel.send({ embeds: [spamEmbed] })
+              .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+              .catch(() => {});
+
+            if (automodConfig.logChannelId) {
+              const logChannel = message.guild.channels.cache.get(automodConfig.logChannelId);
+              if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                  .setColor(isTimeout ? 0xED4245 : 0xFEE75C)
+                  .setTitle(`Log Anti-Spam: ${isTimeout ? 'Pesan Dihapus & User Di-timeout' : 'Pesan Dihapus'}`)
+                  .setDescription(
+                    `• **Pelaku:** <@${message.author.id}> (${message.author.tag})\n` +
+                    `• **Channel:** <#${message.channel.id}>\n` +
+                    `• **Tipe Pelanggaran:** \`${(spamCheck.type || 'SPAM').toUpperCase()}\` (${spamCheck.reason})\n` +
+                    `• **Tindakan:** ${isTimeout ? 'Pesan dihapus & Timeout 1 Menit' : 'Pesan dihapus & Peringatan'}\n` +
+                    `• **Cuplikan Pesan:**\n\`\`\`\n${(message.content || '[Tidak Ada Teks / Attachment]').substring(0, 500)}\n\`\`\``
+                  )
+                  .setTimestamp();
+                logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+              }
+            }
+
+            return; // Hentikan pemrosesan pesan
+          }
+        }
+
 
         // 2. Deteksi Kata yang Kurang Pantas & Variasinya (Bad Words & Fuzzy Filter)
         if (automodConfig.badWords) {

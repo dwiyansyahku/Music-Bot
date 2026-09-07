@@ -156,13 +156,15 @@ function buildHelpEmbed(category, client, guild = null) {
           `• \`/gacha leaderboard\` — Klasemen Top Collector & Dewa Keberuntungan.\n` +
           `• \`/gacha listroles\` — Cek status pemegang kursi tahta & antrean penantang.\n\n` +
           `◈ **Sistem Kursi Tahta & Duel:**\n` +
-          `• **✦ MYTHIC (1%):** Maksimal **3 Kursi** • Durasi **7 Hari**\n` +
-          `• **✧ LEGENDARY (4%):** Maksimal **5 Kursi** • Durasi **3 Hari**\n` +
+          `• **✦ MYTHIC (3%):** Maksimal **3 Kursi** • Role Permanen\n` +
+          `• **✧ LEGENDARY (10%):** Maksimal **5 Kursi** • Role Permanen\n` +
           `• **Clash of Thrones:** Jika kursi tahta penuh, penantang bertarung dalam duel strategi **Best of 3 (12 Jam)** untuk merebut tahta!\n` +
           `• **Multi-Seat Queue:** Jika seluruh kursi sedang duel, penantang otomatis masuk antrean resmi tahta.\n\n` +
           `◈ **Perintah Pengaturan (Admin):**\n` +
-          `• \`/gacha setchannel\` — Batasi channel bermain (\`play\`) & pengumuman (\`announcement\`).\n` +
-          `• \`/gacha setrole\` — Atur role Discord untuk tahta Mythic dan Legendary.`
+          `• \`/gacha setchannel\` — Atur channel khusus (\`pull\`, \`daily\`, \`play\`, \`result\`, \`duel\`, \`broadcast\`).\n` +
+          `• \`/gacha setrole\` — Atur role Discord untuk tahta Mythic dan Legendary.\n` +
+          `• \`/gacha panel\` — Pasang panel interaktif gacha atau hadiah harian.\n` +
+          `• \`/gacha award\` — Berikan bonus tiket atau stardust ke member (event/giveaway).`
         )
         .setFooter({ text: 'Gunakan /gacha daily untuk mengumpulkan tiket setiap 24 jam' });
 
@@ -232,13 +234,18 @@ function buildHelpEmbed(category, client, guild = null) {
           `**Fungsi:**\n` +
           `Perangkat pengelolaan server untuk Staff & Moderator dalam menjaga kenyamanan, keamanan, dan ketertiban komunitas.\n\n` +
           `◈ **Daftar Perintah Moderasi:**\n` +
-          `• \`/warn [user] [alasan]\` — Berikan teguran resmi ke member.\n` +
-          `• \`/warnings [user]\` — Riwayat peringatan member.\n` +
-          `• \`/clear [jumlah]\` — Hapus pesan chat dalam jumlah banyak secara instan.\n` +
-          `• \`/mute [user] [durasi]\` — Timeout / bisukan member sementara.\n` +
-          `• \`/unmute [user]\` — Lepaskan status timeout member.\n` +
-          `• \`/kick [user]\` — Keluarkan member dari server.\n` +
-          `• \`/ban [user]\` — Blokir member dari server.\n\n` +
+          `• \`/mod warn [user] [alasan]\` — Berikan teguran resmi kepada member.\n` +
+          `• \`/mod warnings [user]\` — Riwayat catatan teguran member.\n` +
+          `• \`/mod clearwarns [user]\` — Hapus riwayat teguran member.\n` +
+          `• \`/mod mute [user] [durasi]\` — Timeout / bisukan member sementara.\n` +
+          `• \`/mod unmute [user]\` — Lepaskan status timeout member.\n` +
+          `• \`/mod kick [user]\` — Keluarkan member dari server.\n` +
+          `• \`/mod ban [user]\` — Blokir member dari server.\n` +
+          `• \`/clear [jumlah]\` atau \`/qclear\` — Hapus pesan chat dalam jumlah banyak secara instan.\n\n` +
+          `◈ **Sistem Keamanan & Auto-Moderation:**\n` +
+          `• \`/automod status\` — Pantau konfigurasi Anti-Phishing, Anti-Spam, & Anti-Malware.\n` +
+          `• \`/automod toggle\` — Aktifkan/nonaktifkan modul keamanan & proteksi token/spam.\n` +
+          `• \`/automod setlog [channel]\` — Tentukan saluran log audit tindakan Auto-Mod.\n\n` +
           `◈ **Sistem Penjara (Jail System):**\n` +
           `• \`/fun jail [user] [durasi] [alasan]\` — Masukkan member ke penjara & isolasi channel server.\n` +
           `• \`/fun bail [user]\` — Bebaskan tahanan dari penjara lebih awal.\n` +
@@ -255,22 +262,22 @@ function buildHelpEmbed(category, client, guild = null) {
         .addFields(
           {
             name: '✦ Musik & Audio',
-            value: '`/play`, `/search`, `/nowplaying`, `/queue`, `/skip`, `/pause`, `/resume`, `/stop`, `/volume`, `/loop`, `/shuffle`, `/seek`, `/lyrics`, `/filter`, `/autoplay`, `/q247`',
+            value: '`/play`, `/search`, `/nowplaying`, `/queue`, `/skip`, `/pause`, `/resume`, `/stop`, `/volume`, `/loop`, `/shuffle`, `/seek`, `/lyrics`, `/filter`, `/autoplay`, `/q247`, `/clearqueue`',
             inline: false
           },
           {
             name: '✦ Hiburan & Game',
-            value: '`/musicquiz`, `/gacha`, `/poll`, `/afk`, `/roast`, `/fakequote`, `/wanted`, `/dice`, `/coinflip`, `/8ball`',
+            value: '`/musicquiz`, `/gacha`, `/poll`, `/afk`, `/fun roast`, `/fun fakequote`, `/fun wanted`, `/fun dice`, `/fun coinflip`, `/fun 8ball`',
             inline: false
           },
           {
             name: '✦ Komunitas & Profil',
-            value: '`/card`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/achievements`, `/userinfo`, `/serverinfo`',
+            value: '`/card`, `/setcard`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/achievements`, `/userinfo`, `/serverinfo`',
             inline: false
           },
           {
             name: '✦ Moderasi, Penjara & Utilitas',
-            value: '`/warn`, `/warnings`, `/clearwarn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/clear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/backup`',
+            value: '`/automod`, `/mod`, `/clear`, `/qclear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/qwelcome`, `/backup`, `/ping`',
             inline: false
           }
         )

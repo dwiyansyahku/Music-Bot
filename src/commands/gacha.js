@@ -4,6 +4,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
   MessageFlags,
   PermissionFlagsBits
 } = require('discord.js');
@@ -17,14 +18,22 @@ const { isOwnerOrMod } = require('../utils/helpers');
 const activeDuels = new Map();
 
 /**
+ * In-memory state untuk Live Feed Embed di channel hasil tarikan
+ * Key: guildId, Value: { messageId, channelId, entries: [], createdAt, timer }
+ */
+const activeResultFeeds = new Map();
+const RESULT_FEED_WINDOW_MS = 30 * 1000; // 30 detik
+const RESULT_FEED_MAX_ENTRIES = 8;
+
+/**
  * Master Loot Table (32 Collectible Artifacts across 5 Tiers)
  */
 const GACHA_ITEMS = [
-  // ✦ MYTHIC (1% Drop Rate — 5 Stars)
+  // ✦ MYTHIC (3% Drop Rate — 5 Stars)
   {
     id: 'mythic_aegis',
     tier: 'MYTHIC',
-    rate: 1,
+    rate: 3,
     stars: '★★★★★',
     tag: '✦',
     color: 0xFF007F,
@@ -37,7 +46,7 @@ const GACHA_ITEMS = [
   {
     id: 'mythic_dragon',
     tier: 'MYTHIC',
-    rate: 1,
+    rate: 3,
     stars: '★★★★★',
     tag: '✦',
     color: 0xFF007F,
@@ -50,7 +59,7 @@ const GACHA_ITEMS = [
   {
     id: 'mythic_vinyl',
     tier: 'MYTHIC',
-    rate: 1,
+    rate: 3,
     stars: '★★★★★',
     tag: '✦',
     color: 0xFF007F,
@@ -61,11 +70,11 @@ const GACHA_ITEMS = [
     recycleStardust: 500
   },
 
-  // 🟡 LEGENDARY (4% Drop Rate — 5 Stars)
+  // 🟡 LEGENDARY (10% Drop Rate — 5 Stars)
   {
     id: 'leg_crown',
     tier: 'LEGENDARY',
-    rate: 4,
+    rate: 10,
     stars: '★★★★★',
     tag: '✧',
     color: 0xFEE75C,
@@ -78,7 +87,7 @@ const GACHA_ITEMS = [
   {
     id: 'leg_star',
     tier: 'LEGENDARY',
-    rate: 4,
+    rate: 10,
     stars: '★★★★★',
     tag: '✧',
     color: 0xFEE75C,
@@ -91,7 +100,7 @@ const GACHA_ITEMS = [
   {
     id: 'leg_excalibur',
     tier: 'LEGENDARY',
-    rate: 4,
+    rate: 10,
     stars: '★★★★★',
     tag: '✧',
     color: 0xFEE75C,
@@ -104,7 +113,7 @@ const GACHA_ITEMS = [
   {
     id: 'leg_phoenix',
     tier: 'LEGENDARY',
-    rate: 4,
+    rate: 10,
     stars: '★★★★★',
     tag: '✧',
     color: 0xFEE75C,
@@ -117,7 +126,7 @@ const GACHA_ITEMS = [
   {
     id: 'leg_chrono',
     tier: 'LEGENDARY',
-    rate: 4,
+    rate: 10,
     stars: '★★★★★',
     tag: '✧',
     color: 0xFEE75C,
@@ -128,11 +137,11 @@ const GACHA_ITEMS = [
     recycleStardust: 200
   },
 
-  // 🟣 EPIC (15% Drop Rate — 4 Stars)
+  // 🟣 EPIC (20% Drop Rate — 4 Stars)
   {
     id: 'epic_orb',
     tier: 'EPIC',
-    rate: 15,
+    rate: 20,
     stars: '★★★★☆',
     tag: '◈',
     color: 0x9B59B6,
@@ -145,7 +154,7 @@ const GACHA_ITEMS = [
   {
     id: 'epic_shield',
     tier: 'EPIC',
-    rate: 15,
+    rate: 20,
     stars: '★★★★☆',
     tag: '◈',
     color: 0x9B59B6,
@@ -158,7 +167,7 @@ const GACHA_ITEMS = [
   {
     id: 'epic_cloak',
     tier: 'EPIC',
-    rate: 15,
+    rate: 20,
     stars: '★★★★☆',
     tag: '◈',
     color: 0x9B59B6,
@@ -171,7 +180,7 @@ const GACHA_ITEMS = [
   {
     id: 'epic_dagger',
     tier: 'EPIC',
-    rate: 15,
+    rate: 20,
     stars: '★★★★☆',
     tag: '◈',
     color: 0x9B59B6,
@@ -184,7 +193,7 @@ const GACHA_ITEMS = [
   {
     id: 'epic_cyber',
     tier: 'EPIC',
-    rate: 15,
+    rate: 20,
     stars: '★★★★☆',
     tag: '◈',
     color: 0x9B59B6,
@@ -197,7 +206,7 @@ const GACHA_ITEMS = [
   {
     id: 'epic_harp',
     tier: 'EPIC',
-    rate: 15,
+    rate: 20,
     stars: '★★★★☆',
     tag: '◈',
     color: 0x9B59B6,
@@ -208,11 +217,11 @@ const GACHA_ITEMS = [
     recycleStardust: 75
   },
 
-  // 🔵 RARE (30% Drop Rate — 3 Stars)
+  // 🔵 RARE (32% Drop Rate — 3 Stars)
   {
     id: 'rare_clover',
     tier: 'RARE',
-    rate: 30,
+    rate: 32,
     stars: '★★★☆☆',
     tag: '◇',
     color: 0x3498DB,
@@ -225,7 +234,7 @@ const GACHA_ITEMS = [
   {
     id: 'rare_coffee',
     tier: 'RARE',
-    rate: 30,
+    rate: 32,
     stars: '★★★☆☆',
     tag: '◇',
     color: 0x3498DB,
@@ -238,7 +247,7 @@ const GACHA_ITEMS = [
   {
     id: 'rare_gamepad',
     tier: 'RARE',
-    rate: 30,
+    rate: 32,
     stars: '★★★☆☆',
     tag: '◇',
     color: 0x3498DB,
@@ -251,7 +260,7 @@ const GACHA_ITEMS = [
   {
     id: 'rare_cassette',
     tier: 'RARE',
-    rate: 30,
+    rate: 32,
     stars: '★★★☆☆',
     tag: '◇',
     color: 0x3498DB,
@@ -264,7 +273,7 @@ const GACHA_ITEMS = [
   {
     id: 'rare_compass',
     tier: 'RARE',
-    rate: 30,
+    rate: 32,
     stars: '★★★☆☆',
     tag: '◇',
     color: 0x3498DB,
@@ -277,7 +286,7 @@ const GACHA_ITEMS = [
   {
     id: 'rare_bookmark',
     tier: 'RARE',
-    rate: 30,
+    rate: 32,
     stars: '★★★☆☆',
     tag: '◇',
     color: 0x3498DB,
@@ -290,7 +299,7 @@ const GACHA_ITEMS = [
   {
     id: 'rare_conch',
     tier: 'RARE',
-    rate: 30,
+    rate: 32,
     stars: '★★★☆☆',
     tag: '◇',
     color: 0x3498DB,
@@ -303,7 +312,7 @@ const GACHA_ITEMS = [
   {
     id: 'rare_prism',
     tier: 'RARE',
-    rate: 30,
+    rate: 32,
     stars: '★★★☆☆',
     tag: '◇',
     color: 0x3498DB,
@@ -314,11 +323,11 @@ const GACHA_ITEMS = [
     recycleStardust: 25
   },
 
-  // ⚪ COMMON (50% Drop Rate — 2 Stars)
+  // ⚪ COMMON (35% Drop Rate — 2 Stars)
   {
     id: 'com_fishbone',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -331,7 +340,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_sock',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -344,7 +353,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_paper',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -357,7 +366,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_coin',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -370,7 +379,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_tea',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -383,7 +392,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_lint',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -396,7 +405,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_donut',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -409,7 +418,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_battery',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -422,7 +431,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_tape',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -435,7 +444,7 @@ const GACHA_ITEMS = [
   {
     id: 'com_duck',
     tier: 'COMMON',
-    rate: 50,
+    rate: 35,
     stars: '★★☆☆☆',
     tag: '•',
     color: 0x95A5A6,
@@ -454,15 +463,13 @@ const THRONE_CONFIG = {
   MYTHIC: {
     name: 'Tahta Dewa Kosmik (MYTHIC)',
     quota: 3,           // Maksimal 3 orang di server
-    durationHours: 7 * 24, // 7 Hari
-    days: 7,
+    permanent: true,
     tierRank: 4
   },
   LEGENDARY: {
     name: 'Tahta Sultan Server (LEGENDARY)',
     quota: 5,           // Maksimal 5 orang di server
-    durationHours: 3 * 24, // 3 Hari
-    days: 3,
+    permanent: true,
     tierRank: 3
   }
 };
@@ -568,7 +575,9 @@ function getOrInitUserData(gachaData, guildId, userId) {
       equippedTitle: null,
       activeRole: null, // { tier, roleId, expiresAt }
       duelDefenseStreak: 0,
-      duelHistory: []
+      duelHistory: [],
+      throneProtectedUntil: 0,
+      challengeCooldownUntil: 0
     };
   } else {
     const u = gachaData[guildId][userId];
@@ -581,6 +590,8 @@ function getOrInitUserData(gachaData, guildId, userId) {
     if (u.equippedTitle === undefined) u.equippedTitle = null;
     if (u.activeRole === undefined) u.activeRole = null;
     if (u.duelDefenseStreak === undefined) u.duelDefenseStreak = 0;
+    if (u.throneProtectedUntil === undefined) u.throneProtectedUntil = 0;
+    if (u.challengeCooldownUntil === undefined) u.challengeCooldownUntil = 0;
     if (!Array.isArray(u.duelHistory)) u.duelHistory = [];
     if (!Array.isArray(u.inventory)) u.inventory = [];
     if (!Array.isArray(u.badges)) u.badges = [];
@@ -631,7 +642,70 @@ function getGuildThroneDataByDuelId(duelId) {
 }
 
 /**
- * Sistem Tahta Terbatas & Kudeta (Throne Usurpation)
+ * Buat ActionRow untuk opsi tantangan (Tombol Acak & Select Menu Pemilihan Lawan)
+ */
+async function buildDefenderChallengeComponents(guild, itemTier, challengerId, activeHolders, busyDefenderIds) {
+  const components = [];
+  if (!activeHolders || activeHolders.length === 0) return components;
+
+  const now = Date.now();
+
+  // 1. Button Row (Tombol Acak Lawan)
+  const hasAvailable = activeHolders.some(h => !busyDefenderIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
+  const randomBtn = new ButtonBuilder()
+    .setCustomId(`throne_challenge_random:${itemTier}:${challengerId}`)
+    .setLabel('Acak Lawan')
+    .setStyle(ButtonStyle.Primary)
+    .setDisabled(!hasAvailable);
+
+  const buttonRow = new ActionRowBuilder().addComponents(randomBtn);
+  components.push(buttonRow);
+
+  // 2. Select Menu Row (Pilih Lawan Sendiri)
+  const options = [];
+  for (const holder of activeHolders) {
+    let displayName = holder.userId;
+    try {
+      const m = guild ? (guild.members.cache.get(holder.userId) || await guild.members.fetch(holder.userId).catch(() => null)) : null;
+      if (m) displayName = m.displayName;
+    } catch (_) {}
+
+    const isBusy = busyDefenderIds.has(holder.userId);
+    const isProtected = holder.userData?.throneProtectedUntil && holder.userData.throneProtectedUntil > now;
+    const streak = holder.userData?.duelDefenseStreak || 0;
+
+    let statusDesc = 'Tersedia untuk ditantang';
+    if (isProtected) {
+      const remMins = Math.ceil((holder.userData.throneProtectedUntil - now) / 60000);
+      statusDesc = `Kebal tantangan (${remMins} mnt lagi)`;
+    } else if (isBusy) {
+      statusDesc = 'Sedang duel (Masuk antrean)';
+    } else if (streak > 0) {
+      statusDesc = `Pertahanan: ${streak}x`;
+    }
+
+    options.push({
+      label: displayName.slice(0, 100),
+      description: statusDesc.slice(0, 100),
+      value: holder.userId
+    });
+  }
+
+  if (options.length > 0) {
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId(`throne_pick_defender:${itemTier}:${challengerId}`)
+      .setPlaceholder('Pilih pemegang tahta yang ingin kamu tantang...')
+      .addOptions(options.slice(0, 25));
+
+    const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+    components.push(selectRow);
+  }
+
+  return components;
+}
+
+/**
+ * Sistem Tahta Terbatas & Kudeta (Throne Usurpation) — Role Permanen & Pilihan Tantangan
  */
 async function applySmartGachaRole(guild, member, itemTier, userData, gachaData, channel = null, client = null) {
   const config = THRONE_CONFIG[itemTier];
@@ -642,40 +716,44 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
   const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
   if (!configuredRoleId) return '';
 
-  const tierDurationMs = config.durationHours * 60 * 60 * 1000;
   const now = Date.now();
 
-  // 1. Cek semua pemegang tahta aktif saat ini di server untuk tier ini
+  // 1. Cek semua pemegang tahta aktif saat ini di server untuk tier ini (Permanen)
   const guildUsers = gachaData[guildId] || {};
   const activeHolders = [];
 
   for (const [uId, uData] of Object.entries(guildUsers)) {
-    if (uData.activeRole && uData.activeRole.tier === itemTier && uData.activeRole.expiresAt > now) {
+    if (uData.activeRole && uData.activeRole.tier === itemTier) {
       activeHolders.push({
         userId: uId,
         userData: uData,
-        expiresAt: uData.activeRole.expiresAt
+        obtainedAt: uData.activeRole.obtainedAt || now
       });
     }
   }
 
-  // Case A: Member ini SUDAH memegang tahta tier ini -> STACK / EXTEND DURASI
-  if (userData.activeRole && userData.activeRole.tier === itemTier && userData.activeRole.expiresAt > now) {
-    userData.activeRole.expiresAt += tierDurationMs;
+  // Case A: Member ini SUDAH memegang tahta tier ini -> PERTAHANKAN
+  if (userData.activeRole && userData.activeRole.tier === itemTier) {
     try {
       if (!member.roles.cache.has(configuredRoleId)) {
         await member.roles.add(configuredRoleId);
       }
     } catch (_) {}
-    const rem = formatTimeRemaining(userData.activeRole.expiresAt - now);
-    return `\n• **Durasi Tahta Diperpanjang (+${config.days} Hari)**\nMasa tahta aktif: **${rem}**`;
+    return {
+      text: `\n• **Tahta ${itemTier} Dipertahankan**\nKamu sudah menduduki tahta <@&${configuredRoleId}> (Permanen).`,
+      challengeRows: [],
+      toString() { return this.text; }
+    };
   }
 
-  // Case B: Member sedang punya role tier LEBIH TINGGI (misal punya Mythic, dapat Legendary) -> Jangan turunkan kasta!
+  // Case B: Member sedang punya role tier LEBIH TINGGI (misal punya Mythic, dapat Legendary)
   const currentRank = userData.activeRole ? (TIER_RANK[userData.activeRole.tier] || 0) : 0;
-  if (currentRank > config.tierRank && userData.activeRole.expiresAt > now) {
-    const remHigh = formatTimeRemaining(userData.activeRole.expiresAt - now);
-    return `\n• *Mempertahankan tahta kasta tertinggi <@&${userData.activeRole.roleId}> (${remHigh} tersisa).*`;
+  if (currentRank > config.tierRank) {
+    return {
+      text: `\n• *Mempertahankan tahta kasta tertinggi <@&${userData.activeRole.roleId}> (Permanen).*`,
+      challengeRows: [],
+      toString() { return this.text; }
+    };
   }
 
   // Lepas role lama jika sebelumnya punya role tier lebih rendah (misal sebelumnya punya Legendary, sekarang dapat Mythic)
@@ -690,154 +768,51 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
       userData.activeRole = {
         tier: itemTier,
         roleId: configuredRoleId,
-        expiresAt: now + tierDurationMs
+        obtainedAt: now
       };
       const seatsUsed = activeHolders.length + 1;
-      return `\n• **Tahta ${itemTier} Diperoleh (${seatsUsed}/${config.quota} Kursi Terisi)**\nRole <@&${configuredRoleId}> aktif selama **${config.days} Hari**.`;
+      return {
+        text: `\n• **Tahta ${itemTier} Diperoleh (${seatsUsed}/${config.quota} Kursi Terisi)**\nRole <@&${configuredRoleId}> aktif secara **Permanen**.`,
+        challengeRows: [],
+        toString() { return this.text; }
+      };
     } catch (err) {
       console.error('[Gacha Throne Assign Error]:', err.message);
       return '';
     }
   }
 
-  // Case D: KURSI TAHTA PENUH! (>= Quota) -> CLASH OF THRONES 2.0
-  activeHolders.sort((a, b) => a.expiresAt - b.expiresAt);
-
+  // Case D: KURSI TAHTA PENUH! (>= Quota) -> Tampilkan 2 Opsi Tantangan (Acak & Dipilih)
   const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
 
-  // Cari defender yang sedang TIDAK bertarung dalam duel aktif untuk tier ini
   const busyDefenderIds = new Set(
     Object.values(throneGuild.activeDuels || {})
       .filter(d => d.itemTier === itemTier && d.status === 'WAITING_TACTICS')
       .map(d => d.defenderId)
   );
 
-  // Cari defender dengan sisa waktu paling sedikit yang belum diserang
-  const targetDefender = activeHolders.find(h => !busyDefenderIds.has(h.userId));
+  const candidateHolders = activeHolders.filter(h => h.userId !== member.id);
+  const challengeRows = await buildDefenderChallengeComponents(guild, itemTier, member.id, candidateHolders, busyDefenderIds);
 
-  // Jika SEMUA kursi tahta tier ini sedang diduelkan -> Masuk Antrean (Queue)
-  if (!targetDefender) {
-    const existingQueueIdx = throneGuild.queues[itemTier].findIndex(q => q.challengerId === member.id);
-    if (existingQueueIdx !== -1) {
-      return `\n• *Kamu sudah berada di Antrean Penantang Tahta ${itemTier} (Posisi: #${existingQueueIdx + 1}). Kartu tetap aman di inventaris.*`;
-    }
+  const text = (
+    `\n• **Kursi Tahta ${itemTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
+    `Sebagai pemilik relik ${itemTier}, kamu berhak menantang pemegang tahta untuk merebut role <@&${configuredRoleId}>!\n` +
+    `Pilih lawanmu: gunakan tombol **Acak Lawan** atau **Pilih dari Menu** di bawah.`
+  );
 
-    throneGuild.queues[itemTier].push({
-      challengerId: member.id,
-      itemTier,
-      configuredRoleId,
-      channelId: channel ? channel.id : null,
-      queuedAt: now
-    });
-    saveThroneStorage(throneAll);
-    const queuePos = throneGuild.queues[itemTier].length;
-    return (
-      `\n• **Semua Kursi Tahta ${itemTier} Sedang Bertarung**\n` +
-      `<@${member.id}> ditempatkan pada **Antrean Penantang Tahta (Posisi: #${queuePos})**.\n` +
-      `Pertarunganmu akan otomatis dipanggil saat duel selesai.`
-    );
-  }
-
-  // Fallback auto-kudeta jika channel/client tidak tersedia
-  if (!channel || !client) {
-    try {
-      const usurpedMember = await guild.members.fetch(targetDefender.userId).catch(() => null);
-      if (usurpedMember && usurpedMember.roles.cache.has(configuredRoleId)) {
-        await usurpedMember.roles.remove(configuredRoleId).catch(() => {});
-      }
-      targetDefender.userData.activeRole = null;
-      targetDefender.userData.stardust = (targetDefender.userData.stardust || 0) + 250;
-
-      await member.roles.add(configuredRoleId);
-      userData.activeRole = {
-        tier: itemTier,
-        roleId: configuredRoleId,
-        expiresAt: now + tierDurationMs
-      };
-
-      return (
-        `\n• **Kudeta Tahta ${itemTier}**\n` +
-        `<@${member.id}> merebut kursi tahta dari <@${targetDefender.userId}> (Kompensasi: +250 Stardust).\n` +
-        `Role <@&${configuredRoleId}> aktif selama **${config.days} Hari**.`
-      );
-    } catch (kudetaErr) {
-      console.error('[Gacha Kudeta Error]:', kudetaErr.message);
-      return '';
-    }
-  }
-
-  // INITIATE 12-HOUR 3-TACTIC DUEL
-  try {
-    let duelTargetChannel = channel;
-    const arenaChannelId = settingsData[guildId]?.gachaChannels?.duel;
-    if (arenaChannelId && client) {
-      const arenaCh = await client.channels.fetch(arenaChannelId).catch(() => null);
-      if (arenaCh) duelTargetChannel = arenaCh;
-    }
-
-    const duelData = await initiateThroneDuel({
-      guildId,
-      challengerId: member.id,
-      targetDefender,
-      itemTier,
-      configuredRoleId,
-      channel: duelTargetChannel,
-      client
-    });
-
-    const expiresAt = duelData.expiresAt;
-    const arenaText = (channel && duelTargetChannel.id !== channel.id)
-      ? `\n• Arena: <#${duelTargetChannel.id}>`
-      : '';
-
-    return (
-      `\n• **Tantangan Tahta ${itemTier} Dimulai (12 Jam)**\n` +
-      `<@${member.id}> menantang <@${targetDefender.userId}> dalam duel strategi **Best of 3**.\n` +
-      `Batas waktu: **12 Jam** (hingga <t:${Math.floor(expiresAt / 1000)}:R>).` +
-      arenaText +
-      `\n*Silakan pasang strategi pilihanmu melalui tombol di bawah.*`
-    );
-  } catch (duelErr) {
-    console.error('[Duel Init Error]:', duelErr.message);
-    return '';
-  }
+  return {
+    text,
+    challengeRows,
+    toString() { return this.text; }
+  };
 }
 
 /**
- * Worker: Pengecekan otomatis role gacha yang sudah kadaluarsa (dijalankan di ready.js)
+ * Worker: Pengecekan otomatis role gacha (Role tahta kini Permanen)
  */
 async function checkAndExpireGachaRoles(client) {
-  const gachaData = storage.read('gacha_data');
-  const now = Date.now();
-  let modified = false;
-
-  for (const [guildId, guildUsers] of Object.entries(gachaData)) {
-    const guild = client.guilds.cache.get(guildId);
-    if (!guild) continue;
-
-    for (const [userId, userData] of Object.entries(guildUsers)) {
-      if (userData.activeRole && userData.activeRole.expiresAt && userData.activeRole.expiresAt <= now) {
-        const expiredRoleId = userData.activeRole.roleId;
-        const expiredTier = userData.activeRole.tier;
-        userData.activeRole = null;
-        modified = true;
-
-        try {
-          const member = await guild.members.fetch(userId).catch(() => null);
-          if (member && expiredRoleId && member.roles.cache.has(expiredRoleId)) {
-            await member.roles.remove(expiredRoleId).catch(() => {});
-            console.log(`⏱️ [Gacha Expiry] Mencabut role ${expiredTier} dari ${member.user.tag} di ${guild.name} (Masa tahta habis).`);
-          }
-        } catch (expErr) {
-          console.error(`[Gacha Expiry Error] User ${userId}:`, expErr.message);
-        }
-      }
-    }
-  }
-
-  if (modified) {
-    storage.write('gacha_data', gachaData);
-  }
+  // Role tahta Mythic & Legendary berstatus permanen (hanya berpindah melalui tantangan duel)
+  return;
 }
 
 /**
@@ -952,6 +927,30 @@ async function initiateThroneDuel({ guildId, challengerId, targetDefender, itemT
 
   duelData.messageId = duelMsg.id;
   saveThroneStorage(throneAll);
+
+  // Kirim notifikasi DM otomatis ke pemegang tahta (Duel Alert)
+  if (client) {
+    try {
+      const defenderUser = await client.users.fetch(targetDefender.userId).catch(() => null);
+      if (defenderUser) {
+        const guild = client.guilds.cache.get(guildId);
+        const expUnix = Math.floor(expiresAt / 1000);
+        const dmEmbed = new EmbedBuilder()
+          .setColor(itemTier === 'MYTHIC' ? 0xFF007F : 0xFEE75C)
+          .setTitle('Peringatan Clash of Thrones')
+          .setDescription(
+            `Tahta **${itemTier}** milikmu sedang ditantang oleh **<@${challengerId}>** di server **${guild ? guild.name : 'Discord'}**!\n\n` +
+            `• **Batas Waktu:** 12 Jam (hingga <t:${expUnix}:R>)\n` +
+            `• **Arena Duel:** <#${channel.id}>\n\n` +
+            `Kunjungi arena dan tekan tombol **[Pasang Taktik]** sebelum waktu berakhir agar tidak kalah default.`
+          )
+          .setFooter({ text: 'Clash of Thrones 2.0 • Duel Alert' })
+          .setTimestamp();
+        await defenderUser.send({ embeds: [dmEmbed] }).catch(() => {});
+      }
+    } catch (_) {}
+  }
+
   return duelData;
 }
 
@@ -994,7 +993,6 @@ async function executeInstantClash(duelId, client) {
   const defenderData = getOrInitUserData(gachaData, duel.guildId, duel.defenderId);
 
   const config = THRONE_CONFIG[duel.itemTier];
-  const tierDurationMs = config.durationHours * 60 * 60 * 1000;
   const now = Date.now();
 
   let resultTitle, resultDesc;
@@ -1026,22 +1024,23 @@ async function executeInstantClash(duelId, client) {
     challengerData.activeRole = {
       tier: duel.itemTier,
       roleId: duel.configuredRoleId,
-      expiresAt: now + tierDurationMs
+      obtainedAt: now
     };
+    challengerData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
+    challengerData.challengeCooldownUntil = 0;
 
     resultTitle = `Tahta ${duel.itemTier} Berpindah Tangan`;
     resultDesc = (
       `<@${duel.challengerId}> berhasil mengungguli <@${duel.defenderId}> dalam duel strategi.\n\n` +
-      `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name}, ${config.days} Hari)\n` +
+      `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name} — Permanen)\n` +
       `• Kompensasi: **<@${duel.defenderId}>** (+250 Stardust)`
     );
   } else {
     // DEFENDER MENANG (atau SERI)
-    const bonusDurationMs = 24 * 60 * 60 * 1000;
-    if (defenderData.activeRole && defenderData.activeRole.expiresAt > now) {
-      defenderData.activeRole.expiresAt += bonusDurationMs;
-    }
     defenderData.duelDefenseStreak = (defenderData.duelDefenseStreak || 0) + 1;
+    defenderData.stardust = (defenderData.stardust || 0) + 50;
+    defenderData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
+    challengerData.challengeCooldownUntil = now + 30 * 60 * 1000; // 30 Menit jeda tantangan
 
     let streakText = '';
     if (defenderData.duelDefenseStreak >= 3 && !defenderData.badges.includes('✦ Unshakeable Sovereign')) {
@@ -1051,11 +1050,10 @@ async function executeInstantClash(duelId, client) {
       streakText = `\n• Pertahanan Beruntun: ${defenderData.duelDefenseStreak}x`;
     }
 
-    const rem = defenderData.activeRole ? formatTimeRemaining(defenderData.activeRole.expiresAt - now) : '-';
     resultTitle = `Tahta ${duel.itemTier} Berhasil Dipertahankan`;
     resultDesc = (
       `<@${duel.defenderId}> berhasil mempertahankan posisinya dari tantangan <@${duel.challengerId}>.\n\n` +
-      `• Status: **<@${duel.defenderId}>** tetap menduduki tahta (+1 Hari bonus, sisa: **${rem}**)` +
+      `• Status: **<@${duel.defenderId}>** tetap menduduki tahta secara Permanen (+50 Stardust)` +
       streakText +
       `\n• Penantang: Relik <@${duel.challengerId}> tersimpan di inventaris.`
     );
@@ -1191,30 +1189,30 @@ async function handleDuelExpiry(duel, client) {
     challengerData.activeRole = {
       tier: duel.itemTier,
       roleId: duel.configuredRoleId,
-      expiresAt: now + tierDurationMs
+      obtainedAt: now
     };
+    challengerData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
+    challengerData.challengeCooldownUntil = 0;
 
     tierColor = 0xFF007F;
     resultTitle = `Tahta ${duel.itemTier} Direbut (Defender Tidak Merespon)`;
     resultDesc = (
       `<@${duel.defenderId}> tidak memasang taktik dalam batas waktu 12 Jam.\n\n` +
-      `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name}, ${config.days} Hari)\n` +
+      `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name} — Permanen)\n` +
       `• Kompensasi: **<@${duel.defenderId}>** (+250 Stardust)`
     );
   } else if (!cHasTactics && dHasTactics) {
     // Challenger AFK > 12 Jam -> Defender Menang Default!
-    const bonusDurationMs = 24 * 60 * 60 * 1000;
-    if (defenderData.activeRole && defenderData.activeRole.expiresAt > now) {
-      defenderData.activeRole.expiresAt += bonusDurationMs;
-    }
     defenderData.duelDefenseStreak = (defenderData.duelDefenseStreak || 0) + 1;
+    defenderData.stardust = (defenderData.stardust || 0) + 50;
+    defenderData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
+    challengerData.challengeCooldownUntil = now + 30 * 60 * 1000; // 30 Menit jeda tantangan
 
-    const rem = defenderData.activeRole ? formatTimeRemaining(defenderData.activeRole.expiresAt - now) : '-';
     tierColor = 0x57F287;
     resultTitle = `Tahta ${duel.itemTier} Dipertahankan (Penantang Tidak Merespon)`;
     resultDesc = (
       `<@${duel.challengerId}> tidak memasang taktik dalam batas waktu 12 Jam.\n\n` +
-      `• Status: **<@${duel.defenderId}>** tetap menduduki tahta (+1 Hari bonus, sisa: **${rem}**)\n` +
+      `• Status: **<@${duel.defenderId}>** tetap menduduki tahta secara Permanen (+50 Stardust)\n` +
       `• Penantang: Relik <@${duel.challengerId}> tersimpan di inventaris.`
     );
   } else {
@@ -1298,8 +1296,8 @@ async function processChallengerQueue(guildId, itemTier, client) {
   const now = Date.now();
   const activeHolders = [];
   for (const [uId, uData] of Object.entries(guildUsers)) {
-    if (uData.activeRole && uData.activeRole.tier === itemTier && uData.activeRole.expiresAt > now) {
-      activeHolders.push({ userId: uId, userData: uData, expiresAt: uData.activeRole.expiresAt });
+    if (uData.activeRole && uData.activeRole.tier === itemTier) {
+      activeHolders.push({ userId: uId, userData: uData, obtainedAt: uData.activeRole.obtainedAt || now });
     }
   }
 
@@ -1314,18 +1312,17 @@ async function processChallengerQueue(guildId, itemTier, client) {
     if (challengerMember) {
       const uData = getOrInitUserData(gachaData, guildId, nextQ.challengerId);
       await challengerMember.roles.add(nextQ.configuredRoleId).catch(() => {});
-      const tierDurationMs = config.durationHours * 60 * 60 * 1000;
       uData.activeRole = {
         tier: itemTier,
         roleId: nextQ.configuredRoleId,
-        expiresAt: now + tierDurationMs
+        obtainedAt: now
       };
       storage.write('gacha_data', gachaData);
 
       if (nextQ.channelId) {
         const ch = await client.channels.fetch(nextQ.channelId).catch(() => null);
         if (ch) {
-          ch.send(`Kursi tahta kosong tersedia. <@${nextQ.challengerId}> dari antrean resmi menduduki kursi tahta **${config.name}**.`);
+          ch.send(`Kursi tahta kosong tersedia. <@${nextQ.challengerId}> dari antrean resmi menduduki kursi tahta **${config.name}** (Permanen).`);
         }
       }
     }
@@ -1339,8 +1336,15 @@ async function processChallengerQueue(guildId, itemTier, client) {
       .map(d => d.defenderId)
   );
 
-  activeHolders.sort((a, b) => a.expiresAt - b.expiresAt);
-  const targetDefender = activeHolders.find(h => !busyDefenderIds.has(h.userId));
+  // Jika antrean memiliki preferensi targetDefenderId tertentu
+  const nextQPeek = throneGuild.queues[itemTier][0];
+  let targetDefender = null;
+  if (nextQPeek && nextQPeek.targetDefenderId) {
+    targetDefender = activeHolders.find(h => h.userId === nextQPeek.targetDefenderId && !busyDefenderIds.has(h.userId));
+  }
+  if (!targetDefender) {
+    targetDefender = activeHolders.find(h => !busyDefenderIds.has(h.userId));
+  }
 
   if (!targetDefender) {
     // Semua kursi masih sibuk duel
@@ -1386,6 +1390,199 @@ async function processChallengerQueue(guildId, itemTier, client) {
 
 async function processDuelButton(interaction, client) {
   const customId = interaction.customId;
+
+  // 0A. Tombol Acak Lawan (Random Match)
+  if (customId.startsWith('throne_challenge_random:')) {
+    const parts = customId.split(':');
+    const itemTier = parts[1];
+    const challengerId = parts[2];
+
+    if (interaction.user.id !== challengerId) {
+      return interaction.reply({
+        content: 'Hanya penantang yang berhak menentukan lawan duel.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    const guildId = interaction.guildId;
+    const gachaData = storage.read('gacha_data');
+    const challengerData = getOrInitUserData(gachaData, guildId, challengerId);
+    const now = Date.now();
+
+    if (challengerData.challengeCooldownUntil && challengerData.challengeCooldownUntil > now) {
+      const remMins = Math.ceil((challengerData.challengeCooldownUntil - now) / 60000);
+      return interaction.reply({
+        content: `Kamu sedang dalam masa jeda tantangan. Silakan tunggu **${remMins} menit** lagi sebelum menantang tahta kembali.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    const guildUsers = gachaData[guildId] || {};
+    const activeHolders = [];
+
+    for (const [uId, uData] of Object.entries(guildUsers)) {
+      if (uData.activeRole && uData.activeRole.tier === itemTier && uId !== challengerId) {
+        activeHolders.push({ userId: uId, userData: uData });
+      }
+    }
+
+    if (activeHolders.length === 0) {
+      return interaction.update({
+        content: `Tidak ada pemegang tahta **${itemTier}** yang dapat ditantang saat ini.`,
+        components: []
+      });
+    }
+
+    const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
+    const busyDefenderIds = new Set(
+      Object.values(throneGuild.activeDuels || {})
+        .filter(d => d.itemTier === itemTier && d.status === 'WAITING_TACTICS')
+        .map(d => d.defenderId)
+    );
+
+    const availableHolders = activeHolders.filter(h => !busyDefenderIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
+    if (availableHolders.length === 0) {
+      const existingQueueIdx = throneGuild.queues[itemTier].findIndex(q => q.challengerId === challengerId);
+      if (existingQueueIdx === -1) {
+        const settingsData = storage.read('settings');
+        throneGuild.queues[itemTier].push({
+          challengerId,
+          itemTier,
+          configuredRoleId: settingsData[guildId]?.gachaRoles?.[itemTier],
+          channelId: interaction.channelId,
+          queuedAt: Date.now()
+        });
+        saveThroneStorage(throneAll);
+      }
+      return interaction.update({
+        content: `Semua pemegang tahta **${itemTier}** sedang bertarung dalam duel aktif atau memiliki perlindungan tahta. Kamu telah ditempatkan pada antrean penantang (Posisi: #${throneGuild.queues[itemTier].length}).`,
+        components: []
+      });
+    }
+
+    const targetDefender = availableHolders[Math.floor(Math.random() * availableHolders.length)];
+    const settingsData = storage.read('settings');
+    const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
+    let duelTargetChannel = interaction.channel;
+    const arenaChannelId = settingsData[guildId]?.gachaChannels?.duel;
+    if (arenaChannelId && client) {
+      const arenaCh = await client.channels.fetch(arenaChannelId).catch(() => null);
+      if (arenaCh) duelTargetChannel = arenaCh;
+    }
+
+    await initiateThroneDuel({
+      guildId,
+      challengerId,
+      targetDefender,
+      itemTier,
+      configuredRoleId,
+      channel: duelTargetChannel,
+      client
+    });
+
+    return interaction.update({
+      content: `Lawan terpilih secara acak: <@${targetDefender.userId}>!\nDuel perebutan **Tahta ${itemTier}** telah dimulai di <#${duelTargetChannel.id}>. Silakan menuju arena untuk memasang taktikmu.`,
+      components: []
+    });
+  }
+
+  // 0B. Select Menu Pemilihan Lawan Manual (Manual Pick)
+  if (customId.startsWith('throne_pick_defender:')) {
+    const parts = customId.split(':');
+    const itemTier = parts[1];
+    const challengerId = parts[2];
+
+    if (interaction.user.id !== challengerId) {
+      return interaction.reply({
+        content: 'Hanya penantang yang berhak menentukan lawan duel.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    const selectedUserId = interaction.values ? interaction.values[0] : null;
+    if (!selectedUserId) return;
+
+    const guildId = interaction.guildId;
+    const gachaData = storage.read('gacha_data');
+    const challengerData = getOrInitUserData(gachaData, guildId, challengerId);
+    const now = Date.now();
+
+    if (challengerData.challengeCooldownUntil && challengerData.challengeCooldownUntil > now) {
+      const remMins = Math.ceil((challengerData.challengeCooldownUntil - now) / 60000);
+      return interaction.reply({
+        content: `Kamu sedang dalam masa jeda tantangan. Silakan tunggu **${remMins} menit** lagi sebelum menantang tahta kembali.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    const guildUsers = gachaData[guildId] || {};
+    const targetUserData = guildUsers[selectedUserId];
+
+    if (!targetUserData || !targetUserData.activeRole || targetUserData.activeRole.tier !== itemTier) {
+      return interaction.update({
+        content: `Member tersebut sudah tidak lagi menduduki **Tahta ${itemTier}**.`,
+        components: []
+      });
+    }
+
+    if (targetUserData.throneProtectedUntil && targetUserData.throneProtectedUntil > now) {
+      const remMins = Math.ceil((targetUserData.throneProtectedUntil - now) / 60000);
+      return interaction.reply({
+        content: `<@${selectedUserId}> baru saja menyelesaikan pertarungan tahta dan memiliki kekebalan perlindungan tahta selama **${remMins} menit** lagi. Silakan pilih lawan lain.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    const targetDefender = { userId: selectedUserId, userData: targetUserData };
+    const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
+    const busyDefenderIds = new Set(
+      Object.values(throneGuild.activeDuels || {})
+        .filter(d => d.itemTier === itemTier && d.status === 'WAITING_TACTICS')
+        .map(d => d.defenderId)
+    );
+
+    const settingsData = storage.read('settings');
+    const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
+
+    if (busyDefenderIds.has(selectedUserId)) {
+      throneGuild.queues[itemTier].push({
+        challengerId,
+        targetDefenderId: selectedUserId,
+        itemTier,
+        configuredRoleId,
+        channelId: interaction.channelId,
+        queuedAt: Date.now()
+      });
+      saveThroneStorage(throneAll);
+
+      return interaction.update({
+        content: `<@${selectedUserId}> saat ini sedang dalam duel aktif. Kamu telah dimasukkan ke antrean khusus untuk menantangnya setelah duelnya selesai.`,
+        components: []
+      });
+    }
+
+    let duelTargetChannel = interaction.channel;
+    const arenaChannelId = settingsData[guildId]?.gachaChannels?.duel;
+    if (arenaChannelId && client) {
+      const arenaCh = await client.channels.fetch(arenaChannelId).catch(() => null);
+      if (arenaCh) duelTargetChannel = arenaCh;
+    }
+
+    await initiateThroneDuel({
+      guildId,
+      challengerId,
+      targetDefender,
+      itemTier,
+      configuredRoleId,
+      channel: duelTargetChannel,
+      client
+    });
+
+    return interaction.update({
+      content: `Kamu telah memilih <@${selectedUserId}> sebagai lawanmu!\nDuel perebutan **Tahta ${itemTier}** telah dimulai di <#${duelTargetChannel.id}>. Silakan menuju arena untuk memasang taktikmu.`,
+      components: []
+    });
+  }
 
   // 1. Cek Status Duel
   if (customId.startsWith('throne_duel:status:')) {
@@ -1617,21 +1814,21 @@ function rollSingleGacha(userData) {
   let targetTier = 'COMMON';
   const rand = Math.random() * 100;
 
-  // 1. HARD PITY TRIGGER (30 Pulls for Legendary+, 10 Pulls for Epic+)
-  if (pityLeg >= 29) {
-    targetTier = Math.random() < 0.2 ? 'MYTHIC' : 'LEGENDARY';
-  } else if (pityEpic >= 9) {
+  // 1. HARD PITY TRIGGER (15 Pulls for Legendary+, 5 Pulls for Epic+)
+  if (pityLeg >= 14) {
+    targetTier = Math.random() < 0.3 ? 'MYTHIC' : 'LEGENDARY'; // 30% Mythic, 70% Legendary
+  } else if (pityEpic >= 4) {
     const subRand = Math.random() * 100;
-    if (subRand < 5) targetTier = 'MYTHIC';
-    else if (subRand < 30) targetTier = 'LEGENDARY';
-    else targetTier = 'EPIC';
+    if (subRand < 10) targetTier = 'MYTHIC';         // 10% Mythic
+    else if (subRand < 45) targetTier = 'LEGENDARY'; // 35% Legendary (total 45% chance role)
+    else targetTier = 'EPIC';                        // 55% Epic
   } else {
-    // Normal Probabilities
-    if (rand < 1) targetTier = 'MYTHIC';          // 1%
-    else if (rand < 5) targetTier = 'LEGENDARY';   // 4%
-    else if (rand < 20) targetTier = 'EPIC';       // 15%
-    else if (rand < 50) targetTier = 'RARE';       // 30%
-    else targetTier = 'COMMON';                    // 50%
+    // Normal Probabilities (Mythic 3%, Legendary 10%, Epic 20%, Rare 32%, Common 35%)
+    if (rand < 3) targetTier = 'MYTHIC';             // 3%
+    else if (rand < 13) targetTier = 'LEGENDARY';    // 10%
+    else if (rand < 33) targetTier = 'EPIC';         // 20%
+    else if (rand < 65) targetTier = 'RARE';         // 32%
+    else targetTier = 'COMMON';                      // 35%
   }
 
   // Update Pity Counters
@@ -1701,6 +1898,157 @@ function createGachaActionRow() {
 }
 
 /**
+ * Create Payload for Daily Claim Interactive Panel
+ */
+function createDailyPanelPayload(guild) {
+  const embed = new EmbedBuilder()
+    .setColor(0x57F287)
+    .setTitle('KLAIM HADIAH HARIAN')
+    .setDescription(
+      `Selamat datang di saluran **Klaim Hadiah Harian** ${guild ? guild.name : ''}!\n\n` +
+      `Klaim tiket gacha dan stardust gratis kamu setiap 24 jam.\n` +
+      `Pertahankan streak klaim hingga 7 hari berturut-turut untuk melipatgandakan tiket dan mendapatkan lencana eksklusif!\n\n` +
+      `**Skema Hadiah Mingguan:**\n` +
+      `• **Hari 1-2:** +1 Tiket • Stardust 50-75\n` +
+      `• **Hari 3-5:** +2 Tiket • Stardust 100-150\n` +
+      `• **Hari 6:** +3 Tiket • Stardust 200\n` +
+      `• **Hari 7:** +4 Tiket • Stardust 350 + ✦ *Streak Master 7D*\n\n` +
+      `Tekan tombol di bawah untuk mengambil hadiah:`
+    )
+    .setFooter({ text: 'Hasil klaim hanya bisa dilihat oleh diri sendiri (Private / Ephemeral)' });
+
+  const buttons = [
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_daily')
+      .setLabel('Ambil Hadiah Harian')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_inv')
+      .setLabel('Cek Inventory')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_rates')
+      .setLabel('Info & Pity')
+      .setStyle(ButtonStyle.Secondary)
+  ];
+
+  // Cross-panel link button ke channel Pull jika terpisah
+  if (guild?.id) {
+    const settingsData = storage.read('settings') || {};
+    const pullChId = settingsData[guild.id]?.gachaChannels?.pull;
+    const dailyChId = settingsData[guild.id]?.gachaChannels?.daily;
+    if (pullChId && pullChId !== dailyChId) {
+      const pullCh = guild.channels?.cache?.get(pullChId);
+      const label = pullCh ? `Tarik Gacha (#${pullCh.name})` : 'Buka Tarik Gacha';
+      buttons.push(
+        new ButtonBuilder()
+          .setLabel(label.slice(0, 80))
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/channels/${guild.id}/${pullChId}`)
+      );
+    }
+  }
+
+  const row = new ActionRowBuilder().addComponents(buttons);
+  return { embeds: [embed], components: [row] };
+}
+
+/**
+ * Create Payload for Gacha Pull Interactive Panel
+ */
+function createPullPanelPayload(guild) {
+  const embed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle('ARENA KOTAK MISTERI GACHA')
+    .setDescription(
+      `Selamat datang di saluran **Tarik Gacha** ${guild ? guild.name : ''}!\n\n` +
+      `Gunakan tiket gacha kamu untuk membuka kotak misteri, mengumpulkan relik legenda, dan memperebutkan tahta server!\n\n` +
+      `**Peluang Kelangkaan Relik:**\n` +
+      `• ✦ **MYTHIC (3%):** Tahta Tertinggi (Maksimal 3 Kursi • Permanen)\n` +
+      `• ✧ **LEGENDARY (10%):** Tahta Raja (Maksimal 5 Kursi • Permanen)\n` +
+      `• ◈ **EPIC (20%)** • ⬡ **RARE (32%)** • ◽ **COMMON (35%)**\n\n` +
+      `**Sistem Jaminan (Pity System):**\n` +
+      `• Garansi minimal 1x **EPIC+** setiap 5 tarikan.\n` +
+      `• Garansi minimal 1x **LEGENDARY+** pada tarikan ke-15.\n\n` +
+      `Pilih tarikan di bawah untuk mulai:`
+    )
+    .setFooter({ text: 'Hasil tarikan tampil privat (ephemeral) • Live Feed publik di channel result' });
+
+  const buttons = [
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_pull_1')
+      .setLabel('Tarik 1x')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_pull_10')
+      .setLabel('Tarik 10x')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_inv')
+      .setLabel('Inventory')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_rates')
+      .setLabel('Info & Pity')
+      .setStyle(ButtonStyle.Secondary)
+  ];
+
+  // Cross-panel link button ke channel Daily jika terpisah (max 5 buttons in an ActionRow)
+  if (guild?.id) {
+    const settingsData = storage.read('settings') || {};
+    const dailyChId = settingsData[guild.id]?.gachaChannels?.daily;
+    const pullChId = settingsData[guild.id]?.gachaChannels?.pull;
+    if (dailyChId && dailyChId !== pullChId) {
+      const dailyCh = guild.channels?.cache?.get(dailyChId);
+      const label = dailyCh ? `Klaim Harian (#${dailyCh.name})` : 'Klaim Harian';
+      buttons.push(
+        new ButtonBuilder()
+          .setLabel(label.slice(0, 80))
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/channels/${guild.id}/${dailyChId}`)
+      );
+    }
+  }
+
+  const row = new ActionRowBuilder().addComponents(buttons);
+  return { embeds: [embed], components: [row] };
+}
+
+/**
+ * Deploy & Clean Panel Message in designated channel
+ */
+async function deployGachaPanel(guild, channel, type, client) {
+  if (!channel || !channel.isTextBased() || channel.isThread()) return null;
+  const payload = type === 'daily' ? createDailyPanelPayload(guild) : createPullPanelPayload(guild);
+
+  try {
+    const fetched = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+    if (fetched) {
+      const botMessages = [...fetched.values()]
+        .filter(m => m.author.id === client.user.id)
+        .sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+
+      if (botMessages.length > 0) {
+        const latestMsg = botMessages[0];
+        await latestMsg.edit(payload).catch(() => {});
+        for (let i = 1; i < botMessages.length; i++) {
+          await botMessages[i].delete().catch(() => {});
+        }
+        return latestMsg;
+      }
+    }
+  } catch (err) {
+    console.warn(`[deployGachaPanel] Error purging extra bot messages in ${channel.id}:`, err.message);
+  }
+
+  const newMsg = await channel.send(payload).catch(e => {
+    console.error(`[deployGachaPanel] Failed to send panel in ${channel.id}:`, e.message);
+    return null;
+  });
+  return newMsg;
+}
+
+/**
  * Broadcast Jackpot to configured channel (Legendary / Mythic)
  */
 async function broadcastJackpot(guild, member, item, client) {
@@ -1740,6 +2088,465 @@ async function broadcastJackpot(guild, member, item, client) {
 }
 
 /**
+ * Post hasil tarikan ke Result Feed (channel terpisah) dengan batch window 30 detik.
+ * Mengelompokkan hasil beberapa member ke dalam 1 embed agar channel tidak banjir.
+ */
+async function postToResultFeed(guild, member, pullSummary, client) {
+  try {
+    const settingsData = storage.read('settings');
+    const resultChannelId = settingsData[guild.id]?.gachaChannels?.result;
+    if (!resultChannelId) return; // Tidak ada channel result → skip
+
+    const channel = (guild.channels?.cache ? guild.channels.cache.get(resultChannelId) : null) ||
+      await client.channels.fetch(resultChannelId).catch(() => null);
+    if (!channel || !channel.isTextBased()) return;
+
+    const guildId = guild.id;
+    const now = Date.now();
+    let feed = activeResultFeeds.get(guildId);
+
+    // Entry baru untuk feed
+    const newEntry = {
+      userId: member.id,
+      displayName: member.displayName,
+      summary: pullSummary
+    };
+
+    // Cek apakah feed aktif masih valid (dalam jendela 30 detik & belum penuh)
+    if (feed && (now - feed.createdAt < RESULT_FEED_WINDOW_MS) && feed.entries.length < RESULT_FEED_MAX_ENTRIES) {
+      // Tambahkan ke feed yang sudah ada
+      feed.entries.push(newEntry);
+      const embed = buildResultFeedEmbed(feed.entries);
+      try {
+        const feedMsg = await channel.messages.fetch(feed.messageId).catch(() => null);
+        if (feedMsg) {
+          await feedMsg.edit({ embeds: [embed] });
+        } else {
+          // Pesan dihapus → buat baru
+          const newMsg = await channel.send({ embeds: [embed] });
+          feed.messageId = newMsg.id;
+        }
+      } catch (_) {
+        const newMsg = await channel.send({ embeds: [embed] });
+        feed.messageId = newMsg.id;
+      }
+    } else {
+      // Buat feed embed baru
+      const entries = [newEntry];
+      const embed = buildResultFeedEmbed(entries);
+      const newMsg = await channel.send({ embeds: [embed] });
+
+      // Bersihkan timer lama jika ada
+      if (feed && feed.timer) clearTimeout(feed.timer);
+
+      const newFeed = {
+        messageId: newMsg.id,
+        channelId: resultChannelId,
+        entries,
+        createdAt: now,
+        timer: null
+      };
+
+      // Timer untuk mengunci feed setelah 30 detik
+      newFeed.timer = setTimeout(() => {
+        activeResultFeeds.delete(guildId);
+      }, RESULT_FEED_WINDOW_MS);
+
+      activeResultFeeds.set(guildId, newFeed);
+    }
+  } catch (err) {
+    console.error('[Gacha Result Feed Error]:', err.message);
+  }
+}
+
+/**
+ * Build embed untuk Result Feed (kumpulan hasil tarikan)
+ */
+function buildResultFeedEmbed(entries) {
+  const lines = entries.map((e, i) => {
+    return `◈ **${e.displayName}**\n${e.summary}`;
+  });
+
+  const totalPulls = entries.length;
+  return new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setTitle('Hasil Tarikan Gacha')
+    .setDescription(lines.join('\n\n'))
+    .setFooter({ text: `${totalPulls} Tarikan • Live Feed` })
+    .setTimestamp();
+}
+
+/**
+ * Handle Subcommand /gacha challenge
+ * Memungkinkan pemilik relik Mythic/Legendary menantang pemegang tahta (Acak atau Dipilih)
+ */
+async function executeGachaChallenge(interaction, client) {
+  const guildId = interaction.guild.id;
+  const userId = interaction.user.id;
+  const member = interaction.member;
+
+  const tier = interaction.options.getString('tier');
+  const mode = interaction.options.getString('mode');
+  const targetUser = interaction.options.getUser('target');
+
+  const config = THRONE_CONFIG[tier];
+  if (!config) {
+    return interaction.reply({
+      content: 'Tier tahta yang dipilih tidak valid.',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const settingsData = storage.read('settings');
+  const configuredRoleId = settingsData[guildId]?.gachaRoles?.[tier];
+  if (!configuredRoleId) {
+    return interaction.reply({
+      content: `Role Discord untuk **Tahta ${tier}** belum dikonfigurasi oleh Admin. Gunakan \`/gacha setrole\` terlebih dahulu.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const gachaData = storage.read('gacha_data');
+  const userData = getOrInitUserData(gachaData, guildId, userId);
+  const now = Date.now();
+
+  if (userData.challengeCooldownUntil && userData.challengeCooldownUntil > now) {
+    const remMins = Math.ceil((userData.challengeCooldownUntil - now) / 60000);
+    return interaction.reply({
+      content: `Kamu sedang dalam masa jeda tantangan. Silakan tunggu **${remMins} menit** lagi sebelum menantang tahta kembali.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // 1. Cek kepemilikan relik tier terkait di inventaris
+  const hasRelic = (userData.inventory || []).some(itemName => {
+    const found = GACHA_ITEMS.find(g => g.name === itemName);
+    return found && found.tier === tier;
+  });
+
+  if (!hasRelic) {
+    return interaction.reply({
+      content: `Kamu belum memiliki kartu relik bertier **${tier}** di inventarismu untuk menantang tahta ini.\nDapatkan relik ${tier} terlebih dahulu dari \`/gacha pull\` atau \`/gacha fuse\`.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // 2. Cek apakah member sudah memegang tahta ini
+  if (userData.activeRole && userData.activeRole.tier === tier) {
+    return interaction.reply({
+      content: `Kamu sudah memegang **Tahta ${tier}** (<@&${configuredRoleId}>)!`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // 3. Cek apakah member memegang tahta kasta lebih tinggi
+  const currentRank = userData.activeRole ? (TIER_RANK[userData.activeRole.tier] || 0) : 0;
+  if (currentRank > config.tierRank) {
+    return interaction.reply({
+      content: `Kamu saat ini memegang tahta kasta lebih tinggi (<@&${userData.activeRole.roleId}>)!`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // 4. Cari pemegang tahta aktif tier ini (Permanen)
+  const guildUsers = gachaData[guildId] || {};
+  const activeHolders = [];
+  for (const [uId, uData] of Object.entries(guildUsers)) {
+    if (uData.activeRole && uData.activeRole.tier === tier && uId !== userId) {
+      activeHolders.push({ userId: uId, userData: uData });
+    }
+  }
+
+  // 5. Jika kursi belum penuh (< quota), langsung berikan tahta permanen!
+  if (activeHolders.length < config.quota) {
+    try {
+      if (userData.activeRole && userData.activeRole.roleId && member.roles.cache.has(userData.activeRole.roleId)) {
+        await member.roles.remove(userData.activeRole.roleId).catch(() => {});
+      }
+      await member.roles.add(configuredRoleId);
+      userData.activeRole = {
+        tier,
+        roleId: configuredRoleId,
+        obtainedAt: Date.now()
+      };
+      storage.write('gacha_data', gachaData);
+
+      const embed = new EmbedBuilder()
+        .setColor(tier === 'MYTHIC' ? 0xFF007F : 0xFEE75C)
+        .setTitle(`Tahta ${tier} Diperoleh`)
+        .setDescription(
+          `Kursi Tahta **${tier}** masih tersedia (${activeHolders.length + 1}/${config.quota} Kursi Terisi).\n\n` +
+          `Selamat <@${userId}>, kamu langsung dianugerahi gelar Tahta <@&${configuredRoleId}> secara **Permanen**!`
+        );
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (err) {
+      console.error('[Gacha Challenge Direct Assign Error]:', err.message);
+      return interaction.reply({ content: 'Gagal memberikan role tahta.', flags: MessageFlags.Ephemeral });
+    }
+  }
+
+  // 6. Kursi Penuh! (>= quota) -> Duel Clash of Thrones
+  const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
+  const busyDefenderIds = new Set(
+    Object.values(throneGuild.activeDuels || {})
+      .filter(d => d.itemTier === tier && d.status === 'WAITING_TACTICS')
+      .map(d => d.defenderId)
+  );
+
+  let duelTargetChannel = interaction.channel;
+  const arenaChannelId = settingsData[guildId]?.gachaChannels?.duel;
+  if (arenaChannelId && client) {
+    const arenaCh = await client.channels.fetch(arenaChannelId).catch(() => null);
+    if (arenaCh) duelTargetChannel = arenaCh;
+  }
+
+  // Case 6A: Target user spesifik diberikan
+  if (targetUser) {
+    if (targetUser.id === userId) {
+      return interaction.reply({
+        content: 'Kamu tidak bisa menantang dirimu sendiri!',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    const targetHolder = activeHolders.find(h => h.userId === targetUser.id);
+    if (!targetHolder) {
+      return interaction.reply({
+        content: `<@${targetUser.id}> bukan pemegang **Tahta ${tier}** saat ini.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    if (targetHolder.userData?.throneProtectedUntil && targetHolder.userData.throneProtectedUntil > now) {
+      const remMins = Math.ceil((targetHolder.userData.throneProtectedUntil - now) / 60000);
+      return interaction.reply({
+        content: `<@${targetUser.id}> baru saja menyelesaikan pertarungan tahta dan memiliki kekebalan perlindungan tahta selama **${remMins} menit** lagi. Silakan pilih lawan lain.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    if (busyDefenderIds.has(targetUser.id)) {
+      throneGuild.queues[tier].push({
+        challengerId: userId,
+        targetDefenderId: targetUser.id,
+        itemTier: tier,
+        configuredRoleId,
+        channelId: interaction.channelId,
+        queuedAt: Date.now()
+      });
+      saveThroneStorage(throneAll);
+
+      return interaction.reply({
+        content: `<@${targetUser.id}> saat ini sedang dalam duel aktif. Kamu telah dimasukkan ke antrean khusus untuk menantangnya setelah duelnya selesai.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    await initiateThroneDuel({
+      guildId,
+      challengerId: userId,
+      targetDefender: targetHolder,
+      itemTier: tier,
+      configuredRoleId,
+      channel: duelTargetChannel,
+      client
+    });
+
+    return interaction.reply({
+      content: `Tantangan berhasil dikirim ke <@${targetUser.id}>!\nDuel perebutan **Tahta ${tier}** telah dimulai di <#${duelTargetChannel.id}>.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // Case 6B: Mode acak dipilih
+  if (mode === 'random') {
+    const availableHolders = activeHolders.filter(h => !busyDefenderIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
+    if (availableHolders.length === 0) {
+      throneGuild.queues[tier].push({
+        challengerId: userId,
+        itemTier: tier,
+        configuredRoleId,
+        channelId: interaction.channelId,
+        queuedAt: Date.now()
+      });
+      saveThroneStorage(throneAll);
+
+      return interaction.reply({
+        content: `Semua pemegang tahta **${tier}** sedang bertarung dalam duel aktif atau memiliki perlindungan tahta. Kamu telah dimasukkan ke dalam antrean penantang (Posisi #${throneGuild.queues[tier].length}).`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    const targetDefender = availableHolders[Math.floor(Math.random() * availableHolders.length)];
+    await initiateThroneDuel({
+      guildId,
+      challengerId: userId,
+      targetDefender,
+      itemTier: tier,
+      configuredRoleId,
+      channel: duelTargetChannel,
+      client
+    });
+
+    return interaction.reply({
+      content: `Lawan terpilih secara acak: <@${targetDefender.userId}>!\nDuel perebutan **Tahta ${tier}** telah dimulai di <#${duelTargetChannel.id}>.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // Case 6C: Mode pick atau tanpa opsi -> Tampilkan 2 opsi (Tombol Acak & Select Menu)
+  const challengeRows = await buildDefenderChallengeComponents(interaction.guild, tier, userId, activeHolders, busyDefenderIds);
+
+  const embed = new EmbedBuilder()
+    .setColor(tier === 'MYTHIC' ? 0xFF007F : 0xFEE75C)
+    .setTitle(`Tantangan Tahta ${tier}`)
+    .setDescription(
+      `Kursi **${config.name}** telah terisi penuh (${activeHolders.length}/${config.quota}).\n` +
+      `Sebagai pemilik relik ${tier}, kamu berhak menantang salah satu pemegang tahta untuk merebut posisinya!\n\n` +
+      `Silakan tentukan lawanmu melalui opsi di bawah:`
+    );
+
+  return interaction.reply({
+    embeds: [embed],
+    components: challengeRows,
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+/**
+ * Handle Ephemeral Prompt when user clicks [Tantang Tahta] button in /gacha inventory
+ */
+async function executeGachaChallengePrompt(interaction, client, challengeTier) {
+  const guildId = interaction.guild.id;
+  const userId = interaction.user.id;
+  const member = interaction.member;
+
+  const tier = challengeTier || 'MYTHIC';
+  const config = THRONE_CONFIG[tier];
+  if (!config) {
+    const content = 'Tier tahta yang dipilih tidak valid.';
+    if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+    return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  }
+
+  const settingsData = storage.read('settings');
+  const configuredRoleId = settingsData[guildId]?.gachaRoles?.[tier];
+  if (!configuredRoleId) {
+    const content = `Role Discord untuk **Tahta ${tier}** belum dikonfigurasi oleh Admin. Gunakan \`/gacha setrole\` terlebih dahulu.`;
+    if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+    return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  }
+
+  const gachaData = storage.read('gacha_data');
+  const userData = getOrInitUserData(gachaData, guildId, userId);
+  const now = Date.now();
+
+  if (userData.challengeCooldownUntil && userData.challengeCooldownUntil > now) {
+    const remMins = Math.ceil((userData.challengeCooldownUntil - now) / 60000);
+    const content = `Kamu sedang dalam masa jeda tantangan. Silakan tunggu **${remMins} menit** lagi sebelum menantang tahta kembali.`;
+    if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+    return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  }
+
+  // 1. Cek kepemilikan relik tier terkait di inventaris
+  const hasRelic = (userData.inventory || []).some(itemName => {
+    const found = GACHA_ITEMS.find(g => g.name === itemName);
+    return found && found.tier === tier;
+  });
+
+  if (!hasRelic) {
+    const content = `Kamu belum memiliki kartu relik bertier **${tier}** di inventarismu untuk menantang tahta ini.\nDapatkan relik ${tier} terlebih dahulu dari \`/gacha pull\` atau \`/gacha fuse\`.`;
+    if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+    return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  }
+
+  // 2. Cek apakah member sudah memegang tahta ini
+  if (userData.activeRole && userData.activeRole.tier === tier) {
+    const content = `Kamu sudah memegang **Tahta ${tier}** (<@&${configuredRoleId}>)!`;
+    if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+    return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  }
+
+  // 3. Cek apakah member memegang tahta kasta lebih tinggi
+  const currentRank = userData.activeRole ? (TIER_RANK[userData.activeRole.tier] || 0) : 0;
+  if (currentRank > config.tierRank) {
+    const content = `Kamu saat ini memegang tahta kasta lebih tinggi (<@&${userData.activeRole.roleId}>)!`;
+    if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+    return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  }
+
+  // 4. Cari pemegang tahta aktif tier ini (Permanen)
+  const guildUsers = gachaData[guildId] || {};
+  const activeHolders = [];
+  for (const [uId, uData] of Object.entries(guildUsers)) {
+    if (uData.activeRole && uData.activeRole.tier === tier && uId !== userId) {
+      activeHolders.push({ userId: uId, userData: uData });
+    }
+  }
+
+  // 5. Jika kursi belum penuh (< quota), langsung berikan tahta permanen!
+  if (activeHolders.length < config.quota) {
+    try {
+      if (userData.activeRole && userData.activeRole.roleId && member.roles.cache.has(userData.activeRole.roleId)) {
+        await member.roles.remove(userData.activeRole.roleId).catch(() => {});
+      }
+      await member.roles.add(configuredRoleId);
+      userData.activeRole = {
+        tier,
+        roleId: configuredRoleId,
+        obtainedAt: Date.now()
+      };
+      storage.write('gacha_data', gachaData);
+
+      const embed = new EmbedBuilder()
+        .setColor(tier === 'MYTHIC' ? 0xFF007F : 0xFEE75C)
+        .setTitle(`Tahta ${tier} Diperoleh`)
+        .setDescription(
+          `Kursi Tahta **${tier}** masih tersedia (${activeHolders.length + 1}/${config.quota} Kursi Terisi).\n\n` +
+          `Selamat <@${userId}>, kamu langsung dianugerahi gelar Tahta <@&${configuredRoleId}> secara **Permanen**!`
+        );
+
+      if (interaction.deferred || interaction.replied) return interaction.editReply({ embeds: [embed] });
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    } catch (err) {
+      console.error('[Gacha Challenge Prompt Direct Assign Error]:', err.message);
+      const content = 'Gagal memberikan role tahta.';
+      if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+      return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+    }
+  }
+
+  // 6. Kursi Penuh! (>= quota) -> Bangun komponen challenge (Acak / Pilih)
+  const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
+  const busyDefenderIds = new Set(
+    Object.values(throneGuild.activeDuels || {})
+      .filter(d => d.itemTier === tier && d.status === 'WAITING_TACTICS')
+      .map(d => d.defenderId)
+  );
+
+  const challengeRows = await buildDefenderChallengeComponents(interaction.guild, tier, userId, activeHolders, busyDefenderIds);
+
+  const embed = new EmbedBuilder()
+    .setColor(tier === 'MYTHIC' ? 0xFF007F : 0xFEE75C)
+    .setTitle(`Tantangan Tahta ${tier}`)
+    .setDescription(
+      `Kursi **${config.name}** telah terisi penuh (${activeHolders.length}/${config.quota}).\n` +
+      `Sebagai pemilik relik ${tier}, kamu berhak menantang salah satu pemegang tahta untuk merebut posisinya!\n\n` +
+      `Silakan tentukan lawanmu melalui opsi di bawah:`
+    );
+
+  if (interaction.deferred || interaction.replied) {
+    return interaction.editReply({ embeds: [embed], components: challengeRows });
+  }
+  return interaction.reply({
+    embeds: [embed],
+    components: challengeRows,
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+/**
  * Handle Single / Multi Pull Execution Logic
  */
 async function executeGachaPull(interaction, client, amount = 1) {
@@ -1751,28 +2558,50 @@ async function executeGachaPull(interaction, client, amount = 1) {
   const userData = getOrInitUserData(gachaData, guildId, userId);
 
   if (userData.tickets < amount) {
+    const settingsData = storage.read('settings') || {};
+    const gChannels = settingsData[guildId]?.gachaChannels || {};
+    const dailyChId = gChannels.daily || gChannels.play;
+    const isDailySeparate = dailyChId && dailyChId !== interaction.channelId;
+
+    const dailyDescLine = isDailySeparate
+      ? `• Klaim harian gratis di <#${dailyChId}> (\`/gacha daily\`)`
+      : '• Klaim harian gratis di `/gacha daily`';
+
     const embedNoTickets = new EmbedBuilder()
       .setColor(0xED4245)
       .setTitle('Tiket Gacha Tidak Mencukupi')
       .setDescription(
         `Kamu membutuhkan **${amount} Tiket**, saat ini hanya memiliki **${userData.tickets} Tiket**.\n\n` +
         `**Cara Mendapatkan Tiket:**\n` +
-        `• Klaim harian gratis di \`/gacha daily\`\n` +
+        `${dailyDescLine}\n` +
         `• Tukar Stardust di \`/gacha shop\`\n` +
         `• Ikuti kuis di \`/musicquiz\` atau aktif di Voice Channel`
       )
       .setFooter({ text: `Tiket: ${userData.tickets} • Stardust: ${userData.stardust}` });
 
-    const rowDaily = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('gacha_btn_daily')
-        .setLabel('Klaim Harian')
-        .setStyle(ButtonStyle.Success),
+    const rowDailyComponents = [];
+    if (!isDailySeparate) {
+      rowDailyComponents.push(
+        new ButtonBuilder()
+          .setCustomId('gacha_btn_daily')
+          .setLabel('Klaim Harian')
+          .setStyle(ButtonStyle.Success)
+      );
+    } else {
+      rowDailyComponents.push(
+        new ButtonBuilder()
+          .setLabel('Ambil Tiket di Channel Daily')
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/channels/${guildId}/${dailyChId}`)
+      );
+    }
+    rowDailyComponents.push(
       new ButtonBuilder()
         .setCustomId('gacha_btn_inv')
-        .setLabel('Inventory')
+        .setLabel('Buka Inventory')
         .setStyle(ButtonStyle.Secondary)
     );
+    const rowDaily = new ActionRowBuilder().addComponents(rowDailyComponents);
 
     if (interaction.replied || interaction.deferred) {
       return interaction.editReply({ embeds: [embedNoTickets], components: [rowDaily] });
@@ -1789,7 +2618,9 @@ async function executeGachaPull(interaction, client, amount = 1) {
     const item = pullResult.item;
 
     // Apply Throne Usurpation / Limited Seats Role System
-    const roleResultText = await applySmartGachaRole(interaction.guild, member, item.tier, userData, gachaData, interaction.channel, client);
+    const roleResult = await applySmartGachaRole(interaction.guild, member, item.tier, userData, gachaData, interaction.channel, client);
+    const roleResultText = roleResult ? (roleResult.text || String(roleResult)) : '';
+    const challengeRows = (roleResult && roleResult.challengeRows) || [];
     storage.write('gacha_data', gachaData);
 
     // Broadcast if Mythic or Legendary
@@ -1825,7 +2656,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
         },
         {
           name: 'Pity Status',
-          value: `Epic: **${10 - (userData.pityEpic || 0)}x**\nLegendary: **${30 - (userData.pityLegendary || 0)}x**`,
+          value: `Epic: **${5 - (userData.pityEpic || 0)}x**\nLegendary: **${15 - (userData.pityLegendary || 0)}x**`,
           inline: true
         },
         {
@@ -1838,11 +2669,19 @@ async function executeGachaPull(interaction, client, amount = 1) {
       .setTimestamp();
 
     const row = createGachaActionRow();
+    const pullComponents = [row, ...challengeRows];
 
+    // Post ke Result Feed channel (jika dikonfigurasi)
+    const feedSummary = `Tarik 1x — **${item.name}** [${item.tier}] ${item.stars}` +
+      (pullResult.isDuplicate ? ` *(+${pullResult.stardustAwarded} Dust)*` : ' **[NEW]**');
+    postToResultFeed(interaction.guild, member, feedSummary, client);
+
+    // Cek apakah ada channel result → reply ephemeral, jika tidak → reply publik
+    const hasResultChannel = !!storage.read('settings')[guildId]?.gachaChannels?.result;
     if (interaction.replied || interaction.deferred) {
-      return interaction.editReply({ content: null, embeds: [embed], components: [row] });
+      return interaction.editReply({ content: null, embeds: [embed], components: pullComponents });
     }
-    return interaction.reply({ embeds: [embed], components: [row] });
+    return interaction.reply({ embeds: [embed], components: pullComponents, flags: hasResultChannel ? MessageFlags.Ephemeral : undefined });
   }
 
   // 10x Multi Pull Execution
@@ -1868,8 +2707,11 @@ async function executeGachaPull(interaction, client, amount = 1) {
 
   // Apply Role for the highest item pulled
   let multiRoleText = '';
+  let multiChallengeRows = [];
   if (highestItem) {
-    multiRoleText = await applySmartGachaRole(interaction.guild, member, highestItem.tier, userData, gachaData, interaction.channel, client);
+    const roleResult = await applySmartGachaRole(interaction.guild, member, highestItem.tier, userData, gachaData, interaction.channel, client);
+    multiRoleText = roleResult ? (roleResult.text || String(roleResult)) : '';
+    multiChallengeRows = (roleResult && roleResult.challengeRows) || [];
   }
 
   storage.write('gacha_data', gachaData);
@@ -1906,7 +2748,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
       },
       {
         name: 'Pity Status',
-        value: `Epic: **${10 - (userData.pityEpic || 0)}x**\nLegendary: **${30 - (userData.pityLegendary || 0)}x**`,
+        value: `Epic: **${5 - (userData.pityEpic || 0)}x**\nLegendary: **${15 - (userData.pityLegendary || 0)}x**`,
         inline: true
       }
     )
@@ -1914,11 +2756,22 @@ async function executeGachaPull(interaction, client, amount = 1) {
     .setTimestamp();
 
   const row = createGachaActionRow();
+  const multiComponents = [row, ...multiChallengeRows];
 
-  if (interaction.replied || interaction.deferred) {
-    return interaction.editReply({ content: null, embeds: [multiEmbed], components: [row] });
+  // Post ke Result Feed channel (jika dikonfigurasi)
+  const topItems = results.filter(r => r.item.tier === 'MYTHIC' || r.item.tier === 'LEGENDARY' || r.item.tier === 'EPIC');
+  let feedSummary = `Tarik 10x — Terbaik: **${highestItem.name}** [${highestItem.tier}] ${highestItem.stars}`;
+  if (topItems.length > 1) {
+    feedSummary += `\n` + topItems.slice(0, 3).map(r => `  • ${r.item.name} [${r.item.tier}]`).join('\n');
   }
-  return interaction.reply({ embeds: [multiEmbed], components: [row] });
+  postToResultFeed(interaction.guild, member, feedSummary, client);
+
+  // Cek apakah ada channel result → reply ephemeral, jika tidak → reply publik
+  const hasResultChannel = !!storage.read('settings')[guildId]?.gachaChannels?.result;
+  if (interaction.replied || interaction.deferred) {
+    return interaction.editReply({ content: null, embeds: [multiEmbed], components: multiComponents });
+  }
+  return interaction.reply({ embeds: [multiEmbed], components: multiComponents, flags: hasResultChannel ? MessageFlags.Ephemeral : undefined });
 }
 
 /**
@@ -1935,10 +2788,19 @@ async function executeGachaDaily(interaction) {
   const timeSinceLast = now - (userData.lastDaily || 0);
   const cooldownMs = DAILY_COOLDOWN_HOURS * 60 * 60 * 1000;
 
+  const settingsData = storage.read('settings') || {};
+  const gChannels = settingsData[guildId]?.gachaChannels || {};
+  const pullChId = gChannels.pull || gChannels.play;
+  const isPullSeparate = pullChId && pullChId !== interaction.channelId;
+
   if (timeSinceLast < cooldownMs) {
     const remainingMs = cooldownMs - timeSinceLast;
     const remHours = Math.floor(remainingMs / (1000 * 60 * 60));
     const remMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    const pullNote = isPullSeparate
+      ? `\n\n*Kunjungi saluran <#${pullChId}> untuk menarik gacha.*`
+      : '';
 
     const cdEmbed = new EmbedBuilder()
       .setColor(0xED4245)
@@ -1947,19 +2809,33 @@ async function executeGachaDaily(interaction) {
         `Kamu sudah mengklaim hadiah harian sebelumnya.\n` +
         `Silakan kembali lagi dalam **${remHours} jam ${remMins} menit**.\n\n` +
         `• **Streak Saat Ini:** Hari ke-${userData.streak || 1}\n` +
-        `• **Saldo:** **${userData.tickets} Tiket** • **${userData.stardust} Stardust**`
+        `• **Saldo:** **${userData.tickets} Tiket** • **${userData.stardust} Stardust**` +
+        pullNote
       );
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('gacha_btn_pull_1')
-        .setLabel('Tarik Gacha')
-        .setStyle(ButtonStyle.Primary),
+    const cdRowComponents = [];
+    if (!isPullSeparate) {
+      cdRowComponents.push(
+        new ButtonBuilder()
+          .setCustomId('gacha_btn_pull_1')
+          .setLabel('Tarik Gacha')
+          .setStyle(ButtonStyle.Primary)
+      );
+    } else {
+      cdRowComponents.push(
+        new ButtonBuilder()
+          .setLabel('Menuju Channel Gacha')
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/channels/${guildId}/${pullChId}`)
+      );
+    }
+    cdRowComponents.push(
       new ButtonBuilder()
         .setCustomId('gacha_btn_inv')
         .setLabel('Inventory')
         .setStyle(ButtonStyle.Secondary)
     );
+    const row = new ActionRowBuilder().addComponents(cdRowComponents);
 
     if (interaction.replied || interaction.deferred) {
       return interaction.editReply({ embeds: [cdEmbed], components: [row] });
@@ -2026,6 +2902,10 @@ async function executeGachaDaily(interaction) {
     return `H${d}`;
   }).join(' — ');
 
+  const pullSuccessNote = isPullSeparate
+    ? `\n\n*Tarik gacha di saluran <#${pullChId}>.*`
+    : '';
+
   const embed = new EmbedBuilder()
     .setColor(userData.streak === 7 ? 0xFEE75C : 0x57F287)
     .setAuthor({
@@ -2040,17 +2920,33 @@ async function executeGachaDaily(interaction) {
       `• **+${stardustAwarded} Stardust**\n` +
       (bonusBadge ? `• **Badge Eksklusif:** \`${bonusBadge}\`\n` : '') +
       `\n**Saldo Akun:**\n` +
-      `• **${userData.tickets} Tiket** • **${userData.stardust} Stardust**`
+      `• **${userData.tickets} Tiket** • **${userData.stardust} Stardust**` +
+      pullSuccessNote
     )
     .setFooter({ text: 'Klaim setiap hari untuk mempertahankan streak hadiah' })
     .setTimestamp();
 
-  const row = createGachaActionRow();
+  const row = isPullSeparate
+    ? new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Menuju Channel Gacha')
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/channels/${guildId}/${pullChId}`),
+        new ButtonBuilder()
+          .setCustomId('gacha_btn_inv')
+          .setLabel('Buka Inventory')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('gacha_btn_rates')
+          .setLabel('Info & Pity')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    : createGachaActionRow();
 
   if (interaction.replied || interaction.deferred) {
     return interaction.editReply({ embeds: [embed], components: [row] });
   }
-  return interaction.reply({ embeds: [embed], components: [row] });
+  return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
 }
 
 /**
@@ -2088,9 +2984,9 @@ async function executeGachaInventory(interaction, targetUser) {
 
   // Status Role Aktif
   let activeRoleDisplay = '_Tidak menduduki tahta_';
-  if (targetData.activeRole && targetData.activeRole.expiresAt > Date.now()) {
-    const rem = formatTimeRemaining(targetData.activeRole.expiresAt - Date.now());
-    activeRoleDisplay = `<@&${targetData.activeRole.roleId}> [${targetData.activeRole.tier}] — Sisa Tahta: **${rem}**`;
+  if (targetData.activeRole && targetData.activeRole.roleId) {
+    const streakInfo = targetData.duelDefenseStreak ? ` • Pertahanan: ${targetData.duelDefenseStreak}x` : '';
+    activeRoleDisplay = `<@&${targetData.activeRole.roleId}> [${targetData.activeRole.tier}] — **Tahta Permanen**${streakInfo}`;
   }
 
   const embed = new EmbedBuilder()
@@ -2127,7 +3023,7 @@ async function executeGachaInventory(interaction, targetUser) {
       },
       {
         name: 'Pity Status',
-        value: `Epic: **${10 - (targetData.pityEpic || 0)}x** | Leg: **${30 - (targetData.pityLegendary || 0)}x**`,
+        value: `Epic: **${5 - (targetData.pityEpic || 0)}x** | Leg: **${15 - (targetData.pityLegendary || 0)}x**`,
         inline: true
       },
       {
@@ -2151,15 +3047,36 @@ async function executeGachaInventory(interaction, targetUser) {
         inline: false
       }
     )
-    .setFooter({ text: 'Gunakan /gacha pull untuk membuka relik baru' })
+    .setFooter({ text: '💡 Tips: Aktif mengobrol di Voice Channel memberi +15 Dust & +1 Tiket tiap 15m! (Anti-AFK aktif)' })
     .setTimestamp();
 
   const row = createGachaActionRow();
 
+  // Tombol pintas Tantang Tahta jika melihat inventaris sendiri & memiliki relik eligible
+  if (user.id === interaction.user.id) {
+    const hasMythic = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'MYTHIC');
+    const hasLegendary = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'LEGENDARY');
+    let challengeTier = null;
+    if (hasMythic && targetData.activeRole?.tier !== 'MYTHIC') {
+      challengeTier = 'MYTHIC';
+    } else if (hasLegendary && !targetData.activeRole) {
+      challengeTier = 'LEGENDARY';
+    }
+
+    if (challengeTier) {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`gacha_btn_challenge_prompt:${challengeTier}`)
+          .setLabel('Tantang Tahta')
+          .setStyle(ButtonStyle.Danger)
+      );
+    }
+  }
+
   if (interaction.replied || interaction.deferred) {
     return interaction.editReply({ embeds: [embed], components: [row] });
   }
-  return interaction.reply({ embeds: [embed], components: [row] });
+  return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
 }
 
 /**
@@ -2178,22 +3095,27 @@ async function executeGachaRates(interaction) {
     .setDescription(
       `Sistem Gacha dilengkapi dengan **Kursi Tahta Terbatas & Clash of Thrones**.\n\n` +
       `**Drop Rate & Alokasi Tahta:**\n` +
-      `• **MYTHIC (1%):** Tahta **3 Kursi Maksimal** • Durasi **7 Hari** • Daur ulang: +500 Dust\n` +
-      `• **LEGENDARY (4%):** Tahta **5 Kursi Maksimal** • Durasi **3 Hari** • Daur ulang: +200 Dust\n` +
-      `• **EPIC (15%):** Relik Koleksi & Lencana • Daur ulang: +75 Dust\n` +
-      `• **RARE (30%):** Relik Koleksi • Daur ulang: +25 Dust\n` +
-      `• **COMMON (50%):** Benda santai • Daur ulang: +10 Dust\n\n` +
+      `• **MYTHIC (3%):** Tahta **3 Kursi Maksimal** • Role Permanen • Daur ulang: +500 Dust\n` +
+      `• **LEGENDARY (10%):** Tahta **5 Kursi Maksimal** • Role Permanen • Daur ulang: +200 Dust\n` +
+      `• **EPIC (20%):** Relik Koleksi & Lencana • Daur ulang: +75 Dust\n` +
+      `• **RARE (32%):** Relik Koleksi • Daur ulang: +25 Dust\n` +
+      `• **COMMON (35%):** Benda santai • Daur ulang: +10 Dust\n\n` +
+      `**Sumber Stardust (Dust):**\n` +
+      `• **Daur Ulang Duplikat:** Otomatis +10 s/d +500 Dust setiap dapat relik kembar.\n` +
+      `• **Aktif Voice Channel:** Otomatis dapat **+15 Stardust & +1 Tiket** setiap **15 menit** nongkrong di Voice!\n` +
+      `• **Klaim Harian (/gacha daily):** +50 s/d +350 Dust & bonus tiket gratis setiap hari.\n` +
+      `• **Clash of Thrones:** Kompensasi kekalahan duel tahta sebesar +250 Dust.\n\n` +
       `**Sistem Duel Perebutan Tahta (12 Jam):**\n` +
-      `• Jika kuota kursi Mythic (3/3) atau Legendary (5/5) telah penuh, penantang akan bertarung dalam duel strategi **Best of 3** melawan pemegang tahta.\n` +
+      `• Jika kuota kursi Mythic (3/3) atau Legendary (5/5) telah penuh, penantang dapat memilih pemegang tahta yang ingin ditantang atau duel acak (Best of 3).\n` +
       `• Pemain yang kalah menerima kompensasi **+250 Stardust**.\n\n` +
       `**Garansi Pity System:**\n` +
-      `• **Epic Guarantee:** Minimal 1 item **EPIC+** setiap **10 pull**.\n` +
-      `• **Legendary Guarantee:** Minimal 1 item **LEGENDARY+** pada pull ke-**30**.\n\n` +
+      `• **Epic Guarantee:** Minimal 1 item **EPIC+** setiap **5 pull**.\n` +
+      `• **Legendary Guarantee:** Minimal 1 item **LEGENDARY+** pada pull ke-**15**.\n\n` +
       `**Status Pity Akunmu:**\n` +
-      `• Garansi Epic berikutnya dalam: **${10 - (userData.pityEpic || 0)}x tarikan**\n` +
-      `• Garansi Legendary berikutnya dalam: **${30 - (userData.pityLegendary || 0)}x tarikan**`
+      `• Garansi Epic berikutnya dalam: **${5 - (userData.pityEpic || 0)}x tarikan**\n` +
+      `• Garansi Legendary berikutnya dalam: **${15 - (userData.pityLegendary || 0)}x tarikan**`
     )
-    .setFooter({ text: 'Daur ulang duplikat menghasilkan Stardust untuk dibelanjakan di /gacha shop' });
+    .setFooter({ text: 'Daur ulang duplikat & aktif voice menghasilkan Stardust untuk dibelanjakan di /gacha shop' });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -2264,7 +3186,8 @@ module.exports = {
             .addChoices(
               { name: '3x COMMON -> 1x RARE', value: 'COMMON' },
               { name: '3x RARE -> 1x EPIC', value: 'RARE' },
-              { name: '3x EPIC -> 1x LEGENDARY', value: 'EPIC' }
+              { name: '3x EPIC -> 1x LEGENDARY', value: 'EPIC' },
+              { name: '3x LEGENDARY -> 1x MYTHIC', value: 'LEGENDARY' }
             )
         )
     )
@@ -2338,7 +3261,8 @@ module.exports = {
             .addChoices(
               { name: 'Top Collector (Koleksi Terlengkap)', value: 'collector' },
               { name: 'Total Tarikan (Gacha Maniac)', value: 'pulls' },
-              { name: 'Relik Langka (Mythic & Legendary)', value: 'luck' }
+              { name: 'Relik Langka (Mythic & Legendary)', value: 'luck' },
+              { name: 'Pertahanan Tahta (Top Defenders)', value: 'defense' }
             )
         )
     )
@@ -2353,7 +3277,10 @@ module.exports = {
             .setDescription('Tipe channel yang ingin diatur')
             .setRequired(true)
             .addChoices(
-              { name: 'Channel Main Gacha (Batasi command gacha hanya di channel ini)', value: 'play' },
+              { name: 'Channel Tarik Gacha (Batasi command /gacha pull & tombol tarik)', value: 'pull' },
+              { name: 'Channel Hadiah Harian (Batasi command /gacha daily & tombol klaim)', value: 'daily' },
+              { name: 'Channel Main Gacha Umum (Menu gacha & fallback jika pull/daily belum diatur)', value: 'play' },
+              { name: 'Channel Hasil Tarikan (Log publik hasil pull di channel terpisah)', value: 'result' },
               { name: 'Channel Arena Duel (Tempat pertarungan Clash of Thrones dikirim)', value: 'duel' },
               { name: 'Channel Broadcast Jackpot (Pengumuman perolehan Mythic & Legendary)', value: 'broadcast' }
             )
@@ -2365,19 +3292,51 @@ module.exports = {
             .setRequired(false)
         )
     )
+    // Subcommand: challenge
+    .addSubcommand(sub =>
+      sub
+        .setName('challenge')
+        .setDescription('Tantang salah satu pemegang tahta (Mythic/Legendary) untuk merebut kursi tahta')
+        .addStringOption(opt =>
+          opt
+            .setName('tier')
+            .setDescription('Tier tahta yang ingin kamu perebutkan')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Tahta MYTHIC (Maksimal 3 Kursi • Permanen)', value: 'MYTHIC' },
+              { name: 'Tahta LEGENDARY (Maksimal 5 Kursi • Permanen)', value: 'LEGENDARY' }
+            )
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('mode')
+            .setDescription('Metode penentuan lawan (Acak atau Pilih)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Acak Lawan (Random Match)', value: 'random' },
+              { name: 'Pilih Sendiri Lawan (Manual Pick)', value: 'pick' }
+            )
+        )
+        .addUserOption(opt =>
+          opt
+            .setName('target')
+            .setDescription('Member pemegang tahta yang ingin kamu tantang langsung (Opsional)')
+            .setRequired(false)
+        )
+    )
     // Subcommand: setrole (Admin only)
     .addSubcommand(sub =>
       sub
         .setName('setrole')
-        .setDescription('Atur Role Discord Tahta untuk Mythic (3 Kursi/7H) atau Legendary (5 Kursi/3H) (Admin Only)')
+        .setDescription('Atur Role Discord Tahta untuk Mythic (3 Kursi) atau Legendary (5 Kursi) (Admin Only)')
         .addStringOption(opt =>
           opt
             .setName('tier')
             .setDescription('Tingkat kelangkaan Tahta')
             .setRequired(true)
             .addChoices(
-              { name: 'MYTHIC (Maksimal 3 Kursi • Durasi 7 Hari)', value: 'MYTHIC' },
-              { name: 'LEGENDARY (Maksimal 5 Kursi • Durasi 3 Hari)', value: 'LEGENDARY' }
+              { name: 'MYTHIC (Maksimal 3 Kursi • Permanen)', value: 'MYTHIC' },
+              { name: 'LEGENDARY (Maksimal 5 Kursi • Permanen)', value: 'LEGENDARY' }
             )
         )
         .addRoleOption(opt =>
@@ -2389,6 +3348,61 @@ module.exports = {
       sub
         .setName('listroles')
         .setDescription('Lihat status Kursi Tahta aktif & pemegang gelar saat ini')
+    )
+    // Subcommand: panel (Admin only)
+    .addSubcommand(sub =>
+      sub
+        .setName('panel')
+        .setDescription('Pasang atau perbarui Panel Interaktif Gacha / Daily di channel tertentu (Admin Only)')
+        .addStringOption(opt =>
+          opt
+            .setName('type')
+            .setDescription('Tipe panel yang ingin dipasang')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Panel Hadiah Harian (Daily Claim)', value: 'daily' },
+              { name: 'Panel Tarik Gacha (Mystery Box)', value: 'pull' },
+              { name: 'Kedua Panel Sekaligus (Sesuai setchannel)', value: 'both' }
+            )
+        )
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Target channel pemasangan (opsional, default: channel yang sudah di-set)')
+            .setRequired(false)
+        )
+    )
+    // Subcommand: award (Admin Giveaway / Reward Event)
+    .addSubcommand(sub =>
+      sub
+        .setName('award')
+        .setDescription('Berikan bonus tiket atau stardust gacha ke member (Admin Only / Event / Giveaway)')
+        .addUserOption(opt =>
+          opt
+            .setName('user')
+            .setDescription('Member penerima reward')
+            .setRequired(true)
+        )
+        .addIntegerOption(opt =>
+          opt
+            .setName('tickets')
+            .setDescription('Jumlah tiket gacha yang diberikan')
+            .setMinValue(1)
+            .setRequired(false)
+        )
+        .addIntegerOption(opt =>
+          opt
+            .setName('stardust')
+            .setDescription('Jumlah stardust yang diberikan')
+            .setMinValue(1)
+            .setRequired(false)
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('reason')
+            .setDescription('Alasan pemberian reward (misal: Juara 1 Kuis / Giveaway)')
+            .setRequired(false)
+        )
     ),
 
   // Export internal helpers for interactionCreate and ready.js
@@ -2396,11 +3410,19 @@ module.exports = {
   executeGachaDaily,
   executeGachaInventory,
   executeGachaRates,
+  executeGachaChallenge,
+  executeGachaChallengePrompt,
+  initiateThroneDuel,
+  buildDefenderChallengeComponents,
   checkAndExpireGachaRoles,
   checkAndExpireThroneDuels,
   processDuelButton,
   activeDuels,
   GACHA_ITEMS,
+  rollSingleGacha,
+  createDailyPanelPayload,
+  createPullPanelPayload,
+  deployGachaPanel,
 
   async execute(interaction, client) {
     const sub = interaction.options.getSubcommand();
@@ -2413,25 +3435,77 @@ module.exports = {
     if (!settingsData[guildId].gachaChannels) {
       settingsData[guildId].gachaChannels = {
         play: null,
+        pull: null,
+        daily: null,
+        result: null,
         duel: null,
         broadcast: settingsData[guildId].gachaChannel || null
       };
     }
+    if (settingsData[guildId].gachaChannels.result === undefined) {
+      settingsData[guildId].gachaChannels.result = null;
+    }
+    if (settingsData[guildId].gachaChannels.pull === undefined) {
+      settingsData[guildId].gachaChannels.pull = null;
+    }
+    if (settingsData[guildId].gachaChannels.daily === undefined) {
+      settingsData[guildId].gachaChannels.daily = null;
+    }
 
-    // Pembatasan Channel Main Gacha (Kecuali command Admin: setchannel, setrole, listroles)
-    const playChannelId = settingsData[guildId].gachaChannels.play;
-    const adminSubs = ['setchannel', 'setrole', 'listroles'];
-    if (playChannelId && !adminSubs.includes(sub) && interaction.channelId !== playChannelId) {
-      const isAuthorized = await isOwnerOrMod(interaction, client);
-      if (!isAuthorized) {
-        const embed = new EmbedBuilder()
-          .setColor(0xED4245)
-          .setTitle('Saluran Tidak Sesuai')
-          .setDescription(`Command Gacha hanya dapat digunakan di saluran <#${playChannelId}>.`);
-        return interaction.reply({
-          embeds: [embed],
-          flags: MessageFlags.Ephemeral
-        });
+    // Pembatasan Channel Gacha (Kecuali command Admin: setchannel, setrole, listroles, panel, award)
+    const adminSubs = ['setchannel', 'setrole', 'listroles', 'panel', 'award'];
+    if (!adminSubs.includes(sub)) {
+      const gChannels = settingsData[guildId].gachaChannels || {};
+      let requiredChannelId = null;
+      let channelLabel = 'Gacha';
+
+      if (sub === 'daily') {
+        requiredChannelId = gChannels.daily || gChannels.play;
+        channelLabel = 'Hadiah Harian (`/gacha daily`)';
+      } else if (sub === 'pull') {
+        requiredChannelId = gChannels.pull || gChannels.play;
+        channelLabel = 'Tarik Gacha (`/gacha pull`)';
+      } else if (sub === 'challenge') {
+        requiredChannelId = gChannels.duel || gChannels.play;
+        channelLabel = 'Tantangan Tahta (`/gacha challenge`)';
+      } else {
+        // inventory, fuse, equip, unequip, album, shop, buy, gift, leaderboard
+        requiredChannelId = gChannels.play;
+        channelLabel = `Menu Gacha (\`/gacha ${sub}\`)`;
+      }
+
+      if (requiredChannelId && interaction.channelId !== requiredChannelId) {
+        const isAuthorized = await isOwnerOrMod(interaction, client);
+        if (!isAuthorized) {
+          const targetChannel = interaction.guild?.channels?.cache?.get(requiredChannelId);
+          const chName = targetChannel ? `#${targetChannel.name}` : 'Saluran Khusus';
+          const buttonLabel = `Menuju ke ${chName}`.slice(0, 80);
+          const channelUrl = `https://discord.com/channels/${guildId}/${requiredChannelId}`;
+
+          const embed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle('Pengalihan Saluran Gacha')
+            .setDescription(
+              `Perintah **${channelLabel}** dialokasikan khusus di saluran <#${requiredChannelId}>.\n\n` +
+              `Silakan klik tombol di bawah untuk langsung menuju ke saluran tersebut!`
+            );
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel(buttonLabel)
+              .setStyle(ButtonStyle.Link)
+              .setURL(channelUrl)
+          );
+
+          if (interaction.replied || interaction.deferred) {
+            return interaction.editReply({ embeds: [embed], components: [row] });
+          }
+          return interaction.reply({
+            embeds: [embed],
+            components: [row],
+            flags: MessageFlags.Ephemeral
+          });
+        }
       }
     }
 
@@ -2449,7 +3523,10 @@ module.exports = {
       const channel = interaction.options.getChannel('channel');
 
       const typeLabels = {
-        play: 'Main Gacha',
+        pull: 'Tarik Gacha',
+        daily: 'Hadiah Harian',
+        play: 'Main Gacha (Umum)',
+        result: 'Hasil Tarikan',
         duel: 'Arena Duel Tahta',
         broadcast: 'Broadcast Jackpot'
       };
@@ -2461,8 +3538,16 @@ module.exports = {
         storage.write('settings', settingsData);
 
         let desc = '';
-        if (type === 'play') {
-          desc = `Command \`/gacha\` kini dibatasi penggunaannya di <#${channel.id}> agar percakapan server tetap rapi.`;
+        if (type === 'pull') {
+          desc = `Command \`/gacha pull\` dan tombol tarikan kini dibatasi penggunaannya di <#${channel.id}>. Panel Tarik Gacha interaktif otomatis dipasang.`;
+          await deployGachaPanel(interaction.guild, channel, 'pull', client);
+        } else if (type === 'daily') {
+          desc = `Command \`/gacha daily\` dan tombol klaim harian kini dibatasi penggunaannya di <#${channel.id}>. Panel Hadiah Harian interaktif otomatis dipasang.`;
+          await deployGachaPanel(interaction.guild, channel, 'daily', client);
+        } else if (type === 'play') {
+          desc = `Saluran utama gacha diatur ke <#${channel.id}> (menu umum & fallback jika pull/daily tidak diset).`;
+        } else if (type === 'result') {
+          desc = `Hasil tarikan gacha akan otomatis diposting ke <#${channel.id}> sebagai **Live Feed** publik. Reply di channel tarikan menjadi privat (ephemeral).`;
         } else if (type === 'duel') {
           desc = `Seluruh tantangan, batas waktu 12 jam, dan hasil **Clash of Thrones** akan otomatis dialihkan ke <#${channel.id}>.`;
         } else if (type === 'broadcast') {
@@ -2489,8 +3574,14 @@ module.exports = {
         storage.write('settings', settingsData);
 
         let resetDesc = '';
-        if (type === 'play') {
-          resetDesc = 'Pembatasan saluran dihapus. Member dapat bermain gacha di seluruh channel server.';
+        if (type === 'pull') {
+          resetDesc = 'Pembatasan saluran Tarik Gacha dihapus (kembali mengikuti saluran umum jika diatur).';
+        } else if (type === 'daily') {
+          resetDesc = 'Pembatasan saluran Hadiah Harian dihapus (kembali mengikuti saluran umum jika diatur).';
+        } else if (type === 'play') {
+          resetDesc = 'Pembatasan saluran umum gacha dihapus. Member dapat bermain di seluruh channel server.';
+        } else if (type === 'result') {
+          resetDesc = 'Live Feed dinonaktifkan. Hasil tarikan akan kembali ditampilkan langsung secara publik di channel tarikan.';
         } else if (type === 'duel') {
           resetDesc = 'Pengalihan arena dinonaktifkan. Duel tahta akan berlangsung di channel tempat gacha ditarik.';
         } else if (type === 'broadcast') {
@@ -2537,7 +3628,7 @@ module.exports = {
         .setDescription(
           `• **Role Discord:** <@&${role.id}>\n` +
           `• **Kuota Kursi:** ${cfg.quota} Kursi\n` +
-          `• **Durasi Tahta:** ${cfg.days} Hari\n` +
+          `• **Durasi Tahta:** Permanen (Tanpa batas waktu)\n` +
           `• **Mekanisme:** Clash of Thrones 2.0 (12 Jam)\n\n` +
           `*Role ini akan otomatis diberikan dan diperebutkan saat member memperoleh kartu ${tier}.*`
         )
@@ -2554,19 +3645,18 @@ module.exports = {
       const gachaRoles = settingsData[guildId].gachaRoles || {};
       const gachaData = storage.read('gacha_data');
       const guildUsers = gachaData[guildId] || {};
-      const now = Date.now();
 
-      // Cari pemegang tahta aktif
+      // Cari pemegang tahta aktif (Permanen)
       const mythicHolders = [];
       const legHolders = [];
 
       for (const [uId, uData] of Object.entries(guildUsers)) {
-        if (uData.activeRole && uData.activeRole.expiresAt > now) {
-          const remText = formatTimeRemaining(uData.activeRole.expiresAt - now);
+        if (uData.activeRole && uData.activeRole.roleId) {
+          const streakText = uData.duelDefenseStreak ? ` *(Pertahanan: ${uData.duelDefenseStreak}x)*` : ' *(Permanen)*';
           if (uData.activeRole.tier === 'MYTHIC') {
-            mythicHolders.push(`<@${uId}> *(Sisa: ${remText})*`);
+            mythicHolders.push(`<@${uId}>${streakText}`);
           } else if (uData.activeRole.tier === 'LEGENDARY') {
-            legHolders.push(`<@${uId}> *(Sisa: ${remText})*`);
+            legHolders.push(`<@${uId}>${streakText}`);
           }
         }
       }
@@ -2580,10 +3670,13 @@ module.exports = {
         : '_Role belum diatur_';
 
       const gChannels = settingsData[guildId].gachaChannels || {};
+      const pullChText = gChannels.pull ? `<#${gChannels.pull}>` : (gChannels.play ? `<#${gChannels.play}> (Umum)` : '_Bebas_');
+      const dailyChText = gChannels.daily ? `<#${gChannels.daily}>` : (gChannels.play ? `<#${gChannels.play}> (Umum)` : '_Bebas_');
       const playChText = gChannels.play ? `<#${gChannels.play}>` : '_Semua Channel (Bebas)_';
+      const resultChText = gChannels.result ? `<#${gChannels.result}>` : '_Tidak aktif (publik di channel play)_';
       const duelChText = gChannels.duel ? `<#${gChannels.duel}>` : '_Sesuai Channel Gacha_';
       const bcastChText = (gChannels.broadcast || settingsData[guildId].gachaChannel) ? `<#${gChannels.broadcast || settingsData[guildId].gachaChannel}>` : '_Belum diatur_';
-      const channelsSummary = `• Main Gacha: ${playChText}\n• Arena Duel: ${duelChText}\n• Jackpot Alert: ${bcastChText}`;
+      const channelsSummary = `• Tarik Gacha: ${pullChText}\n• Hadiah Harian: ${dailyChText}\n• Saluran Umum: ${playChText}\n• Hasil Tarikan: ${resultChText}\n• Arena Duel: ${duelChText}\n• Jackpot Alert: ${bcastChText}`;
 
       // Cek duel aktif & antrean tahta
       const { guildData: guildThrone } = getGuildThroneData(guildId);
@@ -2643,15 +3736,124 @@ module.exports = {
       return interaction.reply({ embeds: [embed] });
     }
 
+    // === SUBCOMMAND: PANEL (Admin Only) ===
+    if (sub === 'panel') {
+      const isAuthorized = await isOwnerOrMod(interaction, client);
+      if (!isAuthorized) {
+        return interaction.reply({
+          content: 'Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator/Admin**.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const panelType = interaction.options.getString('type');
+      const targetChannelOpt = interaction.options.getChannel('channel');
+
+      const results = [];
+      if (panelType === 'daily' || panelType === 'both') {
+        let ch = targetChannelOpt;
+        if (!ch && settingsData[guildId]?.gachaChannels?.daily) {
+          ch = await interaction.guild.channels.fetch(settingsData[guildId].gachaChannels.daily).catch(() => null);
+        }
+        if (!ch) ch = interaction.channel;
+
+        if (ch && ch.isTextBased() && !ch.isThread()) {
+          const msg = await deployGachaPanel(interaction.guild, ch, 'daily', client);
+          if (msg) results.push(`• **Panel Hadiah Harian:** Berhasil dipasang di <#${ch.id}>`);
+          else results.push(`• **Panel Hadiah Harian:** Gagal dipasang di <#${ch.id}>`);
+        } else {
+          results.push(`• **Panel Hadiah Harian:** Channel tidak valid atau bukan text channel.`);
+        }
+      }
+
+      if (panelType === 'pull' || panelType === 'both') {
+        let ch = targetChannelOpt;
+        if (!ch && settingsData[guildId]?.gachaChannels?.pull) {
+          ch = await interaction.guild.channels.fetch(settingsData[guildId].gachaChannels.pull).catch(() => null);
+        }
+        if (!ch) ch = interaction.channel;
+
+        if (ch && ch.isTextBased() && !ch.isThread()) {
+          const msg = await deployGachaPanel(interaction.guild, ch, 'pull', client);
+          if (msg) results.push(`• **Panel Tarik Gacha:** Berhasil dipasang di <#${ch.id}>`);
+          else results.push(`• **Panel Tarik Gacha:** Gagal dipasang di <#${ch.id}>`);
+        } else {
+          results.push(`• **Panel Tarik Gacha:** Channel tidak valid atau bukan text channel.`);
+        }
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setTitle('Pemasangan Panel Interaktif Selesai')
+        .setDescription(results.join('\n') + '\n\n*Member cukup menekan tombol pada panel untuk berinteraksi secara privat (ephemeral).*');
+
+      return interaction.editReply({ embeds: [embed] });
+    }
+
+    // === SUBCOMMAND: AWARD (Admin Giveaway / Reward Event) ===
+    if (sub === 'award') {
+      const isAuthorized = await isOwnerOrMod(interaction, client);
+      if (!isAuthorized) {
+        return interaction.reply({
+          content: 'Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator/Admin**.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const targetUser = interaction.options.getUser('user');
+      const ticketsToAdd = interaction.options.getInteger('tickets') || 0;
+      const stardustToAdd = interaction.options.getInteger('stardust') || 0;
+      const reason = interaction.options.getString('reason') || 'Hadiah Event / Server Reward';
+
+      if (ticketsToAdd <= 0 && stardustToAdd <= 0) {
+        return interaction.reply({
+          content: 'Harap tentukan minimal salah satu reward: `tickets` atau `stardust` yang lebih dari 0.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const gachaData = storage.read('gacha_data');
+      const userData = getOrInitUserData(gachaData, guildId, targetUser.id);
+
+      userData.tickets = (userData.tickets || 0) + ticketsToAdd;
+      userData.stardust = (userData.stardust || 0) + stardustToAdd;
+      storage.write('gacha_data', gachaData);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setTitle('Hadiah Gacha Berhasil Diberikan')
+        .setDescription(
+          `Admin <@${interaction.user.id}> telah memberikan reward gacha kepada <@${targetUser.id}>!\n\n` +
+          `**Bonus yang Diberikan:**\n` +
+          (ticketsToAdd > 0 ? `• **+${ticketsToAdd} Tiket Gacha**\n` : '') +
+          (stardustToAdd > 0 ? `• **+${stardustToAdd} Stardust**\n` : '') +
+          `• **Alasan:** *${reason}*\n\n` +
+          `**Saldo Terbaru <@${targetUser.id}>:**\n` +
+          `• **${userData.tickets} Tiket** • **${userData.stardust} Stardust**`
+        )
+        .setFooter({ text: `${interaction.guild.name} • Server Event Reward` })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    // === SUBCOMMAND: CHALLENGE ===
+    if (sub === 'challenge') {
+      return executeGachaChallenge(interaction, client);
+    }
+
     // === SUBCOMMAND: PULL ===
     if (sub === 'pull') {
       const amount = interaction.options.getInteger('amount') || 1;
-      await interaction.deferReply();
+      const hasResultCh = !!settingsData[guildId]?.gachaChannels?.result;
+      await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
       return executeGachaPull(interaction, client, amount);
     }
 
     // === SUBCOMMAND: DAILY ===
     if (sub === 'daily') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       return executeGachaDaily(interaction);
     }
 
@@ -2718,7 +3920,8 @@ module.exports = {
       const nextTierMap = {
         COMMON: 'RARE',
         RARE: 'EPIC',
-        EPIC: 'LEGENDARY'
+        EPIC: 'LEGENDARY',
+        LEGENDARY: 'MYTHIC'
       };
       const targetTier = nextTierMap[sourceTier];
       if (!targetTier) {
@@ -2768,12 +3971,12 @@ module.exports = {
         userData.stardust += extraDust;
       }
 
-      // Throne role update jika hasil tempa adalah LEGENDARY
+      // Throne role update jika hasil tempa adalah MYTHIC atau LEGENDARY
       const roleResultText = await applySmartGachaRole(interaction.guild, interaction.member, forgedItem.tier, userData, gachaData, interaction.channel, client);
       storage.write('gacha_data', gachaData);
 
-      // Broadcast if Legendary
-      if (forgedItem.tier === 'LEGENDARY') {
+      // Broadcast if Mythic or Legendary
+      if (forgedItem.tier === 'MYTHIC' || forgedItem.tier === 'LEGENDARY') {
         broadcastJackpot(interaction.guild, interaction.member, forgedItem, client);
       }
 
@@ -2807,11 +4010,11 @@ module.exports = {
 
       const tiers = ['MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
       const tierHeaders = {
-        MYTHIC: 'MYTHIC (1%)',
-        LEGENDARY: 'LEGENDARY (4%)',
-        EPIC: 'EPIC (15%)',
-        RARE: 'RARE (30%)',
-        COMMON: 'COMMON (50%)'
+        MYTHIC: 'MYTHIC (3%)',
+        LEGENDARY: 'LEGENDARY (10%)',
+        EPIC: 'EPIC (20%)',
+        RARE: 'RARE (32%)',
+        COMMON: 'COMMON (35%)'
       };
 
       const embed = new EmbedBuilder()
@@ -3023,6 +4226,10 @@ module.exports = {
           }).length;
           return countB - countA;
         });
+      } else if (category === 'defense') {
+        title = 'Klasemen Pertahanan Tahta (Top Defenders)';
+        descHeader = 'Peringkat pemegang tahta dengan pertahanan beruntun terbanyak:';
+        userEntries.sort((a, b) => (b[1].duelDefenseStreak || 0) - (a[1].duelDefenseStreak || 0));
       }
 
       const top10 = userEntries.slice(0, 10);
@@ -3033,6 +4240,10 @@ module.exports = {
           return `${rankNum} <@${uId}> — **${data.inventory?.length || 0}/${GACHA_ITEMS.length} Item** (${data.pulls || 0} tarikan)`;
         } else if (category === 'pulls') {
           return `${rankNum} <@${uId}> — **${data.pulls || 0}x Tarikan** (${data.inventory?.length || 0} item)`;
+        } else if (category === 'defense') {
+          const streak = data.duelDefenseStreak || 0;
+          const roleText = data.activeRole ? ` [${data.activeRole.tier}]` : '';
+          return `${rankNum} <@${uId}> — **${streak}x Pertahanan Beruntun**${roleText}`;
         } else {
           const legCount = (data.inventory || []).filter(name => {
             const found = GACHA_ITEMS.find(g => g.name === name);

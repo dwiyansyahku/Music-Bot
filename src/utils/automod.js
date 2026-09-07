@@ -1,9 +1,15 @@
-// ══════════════════════════════════════════════════════════════
-// AUTO-MODERATION & ANTI-PHISHING SYSTEM
-// Deteksi Kata Kurang Pantas, Bypasses, Phishing, Scam MrBeast & Fake QR
-// ══════════════════════════════════════════════════════════════
-
+const { PermissionFlagsBits } = require('discord.js');
 const storage = require('./storage');
+
+// Ekstensi file berbahaya yang sering digunakan untuk Trojan, Token Grabber & RAT
+const MALICIOUS_FILE_EXTENSIONS = [
+  '.exe', '.scr', '.bat', '.cmd', '.vbs', '.vbe', '.js', '.jse',
+  '.wsf', '.wsh', '.ps1', '.ps1xml', '.jar', '.apk', '.com', '.pif',
+  '.hta', '.cpl', '.msi', '.msp', '.gadget', '.reg'
+];
+
+// Pola regex Token Discord (User Account & Bot Token) untuk mencegah kebocoran kredensial
+const DISCORD_TOKEN_REGEX = /(?:mfa\.[a-zA-Z0-9_-]{84}|[a-zA-Z0-9_-]{24,28}\.[a-zA-Z0-9_-]{6}\.[a-zA-Z0-9_-]{27,38})/g;
 
 // Daftar kata kasar, umpatan daerah, internasional, dan singkatannya (Super Lengkap)
 const DEFAULT_BAD_WORDS = [
@@ -127,7 +133,17 @@ const KNOWN_MALICIOUS_DOMAINS = [
   'beastgiveaway.net',
   'claim-mrbeast.org',
   'mrbeastdrop.com',
-  'free-robux.site'
+  'free-robux.site',
+  'steamcommuniity.com',
+  'steamcomminuty.com',
+  'trade-steamcommunity.com',
+  'discordapp.click',
+  'discord.gifts',
+  'discorcl.app',
+  'discorcl.com',
+  'dlscord.com',
+  'ps3cfw.com',
+  'shorte.st'
 ];
 
 /**
@@ -247,7 +263,7 @@ function checkBadWords(content, customBadWords = [], whitelistedWords = []) {
 }
 
 /**
- * Deteksi apakah pesan/gambar mengandung link phishing, scam MrBeast, atau jebakan QR Code Login
+ * Deteksi apakah pesan/gambar mengandung link phishing, scam, malware grabber, atau kebocoran token
  */
 function checkPhishing(messageOrContent) {
   let content = '';
@@ -269,6 +285,32 @@ function checkPhishing(messageOrContent) {
   const rawLower = content.toLowerCase();
   const normalized = normalizeText(content);
 
+  // 0. CEK KEBOCORAN TOKEN DISCORD (MENCEGAH PEMBAJAKAN AKUN ATAU BOT DISCORD)
+  const tokenMatches = content.match(DISCORD_TOKEN_REGEX);
+  if (tokenMatches && tokenMatches.length > 0) {
+    return {
+      isPhishing: true,
+      isTokenLeak: true,
+      reason: 'Kebocoran Token Discord (Akun/Bot) terdeteksi di dalam pesan.',
+      url: 'TOKEN_DISCORD_RAHASIA'
+    };
+  }
+
+  // 0B. CEK LAMPIRAN FILE BERBAHAYA (TROJAN, TOKEN STEALER, RAT & MALWARE)
+  for (const att of attachments) {
+    const fn = (att.name || '').toLowerCase();
+    const isDangerous = MALICIOUS_FILE_EXTENSIONS.some(ext => fn.endsWith(ext) || fn.includes(ext + '.'));
+    if (isDangerous) {
+      return {
+        isPhishing: true,
+        isMalware: true,
+        reason: `Lampiran file berbahaya / Trojan / Token Grabber terdeteksi (\`${att.name}\`).`,
+        filename: att.name,
+        url: att.name
+      };
+    }
+  }
+
   // 1. CEK URL & DOMAIN PHISHING
   const urlRegex = /(https?:\/\/[^\s]+)/gi;
   const urls = content.match(urlRegex) || [];
@@ -285,16 +327,17 @@ function checkPhishing(messageOrContent) {
         }
       }
 
-      // B. Cek Typosquatting / Fake Discord Nitro / Fake MrBeast URL
+      // B. Cek Typosquatting / Fake Discord Nitro / Fake MrBeast / Fake Steam URL
       const isOfficial = OFFICIAL_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`));
       if (!isOfficial) {
         // Domain meniru kata 'discord', 'nitro', 'steam'
-        const fakeDiscordMatch = hostname.match(/(disord|dlscord|dlsord|dicord|discrod|disccord|discorcl)/i);
-        const nitroKeywordsMatch = hostname.match(/(discord.*nitro|nitro.*discord|discord.*gift|free.*nitro|claim.*nitro|steam.*nitro|nitro.*drop)/i);
+        const fakeDiscordMatch = hostname.match(/(disord|dlscord|dlsord|dicord|discrod|disccord|discorcl|discort|discrold|discood)/i);
+        const fakeSteamMatch = hostname.match(/(steamcommuntiy|steamcomminuty|steamcommuniity|steamcommunitys|steamcomunty|steancommunity|steam-trade|steam-gift|steam-nitro|trade-offer.*steam)/i);
+        const nitroKeywordsMatch = hostname.match(/(discord.*nitro|nitro.*discord|discord.*gift|free.*nitro|claim.*nitro|steam.*nitro|nitro.*drop|discord.*airdrop|nitro.*boost|discord.*event|nitro.*claim)/i);
         const mrBeastDomainMatch = hostname.match(/(mrbeast|beast.*gift|beast.*drop|beast.*claim|beast.*promo|elon.*crypto|free.*robux)/i);
 
-        if (fakeDiscordMatch || nitroKeywordsMatch) {
-          return { isPhishing: true, reason: 'Domain meniru layanan resmi Discord/Nitro (Fake Nitro Phishing).', url: rawUrl };
+        if (fakeDiscordMatch || fakeSteamMatch || nitroKeywordsMatch) {
+          return { isPhishing: true, reason: 'Domain meniru layanan resmi Discord/Nitro/Steam (Fake Phishing Scam).', url: rawUrl };
         }
 
         if (mrBeastDomainMatch) {
@@ -344,7 +387,21 @@ function checkPhishing(messageOrContent) {
     };
   }
 
-  // 4. CEK ATTACHMENT GAMBAR DENGAN NAMA FILE MENCURIGAKAN
+  // 4. CEK MODUS "TRY MY GAME" / "TEST MY GAME" (TROJAN TOKEN GRABBER)
+  const isGameBetaScam = (
+    (rawLower.includes('try my game') || rawLower.includes('test my game') || rawLower.includes('beta test my game') || rawLower.includes('play my game')) &&
+    (urls.length > 0 || attachments.length > 0)
+  );
+
+  if (isGameBetaScam) {
+    return {
+      isPhishing: true,
+      reason: 'Pesan terindikasi modus Trojan Grabber berkedok uji coba game baru (Beta Game Scam).',
+      url: urls[0] || 'Game Installer'
+    };
+  }
+
+  // 5. CEK ATTACHMENT GAMBAR DENGAN NAMA FILE MENCURIGAKAN
   for (const att of attachments) {
     const fn = (att.name || '').toLowerCase();
     if (
@@ -360,7 +417,7 @@ function checkPhishing(messageOrContent) {
     }
   }
 
-  // 5. DETEKSI BROADCAST SPAM MASSAL (@everyone + Link Scam)
+  // 6. DETEKSI BROADCAST SPAM MASSAL (@everyone + Link Scam)
   const hasMassMention = rawLower.includes('@everyone') || rawLower.includes('@here');
   const hasScamKeywords = (
     rawLower.includes('free nitro') || rawLower.includes('nitro free') ||
@@ -375,6 +432,188 @@ function checkPhishing(messageOrContent) {
   return { isPhishing: false, reason: null, url: null };
 }
 
+// ══════════════════════════════════════════════════════════════
+// ANTI-SPAM DETECTION ENGINE
+// ══════════════════════════════════════════════════════════════
+
+// In-memory sliding window tracker: key = `${guildId}_${userId}`
+const spamTracker = new Map();
+
+/**
+ * Bersihkan record spam tracker yang tidak aktif lebih dari 5 menit
+ */
+function cleanExpiredSpamRecords() {
+  const now = Date.now();
+  for (const [key, data] of spamTracker.entries()) {
+    if (now - (data.lastActivity || 0) > 5 * 60 * 1000) {
+      spamTracker.delete(key);
+    }
+  }
+}
+
+// Timer pembersihan berkala tiap 3 menit
+if (typeof setInterval !== 'undefined') {
+  setInterval(cleanExpiredSpamRecords, 3 * 60 * 1000).unref?.();
+}
+
+/**
+ * Deteksi apakah pesan tergolong spam (Fast flood, duplikasi teks, mass mention, capslock, emoji spam)
+ */
+function checkSpam(message, automodConfig = {}) {
+  if (!message || !message.guild || !message.author || message.author.bot) {
+    return { isSpam: false };
+  }
+
+  // Bypass jika member memiliki izin ManageMessages / Administrator
+  if (message.member) {
+    if (
+      message.member.permissions?.has(PermissionFlagsBits.ManageMessages) ||
+      message.member.permissions?.has(PermissionFlagsBits.Administrator)
+    ) {
+      return { isSpam: false };
+    }
+
+    // Bypass jika role di-ignore
+    if (
+      automodConfig.ignoredRoles &&
+      automodConfig.ignoredRoles.length > 0 &&
+      message.member.roles?.cache?.some(r => automodConfig.ignoredRoles.includes(r.id))
+    ) {
+      return { isSpam: false };
+    }
+  }
+
+  // Bypass jika channel di-ignore
+  if (
+    automodConfig.ignoredChannels &&
+    automodConfig.ignoredChannels.length > 0 &&
+    automodConfig.ignoredChannels.includes(message.channel.id)
+  ) {
+    return { isSpam: false };
+  }
+
+  const guildId = message.guild.id;
+  const userId = message.author.id;
+  const key = `${guildId}_${userId}`;
+  const now = Date.now();
+
+  let data = spamTracker.get(key);
+  if (!data) {
+    data = {
+      timestamps: [],
+      lastContent: '',
+      repeatCount: 0,
+      strikes: 0,
+      lastStrikeTime: 0,
+      lastActivity: now
+    };
+    spamTracker.set(key, data);
+  }
+  data.lastActivity = now;
+
+  // Reset strikes jika tidak melanggar dalam 60 detik
+  if (data.lastStrikeTime && now - data.lastStrikeTime > 60 * 1000) {
+    data.strikes = 0;
+  }
+
+  // ─── 1. CEK FLOOD PESAN CEPAT (RATE LIMITING) ───
+  // Pertahankan hanya timestamp dalam 4 detik terakhir
+  data.timestamps = data.timestamps.filter(t => now - t <= 4000);
+  data.timestamps.push(now);
+
+  if (data.timestamps.length >= 5) {
+    data.strikes += 2;
+    data.lastStrikeTime = now;
+    return {
+      isSpam: true,
+      type: 'flood',
+      reason: 'Mengirim pesan terlalu cepat (Flood Spam)',
+      action: 'timeout'
+    };
+  }
+
+  const rawContent = message.content || '';
+  const normContent = rawContent.toLowerCase().trim().replace(/\s+/g, ' ');
+
+  // ─── 2. CEK PESAN DUPLIKAT BERULANG ───
+  if (normContent.length >= 3) {
+    if (normContent === data.lastContent) {
+      data.repeatCount = (data.repeatCount || 1) + 1;
+    } else {
+      data.lastContent = normContent;
+      data.repeatCount = 1;
+    }
+
+    if (data.repeatCount >= 3) {
+      data.strikes += 1;
+      data.lastStrikeTime = now;
+      return {
+        isSpam: true,
+        type: 'duplicate',
+        reason: 'Mengirim pesan yang sama berulang kali (Duplicate Spam)',
+        action: data.strikes >= 2 ? 'timeout' : 'delete'
+      };
+    }
+  }
+
+  // ─── 3. CEK MASS MENTION / TAG MASSAL ───
+  const userMentions = message.mentions.users ? message.mentions.users.size : 0;
+  const roleMentions = message.mentions.roles ? message.mentions.roles.size : 0;
+  const hasMassPing = rawContent.includes('@everyone') || rawContent.includes('@here');
+
+  if (
+    userMentions >= 5 ||
+    roleMentions >= 3 ||
+    (hasMassPing && !message.member?.permissions?.has(PermissionFlagsBits.MentionEveryone))
+  ) {
+    data.strikes += 2;
+    data.lastStrikeTime = now;
+    return {
+      isSpam: true,
+      type: 'mass_mention',
+      reason: 'Melakukan mass-mention / tag berlebihan',
+      action: 'timeout'
+    };
+  }
+
+  // ─── 4. CEK HURUF KAPITAL BERLEBIHAN (CAPSLOCK FLOOD) ───
+  if (rawContent.length >= 15) {
+    const letters = rawContent.replace(/[^a-zA-Z]/g, '');
+    if (letters.length >= 12) {
+      const upperCount = (rawContent.match(/[A-Z]/g) || []).length;
+      const ratio = upperCount / letters.length;
+      if (ratio >= 0.75) {
+        data.strikes += 1;
+        data.lastStrikeTime = now;
+        return {
+          isSpam: true,
+          type: 'caps',
+          reason: 'Penggunaan HURUF KAPITAL / Capslock berlebihan',
+          action: data.strikes >= 2 ? 'timeout' : 'delete'
+        };
+      }
+    }
+  }
+
+  // ─── 5. CEK SPAM EMOJI BERLEBIHAN ───
+  const customEmojis = rawContent.match(/<a?:[a-zA-Z0-9_]+:[0-9]+>/g) || [];
+  const unicodeEmojis = rawContent.match(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu) || [];
+  const totalEmojis = customEmojis.length + unicodeEmojis.length;
+
+  if (totalEmojis >= 8) {
+    data.strikes += 1;
+    data.lastStrikeTime = now;
+    return {
+      isSpam: true,
+      type: 'emoji',
+      reason: 'Spam emoji berlebihan dalam satu pesan',
+      action: data.strikes >= 2 ? 'timeout' : 'delete'
+    };
+  }
+
+  return { isSpam: false, reason: null, type: null, action: null };
+}
+
 /**
  * Ambil konfigurasi automod guild dari settings
  */
@@ -386,7 +625,11 @@ function getGuildAutomodSettings(guildId) {
     enabled: guildSettings.automodEnabled !== false, // default: true
     antiPhishing: guildSettings.antiPhishing !== false, // default: true
     badWords: guildSettings.badWords !== false, // default: true
+    antiSpam: guildSettings.antiSpam !== false, // default: true
+    antiMalware: guildSettings.antiMalware !== false, // default: true
+    antiTokenLeak: guildSettings.antiTokenLeak !== false, // default: true
     timeoutOnPhishing: guildSettings.timeoutOnPhishing !== false, // default: true (1 jam)
+    timeoutOnSpam: guildSettings.timeoutOnSpam !== false, // default: true (1 menit)
     logChannelId: guildSettings.modLogChannelId || null,
     customBadWords: guildSettings.customBadWords || [],
     whitelistedWords: guildSettings.whitelistedWords || [],
@@ -398,7 +641,11 @@ function getGuildAutomodSettings(guildId) {
 module.exports = {
   checkBadWords,
   checkPhishing,
+  checkSpam,
   getGuildAutomodSettings,
   DEFAULT_BAD_WORDS,
-  OFFICIAL_DOMAINS
+  OFFICIAL_DOMAINS,
+  KNOWN_MALICIOUS_DOMAINS,
+  MALICIOUS_FILE_EXTENSIONS,
+  DISCORD_TOKEN_REGEX
 };
