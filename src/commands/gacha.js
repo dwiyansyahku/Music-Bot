@@ -1099,6 +1099,8 @@ function getOrInitUserData(gachaData, guildId, userId) {
       equippedTitle: null,
       activeRole: null, // { tier, roleId, expiresAt }
       duelDefenseStreak: 0,
+      duelWins: 0,
+      duelLosses: 0,
       duelHistory: [],
       throneProtectedUntil: 0,
       challengeCooldownUntil: 0,
@@ -1116,6 +1118,8 @@ function getOrInitUserData(gachaData, guildId, userId) {
     if (u.equippedTitle === undefined) u.equippedTitle = null;
     if (u.activeRole === undefined) u.activeRole = null;
     if (u.duelDefenseStreak === undefined) u.duelDefenseStreak = 0;
+    if (u.duelWins === undefined) u.duelWins = 0;
+    if (u.duelLosses === undefined) u.duelLosses = 0;
     if (u.throneProtectedUntil === undefined) u.throneProtectedUntil = 0;
     if (u.challengeCooldownUntil === undefined) u.challengeCooldownUntil = 0;
     if (u.luckyBuffPulls === undefined) u.luckyBuffPulls = 0;
@@ -1418,6 +1422,11 @@ function buildThroneDuelActionRow(duelId, disabled = false) {
       .setCustomId(`throne_duel:status:${duelId}`)
       .setLabel('Status Duel')
       .setStyle(ButtonStyle.Secondary)
+      .setDisabled(disabled),
+    new ButtonBuilder()
+      .setCustomId(`throne_duel:forfeit:${duelId}`)
+      .setLabel('Menyerah')
+      .setStyle(ButtonStyle.Danger)
       .setDisabled(disabled)
   );
 }
@@ -1477,7 +1486,8 @@ async function initiateThroneDuel({ guildId, challengerId, targetDefender, itemT
     channelId: channel.id,
     messageId: null,
     createdAt: now,
-    expiresAt
+    expiresAt,
+    reminderSent: false
   };
 
   throneGuild.activeDuels[duelId] = duelData;
@@ -1599,6 +1609,8 @@ async function executeInstantClash(duelId, client) {
     };
     challengerData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
     challengerData.challengeCooldownUntil = 0;
+    challengerData.duelWins = (challengerData.duelWins || 0) + 1;
+    defenderData.duelLosses = (defenderData.duelLosses || 0) + 1;
 
     resultTitle = `Tahta ${duel.itemTier} Berpindah Tangan`;
     resultDesc = (
@@ -1609,6 +1621,8 @@ async function executeInstantClash(duelId, client) {
   } else {
     // DEFENDER MENANG (atau SERI)
     defenderData.duelDefenseStreak = (defenderData.duelDefenseStreak || 0) + 1;
+    defenderData.duelWins = (defenderData.duelWins || 0) + 1;
+    challengerData.duelLosses = (challengerData.duelLosses || 0) + 1;
     defenderData.stardust = (defenderData.stardust || 0) + 50;
     defenderData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
     challengerData.challengeCooldownUntil = now + 30 * 60 * 1000; // 30 Menit jeda tantangan
@@ -1785,8 +1799,11 @@ async function handleDuelExpiry(duel, client) {
   let resultDesc = '';
   let tierColor = 0xFEE75C;
 
-  if (!dHasTactics) {
+  if (cHasTactics && !dHasTactics) {
     // Defender (Yang Ditantang) AFK / Tidak Merespon > 12 Jam -> Penantang Menang Default!
+    challengerData.duelWins = (challengerData.duelWins || 0) + 1;
+    defenderData.duelLosses = (defenderData.duelLosses || 0) + 1;
+
     if (guild) {
       try {
         const defenderMember = await guild.members.fetch(duel.defenderId).catch(() => null);
@@ -1818,6 +1835,15 @@ async function handleDuelExpiry(duel, client) {
     challengerData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
     challengerData.challengeCooldownUntil = 0;
 
+    const duelRecord = { date: now, tier: duel.itemTier };
+    challengerData.duelHistory = challengerData.duelHistory || [];
+    challengerData.duelHistory.unshift({ ...duelRecord, opponent: duel.defenderId, result: 'win', role: 'challenger' });
+    if (challengerData.duelHistory.length > 10) challengerData.duelHistory.pop();
+
+    defenderData.duelHistory = defenderData.duelHistory || [];
+    defenderData.duelHistory.unshift({ ...duelRecord, opponent: duel.challengerId, result: 'lose', role: 'defender' });
+    if (defenderData.duelHistory.length > 10) defenderData.duelHistory.pop();
+
     tierColor = 0xFF007F;
     resultTitle = `Tahta ${duel.itemTier} Direbut (Defender Tidak Merespon)`;
     resultDesc = (
@@ -1827,10 +1853,21 @@ async function handleDuelExpiry(duel, client) {
     );
   } else if (!cHasTactics && dHasTactics) {
     // Challenger AFK > 12 Jam -> Defender Menang Default!
+    defenderData.duelWins = (defenderData.duelWins || 0) + 1;
+    challengerData.duelLosses = (challengerData.duelLosses || 0) + 1;
     defenderData.duelDefenseStreak = (defenderData.duelDefenseStreak || 0) + 1;
     defenderData.stardust = (defenderData.stardust || 0) + 50;
     defenderData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
     challengerData.challengeCooldownUntil = now + 30 * 60 * 1000; // 30 Menit jeda tantangan
+
+    const duelRecord = { date: now, tier: duel.itemTier };
+    defenderData.duelHistory = defenderData.duelHistory || [];
+    defenderData.duelHistory.unshift({ ...duelRecord, opponent: duel.challengerId, result: 'win', role: 'defender' });
+    if (defenderData.duelHistory.length > 10) defenderData.duelHistory.pop();
+
+    challengerData.duelHistory = challengerData.duelHistory || [];
+    challengerData.duelHistory.unshift({ ...duelRecord, opponent: duel.defenderId, result: 'lose', role: 'challenger' });
+    if (challengerData.duelHistory.length > 10) challengerData.duelHistory.pop();
 
     tierColor = 0x57F287;
     resultTitle = `Tahta ${duel.itemTier} Dipertahankan (Penantang Tidak Merespon)`;
@@ -1942,18 +1979,55 @@ async function handleDuelExpiry(duel, client) {
 async function checkAndExpireThroneDuels(client) {
   const throneData = storage.read('throne_duels') || {};
   const now = Date.now();
+  let changed = false;
 
   for (const [guildId, guildDuels] of Object.entries(throneData)) {
     const activeDuelsObj = guildDuels.activeDuels || {};
     for (const [duelId, duel] of Object.entries(activeDuelsObj)) {
-      if (duel.status === 'WAITING_TACTICS' && duel.expiresAt <= now) {
-        try {
-          await handleDuelExpiry(duel, client);
-        } catch (expErr) {
-          console.error(`[Duel Expiry Error ${duelId}]:`, expErr.message);
+      if (duel.status === 'WAITING_TACTICS') {
+        if (duel.expiresAt <= now) {
+          try {
+            await handleDuelExpiry(duel, client);
+          } catch (expErr) {
+            console.error(`[Duel Expiry Error ${duelId}]:`, expErr.message);
+          }
+        } else if (!duel.reminderSent && (duel.expiresAt - now <= 2 * 60 * 60 * 1000)) {
+          duel.reminderSent = true;
+          changed = true;
+
+          const pendingIds = [];
+          if (!duel.tactics?.challenger) pendingIds.push(duel.challengerId);
+          if (!duel.tactics?.defender) pendingIds.push(duel.defenderId);
+
+          if (pendingIds.length > 0 && client) {
+            for (const pId of pendingIds) {
+              try {
+                const user = await client.users.fetch(pId).catch(() => null);
+                if (user) {
+                  await user.send({
+                    content: `Peringatan Batas Waktu Duel: Pertarungan tahta **${duel.itemTier}** tersisa kurang dari 2 jam. Segera pasang taktik di saluran duel <#${duel.channelId}> agar tidak kalah default.`
+                  }).catch(() => {});
+                }
+              } catch (_) {}
+            }
+
+            try {
+              const ch = await client.channels.fetch(duel.channelId).catch(() => null);
+              if (ch && ch.isTextBased()) {
+                const pMentions = pendingIds.map(id => `<@${id}>`).join(' ');
+                await ch.send({
+                  content: `Peringatan: ${pMentions} — Batas waktu tersisa kurang dari 2 jam untuk memasang taktik duel tahta **${duel.itemTier}**!`
+                }).catch(() => {});
+              }
+            } catch (_) {}
+          }
         }
       }
     }
+  }
+
+  if (changed) {
+    storage.write('throne_duels', throneData);
   }
 }
 
@@ -2063,8 +2137,221 @@ async function processChallengerQueue(guildId, itemTier, client) {
   }
 }
 
+async function handleDuelForfeit(interaction, client, duelId) {
+  const { allData: throneAll, guildData: throneGuild, duel } = getGuildThroneDataByDuelId(duelId);
+  if (!duel || duel.status !== 'WAITING_TACTICS') {
+    return interaction.reply({
+      content: 'Duel ini sudah selesai atau tidak ditemukan.',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const userId = interaction.user.id;
+  const isChallenger = userId === duel.challengerId;
+  const isDefender = userId === duel.defenderId;
+
+  if (!isChallenger && !isDefender) {
+    return interaction.reply({
+      content: `Kamu bukan peserta duel ini. Pertarungan berlangsung antara <@${duel.challengerId}> dan <@${duel.defenderId}>.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  await interaction.reply({
+    content: 'Kamu telah menyatakan menyerah dalam duel tahta ini. Hasil duel sedang diproses.',
+    flags: MessageFlags.Ephemeral
+  });
+
+  duel.status = 'FINISHED';
+
+  const gachaData = storage.read('gacha_data') || {};
+  const guild = client.guilds?.cache?.get(duel.guildId);
+  const challengerData = getOrInitUserData(gachaData, duel.guildId, duel.challengerId);
+  const defenderData = getOrInitUserData(gachaData, duel.guildId, duel.defenderId);
+
+  const config = THRONE_CONFIG[duel.itemTier];
+  const now = Date.now();
+
+  let tierColor = 0xFEE75C;
+  let resultTitle = '';
+  let resultDesc = '';
+
+  if (isDefender) {
+    // Defender menyerah -> Penantang menang seketika!
+    challengerData.duelWins = (challengerData.duelWins || 0) + 1;
+    defenderData.duelLosses = (defenderData.duelLosses || 0) + 1;
+
+    if (guild) {
+      try {
+        const defenderMember = await guild.members.fetch(duel.defenderId).catch(() => null);
+        if (defenderMember && defenderMember.roles.cache.has(duel.configuredRoleId)) {
+          await defenderMember.roles.remove(duel.configuredRoleId).catch(() => {});
+        }
+      } catch (_) {}
+    }
+    defenderData.activeRole = null;
+    defenderData.stardust = (defenderData.stardust || 0) + 100;
+    defenderData.duelDefenseStreak = 0;
+
+    if (guild) {
+      try {
+        const challengerMember = await guild.members.fetch(duel.challengerId).catch(() => null);
+        if (challengerMember) {
+          if (challengerData.activeRole && challengerData.activeRole.roleId && challengerMember.roles.cache.has(challengerData.activeRole.roleId)) {
+            await challengerMember.roles.remove(challengerData.activeRole.roleId).catch(() => {});
+          }
+          await challengerMember.roles.add(duel.configuredRoleId).catch(() => {});
+        }
+      } catch (_) {}
+    }
+    challengerData.activeRole = {
+      tier: duel.itemTier,
+      roleId: duel.configuredRoleId,
+      obtainedAt: now
+    };
+    challengerData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
+    challengerData.challengeCooldownUntil = 0;
+
+    tierColor = 0xFF007F;
+    resultTitle = `Tahta ${duel.itemTier} Diserahkan (Defender Menyerah)`;
+    resultDesc = (
+      `<@${duel.defenderId}> memutuskan untuk menyerah dalam duel tahta.\n\n` +
+      `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name} — Permanen)\n` +
+      `• Kompensasi: **<@${duel.defenderId}>** (+100 Stardust)`
+    );
+  } else {
+    // Challenger menyerah -> Defender mempertahankan tahtanya!
+    defenderData.duelWins = (defenderData.duelWins || 0) + 1;
+    challengerData.duelLosses = (challengerData.duelLosses || 0) + 1;
+    defenderData.duelDefenseStreak = (defenderData.duelDefenseStreak || 0) + 1;
+    defenderData.stardust = (defenderData.stardust || 0) + 50;
+    defenderData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
+    challengerData.challengeCooldownUntil = now + 30 * 60 * 1000; // 30 Menit jeda tantangan
+
+    tierColor = 0x57F287;
+    resultTitle = `Tahta ${duel.itemTier} Dipertahankan (Penantang Menyerah)`;
+    resultDesc = (
+      `<@${duel.challengerId}> memutuskan untuk membatalkan/menyerah dari tantangan duel.\n\n` +
+      `• Status: **<@${duel.defenderId}>** tetap menduduki tahta secara Permanen (+50 Stardust)\n` +
+      `• Penantang: Relik <@${duel.challengerId}> tersimpan di inventaris.`
+    );
+  }
+
+  // Riwayat Duel
+  const duelRecord = { date: now, tier: duel.itemTier };
+  challengerData.duelHistory = challengerData.duelHistory || [];
+  challengerData.duelHistory.unshift({
+    ...duelRecord,
+    opponent: duel.defenderId,
+    result: isDefender ? 'win' : 'forfeit_loss',
+    role: 'challenger'
+  });
+  if (challengerData.duelHistory.length > 10) challengerData.duelHistory.pop();
+
+  defenderData.duelHistory = defenderData.duelHistory || [];
+  defenderData.duelHistory.unshift({
+    ...duelRecord,
+    opponent: duel.challengerId,
+    result: isDefender ? 'forfeit_loss' : 'win',
+    role: 'defender'
+  });
+  if (defenderData.duelHistory.length > 10) defenderData.duelHistory.pop();
+
+  storage.write('gacha_data', gachaData);
+
+  // Kirim hasil ke Throne Lounge dan perbarui pesan di Saluran Duel
+  try {
+    const destChannel = await resolveThroneLoungeChannel(duel.guildId, client, null);
+    const duelChannel = await client.channels.fetch(duel.channelId).catch(() => null);
+
+    const forfeitEmbed = new EmbedBuilder()
+      .setColor(tierColor)
+      .setAuthor({ name: 'Clash of Thrones — Duel Selesai (Menyerah)' })
+      .setTitle(resultTitle)
+      .setDescription(
+        `> **<@${duel.challengerId}>** vs **<@${duel.defenderId}>**\n\n` +
+        resultDesc
+      )
+      .setFooter({ text: 'Forfeit Resolution' })
+      .setTimestamp();
+
+    if (destChannel && duelChannel && destChannel.id !== duelChannel.id) {
+      const forfeitMsg = await destChannel.send({
+        content: `**Hasil Duel Tahta (Menyerah)**\n<@${duel.challengerId}> <@${duel.defenderId}> — ${resultTitle}`,
+        embeds: [forfeitEmbed]
+      }).catch(() => null);
+
+      if (duel.messageId) {
+        const message = await duelChannel.messages.fetch(duel.messageId).catch(() => null);
+        if (message) {
+          const expiredEmbed = new EmbedBuilder()
+            .setColor(tierColor)
+            .setAuthor({ name: 'Clash of Thrones — Duel Selesai' })
+            .setTitle(resultTitle)
+            .setDescription(
+              `> **<@${duel.challengerId}>** vs **<@${duel.defenderId}>**\n\n` +
+              resultDesc + '\n\n' +
+              `Hasil lengkap disiarkan di: <#${destChannel.id}>`
+            )
+            .setFooter({ text: 'Forfeit Resolution' })
+            .setTimestamp();
+
+          const linkRow = new ActionRowBuilder();
+          if (forfeitMsg && forfeitMsg.url) {
+            linkRow.addComponents(
+              new ButtonBuilder()
+                .setLabel('Lihat Hasil di Throne Lounge')
+                .setStyle(ButtonStyle.Link)
+                .setURL(forfeitMsg.url)
+            );
+          } else {
+            linkRow.addComponents(
+              new ButtonBuilder()
+                .setLabel(`Menuju #${destChannel.name}`.slice(0, 80))
+                .setStyle(ButtonStyle.Link)
+                .setURL(`https://discord.com/channels/${duel.guildId}/${destChannel.id}`)
+            );
+          }
+
+          await message.edit({ embeds: [expiredEmbed], components: [linkRow] }).catch(() => {});
+        }
+      }
+    } else if (duelChannel) {
+      if (duel.messageId) {
+        const message = await duelChannel.messages.fetch(duel.messageId).catch(() => null);
+        if (message) {
+          const disabledRow = buildThroneDuelActionRow(duel.id, true);
+          await message.edit({ embeds: [forfeitEmbed], components: [disabledRow] }).catch(() => {});
+        }
+      }
+      await duelChannel.send({
+        content: `<@${duel.challengerId}> <@${duel.defenderId}> — ${resultTitle}`
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.error('[Duel Forfeit Embed Error]:', e.message);
+  }
+
+  if (throneGuild && throneGuild.activeDuels) {
+    delete throneGuild.activeDuels[duel.id];
+    saveThroneStorage(throneAll);
+  }
+
+  await processChallengerQueue(duel.guildId, duel.itemTier, client);
+
+  if (guild) {
+    updateDuelPanelIfExists(guild, client).catch(() => {});
+  }
+}
+
 async function processDuelButton(interaction, client) {
   const customId = interaction.customId;
+
+  // 0. Tombol Menyerah (Forfeit)
+  if (customId.startsWith('throne_duel:forfeit:')) {
+    const duelId = customId.replace('throne_duel:forfeit:', '');
+    return await handleDuelForfeit(interaction, client, duelId);
+  }
 
   // 0A. Tombol Acak Lawan (Random Match)
   if (customId.startsWith('throne_challenge_random:')) {
@@ -3078,13 +3365,22 @@ async function updateDuelPanelIfExists(guild, client) {
   try {
     if (!guild || !client) return;
     const settingsData = storage.read('settings') || {};
-    const throneChId = settingsData[guild.id]?.gachaChannels?.throne || settingsData[guild.id]?.gachaChannels?.duel;
+    const gCh = settingsData[guild.id]?.gachaChannels || {};
+    const throneChId = gCh.throne || gCh.duel;
 
     if (throneChId) {
       const channel = guild.channels?.cache?.get(throneChId) ||
         await client.channels.fetch(throneChId).catch(() => null);
       if (channel && channel.isTextBased() && !channel.isThread()) {
         await deployGachaPanel(guild, channel, 'duel', client);
+      }
+    }
+
+    if (gCh.tactics && gCh.tactics !== throneChId) {
+      const tChannel = guild.channels?.cache?.get(gCh.tactics) ||
+        await client.channels.fetch(gCh.tactics).catch(() => null);
+      if (tChannel && tChannel.isTextBased() && !tChannel.isThread()) {
+        await deployGachaPanel(guild, tChannel, 'tactics', client);
       }
     }
   } catch (err) {
@@ -4103,12 +4399,22 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
   const userCollected = targetData.inventory.length;
   const percentage = Math.round((userCollected / totalPool) * 100);
 
-  // Status Role Aktif
+  // Status Role Aktif & Rekor Duel
   let activeRoleDisplay = '_Tidak menduduki tahta_';
   if (targetData.activeRole && targetData.activeRole.roleId) {
     const streakInfo = targetData.duelDefenseStreak ? ` • Pertahanan: ${targetData.duelDefenseStreak}x` : '';
     activeRoleDisplay = `<@&${targetData.activeRole.roleId}> [${targetData.activeRole.tier}] — **Tahta Permanen**${streakInfo}`;
   }
+
+  const duelWins = targetData.duelWins || 0;
+  const duelLosses = targetData.duelLosses || 0;
+  const totalDuels = duelWins + duelLosses;
+  const winrate = totalDuels > 0 ? Math.round((duelWins / totalDuels) * 100) : 0;
+  const duelRecordStr = totalDuels > 0
+    ? `${duelWins} Menang — ${duelLosses} Kalah (${winrate}% Winrate)`
+    : 'Belum ada catatan';
+
+  activeRoleDisplay += `\n• Rekor Duel: **${duelRecordStr}**`;
 
   const activeBuffs = [];
   if (targetData.luckyBuffPulls && targetData.luckyBuffPulls > 0) {
@@ -4683,6 +4989,8 @@ async function executeSeasonReset(guild, client, options = {}) {
     uData.pulls = 0;
     uData.activeRole = null;
     uData.duelDefenseStreak = 0;
+    uData.duelWins = 0;
+    uData.duelLosses = 0;
   }
   storage.write('gacha_data', gachaData);
 

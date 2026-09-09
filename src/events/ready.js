@@ -411,9 +411,21 @@ module.exports = {
             }
           }
         }
-        console.log('✨ [CardSync] Semua kartu profil di gallery berhasil diperbarui otomatis pada startup.');
       } catch (err) {
         console.warn('[CardSync] Startup refresh failed:', err.message);
+      }
+
+      // AUTO-REFRESH THRONE & DUEL PANELS ON STARTUP
+      try {
+        const { updateDuelPanelIfExists } = require('../commands/gacha');
+        if (updateDuelPanelIfExists) {
+          for (const guild of client.guilds.cache.values()) {
+            await updateDuelPanelIfExists(guild, client).catch(() => {});
+          }
+          console.log('[DuelSync] Panel Tahta & Arena Duel berhasil diperbarui otomatis pada startup.');
+        }
+      } catch (duelSyncErr) {
+        console.warn('[DuelSync] Startup duel panel refresh failed:', duelSyncErr.message);
       }
     }, 5000);
 
