@@ -4,6 +4,7 @@ const {
 } = require('discord.js');
 const { isOwnerOrMod, isBotOwner, replyNoAccessMod, updateJailVisibility } = require('../utils/helpers');
 const storage = require('../utils/storage');
+const { sendModLog } = require('../utils/modlog');
 
 // ================================
 // Data roast random (lucu, bukan nyakitin)
@@ -225,6 +226,12 @@ const fun = {
         ],
         flags: MessageFlags.Ephemeral,
       });
+
+      await sendModLog(interaction.guild, client, {
+        action: 'SETCHANNEL',
+        moderator: interaction.user,
+        details: `Setup Konfigurasi Jail: Role <@&${role.id}>, Text <#${channel.id}>, Voice <#${voiceChannel.id}>`
+      });
     }
 
     // ─────────────────────────────────────
@@ -352,6 +359,14 @@ const fun = {
 
       await interaction.reply({ embeds: [announceEmbed] });
 
+      await sendModLog(interaction.guild, client, {
+        action: 'JAIL',
+        moderator: interaction.user,
+        target: targetUser,
+        reason: alasan,
+        details: `Durasi: ${durasi} menit • Bebas otomatis: <t:${Math.floor(releaseTime / 1000)}:R>`
+      });
+
        // Auto-release setelah durasi
       setTimeout(async () => {
         try {
@@ -451,6 +466,13 @@ const fun = {
         const jailChannel = interaction.guild.channels.cache.get(jailChannelId);
         if (jailChannel) await jailChannel.send({ embeds: [freeEmbed] }).catch(() => { });
       }
+
+      await sendModLog(interaction.guild, client, {
+        action: 'UNJAIL',
+        moderator: interaction.user,
+        target: targetUser,
+        reason: 'Pembebasan penjara lebih awal (Bail)'
+      });
 
       return interaction.reply({
         content: `✅ <@${targetUser.id}> berhasil dibebaskan dari penjara!`,

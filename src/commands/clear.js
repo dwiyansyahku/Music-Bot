@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 const { isOwnerOrMod } = require('../utils/helpers');
+const { sendModLog } = require('../utils/modlog');
 
 async function executeClear(interaction, client) {
   const subcommand = interaction.options.getSubcommand();
@@ -46,6 +47,13 @@ async function executeClear(interaction, client) {
     if (subcommand === 'amount') {
       const jumlah = interaction.options.getInteger('jumlah');
       const deleted = await bulkDeleteMessages(targetChannel, jumlah);
+
+      await sendModLog(interaction.guild, client, {
+        action: 'CLEAR_MESSAGES',
+        moderator: interaction.user,
+        details: `Menghapus **${deleted}** pesan di <#${targetChannel.id}>`
+      });
+
       return interaction.editReply({
         content: `Berhasil menghapus **${deleted}** pesan di <#${targetChannel.id}>.`,
       });
@@ -66,6 +74,12 @@ async function executeClear(interaction, client) {
         }
         await new Promise(r => setTimeout(r, 1200));
       }
+
+      await sendModLog(interaction.guild, client, {
+        action: 'CLEAR_MESSAGES',
+        moderator: interaction.user,
+        details: `Membersihkan seluruh chat: total **${totalDeleted}** pesan di <#${targetChannel.id}>`
+      });
 
       return interaction.editReply({
         content: `Selesai! Total **${totalDeleted}** pesan berhasil dibersihkan dari <#${targetChannel.id}>.\n> *Pesan yang lebih dari 14 hari tidak dapat dihapus oleh Discord API.*`,

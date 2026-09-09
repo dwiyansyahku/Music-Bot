@@ -94,11 +94,11 @@ function startProxyServer() {
         retries: 3,
         fragmentRetries: 3,
         socketTimeout: 15,
-        jsRuntimes: 'node',
         output: '-'
       };
 
       if (isYouTube) {
+        flags.jsRuntimes = 'node';
         flags.extractorArgs = 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck';
         if (process.env.USE_YOUTUBE_COOKIES === 'true') {
           const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
@@ -107,6 +107,8 @@ function startProxyServer() {
             console.log(`🍪 [Proxy Server] Passing cookies file: "${flags.cookies}"`);
           }
         }
+      } else {
+        flags.noPluginDirs = true;
       }
 
       const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
@@ -320,6 +322,19 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       return await executeYtdlpRaw(url, flags, timeoutMs);
     }
 
+    // Tangani error jika terjadi ketidakcocokan versi plugin yt-dlp (bgutil-ytdlp-pot-provider mismatch)
+    if (errLower.includes('plugin and script major versions are mismatched')) {
+      console.warn('⚠️ [yt-dlp Plugin] Version mismatch terdeteksi pada plugin yt-dlp. Mencoba ulang dengan mode --no-plugin-dirs...');
+      const noPluginFlags = { ...flags };
+      delete noPluginFlags.jsRuntimes;
+      noPluginFlags.noPluginDirs = true;
+      try {
+        return await executeYtdlpRaw(url, noPluginFlags, timeoutMs);
+      } catch (npErr) {
+        console.warn('⚠️ [yt-dlp Plugin] Retry tanpa plugin gagal, melanjutkan ke fallback:', npErr.message?.split('\n')?.[0]);
+      }
+    }
+
     // 1. INSTANT FALLBACK UNTUK PENCARIAN (ytsearch):
     // Jika query pencarian terkena blokir bot-check / 429 di YouTube, LANGSUNG alihkan ke SoundCloud dalam 1-2 detik!
     // Jangan buang waktu 30 detik mencoba 8 client YouTube yang sama-sama terblokir di IP datacenter.
@@ -331,6 +346,8 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
         const scFlags = { ...flags };
         delete scFlags.cookies;
         delete scFlags.extractorArgs;
+        delete scFlags.jsRuntimes;
+        scFlags.noPluginDirs = true;
         const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 8000));
         
         if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
@@ -433,6 +450,8 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
             const scFlags = { ...flags };
             delete scFlags.cookies;
             delete scFlags.extractorArgs;
+            delete scFlags.jsRuntimes;
+            scFlags.noPluginDirs = true;
             delete scFlags.verbose;
             scFlags.noPlaylist = false;
 
@@ -509,11 +528,11 @@ ytdlpPlugin.resolve = async function(url, options) {
     retries: 3,
     fragmentRetries: 3,
     socketTimeout: 15,
-    noPlaylist: true,
-    jsRuntimes: 'node'
+    noPlaylist: true
   };
 
   if (isYouTube) {
+    flags.jsRuntimes = 'node';
     flags.extractorArgs = 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck';
     // Hanya gunakan cookies jika secara eksplisit diaktifkan via ENV
     if (process.env.USE_YOUTUBE_COOKIES === 'true') {
@@ -525,6 +544,8 @@ ytdlpPlugin.resolve = async function(url, options) {
     } else {
       console.log('ℹ️ [ytdlpPlugin.resolve] Resolving with Android client (unauthenticated mode).');
     }
+  } else {
+    flags.noPluginDirs = true;
   }
 
   const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
@@ -655,7 +676,8 @@ ytdlpPlugin.getStreamURL = async function(song) {
         simulate: true,
         format: 'bestaudio/best',
         userAgent: USER_AGENT,
-        noPlaylist: true
+        noPlaylist: true,
+        noPluginDirs: true
       });
       if (directInfo && directInfo.url) {
         console.log(`✅ [ytdlpPlugin.getStreamURL] Direct stream URL obtained for: "${song.name}"`);

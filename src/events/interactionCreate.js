@@ -483,6 +483,48 @@ module.exports = {
       return;
     }
 
+    // ====== Button Interaction (Galeri Server Panel) ======
+    if (interaction.isButton() && (interaction.customId === 'gallery_btn_submit' || interaction.customId === 'gallery_btn_rules')) {
+      if (interaction.customId === 'gallery_btn_submit') {
+        const storage = require('../utils/storage');
+        const settings = storage.read('settings') || {};
+        const galleryChId = settings[interaction.guild?.id]?.galleryChannel;
+        const targetText = galleryChId ? `di saluran <#${galleryChId}>` : 'di Galeri Server';
+
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle('📸 Cara Mengirim Gambar ke Galeri')
+          .setDescription(
+            `Untuk memajang gambarmu ${targetText}, silakan gunakan perintah slash berikut:\n\n` +
+            `**Langkah-langkah:**\n` +
+            `1. Ketik \`/gallery submit\` di kolom obrolan.\n` +
+            `2. Lampirkan file gambarmu pada opsi **\`image\`** (PNG, JPG, GIF, WEBP, maks 8MB).\n` +
+            `3. *(Opsional)* Tulis judul/keterangan karyamu di opsi **\`caption\`**.\n` +
+            `4. Tekan **Enter** untuk mengirim!\n\n` +
+            `Bot akan otomatis memformat dan memajang postinganmu secara rapi di galeri.`
+          )
+          .setFooter({ text: 'Batas kirim: 5 gambar per hari per member' });
+
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      }
+
+      if (interaction.customId === 'gallery_btn_rules') {
+        const embed = new EmbedBuilder()
+          .setColor(0x2B2D31)
+          .setTitle('📜 Ketentuan & Pedoman Galeri Komunitas')
+          .setDescription(
+            `• **Konten yang Diizinkan:** Fotografi, ilustrasi, screenshot game, fan art, meme original bermutu, dan momen server.\n` +
+            `• **Larangan Keras:** Dilarang konten NSFW/18+, gore, kebencian, pelecehan, atau hak cipta orang lain tanpa izin.\n` +
+            `• **Format & Ukuran:** PNG, JPG, JPEG, GIF, WEBP (maksimal 8MB).\n` +
+            `• **Batas Harian:** Maksimal 5 kiriman per member per hari untuk menjaga kenyamanan seluruh anggota.\n` +
+            `• **Moderasi:** Gambar yang melanggar dapat dihapus sewaktu-waktu oleh Moderator/Admin dengan sanksi moderasi.`
+          );
+
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      }
+      return;
+    }
+
     // ====== Select Menu Interaction (Pilih Kota untuk Pop-up Member) ======
     if (interaction.isStringSelectMenu() && interaction.customId === 'mmap_select_city') {
       const { buildCityDetailEmbed } = require('../utils/memberMapHelper');

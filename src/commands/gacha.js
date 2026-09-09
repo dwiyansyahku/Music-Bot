@@ -10,6 +10,16 @@ const {
 } = require('discord.js');
 const storage = require('../utils/storage');
 const { isOwnerOrMod } = require('../utils/helpers');
+const { sendModLog } = require('../utils/modlog');
+
+/**
+ * Helper to get current Date in Western Indonesia Time (WIB / UTC+7)
+ */
+function getWIBDate() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (7 * 3600000));
+}
 
 /**
  * In-memory state untuk Duel Tahta aktif (Clash of Thrones)
@@ -29,16 +39,70 @@ const RESULT_FEED_MAX_ENTRIES = 8;
  * Master Loot Table (32 Collectible Artifacts across 5 Tiers)
  */
 const GACHA_ITEMS = [
-  // ✦ MYTHIC (3% Drop Rate — 5 Stars)
+  // ANCIENT (0.5% Drop Rate — 6 Stars — Kasta Tertinggi Semesta — Eksklusif 1 Relik per Server)
+  {
+    id: 'ancient_ring',
+    tier: 'ANCIENT',
+    rate: 0.5,
+    stars: '★★★★★★',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Cincin Keabadian Primordial',
+    badge: 'Primordial Sovereign',
+    title: 'The Primordial God',
+    desc: 'Artefak purba yang ditempa sebelum terciptanya bintang-bintang. Memiliki gravitasi semesta mutlak.',
+    recycleStardust: 1500
+  },
+  {
+    id: 'ancient_crown',
+    tier: 'ANCIENT',
+    rate: 0.5,
+    stars: '★★★★★★',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Mahkota Dewa Semesta',
+    badge: 'Astral Overlord',
+    title: 'Lord of All Realities',
+    desc: 'Mahkota kosmik yang hanya bisa disentuh oleh entitas tertinggi penguasa multisemesta.',
+    recycleStardust: 1500
+  },
+  {
+    id: 'ancient_heart',
+    tier: 'ANCIENT',
+    rate: 0.5,
+    stars: '★★★★★★',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Jantung Supernova Gelap',
+    badge: 'Cataclysmic Entity',
+    title: 'Void Destroyer',
+    desc: 'Pecahan inti galaksi purba yang menyerap seluruh cahaya dan materi di sekitarnya.',
+    recycleStardust: 1500
+  },
+  {
+    id: 'ancient_grimoire',
+    tier: 'ANCIENT',
+    rate: 0.5,
+    stars: '★★★★★★',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Kitab Takdir Akasik',
+    badge: 'Keeper of Eternity',
+    title: 'Fate Architect',
+    desc: 'Naskah abadi yang mencatat takdir dan garis kehidupan setiap jiwa di alam eksistensi.',
+    recycleStardust: 1500
+  },
+
+  // MYTHIC (1.5% Drop Rate — 5 Stars — Tahta Dewa Kosmik)
   {
     id: 'mythic_aegis',
     tier: 'MYTHIC',
     rate: 3,
     stars: '★★★★★',
-    tag: '✦',
+    tag: '•',
     color: 0xFF007F,
     name: 'Cosmic Aegis of Infinity',
-    badge: '✦ Supreme Celestial',
+    badge: 'Supreme Celestial',
     title: 'Lord of Infinity',
     desc: 'Pusaka kosmik primordial yang memancarkan energi tak terbatas.',
     recycleStardust: 500
@@ -48,10 +112,10 @@ const GACHA_ITEMS = [
     tier: 'MYTHIC',
     rate: 3,
     stars: '★★★★★',
-    tag: '✦',
+    tag: '•',
     color: 0xFF007F,
     name: 'Aura of the Celestial Dragon',
-    badge: '✦ Dragon Sovereign',
+    badge: 'Dragon Sovereign',
     title: 'Cosmic Dragon',
     desc: 'Aura naga langit legendaris yang menggetarkan seisi galaksi.',
     recycleStardust: 500
@@ -61,25 +125,25 @@ const GACHA_ITEMS = [
     tier: 'MYTHIC',
     rate: 3,
     stars: '★★★★★',
-    tag: '✦',
+    tag: '•',
     color: 0xFF007F,
     name: 'Genesis Vinyl of Eternity',
-    badge: '✦ Master of Harmonies',
+    badge: 'Master of Harmonies',
     title: 'Eternal Maestro',
     desc: 'Piringan hitam mitos yang memutar melodi awal mula alam semesta.',
     recycleStardust: 500
   },
 
-  // 🟡 LEGENDARY (10% Drop Rate — 5 Stars)
+  // LEGENDARY (5.0% Drop Rate — 5 Stars — Tahta Sultan Server)
   {
     id: 'leg_crown',
     tier: 'LEGENDARY',
     rate: 10,
     stars: '★★★★★',
-    tag: '✧',
+    tag: '•',
     color: 0xFEE75C,
     name: 'Crown of Destiny',
-    badge: '✦ Sultan Mpruy',
+    badge: 'Sultan Mpruy',
     title: 'Sovereign of Luck',
     desc: 'Mahkota takdir berbalut emas murni. Kamu mendapatkan status kehormatan legenda!',
     recycleStardust: 200
@@ -89,10 +153,10 @@ const GACHA_ITEMS = [
     tier: 'LEGENDARY',
     rate: 10,
     stars: '★★★★★',
-    tag: '✧',
+    tag: '•',
     color: 0xFEE75C,
     name: 'Celestial Star Relic',
-    badge: '✦ Bintang Takdir',
+    badge: 'Bintang Takdir',
     title: 'Chosen by Cosmos',
     desc: 'Semesta tersenyum padamu! Hoki seribu tahun telah tercurahkan kepadamu.',
     recycleStardust: 200
@@ -102,10 +166,10 @@ const GACHA_ITEMS = [
     tier: 'LEGENDARY',
     rate: 10,
     stars: '★★★★★',
-    tag: '✧',
+    tag: '•',
     color: 0xFEE75C,
     name: 'Excalibur of the Dawn',
-    badge: '✦ Dawnblade Master',
+    badge: 'Dawnblade Master',
     title: 'Blade of Light',
     desc: 'Pedang suci fajar yang menerangi jalan menuju kejayaan dan kehormatan server.',
     recycleStardust: 200
@@ -115,10 +179,10 @@ const GACHA_ITEMS = [
     tier: 'LEGENDARY',
     rate: 10,
     stars: '★★★★★',
-    tag: '✧',
+    tag: '•',
     color: 0xFEE75C,
     name: 'Phoenix Flame Quill',
-    badge: '✦ Immortal Scribe',
+    badge: 'Immortal Scribe',
     title: 'Reborn Phoenix',
     desc: 'Pena berbulu burung phoenix abadi yang menorehkan sejarah abadi.',
     recycleStardust: 200
@@ -128,25 +192,25 @@ const GACHA_ITEMS = [
     tier: 'LEGENDARY',
     rate: 10,
     stars: '★★★★★',
-    tag: '✧',
+    tag: '•',
     color: 0xFEE75C,
     name: 'Chrono Scepter',
-    badge: '✦ Time Traveler',
+    badge: 'Time Traveler',
     title: 'Master of Chronos',
     desc: 'Tongkat pengendali waktu yang membekukan detik-detik keberuntunganmu.',
     recycleStardust: 200
   },
 
-  // 🟣 EPIC (20% Drop Rate — 4 Stars)
+  // EPIC (18.0% Drop Rate — 4 Stars)
   {
     id: 'epic_orb',
     tier: 'EPIC',
     rate: 20,
     stars: '★★★★☆',
-    tag: '◈',
+    tag: '•',
     color: 0x9B59B6,
     name: 'Amethyst Crystal Orb',
-    badge: '◈ Gacha Lord',
+    badge: 'Gacha Lord',
     title: 'Aura of Fortune',
     desc: 'Aura mistis menyelimutimu. Tingkat keberuntunganmu di atas rata-rata!',
     recycleStardust: 75
@@ -156,10 +220,10 @@ const GACHA_ITEMS = [
     tier: 'EPIC',
     rate: 20,
     stars: '★★★★☆',
-    tag: '◈',
+    tag: '•',
     color: 0x9B59B6,
     name: 'Midnight Guardian Shield',
-    badge: '◈ Guardian Angel',
+    badge: 'Guardian Angel',
     title: 'Night Watcher',
     desc: 'Simbol ketangguhan begadang di voice channel sampai subuh tanpa henti.',
     recycleStardust: 75
@@ -169,10 +233,10 @@ const GACHA_ITEMS = [
     tier: 'EPIC',
     rate: 20,
     stars: '★★★★☆',
-    tag: '◈',
+    tag: '•',
     color: 0x9B59B6,
     name: 'Shadow Assassin Cloak',
-    badge: '◈ Ghost Walker',
+    badge: 'Ghost Walker',
     title: 'Silent Phantom',
     desc: 'Jubah misterius yang membuatmu bergerak lincah dan elegan di server.',
     recycleStardust: 75
@@ -182,10 +246,10 @@ const GACHA_ITEMS = [
     tier: 'EPIC',
     rate: 20,
     stars: '★★★★☆',
-    tag: '◈',
+    tag: '•',
     color: 0x9B59B6,
     name: 'Frostfire Dagger',
-    badge: '◈ Frost Vanguard',
+    badge: 'Frost Vanguard',
     title: 'Twin Elementalist',
     desc: 'Belati bertuah es dan api yang membekukan musuh sekaligus membakarnya.',
     recycleStardust: 75
@@ -195,10 +259,10 @@ const GACHA_ITEMS = [
     tier: 'EPIC',
     rate: 20,
     stars: '★★★★☆',
-    tag: '◈',
+    tag: '•',
     color: 0x9B59B6,
     name: 'Cyberpunk Hologram Key',
-    badge: '◈ Netrunner Elite',
+    badge: 'Netrunner Elite',
     title: 'Cyber Sovereign',
     desc: 'Kunci enkripsi hologram untuk membobol brankas rahasia dunia siber.',
     recycleStardust: 75
@@ -208,25 +272,155 @@ const GACHA_ITEMS = [
     tier: 'EPIC',
     rate: 20,
     stars: '★★★★☆',
-    tag: '◈',
+    tag: '•',
     color: 0x9B59B6,
     name: 'Thunderstorm Harp',
-    badge: '◈ Storm Bard',
+    badge: 'Storm Bard',
     title: 'Thunderstruck',
     desc: 'Harpa petir yang menghasilkan alunan musik berdentum dahsyat.',
     recycleStardust: 75
   },
+  {
+    id: 'epic_grimoire',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Tome of the Forgotten Eclipse',
+    badge: 'Umbral Sage',
+    title: 'Eclipse Scholar',
+    desc: 'Buku mantra kuno yang menyingkap misteri gerhana abadi.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_mirror',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Mirror of Infinite Reflections',
+    badge: 'Illusion Master',
+    title: 'Soul Reflector',
+    desc: 'Cermin ajaib yang merefleksikan dimensi paralel tanpa batas.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_gauntlet',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Titanium Gauntlet of Might',
+    badge: 'Titan Breaker',
+    title: 'Ironclad Juggernaut',
+    desc: 'Sarung tangan titanium yang mampu menghancurkan batu meteor.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_lantern',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Spectral Soul Lantern',
+    badge: 'Lantern Keeper',
+    title: 'Spirit Guide',
+    desc: 'Lentera arwah yang memandu jiwa pengelana melintasi kabut malam.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_mask',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Masquerade of the Silver Phantom',
+    badge: 'Phantom Masquerade',
+    title: 'Faceless Enigma',
+    desc: 'Topeng perak penuh teka-teki yang menyamarkan identitas sejati pemakainya.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_bow',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Windwalker Gale Bow',
+    badge: 'Gale Whisperer',
+    title: 'Tempest Archer',
+    desc: 'Busur panah badai yang meluncurkan anak panah secepat hembusan angin topan.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_chalice',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Chalice of Liquid Starlight',
+    badge: 'Celestial Cupbearer',
+    title: 'Starlight Alchemist',
+    desc: 'Cawan pualam berisi embun cahaya bintang penenang jiwa.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_astrolabe',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Ancient Brass Astrolabe',
+    badge: 'Cosmic Cartographer',
+    title: 'Constellation Cartographer',
+    desc: 'Alat penunjuk rasi bintang antik untuk navigasi antar semesta.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_rune',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Obsidian Rune of Destruction',
+    badge: 'Obsidian Warlock',
+    title: 'Rune Calamity',
+    desc: 'Batu rune obsidian berukir aksara sihir berdaya hancur tinggi.',
+    recycleStardust: 75
+  },
+  {
+    id: 'epic_pendulum',
+    tier: 'EPIC',
+    rate: 20,
+    stars: '★★★★☆',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Voidwalker Echo Pendulum',
+    badge: 'Void Diver',
+    title: 'Echo Weaver',
+    desc: 'Bandul mistis yang berayun menembus batas ruang dan waktu.',
+    recycleStardust: 75
+  },
 
-  // 🔵 RARE (32% Drop Rate — 3 Stars)
+  // RARE (35.0% Drop Rate — 3 Stars)
   {
     id: 'rare_clover',
     tier: 'RARE',
     rate: 32,
     stars: '★★★☆☆',
-    tag: '◇',
+    tag: '•',
     color: 0x3498DB,
     name: 'Four-Leaf Clover Token',
-    badge: '◇ Lucky Explorer',
+    badge: 'Lucky Explorer',
     title: 'Blessed Soul',
     desc: 'Jimat keberuntungan untuk menghadapi hari-hari penuh tugas dan tantangan.',
     recycleStardust: 25
@@ -236,10 +430,10 @@ const GACHA_ITEMS = [
     tier: 'RARE',
     rate: 32,
     stars: '★★★☆☆',
-    tag: '◇',
+    tag: '•',
     color: 0x3498DB,
     name: 'Eternal Espresso Cup',
-    badge: '◇ Kafein Booster',
+    badge: 'Kafein Booster',
     title: 'Coffee Aficionado',
     desc: 'Secangkir kopi yang tak pernah dingin untuk menemanimu ngobrol santai.',
     recycleStardust: 25
@@ -249,10 +443,10 @@ const GACHA_ITEMS = [
     tier: 'RARE',
     rate: 32,
     stars: '★★★☆☆',
-    tag: '◇',
+    tag: '•',
     color: 0x3498DB,
     name: 'Golden Gamepad Artifact',
-    badge: '◇ Pro Gamer',
+    badge: 'Pro Gamer',
     title: 'Squad MVP',
     desc: 'Simbol pemain clutch paling andal dan berprestasi di seluruh server.',
     recycleStardust: 25
@@ -262,10 +456,10 @@ const GACHA_ITEMS = [
     tier: 'RARE',
     rate: 32,
     stars: '★★★☆☆',
-    tag: '◇',
+    tag: '•',
     color: 0x3498DB,
     name: 'Neon Cassette Tape',
-    badge: '◇ Retro Vibe',
+    badge: 'Retro Vibe',
     title: 'Synthwave Nomad',
     desc: 'Kaset pita neon berisikan lagu-lagu nostalgia 80-an yang syahdu.',
     recycleStardust: 25
@@ -275,10 +469,10 @@ const GACHA_ITEMS = [
     tier: 'RARE',
     rate: 32,
     stars: '★★★☆☆',
-    tag: '◇',
+    tag: '•',
     color: 0x3498DB,
     name: 'Starlight Compass',
-    badge: '◇ Astral Navigator',
+    badge: 'Astral Navigator',
     title: 'Wayfarer',
     desc: 'Kompas bercahaya bintang yang selalu menuntunmu ke arah yang tepat.',
     recycleStardust: 25
@@ -288,10 +482,10 @@ const GACHA_ITEMS = [
     tier: 'RARE',
     rate: 32,
     stars: '★★★☆☆',
-    tag: '◇',
+    tag: '•',
     color: 0x3498DB,
     name: 'Enchanted Bookmark',
-    badge: '◇ Lore Keeper',
+    badge: 'Lore Keeper',
     title: 'Scholar of Whispers',
     desc: 'Pembatas buku sihir yang mengingat setiap lembar kisah server.',
     recycleStardust: 25
@@ -301,10 +495,10 @@ const GACHA_ITEMS = [
     tier: 'RARE',
     rate: 32,
     stars: '★★★☆☆',
-    tag: '◇',
+    tag: '•',
     color: 0x3498DB,
     name: 'Whispering Conch',
-    badge: '◇ Ocean Listener',
+    badge: 'Ocean Listener',
     title: 'Deep Sea Echo',
     desc: 'Kerang laut mistis yang membisikkan rahasia gelombang suara samudra.',
     recycleStardust: 25
@@ -314,16 +508,146 @@ const GACHA_ITEMS = [
     tier: 'RARE',
     rate: 32,
     stars: '★★★☆☆',
-    tag: '◇',
+    tag: '•',
     color: 0x3498DB,
     name: 'Prismatic Crystal Shard',
-    badge: '◇ Prism Weaver',
+    badge: 'Prism Weaver',
     title: 'Spectrum Artist',
     desc: 'Prisma kristal yang membiaskan cahaya redup menjadi pelangi memukau.',
     recycleStardust: 25
   },
+  {
+    id: 'rare_dice',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Enchanted Obsidian Dice',
+    badge: 'Dice Gambler',
+    title: 'High Roller',
+    desc: 'Dadu hitam bertuah yang selalu membawa keberuntungan bagi pelemparnya.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_magnifier',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Detective Brass Monocle',
+    badge: 'Master Sleuth',
+    title: 'Truth Seeker',
+    desc: 'Kaca pembesar kuno yang menyingkap petunjuk tersembunyi.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_quill',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Midnight Silver Inkpot',
+    badge: 'Poet of Shadows',
+    title: 'Ink Scribe',
+    desc: 'Tempat tinta perak berisi cairan hitam berkilau untuk menulis puisi malam.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_fossil',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Amber Trilobite Fossil',
+    badge: 'Fossil Hunter',
+    title: 'Ancient Paleontologist',
+    desc: 'Fosil trilobita purba yang terperangkap sempurna di dalam getah ambar.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_hourglass',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Miniature Sand Hourglass',
+    badge: 'Sand Watcher',
+    title: 'Patience Virtuoso',
+    desc: 'Jam pasir kecil berisi butiran pasir emas penanda kesabaran.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_feather',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Gilded Falcon Feather',
+    badge: 'Falcon Talon',
+    title: 'Sky Wanderer',
+    desc: 'Bulu elang berlapis emas simbol kebebasan di angkasa.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_crystal',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Glowing Quartz Geode',
+    badge: 'Gemstone Crafter',
+    title: 'Mineral Whisperer',
+    desc: 'Geoda kuarsa alami yang memancarkan pendaran cahaya lembut.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_telescope',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Pocket Brass Telescope',
+    badge: 'Sky Scout',
+    title: 'Horizon Watcher',
+    desc: 'Teropong saku kuningan untuk memandang batas cakrawala.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_bell',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Windchime of Harmony',
+    badge: 'Zen Master',
+    title: 'Serene Melodist',
+    desc: 'Genta angin yang berdentang merdu saat tertiup angin sepoi-sepoi.',
+    recycleStardust: 25
+  },
+  {
+    id: 'rare_map',
+    tier: 'RARE',
+    rate: 32,
+    stars: '★★★☆☆',
+    tag: '•',
+    color: 0x3498DB,
+    name: 'Old Parchment Treasure Map',
+    badge: 'Trailblazer',
+    title: 'Fortune Seeker',
+    desc: 'Peta harta karun usang bertanda silang merah penuh misteri.',
+    recycleStardust: 25
+  },
 
-  // ⚪ COMMON (35% Drop Rate — 2 Stars)
+  // COMMON (40.0% Drop Rate — 2 Stars)
   {
     id: 'com_fishbone',
     tier: 'COMMON',
@@ -453,6 +777,162 @@ const GACHA_ITEMS = [
     title: null,
     desc: 'Bebek karet kuning berbunyi kwek-kwek untuk teman curhat dan debugging.',
     recycleStardust: 10
+  },
+  {
+    id: 'com_pencil',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Sharpened Wooden Pencil',
+    badge: null,
+    title: null,
+    desc: 'Pensil kayu runcing 2B. Siap dipakai untuk mencatat ide cemerlang.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_stapler',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Mini Blue Stapler',
+    badge: null,
+    title: null,
+    desc: 'Hekter kecil warna biru. Selalu setia merapikan lembaran kertas yang berserakan.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_eraser',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Scented Strawberry Eraser',
+    badge: null,
+    title: null,
+    desc: 'Penghapus wangi stroberi yang manis. Menghapus kesalahan tanpa bekas.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_button',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Loose Mother-of-Pearl Button',
+    badge: null,
+    title: null,
+    desc: 'Kancing kemeja kulit kerang yang terlepas. Mengkilap saat terkena cahaya.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_keychain',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Fuzzy Dice Keychain',
+    badge: null,
+    title: null,
+    desc: 'Gantungan kunci dadu berbulu lembut untuk kunci loker atau kamar.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_origami',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Folded Origami Crane',
+    badge: null,
+    title: null,
+    desc: 'Bangau kertas lipat buatan tangan simbol doa dan harapan baik.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_sticker',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Peeling Hologram Sticker',
+    badge: null,
+    title: null,
+    desc: 'Stiker hologram lawas yang ujungnya mulai mengelupas.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_mug',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Cracked Ceramic Mug',
+    badge: null,
+    title: null,
+    desc: 'Cangkir keramik retak sedikit tapi masih setia menemani kopi pagi.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_marble',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Swirly Glass Marble',
+    badge: null,
+    title: null,
+    desc: 'Kelereng kaca bermotif pusaran warna warni kenangan masa kecil.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_yarn',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Tangled Red Yarn',
+    badge: null,
+    title: null,
+    desc: 'Gulungan benang wol merah yang sedikit kusut tapi hangat.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_paperclip',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Twisted Silver Paperclip',
+    badge: null,
+    title: null,
+    desc: 'Klip kertas perak yang dibengkokkan jadi hiasan kawat sederhana.',
+    recycleStardust: 10
+  },
+  {
+    id: 'com_pebble',
+    tier: 'COMMON',
+    rate: 35,
+    stars: '★★☆☆☆',
+    tag: '•',
+    color: 0x95A5A6,
+    name: 'Smooth River Pebble',
+    badge: null,
+    title: null,
+    desc: 'Batu kerikil sungai halus yang nyaman digenggam di telapak tangan.',
+    recycleStardust: 10
   }
 ];
 
@@ -479,7 +959,8 @@ const TIER_RANK = {
   RARE: 1,
   EPIC: 2,
   LEGENDARY: 3,
-  MYTHIC: 4
+  MYTHIC: 4,
+  ANCIENT: 5
 };
 
 /**
@@ -514,28 +995,28 @@ const GACHA_SHOP_ITEMS = [
     id: 'title_alchemist',
     name: 'Title & Badge: Stardust Alchemist',
     cost: 600,
-    desc: 'Gelar eksklusif penjelajah debu bintang: "Stardust Alchemist" & Badge ✦ Alchemist Sovereign.',
+    desc: 'Gelar eksklusif penjelajah debu bintang: "Stardust Alchemist" & Badge Alchemist Sovereign.',
     type: 'title_badge',
     title: 'Stardust Alchemist',
-    badge: '✦ Alchemist Sovereign'
+    badge: 'Alchemist Sovereign'
   },
   {
     id: 'title_merchant',
     name: 'Title & Badge: Celestial Merchant',
     cost: 1200,
-    desc: 'Gelar pedagang antariksa terpandang: "Celestial Merchant" & Badge ✦ Star Trader.',
+    desc: 'Gelar pedagang antariksa terpandang: "Celestial Merchant" & Badge Star Trader.',
     type: 'title_badge',
     title: 'Celestial Merchant',
-    badge: '✦ Star Trader'
+    badge: 'Star Trader'
   },
   {
     id: 'title_collector',
     name: 'Title & Badge: Cosmic Collector',
     cost: 2500,
-    desc: 'Gelar tertinggi kolektor sejati: "Cosmic Collector" & Badge ✧ Ultimate Hoarder.',
+    desc: 'Gelar tertinggi kolektor sejati: "Cosmic Collector" & Badge Ultimate Hoarder.',
     type: 'title_badge',
     title: 'Cosmic Collector',
-    badge: '✧ Ultimate Hoarder'
+    badge: 'Ultimate Hoarder'
   }
 ];
 
@@ -572,6 +1053,7 @@ function getOrInitUserData(gachaData, guildId, userId) {
       inventory: [],
       badges: [],
       titles: [],
+      shopPurchases: [],
       equippedTitle: null,
       activeRole: null, // { tier, roleId, expiresAt }
       duelDefenseStreak: 0,
@@ -596,6 +1078,7 @@ function getOrInitUserData(gachaData, guildId, userId) {
     if (!Array.isArray(u.inventory)) u.inventory = [];
     if (!Array.isArray(u.badges)) u.badges = [];
     if (!Array.isArray(u.titles)) u.titles = [];
+    if (!Array.isArray(u.shopPurchases)) u.shopPurchases = [];
   }
   return gachaData[guildId][userId];
 }
@@ -1823,32 +2306,63 @@ async function processDuelButton(interaction, client) {
 /**
  * Roll Gacha Engine with Pity System
  */
-function rollSingleGacha(userData) {
+function rollSingleGacha(userData, guildId = null, guild = null) {
   const pityEpic = userData.pityEpic || 0;
   const pityLeg = userData.pityLegendary || 0;
+
+  let ancientRate = 0.5;
+  let mythicRate = 1.5;
+  let legRate = 5.0;
+  let epicRate = 18.0;
+  let rareRate = 35.0;
+  let commonRate = 40.0;
+
+  // Cek apakah ada Server Rate Boost Event aktif di guild ini
+  if (guildId) {
+    const settingsData = storage.read('settings') || {};
+    const boost = settingsData[guildId]?.rateBoost;
+    if (boost && boost.expiresAt > Date.now()) {
+      const mult = boost.multiplier || 2;
+      if (boost.tier === 'ANCIENT') ancientRate = Math.min(ancientRate * mult, 10);
+      else if (boost.tier === 'MYTHIC') mythicRate = Math.min(mythicRate * mult, 20);
+      else if (boost.tier === 'LEGENDARY') legRate = Math.min(legRate * mult, 35);
+      else if (boost.tier === 'EPIC') epicRate = Math.min(epicRate * mult, 50);
+    }
+  }
 
   let targetTier = 'COMMON';
   const rand = Math.random() * 100;
 
-  // 1. HARD PITY TRIGGER (15 Pulls for Legendary+, 5 Pulls for Epic+)
-  if (pityLeg >= 14) {
-    targetTier = Math.random() < 0.3 ? 'MYTHIC' : 'LEGENDARY'; // 30% Mythic, 70% Legendary
-  } else if (pityEpic >= 4) {
+  // 1. HARD PITY TRIGGER (25 Pulls for Legendary+, 10 Pulls for Epic+)
+  if (pityLeg >= 24) {
     const subRand = Math.random() * 100;
-    if (subRand < 10) targetTier = 'MYTHIC';         // 10% Mythic
-    else if (subRand < 45) targetTier = 'LEGENDARY'; // 35% Legendary (total 45% chance role)
-    else targetTier = 'EPIC';                        // 55% Epic
+    if (subRand < 5) targetTier = 'ANCIENT';        // 5% Ancient
+    else if (subRand < 25) targetTier = 'MYTHIC';   // 20% Mythic
+    else targetTier = 'LEGENDARY';                  // 75% Legendary
+  } else if (pityEpic >= 9) {
+    const subRand = Math.random() * 100;
+    if (subRand < 2) targetTier = 'ANCIENT';        // 2% Ancient
+    else if (subRand < 10) targetTier = 'MYTHIC';   // 8% Mythic
+    else if (subRand < 35) targetTier = 'LEGENDARY';// 25% Legendary
+    else targetTier = 'EPIC';                       // 65% Epic
   } else {
-    // Normal Probabilities (Mythic 3%, Legendary 10%, Epic 20%, Rare 32%, Common 35%)
-    if (rand < 3) targetTier = 'MYTHIC';             // 3%
-    else if (rand < 13) targetTier = 'LEGENDARY';    // 10%
-    else if (rand < 33) targetTier = 'EPIC';         // 20%
-    else if (rand < 65) targetTier = 'RARE';         // 32%
-    else targetTier = 'COMMON';                      // 35%
+    // Normal Probabilities dengan ambang batas kumulatif
+    const thAncient = ancientRate;
+    const thMythic = thAncient + mythicRate;
+    const thLeg = thMythic + legRate;
+    const thEpic = thLeg + epicRate;
+    const thRare = thEpic + rareRate;
+
+    if (rand < thAncient) targetTier = 'ANCIENT';
+    else if (rand < thMythic) targetTier = 'MYTHIC';
+    else if (rand < thLeg) targetTier = 'LEGENDARY';
+    else if (rand < thEpic) targetTier = 'EPIC';
+    else if (rand < thRare) targetTier = 'RARE';
+    else targetTier = 'COMMON';
   }
 
   // Update Pity Counters
-  if (targetTier === 'MYTHIC' || targetTier === 'LEGENDARY') {
+  if (targetTier === 'ANCIENT' || targetTier === 'MYTHIC' || targetTier === 'LEGENDARY') {
     userData.pityLegendary = 0;
     userData.pityEpic = 0;
   } else if (targetTier === 'EPIC') {
@@ -1859,7 +2373,46 @@ function rollSingleGacha(userData) {
     userData.pityLegendary++;
   }
 
-  const candidates = GACHA_ITEMS.filter(item => item.tier === targetTier);
+  let candidates = GACHA_ITEMS.filter(item => item.tier === targetTier);
+
+  // Aturan Khusus Tier ANCIENT: 1 Orang 1 Relik per Server (Unique 1-of-1)
+  if (targetTier === 'ANCIENT') {
+    const ownedAncientNames = new Set();
+    if (guildId) {
+      const gachaData = storage.read('gacha_data') || {};
+      const guildUsers = gachaData[guildId] || {};
+      for (const [uId, uData] of Object.entries(guildUsers)) {
+        // Jika guild disediakan, verifikasi keberadaan member di server
+        if (guild && !guild.members.cache.has(uId)) {
+          // Pemilik sudah keluar server: relik Ancient-nya dilepas dan tersedia kembali!
+          continue;
+        }
+        for (const relicName of (uData.inventory || [])) {
+          const foundItem = GACHA_ITEMS.find(g => g.name === relicName);
+          if (foundItem && foundItem.tier === 'ANCIENT') {
+            ownedAncientNames.add(relicName);
+          }
+        }
+      }
+    }
+    if (userData?.inventory) {
+      for (const relicName of userData.inventory) {
+        const foundItem = GACHA_ITEMS.find(g => g.name === relicName);
+        if (foundItem && foundItem.tier === 'ANCIENT') {
+          ownedAncientNames.add(relicName);
+        }
+      }
+    }
+
+    candidates = candidates.filter(item => !ownedAncientNames.has(item.name));
+
+    // Jika seluruh relik ANCIENT di server sudah dimiliki pemain lain, turunkan ke MYTHIC
+    if (candidates.length === 0) {
+      targetTier = 'MYTHIC';
+      candidates = GACHA_ITEMS.filter(item => item.tier === 'MYTHIC');
+    }
+  }
+
   const chosen = candidates[Math.floor(Math.random() * candidates.length)];
 
   // Check if duplicate
@@ -1980,12 +2533,13 @@ function createPullPanelPayload(guild) {
       `Selamat datang di saluran **Tarik Gacha** ${guild ? guild.name : ''}!\n\n` +
       `Gunakan tiket gacha kamu untuk membuka kotak misteri, mengumpulkan relik legenda, dan memperebutkan tahta server!\n\n` +
       `**Peluang Kelangkaan Relik:**\n` +
-      `• ✦ **MYTHIC (3%):** Tahta Tertinggi (Maksimal 3 Kursi • Permanen)\n` +
-      `• ✧ **LEGENDARY (10%):** Tahta Raja (Maksimal 5 Kursi • Permanen)\n` +
-      `• ◈ **EPIC (20%)** • ⬡ **RARE (32%)** • ◽ **COMMON (35%)**\n\n` +
+      `• **ANCIENT (0.5%):** Kasta Tertinggi Semesta (Eksklusif 1 Relik per Server)\n` +
+      `• **MYTHIC (1.5%):** Tahta Dewa Kosmik (Maksimal 3 Kursi • Permanen)\n` +
+      `• **LEGENDARY (5.0%):** Tahta Sultan Server (Maksimal 5 Kursi • Permanen)\n` +
+      `• **EPIC (18.0%)** • **RARE (35.0%)** • **COMMON (40.0%)**\n\n` +
       `**Sistem Jaminan (Pity System):**\n` +
-      `• Garansi minimal 1x **EPIC+** setiap 5 tarikan.\n` +
-      `• Garansi minimal 1x **LEGENDARY+** pada tarikan ke-15.\n\n` +
+      `• Garansi minimal 1x **EPIC+** setiap 10 tarikan.\n` +
+      `• Garansi minimal 1x **LEGENDARY+** pada tarikan ke-25.\n\n` +
       `Pilih tarikan di bawah untuk mulai:`
     )
     .setFooter({ text: 'Hasil tarikan tampil privat (ephemeral) • Live Feed publik di channel result' });
@@ -2188,7 +2742,10 @@ async function broadcastJackpot(guild, member, item, client, options = {}) {
       await client.channels.fetch(targetChannelId).catch(() => null);
     if (!channel || !channel.isTextBased()) return;
 
-    const isMythic = item.tier === 'MYTHIC';
+    let embedColor = 0xFEE75C;
+    if (item.tier === 'ANCIENT') embedColor = 0x9B59B6;
+    else if (item.tier === 'MYTHIC') embedColor = 0xFF007F;
+
     const user = member?.user || member;
     const avatar = user?.displayAvatarURL ? user.displayAvatarURL({ dynamic: true }) : null;
     const memberName = member?.displayName || user?.username || 'Member Server';
@@ -2202,7 +2759,7 @@ async function broadcastJackpot(guild, member, item, client, options = {}) {
     }
 
     const embed = new EmbedBuilder()
-      .setColor(isMythic ? 0xFF007F : 0xFEE75C)
+      .setColor(embedColor)
       .setAuthor({
         name: `Jackpot Server — [${item.tier}]`,
         iconURL: avatar
@@ -2761,7 +3318,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
 
   // Single Pull Execution
   if (amount === 1) {
-    const pullResult = rollSingleGacha(userData);
+    const pullResult = rollSingleGacha(userData, guildId, interaction.guild);
     const item = pullResult.item;
 
     // Apply Throne Usurpation / Limited Seats Role System
@@ -2770,8 +3327,8 @@ async function executeGachaPull(interaction, client, amount = 1) {
     const challengeRows = (roleResult && roleResult.challengeRows) || [];
     storage.write('gacha_data', gachaData);
 
-    // Broadcast if Mythic or Legendary
-    if (item.tier === 'MYTHIC' || item.tier === 'LEGENDARY') {
+    // Broadcast if Ancient, Mythic, or Legendary
+    if (item.tier === 'ANCIENT' || item.tier === 'MYTHIC' || item.tier === 'LEGENDARY') {
       broadcastJackpot(interaction.guild, member, item, client);
     }
 
@@ -2803,7 +3360,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
         },
         {
           name: 'Pity Status',
-          value: `Epic: **${5 - (userData.pityEpic || 0)}x**\nLegendary: **${15 - (userData.pityLegendary || 0)}x**`,
+          value: `Epic: **${10 - (userData.pityEpic || 0)}x**\nLegendary+: **${25 - (userData.pityLegendary || 0)}x**`,
           inline: true
         },
         {
@@ -2835,11 +3392,11 @@ async function executeGachaPull(interaction, client, amount = 1) {
   const results = [];
   let totalStardustGained = 0;
   let highestItem = null;
-  const highestTierRank = { MYTHIC: 5, LEGENDARY: 4, EPIC: 3, RARE: 2, COMMON: 1 };
+  const highestTierRank = { ANCIENT: 6, MYTHIC: 5, LEGENDARY: 4, EPIC: 3, RARE: 2, COMMON: 1 };
   let currentMaxRank = 0;
 
   for (let i = 0; i < amount; i++) {
-    const res = rollSingleGacha(userData);
+    const res = rollSingleGacha(userData, guildId, interaction.guild);
     results.push(res);
     if (res.isDuplicate) {
       totalStardustGained += res.stardustAwarded;
@@ -2863,8 +3420,8 @@ async function executeGachaPull(interaction, client, amount = 1) {
 
   storage.write('gacha_data', gachaData);
 
-  // Broadcast every jackpot item (Mythic & Legendary) pulled
-  const jackpotPulls = results.filter(r => r.item.tier === 'MYTHIC' || r.item.tier === 'LEGENDARY');
+  // Broadcast every jackpot item (Ancient, Mythic & Legendary) pulled
+  const jackpotPulls = results.filter(r => r.item.tier === 'ANCIENT' || r.item.tier === 'MYTHIC' || r.item.tier === 'LEGENDARY');
   for (const p of jackpotPulls) {
     broadcastJackpot(interaction.guild, member, p.item, client, { isMulti: true });
   }
@@ -2896,7 +3453,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
       },
       {
         name: 'Pity Status',
-        value: `Epic: **${5 - (userData.pityEpic || 0)}x**\nLegendary: **${15 - (userData.pityLegendary || 0)}x**`,
+        value: `Epic: **${10 - (userData.pityEpic || 0)}x**\nLegendary+: **${25 - (userData.pityLegendary || 0)}x**`,
         inline: true
       }
     )
@@ -3121,12 +3678,42 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
     }).join('  ')
     : '_Belum memiliki gelar_';
 
-  const itemsText = targetData.inventory.length > 0
-    ? targetData.inventory.map(item => {
-      const found = GACHA_ITEMS.find(g => g.name === item);
-      const tier = found ? `[${found.tier}]` : '';
-      return `• **${item}** ${tier}`;
-    }).join('\n')
+  // Hitung jumlah relik per tier untuk ringkasan
+  const tiersList = ['ANCIENT', 'MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
+  const poolByTier = {};
+  const userByTier = {};
+  for (const t of tiersList) {
+    poolByTier[t] = GACHA_ITEMS.filter(g => g.tier === t).length;
+    userByTier[t] = [];
+  }
+  for (const item of targetData.inventory) {
+    const found = GACHA_ITEMS.find(g => g.name === item);
+    if (found && userByTier[found.tier]) {
+      userByTier[found.tier].push(found);
+    }
+  }
+
+  // Ringkasan per tier
+  const tierSummaryText = tiersList.map(t => `${t}: **${userByTier[t].length}/${poolByTier[t]}**`).join(' • ');
+
+  // Detail item tier tinggi (Ancient, Mythic, Legendary, Epic)
+  const highTierItems = [];
+  for (const t of ['ANCIENT', 'MYTHIC', 'LEGENDARY', 'EPIC']) {
+    for (const item of userByTier[t]) {
+      highTierItems.push(`• **${item.name}** [${item.tier}]`);
+    }
+  }
+
+  let highTierText = highTierItems.length > 0
+    ? highTierItems.join('\n')
+    : '_Belum ada relik tier tinggi (Epic ke atas)_';
+
+  if (highTierText.length > 750) {
+    highTierText = highTierText.substring(0, 730) + '\n*... [Daftar dipotong]*';
+  }
+
+  const itemsFieldValue = targetData.inventory.length > 0
+    ? `${tierSummaryText}\n\n**Koleksi Tier Tinggi (Epic+):**\n${highTierText}`
     : '_Belum ada relik yang dikoleksi_';
 
   const totalPool = GACHA_ITEMS.length;
@@ -3174,7 +3761,7 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
       },
       {
         name: 'Pity Status',
-        value: `Epic: **${5 - (targetData.pityEpic || 0)}x** | Leg: **${15 - (targetData.pityLegendary || 0)}x**`,
+        value: `Epic: **${10 - (targetData.pityEpic || 0)}x** | Leg+: **${25 - (targetData.pityLegendary || 0)}x**`,
         inline: true
       },
       {
@@ -3193,8 +3780,8 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
         inline: false
       },
       {
-        name: `Daftar Relik (${userCollected})`,
-        value: itemsText.length > 1024 ? itemsText.substring(0, 1000) + '\n*... [Daftar dipotong]*' : itemsText,
+        name: `Koleksi Relik (${userCollected}/${totalPool})`,
+        value: itemsFieldValue.length > 1024 ? itemsFieldValue.substring(0, 1020) : itemsFieldValue,
         inline: false
       }
     )
@@ -3285,32 +3872,45 @@ async function executeGachaRates(interaction) {
 
   const gachaData = storage.read('gacha_data');
   const userData = getOrInitUserData(gachaData, guildId, userId);
+  const settingsData = storage.read('settings') || {};
+  const activeBoost = settingsData[guildId]?.rateBoost;
+  const hasActiveBoost = activeBoost && activeBoost.expiresAt > Date.now();
+
+  let boostNotice = '';
+  if (hasActiveBoost) {
+    const expUnix = Math.floor(activeBoost.expiresAt / 1000);
+    boostNotice = `\n\n**EVENT RATE BOOST SEDANG AKTIF**\n` +
+      `Peluang mendapatkan relik **${activeBoost.tier}** ditingkatkan sebesar **${activeBoost.multiplier}x lipat**!\n` +
+      `Sisa Waktu Event: <t:${expUnix}:R> (hingga <t:${expUnix}:t>)\n`;
+  }
 
   const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('Informasi Drop Rate, Pity & Sistem Tahta')
+    .setColor(hasActiveBoost ? 0xFF4500 : 0x2B2D31)
+    .setTitle('Informasi Drop Rate, Pity & Sistem Tahta Musiman')
     .setDescription(
-      `Sistem Gacha dilengkapi dengan **Kursi Tahta Terbatas & Clash of Thrones**.\n\n` +
-      `**Drop Rate & Alokasi Tahta:**\n` +
-      `• **MYTHIC (3%):** Tahta **3 Kursi Maksimal** • Role Permanen • Daur ulang: +500 Dust\n` +
-      `• **LEGENDARY (10%):** Tahta **5 Kursi Maksimal** • Role Permanen • Daur ulang: +200 Dust\n` +
-      `• **EPIC (20%):** Relik Koleksi & Lencana • Daur ulang: +75 Dust\n` +
-      `• **RARE (32%):** Relik Koleksi • Daur ulang: +25 Dust\n` +
-      `• **COMMON (35%):** Benda santai • Daur ulang: +10 Dust\n\n` +
+      `Sistem Gacha dilengkapi dengan **Kursi Tahta Terbatas, Reset Musiman & Clash of Thrones**.\n` +
+      boostNotice +
+      `\n**Drop Rate & Alokasi Tahta:**\n` +
+      `• **ANCIENT (0.5%):** Relik Purba Primordial • Kasta Tertinggi Semesta (Eksklusif 1 Relik per Server) • Daur ulang: +1,500 Dust\n` +
+      `• **MYTHIC (1.5%):** Tahta **3 Kursi Maksimal** • Role Permanen • Daur ulang: +800 Dust\n` +
+      `• **LEGENDARY (5.0%):** Tahta **5 Kursi Maksimal** • Role Permanen • Daur ulang: +300 Dust\n` +
+      `• **EPIC (18%):** Relik Koleksi & Lencana • Daur ulang: +100 Dust\n` +
+      `• **RARE (35%):** Relik Koleksi • Daur ulang: +35 Dust\n` +
+      `• **COMMON (40%):** Benda santai • Daur ulang: +15 Dust\n\n` +
+      `**Sistem Reset Season Bulanan (Setiap Tanggal 1):**\n` +
+      `• Setiap tanggal 1, seluruh relik & gelar direset dan dikonversi menjadi **Stardust** serta **Tiket Gacha Modal Musim Baru**.\n` +
+      `• Member dengan koleksi **Relik & Gelar terbanyak** dinobatkan menyandang **Role Juara Season** eksklusif yang berpindah setiap musim!\n\n` +
       `**Sumber Stardust (Dust):**\n` +
-      `• **Daur Ulang Duplikat:** Otomatis +10 s/d +500 Dust setiap dapat relik kembar.\n` +
+      `• **Daur Ulang Duplikat:** Otomatis +15 s/d +1,500 Dust setiap dapat relik kembar.\n` +
       `• **Aktif Voice Channel:** Otomatis dapat **+15 Stardust & +1 Tiket** setiap **15 menit** nongkrong di Voice!\n` +
       `• **Klaim Harian (/gacha daily):** +50 s/d +350 Dust & bonus tiket gratis setiap hari.\n` +
       `• **Clash of Thrones:** Kompensasi kekalahan duel tahta sebesar +250 Dust.\n\n` +
-      `**Sistem Duel Perebutan Tahta (12 Jam):**\n` +
-      `• Jika kuota kursi Mythic (3/3) atau Legendary (5/5) telah penuh, penantang dapat memilih pemegang tahta yang ingin ditantang atau duel acak (Best of 3).\n` +
-      `• Pemain yang kalah menerima kompensasi **+250 Stardust**.\n\n` +
       `**Garansi Pity System:**\n` +
-      `• **Epic Guarantee:** Minimal 1 item **EPIC+** setiap **5 pull**.\n` +
-      `• **Legendary Guarantee:** Minimal 1 item **LEGENDARY+** pada pull ke-**15**.\n\n` +
+      `• **Epic Guarantee:** Minimal 1 item **EPIC+** setiap **10 pull**.\n` +
+      `• **Legendary Guarantee:** Minimal 1 item **LEGENDARY+** pada pull ke-**25**.\n\n` +
       `**Status Pity Akunmu:**\n` +
-      `• Garansi Epic berikutnya dalam: **${5 - (userData.pityEpic || 0)}x tarikan**\n` +
-      `• Garansi Legendary berikutnya dalam: **${15 - (userData.pityLegendary || 0)}x tarikan**`
+      `• Garansi Epic berikutnya dalam: **${10 - (userData.pityEpic || 0)}x tarikan**\n` +
+      `• Garansi Legendary+ berikutnya dalam: **${25 - (userData.pityLegendary || 0)}x tarikan**`
     )
     .setFooter({ text: 'Daur ulang duplikat & aktif voice menghasilkan Stardust untuk dibelanjakan di /gacha shop' });
 
@@ -3457,6 +4057,317 @@ async function executeGachaDuelHelp(interaction) {
   return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
+/**
+ * Calculate Season Performance Score for Leaderboard & Champion Determination
+ * Berdasarkan aturan: Member yang paling banyak mengoleksikan relik dan gelar berhak mendapatkan Role Season!
+ */
+function calculateSeasonScore(userData) {
+  if (!userData) return 0;
+  const relicCount = (userData.inventory || []).length;
+  const titleCount = (userData.titles || []).length;
+
+  // Bobot utama: Total Relik + Total Gelar yang dikoleksi (1000 poin per koleksi)
+  let score = (relicCount + titleCount) * 1000;
+
+  // Nilai kelangkaan relik sebagai nilai tambah
+  const tierScores = {
+    ANCIENT: 500,
+    MYTHIC: 200,
+    LEGENDARY: 80,
+    EPIC: 20,
+    RARE: 5,
+    COMMON: 1
+  };
+
+  for (const itemName of (userData.inventory || [])) {
+    const found = GACHA_ITEMS.find(g => g.name === itemName);
+    if (found && tierScores[found.tier]) {
+      score += tierScores[found.tier];
+    }
+  }
+
+  score += (userData.pulls || 0);
+  score += (userData.duelDefenseStreak || 0) * 10;
+  score += Math.floor((userData.stardust || 0) / 50);
+  return score;
+}
+
+/**
+ * Execute Season Reset for a specific guild
+ */
+async function executeSeasonReset(guild, client, options = {}) {
+  const guildId = guild.id;
+  const gachaData = storage.read('gacha_data') || {};
+  const guildUsers = gachaData[guildId] || {};
+  const settingsData = storage.read('settings') || {};
+  const seasonData = storage.read('season_data') || {};
+
+  if (!seasonData[guildId]) {
+    seasonData[guildId] = {
+      currentSeason: 1,
+      lastResetYearMonth: null,
+      history: []
+    };
+  }
+
+  const now = getWIBDate();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  // Jika bukan force dan sudah di-reset bulan ini, abaikan
+  if (!options.force && seasonData[guildId].lastResetYearMonth === currentYearMonth) {
+    return { success: false, reason: 'ALREADY_RESET' };
+  }
+
+  const prevSeasonNum = seasonData[guildId].currentSeason || 1;
+  const nextSeasonNum = prevSeasonNum + 1;
+
+  // 1. Tentukan Top 1 Champion: member dengan koleksi relik dan gelar terbanyak
+  const userRankings = [];
+  for (const [uId, uData] of Object.entries(guildUsers)) {
+    const relicCount = (uData.inventory || []).length;
+    const titleCount = (uData.titles || []).length;
+    const totalCollection = relicCount + titleCount;
+    const score = calculateSeasonScore(uData);
+
+    if (totalCollection > 0 || (uData.pulls || 0) > 0) {
+      userRankings.push({
+        userId: uId,
+        userData: uData,
+        relicCount,
+        titleCount,
+        totalCollection,
+        score
+      });
+    }
+  }
+
+  // Pengurutan: Koleksi terbanyak (Relik + Gelar), disusul skor bobot kualitas
+  userRankings.sort((a, b) => {
+    if (b.totalCollection !== a.totalCollection) {
+      return b.totalCollection - a.totalCollection;
+    }
+    return b.score - a.score;
+  });
+
+  const championUser = userRankings.length > 0 ? userRankings[0] : null;
+  const prevChampionId = seasonData[guildId]?.currentChampionId || seasonData[guildId]?.lastChampionId || null;
+
+  // 2. Transfer Role Juara Season (CHAMPION)
+  const championRoleId = settingsData[guildId]?.gachaRoles?.CHAMPION;
+  let roleTransferStatus = 'Role Juara belum diatur (Admin: /gacha setrole tier:CHAMPION)';
+
+  if (championRoleId) {
+    try {
+      // Cabut dari juara lama jika orangnya berbeda
+      if (prevChampionId && (!championUser || prevChampionId !== championUser.userId)) {
+        const prevMember = guild.members?.cache?.get(prevChampionId) ||
+          await guild.members?.fetch(prevChampionId).catch(() => null);
+        if (prevMember && prevMember.roles?.cache?.has(championRoleId)) {
+          await prevMember.roles.remove(championRoleId).catch(() => {});
+        }
+      }
+
+      // Pastikan member lain yang bukan juara baru tidak memegang role ini
+      if (guild.roles?.cache?.get) {
+        const champRoleObj = guild.roles.cache.get(championRoleId);
+        if (champRoleObj && champRoleObj.members) {
+          for (const [mId, mObj] of champRoleObj.members) {
+            if (!championUser || mId !== championUser.userId) {
+              await mObj.roles.remove(championRoleId).catch(() => {});
+            }
+          }
+        }
+      }
+
+      // Berikan ke juara baru
+      if (championUser) {
+        const newChampionMember = guild.members?.cache?.get(championUser.userId) ||
+          await guild.members?.fetch(championUser.userId).catch(() => null);
+        if (newChampionMember) {
+          await newChampionMember.roles.add(championRoleId).catch(() => {});
+          roleTransferStatus = `Role <@&${championRoleId}> berhasil dianugerahkan kepada <@${championUser.userId}>`;
+        }
+      }
+    } catch (roleErr) {
+      console.error('[Season Reset Role Transfer Error]:', roleErr.message);
+    }
+  }
+
+  // 3. Konversi Relik & Gelar untuk seluruh member
+  let totalRecycledRelics = 0;
+  let totalDistributedDust = 0;
+  let totalDistributedTickets = 0;
+  let totalTitleCashbackDust = 0;
+
+  const dustConversionValues = {
+    ANCIENT: 2000,
+    MYTHIC: 800,
+    LEGENDARY: 300,
+    EPIC: 100,
+    RARE: 35,
+    COMMON: 15
+  };
+
+  for (const [uId, uData] of Object.entries(guildUsers)) {
+    const relicCount = (uData.inventory || []).length;
+    let memberDust = 0;
+
+    for (const relicName of (uData.inventory || [])) {
+      const found = GACHA_ITEMS.find(g => g.name === relicName);
+      const tierVal = found ? (dustConversionValues[found.tier] || 15) : 15;
+      memberDust += tierVal;
+    }
+
+    // Cashback 50% untuk gelar yang dibeli dari toko (shopPurchases)
+    let memberTitleCashback = 0;
+    if (Array.isArray(uData.shopPurchases)) {
+      for (const purchase of uData.shopPurchases) {
+        const cashback = Math.floor((purchase.cost || 0) * 0.5);
+        memberTitleCashback += cashback;
+      }
+    }
+    memberDust += memberTitleCashback;
+    totalTitleCashbackDust += memberTitleCashback;
+
+    // Modal tiket musim baru: 1 tiket per 5 relik, +2 jika pulls >= 50, +3 starter pack jika aktif
+    let memberTickets = Math.floor(relicCount / 5);
+    if ((uData.pulls || 0) >= 50) memberTickets += 2;
+    if (relicCount > 0 || (uData.pulls || 0) > 0) memberTickets += 3;
+
+    totalRecycledRelics += relicCount;
+    totalDistributedDust += memberDust;
+    totalDistributedTickets += memberTickets;
+
+    // Tambahkan saldo konversi
+    uData.stardust = (uData.stardust || 0) + memberDust;
+    uData.tickets = (uData.tickets || 0) + memberTickets;
+
+    // Bersihkan inventaris, gelar, dan lencana
+    uData.inventory = [];
+    uData.badges = [];
+    uData.titles = [];
+    uData.shopPurchases = [];
+    uData.equippedTitle = null;
+    uData.pityEpic = 0;
+    uData.pityLegendary = 0;
+    uData.pulls = 0;
+    uData.activeRole = null;
+    uData.duelDefenseStreak = 0;
+  }
+  storage.write('gacha_data', gachaData);
+
+  // 4. Reset Tahta & Antrean Duel
+  const throneData = storage.read('throne_duels') || {};
+  if (throneData[guildId]) {
+    throneData[guildId].activeDuels = {};
+    throneData[guildId].queues = { MYTHIC: [], LEGENDARY: [] };
+    storage.write('throne_duels', throneData);
+  }
+
+  // Auto-refresh panel arena duel
+  await updateDuelPanelIfExists(guild, client).catch(() => {});
+
+  // 5. Catat riwayat season
+  seasonData[guildId].currentSeason = nextSeasonNum;
+  seasonData[guildId].lastResetYearMonth = currentYearMonth;
+  seasonData[guildId].currentChampionId = championUser ? championUser.userId : null;
+  seasonData[guildId].lastChampionId = championUser ? championUser.userId : null;
+  seasonData[guildId].history.push({
+    season: prevSeasonNum,
+    yearMonth: currentYearMonth,
+    resetAt: Date.now(),
+    championId: championUser ? championUser.userId : null,
+    championScore: championUser ? championUser.score : 0,
+    totalMembersParticipated: userRankings.length,
+    totalRecycledRelics,
+    totalDistributedDust,
+    totalDistributedTickets
+  });
+  storage.write('season_data', seasonData);
+
+  // 6. Buat pengumuman Season Reset
+  const champText = championUser
+    ? `**Juara Musim (Top 1 Koleksi Relik & Gelar):** <@${championUser.userId}>\n` +
+      `• **Koleksi:** **${championUser.relicCount} Relik** dan **${championUser.titleCount} Gelar** (Total: **${championUser.totalCollection} Koleksi**)\n` +
+      `• **Skor Musim:** **${championUser.score.toLocaleString()} Poin**\n` +
+      `• **Status Role:** ${roleTransferStatus}`
+    : '_Tidak ada catatan juara pada musim lalu_';
+
+  const resetEmbed = new EmbedBuilder()
+    .setColor(0x9B59B6)
+    .setTitle(`PENGUMUMAN PERGANTIAN MUSIM — SEASON ${prevSeasonNum} RESMI BERAKHIR`)
+    .setDescription(
+      `Musim baru **Season ${nextSeasonNum}** telah resmi dimulai!\n\n` +
+      `${champText}\n\n` +
+      `**Rekapitulasi Konversi Musim Lalu:**\n` +
+      `• **Total Relik Dikonversi:** ${totalRecycledRelics.toLocaleString()} Relik\n` +
+      `• **Total Stardust Dibagikan:** +${totalDistributedDust.toLocaleString()} Dust` +
+      (totalTitleCashbackDust > 0 ? ` *(termasuk cashback gelar toko: +${totalTitleCashbackDust.toLocaleString()} Dust)*` : '') + `\n` +
+      `• **Total Tiket Modal Awal:** +${totalDistributedTickets.toLocaleString()} Tiket\n\n` +
+      `*Seluruh koleksi relik, gelar, dan kursi tahta telah direset bersih. Modal tiket dan stardust telah masuk ke akun masing-masing member untuk berjuang di Season ${nextSeasonNum}!*`
+    )
+    .setFooter({ text: `${guild.name} • Season ${nextSeasonNum} Kickoff (WIB)` })
+    .setTimestamp();
+
+  const targetChId = settingsData[guildId]?.gachaChannels?.broadcast ||
+                     settingsData[guildId]?.gachaChannels?.play;
+  if (targetChId) {
+    const ch = guild.channels?.cache?.get(targetChId) ||
+      (client?.channels?.fetch ? await client.channels.fetch(targetChId).catch(() => null) : null);
+    if (ch && ch.isTextBased()) {
+      await ch.send({ embeds: [resetEmbed] }).catch(() => {});
+    }
+  }
+
+  // Kirim Audit ke Mod Log
+  await sendModLog(guild, client, {
+    action: 'GACHA_RESETSEASON',
+    moderator: options.moderator || { id: client?.user?.id || 'system', username: client?.user?.username || 'Sistem Reset Season (WIB)' },
+    details: `Pergantian Musim ke Season ${nextSeasonNum} (WIB).\n` +
+      `• Total Partisipan: ${userRankings.length} Member\n` +
+      `• Juara Baru: ${championUser ? `<@${championUser.userId}>` : 'None'}\n` +
+      `• Relik Dikonversi: ${totalRecycledRelics.toLocaleString()}\n` +
+      `• Total Stardust Dibagikan: ${totalDistributedDust.toLocaleString()} Dust` +
+      (totalTitleCashbackDust > 0 ? ` (Cashback Gelar Toko: ${totalTitleCashbackDust.toLocaleString()} Dust)` : '') + `\n` +
+      `• Total Tiket Dibagikan: ${totalDistributedTickets.toLocaleString()} Tiket`
+  });
+
+  return {
+    success: true,
+    season: prevSeasonNum,
+    nextSeason: nextSeasonNum,
+    championUser,
+    totalRecycledRelics,
+    totalDistributedDust,
+    totalDistributedTickets,
+    totalTitleCashbackDust,
+    embed: resetEmbed
+  };
+}
+
+/**
+ * Background checker running every 60 seconds across all guilds
+ */
+async function checkAndExecuteSeasonReset(client) {
+  if (!client || !client.guilds) return;
+  const now = getWIBDate();
+  if (now.getDate() !== 1) return;
+
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const seasonData = storage.read('season_data') || {};
+
+  for (const guild of client.guilds.cache.values()) {
+    const gSeason = seasonData[guild.id];
+    if (!gSeason || gSeason.lastResetYearMonth !== currentYearMonth) {
+      try {
+        await executeSeasonReset(guild, client, { force: false });
+      } catch (err) {
+        console.error(`[Season Reset Guild ${guild.id} Error]:`, err.message);
+      }
+    }
+  }
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('gacha')
@@ -3506,7 +4417,8 @@ module.exports = {
               { name: '3x COMMON -> 1x RARE', value: 'COMMON' },
               { name: '3x RARE -> 1x EPIC', value: 'RARE' },
               { name: '3x EPIC -> 1x LEGENDARY', value: 'EPIC' },
-              { name: '3x LEGENDARY -> 1x MYTHIC', value: 'LEGENDARY' }
+              { name: '3x LEGENDARY -> 1x MYTHIC', value: 'LEGENDARY' },
+              { name: '3x MYTHIC -> 1x ANCIENT (Kasta Tertinggi Semesta)', value: 'MYTHIC' }
             )
         )
     )
@@ -3655,7 +4567,8 @@ module.exports = {
             .setRequired(true)
             .addChoices(
               { name: 'MYTHIC (Maksimal 3 Kursi • Permanen)', value: 'MYTHIC' },
-              { name: 'LEGENDARY (Maksimal 5 Kursi • Permanen)', value: 'LEGENDARY' }
+              { name: 'LEGENDARY (Maksimal 5 Kursi • Permanen)', value: 'LEGENDARY' },
+              { name: 'CHAMPION (Juara Top 1 Season • Berganti Setiap Bulan)', value: 'CHAMPION' }
             )
         )
         .addRoleOption(opt =>
@@ -3723,6 +4636,67 @@ module.exports = {
             .setDescription('Alasan pemberian reward (misal: Juara 1 Kuis / Giveaway)')
             .setRequired(false)
         )
+    )
+    // Subcommand: awardvoice (Admin Voice Giveaway)
+    .addSubcommand(sub =>
+      sub
+        .setName('awardvoice')
+        .setDescription('Bagi-bagi Tiket & Stardust ke seluruh member di Voice Channel admin (Admin Only)')
+        .addIntegerOption(opt =>
+          opt.setName('tickets').setDescription('Jumlah tiket per orang').setMinValue(1).setRequired(false)
+        )
+        .addIntegerOption(opt =>
+          opt.setName('stardust').setDescription('Jumlah stardust per orang').setMinValue(1).setRequired(false)
+        )
+        .addStringOption(opt =>
+          opt.setName('reason').setDescription('Alasan / pesan acara giveaway voice').setRequired(false)
+        )
+    )
+    // Subcommand: boost (Server Rate Boost Event Maksimal 10 Menit)
+    .addSubcommand(sub =>
+      sub
+        .setName('boost')
+        .setDescription('Tingkatkan drop rate tier tertentu untuk seluruh server (Maksimal 10 Menit)')
+        .addStringOption(opt =>
+          opt
+            .setName('tier')
+            .setDescription('Tier yang ingin di-boost')
+            .setRequired(true)
+            .addChoices(
+              { name: 'ANCIENT (Kasta Tertinggi Semesta)', value: 'ANCIENT' },
+              { name: 'MYTHIC (Relik Bintang 5)', value: 'MYTHIC' },
+              { name: 'LEGENDARY (Relik Bintang 5)', value: 'LEGENDARY' },
+              { name: 'EPIC (Relik Bintang 4)', value: 'EPIC' }
+            )
+        )
+        .addIntegerOption(opt =>
+          opt
+            .setName('multiplier')
+            .setDescription('Pengali drop rate')
+            .setRequired(true)
+            .addChoices(
+              { name: '2x Lipat', value: 2 },
+              { name: '3x Lipat', value: 3 },
+              { name: '5x Lipat', value: 5 }
+            )
+        )
+        .addIntegerOption(opt =>
+          opt
+            .setName('duration')
+            .setDescription('Durasi event dalam menit (1 s/d 10 menit)')
+            .setRequired(true)
+            .setMinValue(1)
+            .setMaxValue(10)
+        )
+    )
+    // Subcommand: resetseason (Admin Season Reset Trigger)
+    .addSubcommand(sub =>
+      sub
+        .setName('resetseason')
+        .setDescription('Jalankan reset season gacha bulanan (Admin Only)')
+        .addBooleanOption(opt =>
+          opt.setName('force').setDescription('Paksa reset sekarang meskipun belum tanggal 1').setRequired(false)
+        )
     ),
 
   // Export internal helpers for interactionCreate and ready.js
@@ -3747,6 +4721,9 @@ module.exports = {
   createPullPanelPayload,
   createDuelPanelPayload,
   deployGachaPanel,
+  calculateSeasonScore,
+  executeSeasonReset,
+  checkAndExecuteSeasonReset,
 
   async execute(interaction, client) {
     const sub = interaction.options.getSubcommand();
@@ -3887,6 +4864,12 @@ module.exports = {
           )
           .setFooter({ text: 'Gunakan /gacha listroles untuk melihat status konfigurasi' });
 
+        await sendModLog(interaction.guild, client, {
+          action: 'GACHA_SETCHANNEL',
+          moderator: interaction.user,
+          details: `Tipe Saluran: ${label} -> <#${channel.id}>`
+        });
+
         return interaction.reply({
           embeds: [embed],
           flags: MessageFlags.Ephemeral
@@ -3921,6 +4904,12 @@ module.exports = {
           )
           .setFooter({ text: 'Gunakan /gacha listroles untuk melihat status konfigurasi' });
 
+        await sendModLog(interaction.guild, client, {
+          action: 'GACHA_SETCHANNEL',
+          moderator: interaction.user,
+          details: `Tipe Saluran: ${label} -> Direset ke Default`
+        });
+
         return interaction.reply({
           embeds: [embed],
           flags: MessageFlags.Ephemeral
@@ -3944,6 +4933,30 @@ module.exports = {
       settingsData[guildId].gachaRoles[tier] = role.id;
       storage.write('settings', settingsData);
 
+      if (tier === 'CHAMPION') {
+        const embed = new EmbedBuilder()
+          .setColor(0xFEE75C)
+          .setTitle('Konfigurasi Role Juara Musim (Season Champion)')
+          .setDescription(
+            `• **Role Discord:** <@&${role.id}>\n` +
+            `• **Penerima:** Top 1 Leaderboard Musim (Reset Setiap Tanggal 1)\n` +
+            `• **Rotasi:** Otomatis dipindahtangankan ke Juara baru setiap pergantian season.\n\n` +
+            `*Role ini akan otomatis diberikan pada tanggal 1 pergantian bulan kepada pemain dengan skor musim tertinggi.*`
+          )
+          .setFooter({ text: 'Gunakan /gacha listroles untuk melihat status role' });
+
+        await sendModLog(interaction.guild, client, {
+          action: 'GACHA_SETROLE',
+          moderator: interaction.user,
+          details: `Role Juara Musim (CHAMPION) -> <@&${role.id}>`
+        });
+
+        return interaction.reply({
+          embeds: [embed],
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
       const cfg = THRONE_CONFIG[tier];
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
@@ -3956,6 +4969,12 @@ module.exports = {
           `*Role ini akan otomatis diberikan dan diperebutkan saat member memperoleh kartu ${tier}.*`
         )
         .setFooter({ text: 'Gunakan /gacha listroles untuk melihat status tahta' });
+
+      await sendModLog(interaction.guild, client, {
+        action: 'GACHA_SETROLE',
+        moderator: interaction.user,
+        details: `Role Tahta ${tier} -> <@&${role.id}> (${cfg.quota} Kursi)`
+      });
 
       return interaction.reply({
         embeds: [embed],
@@ -3991,6 +5010,47 @@ module.exports = {
       const legRoleText = gachaRoles.LEGENDARY
         ? `<@&${gachaRoles.LEGENDARY}>\n**Kursi (${legHolders.length}/5 Terisi):**\n${legHolders.length > 0 ? legHolders.map((h, i) => `${i + 1}. ${h}`).join('\n') : '_Kursi Tahta Kosong_'}`
         : '_Role belum diatur_';
+
+      // Cari pemilik relik ANCIENT aktif (1-of-1 server limit)
+      const ancientHolders = [];
+      const ancientItems = GACHA_ITEMS.filter(i => i.tier === 'ANCIENT');
+      const ancientItemMap = new Map(ancientItems.map(i => [i.name, null]));
+      for (const [uId, uData] of Object.entries(guildUsers)) {
+        for (const rName of (uData.inventory || [])) {
+          if (ancientItemMap.has(rName)) {
+            ancientItemMap.set(rName, uId);
+          }
+        }
+      }
+      for (const [rName, uId] of ancientItemMap.entries()) {
+        if (uId) {
+          const isMemberPresent = interaction.guild.members.cache.has(uId);
+          if (isMemberPresent) {
+            ancientHolders.push(`• **${rName}**: <@${uId}>`);
+          } else {
+            ancientHolders.push(`• **${rName}**: <@${uId}> _(Keluar Server - Tersedia Kembali)_`);
+          }
+        } else {
+          ancientHolders.push(`• **${rName}**: _Belum Terungkap_`);
+        }
+      }
+      const ancientRelicsText = ancientHolders.join('\n');
+
+      // Cek Role Juara Season & Juara Aktif
+      const seasonData = storage.read('season_data') || {};
+      const gSeason = seasonData[guildId];
+      const champRoleId = gachaRoles.CHAMPION;
+      const champRoleText = champRoleId ? `<@&${champRoleId}>` : '_Role belum diatur_';
+      const champUserText = gSeason?.lastChampionId ? `<@${gSeason.lastChampionId}>` : '_Belum ada (Reset Setiap Tanggal 1)_';
+      const seasonText = `• **Role Juara:** ${champRoleText}\n• **Pemegang Juara:** ${champUserText}\n• **Season Saat Ini:** Season ${gSeason?.currentSeason || 1}`;
+
+      // Cek Rate Boost Event Aktif
+      const activeBoost = settingsData[guildId]?.rateBoost;
+      let boostText = '_Tidak ada event rate boost aktif saat ini_';
+      if (activeBoost && activeBoost.expiresAt > Date.now()) {
+        const expUnix = Math.floor(activeBoost.expiresAt / 1000);
+        boostText = `**${activeBoost.tier} ${activeBoost.multiplier}x Rate Boost** aktif hingga <t:${expUnix}:R> (<t:${expUnix}:T>)`;
+      }
 
       const gChannels = settingsData[guildId].gachaChannels || {};
       const pullChText = gChannels.pull ? `<#${gChannels.pull}>` : (gChannels.play ? `<#${gChannels.play}> (Umum)` : '_Bebas_');
@@ -4047,8 +5107,11 @@ module.exports = {
           `Jika kursi penuh, penantang harus bertarung dalam duel strategi **Best of 3 (12 Jam)** untuk merebut tahta!\n\n`
         )
         .addFields(
-          { name: 'Tahta MYTHIC (Maks 3 Kursi • 7 Hari)', value: mythicRoleText, inline: false },
-          { name: 'Tahta LEGENDARY (Maks 5 Kursi • 3 Hari)', value: legRoleText, inline: false },
+          { name: 'Juara Musim (Top 1 Season Champion)', value: seasonText, inline: false },
+          { name: 'Relik ANCIENT (Eksklusif 1 Relik per Server)', value: ancientRelicsText, inline: false },
+          { name: 'Tahta MYTHIC (Maks 3 Kursi • Permanen)', value: mythicRoleText, inline: false },
+          { name: 'Tahta LEGENDARY (Maks 5 Kursi • Permanen)', value: legRoleText, inline: false },
+          { name: 'Event Rate Boost Server', value: boostText, inline: false },
           { name: 'Duel Tahta Aktif', value: activeDuelText, inline: false },
           { name: 'Antrean Penantang Tahta', value: queueText, inline: false },
           { name: 'Riwayat Duel Terakhir', value: recentDuelText, inline: false },
@@ -4177,6 +5240,171 @@ module.exports = {
       return interaction.reply({ embeds: [embed] });
     }
 
+    // === SUBCOMMAND: AWARDVOICE (Admin Voice Channel Giveaway) ===
+    if (sub === 'awardvoice') {
+      const isAuthorized = await isOwnerOrMod(interaction, client);
+      if (!isAuthorized) {
+        return interaction.reply({
+          content: 'Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator/Admin**.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const voiceChannel = interaction.member.voice?.channel;
+      if (!voiceChannel) {
+        return interaction.reply({
+          content: 'Kamu harus berada di dalam Voice Channel terlebih dahulu untuk membagikan hadiah ke anggota voice.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const ticketsToAdd = interaction.options.getInteger('tickets') || 0;
+      const stardustToAdd = interaction.options.getInteger('stardust') || 0;
+      const reason = interaction.options.getString('reason') || 'Voice Channel Hangout Reward';
+
+      if (ticketsToAdd <= 0 && stardustToAdd <= 0) {
+        return interaction.reply({
+          content: 'Harap tentukan minimal salah satu reward: `tickets` atau `stardust` yang lebih dari 0.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      // Filter member non-bot di dalam voice channel
+      const voiceMembers = voiceChannel.members.filter(m => !m.user.bot);
+      if (voiceMembers.size === 0) {
+        return interaction.reply({
+          content: `Tidak ada anggota non-bot di voice channel **${voiceChannel.name}**.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const gachaData = storage.read('gacha_data');
+      const awardedMemberIds = [];
+
+      for (const [memberId] of voiceMembers) {
+        const userData = getOrInitUserData(gachaData, guildId, memberId);
+        userData.tickets = (userData.tickets || 0) + ticketsToAdd;
+        userData.stardust = (userData.stardust || 0) + stardustToAdd;
+        awardedMemberIds.push(memberId);
+      }
+      storage.write('gacha_data', gachaData);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setTitle('Voice Channel Giveaway Berhasil!')
+        .setDescription(
+          `Admin <@${interaction.user.id}> telah membagikan hadiah gacha kepada seluruh anggota di voice channel <#${voiceChannel.id}>!\n\n` +
+          `**Total Penerima:** **${awardedMemberIds.length} Member**\n` +
+          `**Bonus Per Orang:**\n` +
+          (ticketsToAdd > 0 ? `• **+${ticketsToAdd} Tiket Gacha**\n` : '') +
+          (stardustToAdd > 0 ? `• **+${stardustToAdd} Stardust**\n` : '') +
+          `• **Pesan / Alasan:** *${reason}*\n\n` +
+          `**Daftar Penerima:**\n` +
+          awardedMemberIds.map(id => `<@${id}>`).join(', ')
+        )
+        .setFooter({ text: `${interaction.guild.name} • Voice Giveaway Reward` })
+        .setTimestamp();
+
+      await sendModLog(interaction.guild, client, {
+        action: 'GACHA_AWARDVOICE',
+        moderator: interaction.user,
+        details: `Hadiah dibagikan ke ${awardedMemberIds.length} member di <#${voiceChannel.id}>.\n` +
+          (ticketsToAdd > 0 ? `• Tiket: +${ticketsToAdd}\n` : '') +
+          (stardustToAdd > 0 ? `• Stardust: +${stardustToAdd}\n` : '') +
+          `• Alasan: ${reason}`
+      });
+
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    // === SUBCOMMAND: BOOST (Server Drop Rate Event - Maksimal 10 Menit) ===
+    if (sub === 'boost') {
+      const isAuthorized = await isOwnerOrMod(interaction, client);
+      if (!isAuthorized) {
+        return interaction.reply({
+          content: 'Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator/Admin**.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const tier = interaction.options.getString('tier');
+      const multiplier = interaction.options.getInteger('multiplier');
+      let durationMinutes = interaction.options.getInteger('duration');
+
+      // Batasi ketat maksimal 10 menit sesuai spesifikasi
+      if (durationMinutes > 10) durationMinutes = 10;
+      if (durationMinutes < 1) durationMinutes = 1;
+
+      const durationMs = durationMinutes * 60 * 1000;
+      const expiresAt = Date.now() + durationMs;
+
+      settingsData[guildId].rateBoost = {
+        tier,
+        multiplier,
+        durationMinutes,
+        startedAt: Date.now(),
+        expiresAt,
+        activatedBy: interaction.user.id
+      };
+      storage.write('settings', settingsData);
+
+      const expUnix = Math.floor(expiresAt / 1000);
+      const embed = new EmbedBuilder()
+        .setColor(0xFEE75C)
+        .setTitle('SERVER DROP RATE BOOST EVENT DIMULAI!')
+        .setDescription(
+          `Admin <@${interaction.user.id}> telah mengaktifkan Event Lonjakan Drop Rate di server!\n\n` +
+          `• **Tier Terpilih:** **${tier}**\n` +
+          `• **Pengali Peluang:** **${multiplier}x Lipat**\n` +
+          `• **Durasi Event:** **${durationMinutes} Menit** (Berakhir <t:${expUnix}:R>)\n\n` +
+          `*Peluang mendapatkan relik ${tier} melonjak drastis selama event ini berlangsung! Segera buka Kotak Misteri Gacha!*`
+        )
+        .setFooter({ text: `Event berakhir pada pukul <t:${expUnix}:T>` })
+        .setTimestamp();
+
+      // Broadcast pengumuman event ke channel broadcast atau gacha play jika berbeda
+      const targetChId = settingsData[guildId]?.gachaChannels?.broadcast ||
+                         settingsData[guildId]?.gachaChannels?.play;
+      if (targetChId && targetChId !== interaction.channelId) {
+        const ch = interaction.guild.channels?.cache?.get(targetChId) ||
+          (client?.channels?.fetch ? await client.channels.fetch(targetChId).catch(() => null) : null);
+        if (ch && ch.isTextBased()) {
+          await ch.send({ embeds: [embed] }).catch(() => {});
+        }
+      }
+
+      await sendModLog(interaction.guild, client, {
+        action: 'GACHA_BOOST',
+        moderator: interaction.user,
+        details: `Tier: ${tier} • Multiplier: ${multiplier}x • Durasi: ${durationMinutes} menit (Berakhir <t:${expUnix}:R>)`
+      });
+
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    // === SUBCOMMAND: RESETSEASON (Admin Manual Season Reset) ===
+    if (sub === 'resetseason') {
+      const isAuthorized = await isOwnerOrMod(interaction, client);
+      if (!isAuthorized) {
+        return interaction.reply({
+          content: 'Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator/Admin**.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      await interaction.deferReply();
+      const force = interaction.options.getBoolean('force') || false;
+
+      const result = await executeSeasonReset(interaction.guild, client, { force, moderator: interaction.user });
+      if (!result.success) {
+        return interaction.editReply({
+          content: `Reset season dilewati: ${result.reason || 'Bukan tanggal 1 atau sudah direset bulan ini.'}`
+        });
+      }
+
+      return interaction.editReply({ embeds: [result.embed] });
+    }
+
     // === SUBCOMMAND: CHALLENGE ===
     if (sub === 'challenge') {
       return executeGachaChallenge(interaction, client);
@@ -4263,7 +5491,8 @@ module.exports = {
         COMMON: 'RARE',
         RARE: 'EPIC',
         EPIC: 'LEGENDARY',
-        LEGENDARY: 'MYTHIC'
+        LEGENDARY: 'MYTHIC',
+        MYTHIC: 'ANCIENT'
       };
       const targetTier = nextTierMap[sourceTier];
       if (!targetTier) {
@@ -4285,6 +5514,31 @@ module.exports = {
         });
       }
 
+      // Cek ketersediaan relik ANCIENT (Eksklusif 1 Relik per Server)
+      let targetCandidates = GACHA_ITEMS.filter(g => g.tier === targetTier);
+      if (targetTier === 'ANCIENT') {
+        const guildUsers = gachaData[guildId] || {};
+        const ownedAncientNames = new Set();
+        for (const [uId, uData] of Object.entries(guildUsers)) {
+          if (interaction.guild && !interaction.guild.members.cache.has(uId)) {
+            continue;
+          }
+          for (const relicName of (uData.inventory || [])) {
+            const found = GACHA_ITEMS.find(g => g.name === relicName);
+            if (found && found.tier === 'ANCIENT') {
+              ownedAncientNames.add(relicName);
+            }
+          }
+        }
+        targetCandidates = targetCandidates.filter(g => !ownedAncientNames.has(g.name));
+        if (targetCandidates.length === 0) {
+          return interaction.reply({
+            content: 'Seluruh Relik Kasta ANCIENT di server ini sudah dimiliki oleh pemain lain (1 Relik per Server). Alkimia menuju ANCIENT tidak dapat dilakukan hingga terjadi Reset Season!',
+            flags: MessageFlags.Ephemeral
+          });
+        }
+      }
+
       // Ambil 3 item pertama dari candidate
       const itemsToSacrifice = candidateItems.slice(0, 3);
       for (const sacName of itemsToSacrifice) {
@@ -4292,8 +5546,6 @@ module.exports = {
         if (idx !== -1) userData.inventory.splice(idx, 1);
       }
 
-      // Pilih 1 item baru secara acak dari targetTier
-      const targetCandidates = GACHA_ITEMS.filter(g => g.tier === targetTier);
       const forgedItem = targetCandidates[Math.floor(Math.random() * targetCandidates.length)];
 
       const isDuplicate = userData.inventory.includes(forgedItem.name);
@@ -4317,8 +5569,8 @@ module.exports = {
       const roleResultText = await applySmartGachaRole(interaction.guild, interaction.member, forgedItem.tier, userData, gachaData, interaction.channel, client);
       storage.write('gacha_data', gachaData);
 
-      // Broadcast if Mythic or Legendary
-      if (forgedItem.tier === 'MYTHIC' || forgedItem.tier === 'LEGENDARY') {
+      // Broadcast if Ancient, Mythic or Legendary
+      if (forgedItem.tier === 'ANCIENT' || forgedItem.tier === 'MYTHIC' || forgedItem.tier === 'LEGENDARY') {
         broadcastJackpot(interaction.guild, interaction.member, forgedItem, client, { source: 'FUSION' });
       }
 
@@ -4350,13 +5602,14 @@ module.exports = {
       const gachaData = storage.read('gacha_data');
       const userData = getOrInitUserData(gachaData, guildId, userId);
 
-      const tiers = ['MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
+      const tiers = ['ANCIENT', 'MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
       const tierHeaders = {
-        MYTHIC: 'MYTHIC (3%)',
-        LEGENDARY: 'LEGENDARY (10%)',
-        EPIC: 'EPIC (20%)',
-        RARE: 'RARE (32%)',
-        COMMON: 'COMMON (35%)'
+        ANCIENT: 'ANCIENT (0.5%)',
+        MYTHIC: 'MYTHIC (1.5%)',
+        LEGENDARY: 'LEGENDARY (5.0%)',
+        EPIC: 'EPIC (18.0%)',
+        RARE: 'RARE (35.0%)',
+        COMMON: 'COMMON (40.0%)'
       };
 
       const embed = new EmbedBuilder()
@@ -4446,7 +5699,14 @@ module.exports = {
       } else if (shopItem.type === 'title_badge') {
         if (!userData.titles.includes(shopItem.title)) userData.titles.push(shopItem.title);
         if (!userData.badges.includes(shopItem.badge)) userData.badges.push(shopItem.badge);
-        rewardText = `• Gelar & Lencana Terbuka: \`"${shopItem.title}"\` & \`${shopItem.badge}\``;
+        if (!Array.isArray(userData.shopPurchases)) userData.shopPurchases = [];
+        userData.shopPurchases.push({
+          itemId: shopItem.id,
+          title: shopItem.title,
+          cost: shopItem.cost,
+          boughtAt: Date.now()
+        });
+        rewardText = `• Gelar & Lencana Terbuka: \`"${shopItem.title}"\` & \`${shopItem.badge}\`\n*(Catatan: Mendapatkan 50% cashback Dust saat Reset Season pergantian bulan)*`;
       }
 
       storage.write('gacha_data', gachaData);
@@ -4555,16 +5815,16 @@ module.exports = {
         descHeader = 'Peringkat anggota dengan tarikan gacha terbanyak:';
         userEntries.sort((a, b) => (b[1].pulls || 0) - (a[1].pulls || 0));
       } else if (category === 'luck') {
-        title = 'Klasemen Relik Langka (Mythic & Legendary)';
-        descHeader = 'Peringkat anggota pemilik relik Mythic & Legendary terbanyak:';
+        title = 'Klasemen Relik Langka (Ancient, Mythic & Legendary)';
+        descHeader = 'Peringkat anggota pemilik relik Ancient, Mythic & Legendary terbanyak:';
         userEntries.sort((a, b) => {
           const countA = (a[1].inventory || []).filter(name => {
             const found = GACHA_ITEMS.find(g => g.name === name);
-            return found && (found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
+            return found && (found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
           }).length;
           const countB = (b[1].inventory || []).filter(name => {
             const found = GACHA_ITEMS.find(g => g.name === name);
-            return found && (found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
+            return found && (found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
           }).length;
           return countB - countA;
         });
@@ -4589,9 +5849,9 @@ module.exports = {
         } else {
           const legCount = (data.inventory || []).filter(name => {
             const found = GACHA_ITEMS.find(g => g.name === name);
-            return found && (found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
+            return found && (found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
           }).length;
-          return `${rankNum} <@${uId}> — **${legCount} Relik Mythic/Legendary** (${data.inventory?.length || 0} total item)`;
+          return `${rankNum} <@${uId}> — **${legCount} Relik Langka (Ancient/Mythic/Leg)** (${data.inventory?.length || 0} total item)`;
         }
       }).join('\n');
 

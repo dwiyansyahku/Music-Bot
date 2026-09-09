@@ -234,6 +234,7 @@ function buildHelpEmbed(category, client, guild = null) {
           `**Fungsi:**\n` +
           `Perangkat pengelolaan server untuk Staff & Moderator dalam menjaga kenyamanan, keamanan, dan ketertiban komunitas.\n\n` +
           `◈ **Daftar Perintah Moderasi:**\n` +
+          `• \`/mod setlogchannel [channel]\` — Atur saluran log audit terpusat untuk segala tindakan admin/mod.\n` +
           `• \`/mod warn [user] [alasan]\` — Berikan teguran resmi kepada member.\n` +
           `• \`/mod warnings [user]\` — Riwayat catatan teguran member.\n` +
           `• \`/mod clearwarns [user]\` — Hapus riwayat teguran member.\n` +
@@ -271,13 +272,13 @@ function buildHelpEmbed(category, client, guild = null) {
             inline: false
           },
           {
-            name: '✦ Komunitas & Profil',
-            value: '`/card`, `/setcard`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/achievements`, `/userinfo`, `/serverinfo`',
+            name: '✦ Komunitas, Galeri & Profil',
+            value: '`/card`, `/setcard`, `/gallery submit`, `/gallery panel`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/achievements`, `/userinfo`, `/serverinfo`',
             inline: false
           },
           {
             name: '✦ Moderasi, Penjara & Utilitas',
-            value: '`/automod`, `/mod`, `/clear`, `/qclear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/qwelcome`, `/backup`, `/ping`',
+            value: '`/automod`, `/mod`, `/mod setlogchannel`, `/clear`, `/qclear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/qwelcome`, `/backup`, `/ping`',
             inline: false
           }
         )

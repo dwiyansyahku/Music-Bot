@@ -3,12 +3,24 @@ const {
 } = require('discord.js');
 const storage = require('../utils/storage');
 const { isOwnerOrMod, isBotOwner, replyNoAccessMod } = require('../utils/helpers');
+const { sendModLog } = require('../utils/modlog');
 
 const mod = {
   data: new SlashCommandBuilder()
     .setName('mod')
     .setDescription('Perintah moderasi server')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+    .addSubcommand(sub =>
+      sub
+        .setName('setlogchannel')
+        .setDescription('Atur channel untuk pengiriman log moderasi & aksi admin')
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Channel tujuan mod log')
+            .setRequired(true)
+        )
+    )
     .addSubcommand(sub =>
       sub
         .setName('warn')
@@ -98,6 +110,30 @@ const mod = {
     }
 
     // ============================
+    // SETLOGCHANNEL
+    // ============================
+    if (sub === 'setlogchannel') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && !isCallerOwner) {
+        return interaction.editReply('❌ Hanya Administrator atau Bot Owner yang dapat mengatur channel Mod Log!');
+      }
+
+      const targetChannel = interaction.options.getChannel('channel');
+      const settings = storage.read('settings') || {};
+      if (!settings[guildId]) settings[guildId] = {};
+
+      settings[guildId].modLogChannel = targetChannel.id;
+      storage.write('settings', settings);
+
+      await sendModLog(interaction.guild, client, {
+        action: 'SETLOGCHANNEL',
+        moderator: interaction.user,
+        details: `Channel mod log server telah diarahkan ke <#${targetChannel.id}>`
+      });
+
+      return interaction.editReply(`✅ Channel Mod Log berhasil diatur ke <#${targetChannel.id}>.`);
+    }
+
+    // ============================
     // WARN
     // ============================
     if (sub === 'warn') {
@@ -177,6 +213,15 @@ const mod = {
 
       if (autoPunish) embed.addFields({ name: '🤖 Auto-Punish', value: autoPunish });
 
+      // Kirim ke Mod Log
+      await sendModLog(interaction.guild, client, {
+        action: 'WARN',
+        moderator: interaction.user,
+        target: targetUser,
+        reason: alasan,
+        details: `Total Warn: ${warnCount}/8${autoPunish ? `\nAuto-Punish: ${autoPunish}` : ''}`
+      });
+
       return interaction.editReply({ embeds: [embed] });
     }
 
@@ -224,6 +269,14 @@ const mod = {
       warns[guildId][targetUser.id] = [];
       storage.write('warns', warns);
 
+      await sendModLog(interaction.guild, client, {
+        action: 'CLEARWARNS',
+        moderator: interaction.user,
+        target: targetUser,
+        reason: 'Pembersihan riwayat peringatan (warn)',
+        details: `Sebanyak ${prev} warn sebelumnya telah dibersihkan.`
+      });
+
       return interaction.editReply(`✅ **${prev} warn** milik <@${targetUser.id}> telah dihapus.`);
     }
 
@@ -266,6 +319,14 @@ const mod = {
         });
       } catch { /* DM disabled */ }
 
+      await sendModLog(interaction.guild, client, {
+        action: 'MUTE',
+        moderator: interaction.user,
+        target: targetUser,
+        reason: alasan,
+        details: `Durasi Mute: ${durasiStr}`
+      });
+
       return interaction.editReply({
         embeds: [
           new EmbedBuilder()
@@ -291,6 +352,14 @@ const mod = {
       if (!targetMember) return interaction.editReply('❌ User tidak ditemukan!');
 
       await targetMember.timeout(null);
+
+      await sendModLog(interaction.guild, client, {
+        action: 'UNMUTE',
+        moderator: interaction.user,
+        target: targetUser,
+        reason: 'Pencabutan status timeout/mute lebih awal'
+      });
+
       return interaction.editReply(`✅ <@${targetUser.id}> berhasil di-unmute.`);
     }
 
@@ -322,6 +391,13 @@ const mod = {
       } catch { /* DM disabled */ }
 
       await targetMember.kick(alasan);
+
+      await sendModLog(interaction.guild, client, {
+        action: 'KICK',
+        moderator: interaction.user,
+        target: targetUser,
+        reason: alasan
+      });
 
       return interaction.editReply({
         embeds: [
@@ -369,6 +445,14 @@ const mod = {
       await interaction.guild.bans.create(targetUser.id, {
         reason: alasan,
         deleteMessageSeconds: hapusPesan * 24 * 60 * 60,
+      });
+
+      await sendModLog(interaction.guild, client, {
+        action: 'BAN',
+        moderator: interaction.user,
+        target: targetUser,
+        reason: alasan,
+        details: hapusPesan > 0 ? `Hapus riwayat pesan ${hapusPesan} hari terakhir` : undefined
       });
 
       return interaction.editReply({

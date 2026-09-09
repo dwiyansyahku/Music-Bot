@@ -379,13 +379,14 @@ module.exports = {
         if (capsuleModified) storage.write('timecapsules', capsulesData);
       }
 
-      // ====== 7. GACHA ROLE & THRONE DUEL EXPIRY CHECKER ======
+      // ====== 7. GACHA ROLE, THRONE DUEL & MONTHLY SEASON RESET CHECKER ======
       try {
-        const { checkAndExpireGachaRoles, checkAndExpireThroneDuels } = require('../commands/gacha');
+        const { checkAndExpireGachaRoles, checkAndExpireThroneDuels, checkAndExecuteSeasonReset } = require('../commands/gacha');
         await checkAndExpireGachaRoles(client);
         if (checkAndExpireThroneDuels) await checkAndExpireThroneDuels(client);
+        if (checkAndExecuteSeasonReset) await checkAndExecuteSeasonReset(client);
       } catch (gachaExpErr) {
-        console.error('[Gacha Role/Duel Expiry Error]:', gachaExpErr.message);
+        console.error('[Gacha Role/Duel/Season Expiry Error]:', gachaExpErr.message);
       }
 
     }, 60 * 1000); // cek setiap 60 detik

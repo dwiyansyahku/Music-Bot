@@ -2,6 +2,7 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { checkVoiceChannel, checkQueue, isBotOwner, cleanMusicQuery } = require('../utils/helpers');
 const storage = require('../utils/storage');
 const { checkBadWords, checkPhishing, checkSpam, getGuildAutomodSettings } = require('../utils/automod');
+const { sendModLog } = require('../utils/modlog');
 
 /**
  * Format durasi AFK ke string yang mudah dibaca
@@ -143,6 +144,14 @@ module.exports = {
                 }
               }
 
+              await sendModLog(message.guild, client, {
+                action: 'AUTOMOD_DELETE',
+                moderator: { id: client.user.id, username: 'AutoMod Sentinel' },
+                target: message.author,
+                reason: 'Kebocoran Token Discord',
+                details: `Pesan berisi Discord Token di <#${message.channel.id}> disensor dan dihapus demi keamanan akun.`
+              });
+
               return;
             }
 
@@ -187,6 +196,14 @@ module.exports = {
                   logChannel.send({ embeds: [logEmbed] }).catch(() => {});
                 }
               }
+
+              await sendModLog(message.guild, client, {
+                action: 'AUTOMOD_TIMEOUT',
+                moderator: { id: client.user.id, username: 'AutoMod Sentinel' },
+                target: message.author,
+                reason: phishingCheck.reason,
+                details: `File berbahaya \`${phishingCheck.filename || phishingCheck.url}\` di <#${message.channel.id}> dihapus & timeout 1 jam.`
+              });
 
               return;
             }
@@ -233,6 +250,14 @@ module.exports = {
                 logChannel.send({ embeds: [logEmbed] }).catch(() => {});
               }
             }
+
+            await sendModLog(message.guild, client, {
+              action: 'AUTOMOD_TIMEOUT',
+              moderator: { id: client.user.id, username: 'AutoMod Sentinel' },
+              target: message.author,
+              reason: phishingCheck.reason,
+              details: `Tautan phishing terdeteksi di <#${message.channel.id}>: \`${phishingCheck.url}\``
+            });
 
             return; // Hentikan pemrosesan pesan
           }
@@ -285,6 +310,14 @@ module.exports = {
               }
             }
 
+            await sendModLog(message.guild, client, {
+              action: isTimeout ? 'AUTOMOD_TIMEOUT' : 'AUTOMOD_DELETE',
+              moderator: { id: client.user.id, username: 'AutoMod Sentinel' },
+              target: message.author,
+              reason: spamCheck.reason,
+              details: `Spam di <#${message.channel.id}>: ${(spamCheck.type || 'SPAM').toUpperCase()}`
+            });
+
             return; // Hentikan pemrosesan pesan
           }
         }
@@ -331,6 +364,14 @@ module.exports = {
                 logChannel.send({ embeds: [logEmbed] }).catch(() => {});
               }
             }
+
+            await sendModLog(message.guild, client, {
+              action: 'AUTOMOD_DELETE',
+              moderator: { id: client.user.id, username: 'AutoMod Sentinel' },
+              target: message.author,
+              reason: `Kata terlarang: "${badWordCheck.word}"`,
+              details: `Pesan berisi kata tidak pantas di <#${message.channel.id}> dihapus.`
+            });
 
             return; // Hentikan pemrosesan pesan
           }

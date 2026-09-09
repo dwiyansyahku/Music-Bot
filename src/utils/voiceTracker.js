@@ -348,7 +348,7 @@ function flushAllActiveSessions() {
     userStats.totalTime = (userStats.totalTime || 0) + elapsed;
     if (!userStats.companions) userStats.companions = {};
 
-    const activeGuild = (client || botClient)?.guilds?.cache?.get(guildId);
+    const activeGuild = botClient?.guilds?.cache?.get(guildId);
     const activeMember = activeGuild?.members?.cache?.get(userId);
     const activeChannel = activeGuild?.channels?.cache?.get(session.channelId);
     if (isEligibleForVoiceReward(activeMember, activeGuild, activeChannel)) {

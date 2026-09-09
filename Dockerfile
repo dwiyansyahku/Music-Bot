@@ -5,13 +5,13 @@ RUN apt-get update && \
     pip3 install -U --break-system-packages --no-cache-dir pip && \
     pip3 install -U --break-system-packages --no-cache-dir "yt-dlp[default]" && \
     pip3 install -U --break-system-packages --no-cache-dir "yt-dlp-youtube-oauth2" && \
-    pip3 install -U --break-system-packages --no-cache-dir bgutil-ytdlp-pot-provider && \
+    pip3 install -U --break-system-packages --no-cache-dir "bgutil-ytdlp-pot-provider==2.0.0" && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Clone & build bgutil PO Token provider server langsung di direktori yang dicari yt-dlp
-RUN git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /root/bgutil-ytdlp-pot-provider && \
+# Clone & build bgutil PO Token provider server langsung di direktori yang dicari yt-dlp (pin ke branch 2.0.0)
+RUN git clone --depth 1 --branch 2.0.0 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /root/bgutil-ytdlp-pot-provider && \
     cd /root/bgutil-ytdlp-pot-provider/server && \
     npm install && npx tsc && \
     ln -s /root/bgutil-ytdlp-pot-provider /opt/bgutil
