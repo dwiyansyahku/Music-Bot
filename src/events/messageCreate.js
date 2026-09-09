@@ -92,6 +92,67 @@ module.exports = {
       }
     }
 
+    // ====== CURATED GALLERY SYSTEM: 2-SALURAN AUTO-REDIRECT & CLEANER ======
+    try {
+      const gallerySettings = storage.read('settings') || {};
+      const gSettings = gallerySettings[guildId] || {};
+      const galleryOutputId = gSettings.galleryChannel;
+      const galleryPanelId = gSettings.galleryPanelChannel;
+
+      // 1. Saluran Panel Pengiriman (Tempat Tombol Galeri Berada)
+      if (galleryPanelId && message.channel.id === galleryPanelId) {
+        if (!message.author.bot) {
+          const imageAtt = message.attachments.find(att => {
+            const ext = (att.name?.split('.').pop() || '').toLowerCase();
+            return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) || att.contentType?.startsWith('image/');
+          });
+
+          if (imageAtt) {
+            // Member drop gambar langsung di saluran panel: otomatis pindahkan ke saluran output!
+            const caption = message.content?.trim() || '';
+            await message.delete().catch(() => {});
+
+            const { publishGalleryItem } = require('../commands/gallery');
+            const res = await publishGalleryItem(message.guild, message.author, message.member, imageAtt.url, caption, client);
+
+            if (res.success) {
+              message.channel.send({
+                content: `✨ <@${message.author.id}>, fotomu berhasil dipajang di <#${res.channelId}>!`
+              }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
+            } else {
+              message.channel.send({
+                content: `❌ <@${message.author.id}>, gagal memposting gambar: ${res.error}`
+              }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
+            }
+            return;
+          } else {
+            // Teks obrolan biasa di saluran panel: bersihkan otomatis agar channel tetap rapi
+            await message.delete().catch(() => {});
+            message.channel.send({
+              content: `⚠️ <@${message.author.id}>, saluran ini khusus **pengiriman gambar galeri**.\n` +
+                `Silakan gunakan tombol pada panel atau lampirkan file foto.`
+            }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
+            return;
+          }
+        }
+      }
+
+      // 2. Saluran Output Galeri (Tempat Foto-Foto Dipajang)
+      if (galleryOutputId && message.channel.id === galleryOutputId) {
+        if (!message.author.bot) {
+          // Cegah obrolan teks biasa mengotori feed galeri utama
+          await message.delete().catch(() => {});
+          message.channel.send({
+            content: `⚠️ <@${message.author.id}>, saluran <#${galleryOutputId}> adalah galeri terkurasi.\n` +
+              `Untuk mengobrol atau berdiskusi, silakan gunakan **Thread** di bawah masing-masing foto.`
+          }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
+          return;
+        }
+      }
+    } catch (gErr) {
+      console.warn('[Gallery Message Handler Error]:', gErr.message);
+    }
+
     // ====== AUTO-MODERATION & ANTI-PHISHING SYSTEM ======
     const automodConfig = getGuildAutomodSettings(guildId);
     if (automodConfig.enabled) {

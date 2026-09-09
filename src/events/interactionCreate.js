@@ -484,30 +484,130 @@ module.exports = {
     }
 
     // ====== Button Interaction (Galeri Server Panel) ======
-    if (interaction.isButton() && (interaction.customId === 'gallery_btn_submit' || interaction.customId === 'gallery_btn_rules')) {
+    if (interaction.isButton() && (
+      interaction.customId === 'gallery_btn_submit' ||
+      interaction.customId === 'gallery_btn_upload_file' ||
+      interaction.customId === 'gallery_btn_open_modal' ||
+      interaction.customId === 'gallery_btn_rules'
+    )) {
+      const storage = require('../utils/storage');
+      const settings = storage.read('settings') || {};
+      const galleryChId = settings[interaction.guild?.id]?.galleryChannel;
+      const targetText = galleryChId ? `di saluran <#${galleryChId}>` : 'di Saluran Galeri';
+
+      // 1. Klik Tombol Utama: Tampilkan Menu Pilihan Upload Interaktif
       if (interaction.customId === 'gallery_btn_submit') {
-        const storage = require('../utils/storage');
-        const settings = storage.read('settings') || {};
-        const galleryChId = settings[interaction.guild?.id]?.galleryChannel;
-        const targetText = galleryChId ? `di saluran <#${galleryChId}>` : 'di Galeri Server';
-
-        const embed = new EmbedBuilder()
+        const promptEmbed = new EmbedBuilder()
           .setColor(0x5865F2)
-          .setTitle('📸 Cara Mengirim Gambar ke Galeri')
+          .setTitle('📸 Unggah Karyamu ke Galeri')
           .setDescription(
-            `Untuk memajang gambarmu ${targetText}, silakan gunakan perintah slash berikut:\n\n` +
-            `**Langkah-langkah:**\n` +
-            `1. Ketik \`/gallery submit\` di kolom obrolan.\n` +
-            `2. Lampirkan file gambarmu pada opsi **\`image\`** (PNG, JPG, GIF, WEBP, maks 8MB).\n` +
-            `3. *(Opsional)* Tulis judul/keterangan karyamu di opsi **\`caption\`**.\n` +
-            `4. Tekan **Enter** untuk mengirim!\n\n` +
-            `Bot akan otomatis memformat dan memajang postinganmu secara rapi di galeri.`
-          )
-          .setFooter({ text: 'Batas kirim: 5 gambar per hari per member' });
+            `Karyamu akan otomatis dipajang oleh bot ${targetText}.\n\n` +
+            `**Silakan pilih metode pengiriman gambar:**\n` +
+            `• **📁 Upload File dari HP/PC**: Kirimkan file gambar langsung dari galeri HP atau folder laptop Anda.\n` +
+            `• **🔗 Masukkan Link / URL**: Masukkan tautan gambar via formulir pop-up langsung.\n\n` +
+            `*Format didukung: PNG, JPG, GIF, WebP (Maksimal 8MB)*`
+          );
 
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('gallery_btn_upload_file')
+            .setLabel('Upload File dari HP/PC')
+            .setEmoji('📁')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId('gallery_btn_open_modal')
+            .setLabel('Input via Link / URL')
+            .setEmoji('🔗')
+            .setStyle(ButtonStyle.Primary)
+        );
+
+        return interaction.reply({ embeds: [promptEmbed], components: [row], flags: MessageFlags.Ephemeral });
       }
 
+      // 2. Klik Buka Modal (Input Link / URL)
+      if (interaction.customId === 'gallery_btn_open_modal') {
+        const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+        const modal = new ModalBuilder()
+          .setCustomId('gallery_modal_submit')
+          .setTitle('Kirim Gambar ke Galeri');
+
+        const urlInput = new TextInputBuilder()
+          .setCustomId('gallery_input_url')
+          .setLabel('Tautan / URL Gambar (Wajib)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('https://i.imgur.com/... atau link gambar Discord')
+          .setRequired(true);
+
+        const captionInput = new TextInputBuilder()
+          .setCustomId('gallery_input_caption')
+          .setLabel('Caption / Judul Karya (Opsional)')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Tuliskan cerita atau judul karyamu...')
+          .setMaxLength(500)
+          .setRequired(false);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(urlInput),
+          new ActionRowBuilder().addComponents(captionInput)
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      // 3. Klik Upload File Langsung (HP/PC)
+      if (interaction.customId === 'gallery_btn_upload_file') {
+        await interaction.update({
+          content: `📸 **Sesi Upload File Aktif!**\n` +
+            `Silakan **lampirkan/kirim file foto** dari HP/PC Anda di channel ini sekarang (Batas waktu: 60 detik).\n\n` +
+            `• *Tips: Anda bisa menyertakan teks caption di kolom chat bersamaan dengan foto.*\n` +
+            `• *Pesan upload Anda di channel ini akan otomatis dihapus dan dipajang secara resmi oleh bot ${targetText}.*`,
+          embeds: [],
+          components: []
+        });
+
+        const filter = m => m.author.id === interaction.user.id;
+        const collector = interaction.channel.createMessageCollector({ filter, time: 60000, max: 1 });
+
+        collector.on('collect', async (msg) => {
+          const imageAtt = msg.attachments.find(att => {
+            const ext = (att.name?.split('.').pop() || '').toLowerCase();
+            return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) || att.contentType?.startsWith('image/');
+          });
+
+          if (!imageAtt) {
+            await msg.delete().catch(() => {});
+            return interaction.followUp({
+              content: '❌ Pesan yang kamu kirimkan tidak memiliki lampiran file gambar (PNG, JPG, GIF, WEBP). Silakan tekan tombol lagi untuk mengulang.',
+              flags: MessageFlags.Ephemeral
+            });
+          }
+
+          const caption = msg.content?.trim() || '';
+          await msg.delete().catch(() => {});
+
+          const { publishGalleryItem } = require('../commands/gallery');
+          const res = await publishGalleryItem(msg.guild, msg.author, msg.member, imageAtt.url, caption, client);
+
+          if (res.success) {
+            const jumpRow = new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setLabel('Lihat Postingan').setStyle(ButtonStyle.Link).setURL(res.jumpUrl)
+            );
+            return interaction.followUp({
+              content: `✨ Gambar karyamu berhasil dipajang di <#${res.channelId}>!\nSisa kuota submit hari ini: **${res.remaining} Gambar**.`,
+              components: [jumpRow],
+              flags: MessageFlags.Ephemeral
+            });
+          } else {
+            return interaction.followUp({
+              content: `❌ Gagal memposting gambar: ${res.error}`,
+              flags: MessageFlags.Ephemeral
+            });
+          }
+        });
+        return;
+      }
+
+      // 4. Panduan & Ketentuan
       if (interaction.customId === 'gallery_btn_rules') {
         const embed = new EmbedBuilder()
           .setColor(0x2B2D31)
@@ -588,6 +688,43 @@ module.exports = {
         await handleCardModalSubmit(interaction, client);
       } catch (err) {
         await safeErrorReply(err, 'Gagal memproses form Card Member.');
+      }
+      return;
+    }
+
+    // ====== Modal Submit Interaction (Pop-up Form Gallery Gambar) ======
+    if (interaction.isModalSubmit() && interaction.customId === 'gallery_modal_submit') {
+      try {
+        const imageUrl = interaction.fields.getTextInputValue('gallery_input_url')?.trim() || '';
+        const caption = interaction.fields.getTextInputValue('gallery_input_caption')?.trim() || '';
+
+        if (!/^https?:\/\/.+/i.test(imageUrl)) {
+          return interaction.reply({
+            content: '❌ Tautan gambar tidak valid! Pastikan tautan diawali dengan `http://` atau `https://`.',
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        const { publishGalleryItem } = require('../commands/gallery');
+        const res = await publishGalleryItem(interaction.guild, interaction.user, interaction.member, imageUrl, caption, client);
+
+        if (res.success) {
+          const jumpRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setLabel('Lihat Postingan').setStyle(ButtonStyle.Link).setURL(res.jumpUrl)
+          );
+          return interaction.editReply({
+            content: `✨ Gambar karyamu berhasil dipajang di <#${res.channelId}>!\nSisa kuota submit hari ini: **${res.remaining} Gambar**.`,
+            components: [jumpRow]
+          });
+        } else {
+          return interaction.editReply({
+            content: `❌ Gagal memposting gambar: ${res.error}`
+          });
+        }
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses pengiriman formulir galeri.');
       }
       return;
     }
