@@ -1422,6 +1422,40 @@ function buildThroneDuelActionRow(duelId, disabled = false) {
   );
 }
 
+async function resolveDuelChannel(guildId, tier, client, fallbackChannel = null) {
+  try {
+    const settingsData = storage.read('settings') || {};
+    const gCh = settingsData[guildId]?.gachaChannels || {};
+    let targetId = null;
+    if (tier === 'MYTHIC') {
+      targetId = gCh.duel_mythic || gCh.tactics || gCh.throne || gCh.duel;
+    } else if (tier === 'LEGENDARY') {
+      targetId = gCh.duel_legendary || gCh.tactics || gCh.throne || gCh.duel;
+    } else {
+      targetId = gCh.tactics || gCh.throne || gCh.duel;
+    }
+
+    if (targetId && client) {
+      const ch = await client.channels.fetch(targetId).catch(() => null);
+      if (ch && ch.isTextBased()) return ch;
+    }
+  } catch (_) {}
+  return fallbackChannel;
+}
+
+async function resolveThroneLoungeChannel(guildId, client, fallbackChannel = null) {
+  try {
+    const settingsData = storage.read('settings') || {};
+    const gCh = settingsData[guildId]?.gachaChannels || {};
+    const targetId = gCh.throne || gCh.duel;
+    if (targetId && client) {
+      const ch = await client.channels.fetch(targetId).catch(() => null);
+      if (ch && ch.isTextBased()) return ch;
+    }
+  } catch (_) {}
+  return fallbackChannel;
+}
+
 async function initiateThroneDuel({ guildId, challengerId, targetDefender, itemTier, configuredRoleId, channel, client }) {
   const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
   const now = Date.now();
@@ -1472,8 +1506,8 @@ async function initiateThroneDuel({ guildId, challengerId, targetDefender, itemT
           .setTitle('Peringatan Clash of Thrones')
           .setDescription(
             `Tahta **${itemTier}** milikmu sedang ditantang oleh **<@${challengerId}>** di server **${guild ? guild.name : 'Discord'}**!\n\n` +
-            `• **Batas Waktu:** 12 Jam (hingga <t:${expUnix}:R>)\n` +
-            `• **Saluran Pasang Taktik:** <#${channel.id}>\n\n` +
+            `• Batas Waktu: 12 Jam (hingga <t:${expUnix}:R>)\n` +
+            `• Saluran Duel: <#${channel.id}>\n\n` +
             `Kunjungi saluran tersebut dan tekan tombol **[Pasang Taktik]** sebelum waktu berakhir agar tidak kalah default.`
           )
           .setFooter({ text: 'Clash of Thrones 2.0 • Duel Alert' })
@@ -1618,23 +1652,16 @@ async function executeInstantClash(duelId, client) {
 
   storage.write('gacha_data', gachaData);
 
-  // Kirim hasil pertarungan ke Arena Duel dan update pesan tantangan di Saluran Taktik
+  // Kirim hasil pertarungan ke Throne Lounge dan update pesan tantangan di Saluran Duel
   try {
-    const settingsData = storage.read('settings') || {};
-    const duelChId = settingsData[duel.guildId]?.gachaChannels?.duel;
-    let duelChannel = null;
-    if (duelChId) {
-      duelChannel = await client.channels.fetch(duelChId).catch(() => null);
-    }
-
-    const tacticsChannel = await client.channels.fetch(duel.channelId).catch(() => null);
-    const destChannel = duelChannel || tacticsChannel;
+    const destChannel = await resolveThroneLoungeChannel(duel.guildId, client, null);
+    const duelChannel = await client.channels.fetch(duel.channelId).catch(() => null);
 
     const roundsHistory = rounds.map(r => {
       const c1 = MOVE_DISPLAY[r.cMove] || { name: r.cMove };
       const c2 = MOVE_DISPLAY[r.dMove] || { name: r.dMove };
       const winText = r.winner === 'challenger' ? 'Penantang Unggul' : r.winner === 'defender' ? 'Defender Unggul' : 'Seri';
-      return `• **Ronde ${r.round}:** ${c1.name} vs ${c2.name} — *${winText}*`;
+      return `• Ronde ${r.round}: ${c1.name} vs ${c2.name} — *${winText}*`;
     }).join('\n');
 
     const tierColor = challengerWins ? 0xFF007F : 0x57F287;
@@ -1655,16 +1682,16 @@ async function executeInstantClash(duelId, client) {
       ? `<@${duel.challengerId}> berhasil merebut tahta dari <@${duel.defenderId}>.`
       : `<@${duel.defenderId}> berhasil mempertahankan tahta dari <@${duel.challengerId}>.`;
 
-    if (destChannel && tacticsChannel && destChannel.id !== tacticsChannel.id) {
-      // Saluran terpisah: Kirim siaran hasil duel ke Channel Arena Duel
+    if (destChannel && duelChannel && destChannel.id !== duelChannel.id) {
+      // Saluran terpisah: Kirim siaran hasil duel ke Throne Lounge
       const clashMsg = await destChannel.send({
-        content: `⚔️ **PERTANDINGAN DUEL TAHTA SELESAI!**\n<@${duel.challengerId}> <@${duel.defenderId}> — ${winnerNotice}`,
+        content: `**Pertandingan Duel Tahta Selesai**\n<@${duel.challengerId}> <@${duel.defenderId}> — ${winnerNotice}`,
         embeds: [finalEmbed]
       }).catch(() => null);
 
-      // Perbarui pesan tantangan di Saluran Taktik
+      // Perbarui pesan tantangan di Saluran Duel
       if (duel.messageId) {
-        const message = await tacticsChannel.messages.fetch(duel.messageId).catch(() => null);
+        const message = await duelChannel.messages.fetch(duel.messageId).catch(() => null);
         if (message) {
           const finishedEmbed = new EmbedBuilder()
             .setColor(tierColor)
@@ -1675,7 +1702,7 @@ async function executeInstantClash(duelId, client) {
               `Kedua pihak telah mengunci taktik rahasia dan pertarungan telah selesai disimulasikan.\n\n` +
               `• **Skor:** Penantang **${cScore}** — **${dScore}** Pemegang Tahta\n` +
               `• **Status:** ${winnerNotice}\n\n` +
-              `⚔️ **Saksikan rekapan lengkap ronde di Arena Duel:** <#${destChannel.id}>`
+              `Hasil lengkap disiarkan di Throne Lounge: <#${destChannel.id}>`
             )
             .setFooter({ text: `Clash of Thrones • Duel ID: ${duel.id}` })
             .setTimestamp();
@@ -1684,7 +1711,7 @@ async function executeInstantClash(duelId, client) {
           if (clashMsg && clashMsg.url) {
             linkRow.addComponents(
               new ButtonBuilder()
-                .setLabel('Lihat Hasil di Arena Duel')
+                .setLabel('Lihat Hasil di Throne Lounge')
                 .setStyle(ButtonStyle.Link)
                 .setURL(clashMsg.url)
             );
@@ -1700,16 +1727,16 @@ async function executeInstantClash(duelId, client) {
           await message.edit({ embeds: [finishedEmbed], components: [linkRow] }).catch(() => {});
         }
       }
-    } else if (tacticsChannel) {
+    } else if (duelChannel) {
       // Saluran sama / fallback: Edit pesan tantangan langsung di tempat duel berlangsung
       if (duel.messageId) {
-        const message = await tacticsChannel.messages.fetch(duel.messageId).catch(() => null);
+        const message = await duelChannel.messages.fetch(duel.messageId).catch(() => null);
         if (message) {
           const disabledRow = buildThroneDuelActionRow(duelId, true);
           await message.edit({ embeds: [finalEmbed], components: [disabledRow] }).catch(() => {});
         }
       }
-      await tacticsChannel.send({
+      await duelChannel.send({
         content: `<@${duel.challengerId}> <@${duel.defenderId}> — Pertarungan tahta selesai. ${winnerNotice}`
       }).catch(() => {});
     }
@@ -1824,17 +1851,10 @@ async function handleDuelExpiry(duel, client) {
 
   storage.write('gacha_data', gachaData);
 
-  // Kirim hasil timeout ke Arena Duel dan update pesan tantangan di Saluran Taktik
+  // Kirim hasil timeout ke Throne Lounge dan update pesan tantangan di Saluran Duel
   try {
-    const settingsData = storage.read('settings') || {};
-    const duelChId = settingsData[duel.guildId]?.gachaChannels?.duel;
-    let duelChannel = null;
-    if (duelChId) {
-      duelChannel = await client.channels.fetch(duelChId).catch(() => null);
-    }
-
-    const tacticsChannel = await client.channels.fetch(duel.channelId).catch(() => null);
-    const destChannel = duelChannel || tacticsChannel;
+    const destChannel = await resolveThroneLoungeChannel(duel.guildId, client, null);
+    const duelChannel = await client.channels.fetch(duel.channelId).catch(() => null);
 
     const timeoutEmbed = new EmbedBuilder()
       .setColor(tierColor)
@@ -1847,16 +1867,16 @@ async function handleDuelExpiry(duel, client) {
       .setFooter({ text: 'Timeout Resolution' })
       .setTimestamp();
 
-    if (destChannel && tacticsChannel && destChannel.id !== tacticsChannel.id) {
-      // Saluran terpisah: Kirim siaran resolusi timeout ke Channel Arena Duel
+    if (destChannel && duelChannel && destChannel.id !== duelChannel.id) {
+      // Saluran terpisah: Kirim siaran resolusi timeout ke Throne Lounge
       const timeoutMsg = await destChannel.send({
-        content: `⏰ **BATAS WAKTU DUEL HABIS (12 JAM)!**\n<@${duel.challengerId}> <@${duel.defenderId}> — ${resultTitle}`,
+        content: `⏳ **Batas Waktu Duel Habis (12 Jam)**\n<@${duel.challengerId}> <@${duel.defenderId}> — ${resultTitle}`,
         embeds: [timeoutEmbed]
       }).catch(() => null);
 
-      // Perbarui pesan tantangan di Saluran Taktik
+      // Perbarui pesan tantangan di Saluran Duel
       if (duel.messageId) {
-        const message = await tacticsChannel.messages.fetch(duel.messageId).catch(() => null);
+        const message = await duelChannel.messages.fetch(duel.messageId).catch(() => null);
         if (message) {
           const expiredEmbed = new EmbedBuilder()
             .setColor(tierColor)
@@ -1865,7 +1885,7 @@ async function handleDuelExpiry(duel, client) {
             .setDescription(
               `> **<@${duel.challengerId}>** vs **<@${duel.defenderId}>**\n\n` +
               resultDesc + '\n\n' +
-              `⚔️ **Hasil penyelesaian duel dapat disaksikan di:** <#${destChannel.id}>`
+              `📢 **Hasil lengkap disiarkan di:** <#${destChannel.id}>`
             )
             .setFooter({ text: 'Timeout Resolution' })
             .setTimestamp();
@@ -1874,7 +1894,7 @@ async function handleDuelExpiry(duel, client) {
           if (timeoutMsg && timeoutMsg.url) {
             linkRow.addComponents(
               new ButtonBuilder()
-                .setLabel('Lihat Hasil di Arena Duel')
+                .setLabel('Lihat Hasil di Throne Lounge')
                 .setStyle(ButtonStyle.Link)
                 .setURL(timeoutMsg.url)
             );
@@ -2118,12 +2138,7 @@ async function processDuelButton(interaction, client) {
     const targetDefender = availableHolders[Math.floor(Math.random() * availableHolders.length)];
     const settingsData = storage.read('settings');
     const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
-    let tacticsTargetChannel = interaction.channel;
-    const tacticsChannelId = settingsData[guildId]?.gachaChannels?.tactics || settingsData[guildId]?.gachaChannels?.duel;
-    if (tacticsChannelId && client) {
-      const tCh = await client.channels.fetch(tacticsChannelId).catch(() => null);
-      if (tCh) tacticsTargetChannel = tCh;
-    }
+    const tacticsTargetChannel = await resolveDuelChannel(guildId, itemTier, client, interaction.channel);
 
     await initiateThroneDuel({
       guildId,
@@ -2216,12 +2231,7 @@ async function processDuelButton(interaction, client) {
       });
     }
 
-    let tacticsTargetChannel = interaction.channel;
-    const tacticsChannelId = settingsData[guildId]?.gachaChannels?.tactics || settingsData[guildId]?.gachaChannels?.duel;
-    if (tacticsChannelId && client) {
-      const tCh = await client.channels.fetch(tacticsChannelId).catch(() => null);
-      if (tCh) tacticsTargetChannel = tCh;
-    }
+    const tacticsTargetChannel = await resolveDuelChannel(guildId, itemTier, client, interaction.channel);
 
     await initiateThroneDuel({
       guildId,
@@ -2889,10 +2899,14 @@ function createDuelPanelPayload(guild) {
       }).join('\n')
     : '_Tidak ada pertarungan aktif saat ini_';
 
-  const tacticsChId = settingsData[guildId]?.gachaChannels?.tactics;
-  const tacticsNotice = tacticsChId
-    ? `\n\n🛡️ **Pasang Taktik:** Kartu tantangan & tombol pasang taktik dialokasikan di <#${tacticsChId}>.`
-    : '';
+  const mDuelChId = settingsData[guildId]?.gachaChannels?.duel_mythic || settingsData[guildId]?.gachaChannels?.tactics;
+  const lDuelChId = settingsData[guildId]?.gachaChannels?.duel_legendary || settingsData[guildId]?.gachaChannels?.tactics;
+  let duelNotice = '';
+  if (mDuelChId && lDuelChId && mDuelChId !== lDuelChId) {
+    duelNotice = `\n\n**Saluran Duel:**\n• Tahta Mythic: <#${mDuelChId}>\n• Tahta Legendary: <#${lDuelChId}>`;
+  } else if (mDuelChId) {
+    duelNotice = `\n\n**Saluran Duel:** Kartu tantangan dialokasikan di <#${mDuelChId}>.`;
+  }
 
   const embed = new EmbedBuilder()
     .setColor(0xFF007F)
@@ -2901,15 +2915,15 @@ function createDuelPanelPayload(guild) {
       `Selamat datang di **Arena Duel Tahta** ${guild ? guild.name : ''}!\n\n` +
       `Tempat para pemilik relik legendaris bertarung strategi rahasia untuk merebut kursi tahta server dan menyandang Role Discord eksklusif secara **Permanen**.\n\n` +
       `**Status Kursi Tahta Server Saat Ini:**\n` +
-      `• ✦ **Tahta MYTHIC (Maksimal 3 Kursi):** (${mythicHolders.length}/3 Kursi Terisi)\n${mythicRoleText}\n\n` +
-      `• ✧ **Tahta LEGENDARY (Maksimal 5 Kursi):** (${legHolders.length}/5 Kursi Terisi)\n${legRoleText}\n\n` +
+      `• Tahta MYTHIC (Maksimal 3 Kursi): (${mythicHolders.length}/3 Kursi Terisi)\n${mythicRoleText}\n\n` +
+      `• Tahta LEGENDARY (Maksimal 5 Kursi): (${legHolders.length}/5 Kursi Terisi)\n${legRoleText}\n\n` +
       `**Pertarungan Duel Berlangsung:**\n${activeDuelText}\n\n` +
       `**Aturan Kudeta Tahta:**\n` +
       `• Wajib memiliki relik **Mythic** atau **Legendary** di inventaris untuk menantang tahta.\n` +
       `• Jika kursi tahta masih kosong, tahta langsung dianugerahkan secara instan!\n` +
       `• Jika kursi penuh, pertarungan taktik 3 ronde dimulai (*Serang > Jurus > Bertahan > Serang*).\n` +
       `• Batas waktu memasang taktik adalah **12 Jam**.` +
-      tacticsNotice
+      duelNotice
     )
     .setFooter({ text: 'Tekan tombol di bawah untuk menantang pemegang tahta atau melihat status' });
 
@@ -2946,23 +2960,9 @@ function createDuelPanelPayload(guild) {
 function createTacticsPanelPayload(guild) {
   const guildId = guild?.id;
   const settingsData = storage.read('settings') || {};
-  const gachaRoles = settingsData[guildId]?.gachaRoles || {};
   const gChannels = settingsData[guildId]?.gachaChannels || {};
   const gachaData = storage.read('gacha_data') || {};
   const guildUsers = gachaData[guildId] || {};
-
-  const mythicHolders = [];
-  const legHolders = [];
-
-  for (const [uId, uData] of Object.entries(guildUsers)) {
-    if (uData.activeRole && uData.activeRole.roleId) {
-      if (uData.activeRole.tier === 'MYTHIC') {
-        mythicHolders.push(`<@${uId}>`);
-      } else if (uData.activeRole.tier === 'LEGENDARY') {
-        legHolders.push(`<@${uId}>`);
-      }
-    }
-  }
 
   const { guildData: guildThrone } = getGuildThroneData(guildId || '');
   const activeDuelsList = Object.values(guildThrone?.activeDuels || {}).filter(d => d.status === 'WAITING_TACTICS');
@@ -2975,8 +2975,8 @@ function createTacticsPanelPayload(guild) {
       }).join('\n')
     : '_Tidak ada tantangan duel yang menunggu taktik saat ini_';
 
-  const arenaNotice = gChannels.duel
-    ? `\n\n⚔️ **Arena Hasil Duel:** Pertarungan ronde & pengumuman pemenang disiarkan di <#${gChannels.duel}>.`
+  const arenaNotice = (gChannels.throne || gChannels.duel)
+    ? `\n\n**Arena Tahta:** Hasil pertarungan disiarkan di <#${gChannels.throne || gChannels.duel}>.`
     : '';
 
   const embed = new EmbedBuilder()
@@ -2986,9 +2986,9 @@ function createTacticsPanelPayload(guild) {
       `Selamat datang di **Pusat Persiapan Taktik Tahta** ${guild ? guild.name : ''}!\n\n` +
       `Di saluran ini, pemegang relik **Mythic** atau **Legendary** dapat menantang pemegang tahta server dan menyusun strategi rahasia 3 ronde untuk merebut tahta secara **Permanen**.\n\n` +
       `**Trilema Strategi Rahasia:**\n` +
-      `• ⚔️ **Serang** mengalahkan ⚡ **Jurus**\n` +
-      `• 🛡️ **Bertahan** mengalahkan ⚔️ **Serang**\n` +
-      `• ⚡ **Jurus** mengalahkan 🛡️ **Bertahan**\n\n` +
+      `• **Serang** mengalahkan **Jurus**\n` +
+      `• **Bertahan** mengalahkan **Serang**\n` +
+      `• **Jurus** mengalahkan **Bertahan**\n\n` +
       `**Tantangan Menunggu Taktik:**\n${activeDuelText}\n\n` +
       `**Petunjuk Bertanding:**\n` +
       `1. Klik tombol **[Tantang Mythic]** atau **[Tantang Legendary]** di bawah untuk memulai tantangan.\n` +
@@ -3033,35 +3033,42 @@ async function deployGachaPanel(guild, channel, type, client) {
   let payload = null;
   if (type === 'daily') payload = createDailyPanelPayload(guild);
   else if (type === 'pull') payload = createPullPanelPayload(guild);
-  else if (type === 'duel') payload = createDuelPanelPayload(guild);
+  else if (type === 'duel' || type === 'throne') payload = createDuelPanelPayload(guild);
   else if (type === 'tactics') payload = createTacticsPanelPayload(guild);
   if (!payload) return null;
 
   try {
-    const fetched = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-    if (fetched) {
-      const botMessages = [...fetched.values()]
-        .filter(m => m.author.id === client.user.id)
-        .sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+    const settingsData = storage.read('settings') || {};
+    if (!settingsData[guild.id]) settingsData[guild.id] = {};
+    if (!settingsData[guild.id].gachaPanels) settingsData[guild.id].gachaPanels = {};
 
-      if (botMessages.length > 0) {
-        const latestMsg = botMessages[0];
-        await latestMsg.edit(payload).catch(() => {});
-        for (let i = 1; i < botMessages.length; i++) {
-          await botMessages[i].delete().catch(() => {});
+    const panelKey = type === 'throne' ? 'duel' : type;
+    const existingMsgId = settingsData[guild.id].gachaPanels[panelKey];
+
+    if (existingMsgId) {
+      try {
+        const existingMsg = await channel.messages.fetch(existingMsgId).catch(() => null);
+        if (existingMsg) {
+          await existingMsg.edit(payload).catch(() => {});
+          return existingMsg;
         }
-        return latestMsg;
-      }
+      } catch (_) {}
+    }
+
+    const newMsg = await channel.send(payload).catch(e => {
+      console.error(`[deployGachaPanel] Failed to send panel in ${channel.id}:`, e.message);
+      return null;
+    });
+
+    if (newMsg) {
+      settingsData[guild.id].gachaPanels[panelKey] = newMsg.id;
+      storage.write('settings', settingsData);
+      return newMsg;
     }
   } catch (err) {
-    console.warn(`[deployGachaPanel] Error purging extra bot messages in ${channel.id}:`, err.message);
+    console.error(`[deployGachaPanel] Error deploying panel:`, err.message);
   }
-
-  const newMsg = await channel.send(payload).catch(e => {
-    console.error(`[deployGachaPanel] Failed to send panel in ${channel.id}:`, e.message);
-    return null;
-  });
-  return newMsg;
+  return null;
 }
 
 /**
@@ -3071,22 +3078,13 @@ async function updateDuelPanelIfExists(guild, client) {
   try {
     if (!guild || !client) return;
     const settingsData = storage.read('settings') || {};
-    const duelChId = settingsData[guild.id]?.gachaChannels?.duel;
-    const tacticsChId = settingsData[guild.id]?.gachaChannels?.tactics;
+    const throneChId = settingsData[guild.id]?.gachaChannels?.throne || settingsData[guild.id]?.gachaChannels?.duel;
 
-    if (duelChId) {
-      const channel = guild.channels?.cache?.get(duelChId) ||
-        await client.channels.fetch(duelChId).catch(() => null);
+    if (throneChId) {
+      const channel = guild.channels?.cache?.get(throneChId) ||
+        await client.channels.fetch(throneChId).catch(() => null);
       if (channel && channel.isTextBased() && !channel.isThread()) {
         await deployGachaPanel(guild, channel, 'duel', client);
-      }
-    }
-
-    if (tacticsChId && tacticsChId !== duelChId) {
-      const channel = guild.channels?.cache?.get(tacticsChId) ||
-        await client.channels.fetch(tacticsChId).catch(() => null);
-      if (channel && channel.isTextBased() && !channel.isThread()) {
-        await deployGachaPanel(guild, channel, 'tactics', client);
       }
     }
   } catch (err) {
@@ -3359,12 +3357,7 @@ async function executeGachaChallenge(interaction, client) {
       .map(d => d.defenderId)
   );
 
-  let tacticsTargetChannel = interaction.channel;
-  const tacticsChannelId = settingsData[guildId]?.gachaChannels?.tactics || settingsData[guildId]?.gachaChannels?.duel;
-  if (tacticsChannelId && client) {
-    const tCh = await client.channels.fetch(tacticsChannelId).catch(() => null);
-    if (tCh) tacticsTargetChannel = tCh;
-  }
+  const tacticsTargetChannel = await resolveDuelChannel(guildId, tier, client, interaction.channel);
 
   // Case 6A: Target user spesifik diberikan
   if (targetUser) {
@@ -4436,10 +4429,28 @@ async function executeGachaDuelStatus(interaction, client) {
     .setFooter({ text: `${interaction.guild.name} • Arena Duel Tahta` })
     .setTimestamp();
 
-  if (interaction.replied || interaction.deferred) {
-    return interaction.editReply({ embeds: [embed] });
+  const pendingUserDuel = activeDuelsList.find(d => {
+    if (d.challengerId === interaction.user.id && !d.tactics?.challenger) return true;
+    if (d.defenderId === interaction.user.id && !d.tactics?.defender) return true;
+    return false;
+  });
+
+  const components = [];
+  if (pendingUserDuel) {
+    components.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`throne_duel:set:${pendingUserDuel.id}`)
+          .setLabel(`Pasang Taktik Tahta ${pendingUserDuel.itemTier}`)
+          .setStyle(ButtonStyle.Success)
+      )
+    );
   }
-  return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+  if (interaction.replied || interaction.deferred) {
+    return interaction.editReply({ embeds: [embed], components });
+  }
+  return interaction.reply({ embeds: [embed], components, flags: MessageFlags.Ephemeral });
 }
 
 /**
@@ -4944,8 +4955,11 @@ module.exports = {
               { name: 'Channel Hadiah Harian (Batasi command /gacha daily & tombol klaim)', value: 'daily' },
               { name: 'Channel Main Gacha Umum (Menu gacha & fallback jika pull/daily belum diatur)', value: 'play' },
               { name: 'Channel Hasil Tarikan (Log publik hasil pull di channel terpisah)', value: 'result' },
-              { name: 'Channel Pasang Taktik (Tempat kartu tantangan dikirim & pasang taktik rahasia)', value: 'tactics' },
-              { name: 'Channel Arena Hasil Duel (Tempat simulasi pertarungan Clash of Thrones & hasil duel)', value: 'duel' },
+              { name: 'Throne Lounge (Status tahta & tempat siaran hasil akhir duel)', value: 'throne' },
+              { name: 'Channel Duel Mythic (Kartu tantangan & pasang taktik Tahta Mythic)', value: 'duel_mythic' },
+              { name: 'Channel Duel Legendary (Kartu tantangan & pasang taktik Tahta Legendary)', value: 'duel_legendary' },
+              { name: 'Channel Pasang Taktik (Fallback taktik tahta gabungan)', value: 'tactics' },
+              { name: 'Channel Arena Duel Tahta (Alias Throne Lounge)', value: 'duel' },
               { name: 'Channel Broadcast Jackpot (Pengumuman perolehan Mythic & Legendary)', value: 'broadcast' }
             )
         )
@@ -4988,6 +5002,12 @@ module.exports = {
             .setRequired(false)
         )
     )
+    // Subcommand: taktik
+    .addSubcommand(sub =>
+      sub
+        .setName('taktik')
+        .setDescription('Pasang strategi taktik rahasia untuk duel tahta yang sedang kamu ikuti')
+    )
     // Subcommand: setrole (Admin only)
     .addSubcommand(sub =>
       sub
@@ -5029,6 +5049,7 @@ module.exports = {
               { name: 'Panel Tarik Gacha (Mystery Box)', value: 'pull' },
               { name: 'Panel Persiapan Taktik (Pusat Pasang Taktik)', value: 'tactics' },
               { name: 'Panel Arena Duel Tahta (Clash of Thrones)', value: 'duel' },
+              { name: 'Panel Throne Lounge (Status Tahta & Hasil Duel)', value: 'throne' },
               { name: 'Semua Panel Sekaligus (Daily, Pull, Taktik, & Duel)', value: 'both' }
             )
         )
@@ -5160,6 +5181,8 @@ module.exports = {
   calculateSeasonScore,
   executeSeasonReset,
   checkAndExecuteSeasonReset,
+  resolveDuelChannel,
+  resolveThroneLoungeChannel,
 
   async execute(interaction, client) {
     const sub = interaction.options.getSubcommand();
@@ -5175,6 +5198,9 @@ module.exports = {
         pull: null,
         daily: null,
         result: null,
+        throne: null,
+        duel_mythic: null,
+        duel_legendary: null,
         tactics: null,
         duel: null,
         broadcast: settingsData[guildId].gachaChannel || null
@@ -5192,11 +5218,20 @@ module.exports = {
     if (settingsData[guildId].gachaChannels.tactics === undefined) {
       settingsData[guildId].gachaChannels.tactics = null;
     }
+    if (settingsData[guildId].gachaChannels.throne === undefined) {
+      settingsData[guildId].gachaChannels.throne = null;
+    }
+    if (settingsData[guildId].gachaChannels.duel_mythic === undefined) {
+      settingsData[guildId].gachaChannels.duel_mythic = null;
+    }
+    if (settingsData[guildId].gachaChannels.duel_legendary === undefined) {
+      settingsData[guildId].gachaChannels.duel_legendary = null;
+    }
 
-    // Pembatasan Channel Gacha (daily, pull, challenge)
+    // Pembatasan Channel Gacha (daily, pull, challenge, taktik)
     // Fitur personal lainnya seperti rates, album, shop, buy, equip, unequip, fuse, gift, leaderboard bebas diakses di mana saja
     // Subcommand inventory ditangani khusus oleh executeGachaInventory agar otomatis terpanggil ke saluran Main Gacha Umum
-    const channelRestrictedSubs = ['daily', 'pull', 'challenge'];
+    const channelRestrictedSubs = ['daily', 'pull', 'challenge', 'taktik'];
     if (channelRestrictedSubs.includes(sub)) {
       const gChannels = settingsData[guildId].gachaChannels || {};
       let requiredChannelId = null;
@@ -5208,13 +5243,19 @@ module.exports = {
       } else if (sub === 'pull') {
         requiredChannelId = gChannels.pull || gChannels.play;
         channelLabel = 'Tarik Gacha (`/gacha pull`)';
-      } else if (sub === 'challenge') {
-        requiredChannelId = gChannels.tactics || gChannels.duel || gChannels.play;
-        channelLabel = 'Tantangan Tahta (`/gacha challenge`)';
+      } else if (sub === 'challenge' || sub === 'taktik') {
+        requiredChannelId = gChannels.throne || gChannels.duel || gChannels.duel_mythic || gChannels.duel_legendary || gChannels.tactics || gChannels.play;
+        channelLabel = sub === 'challenge' ? 'Tantangan Tahta (`/gacha challenge`)' : 'Pasang Taktik (`/gacha taktik`)';
       }
 
-      const isDuelSub = sub === 'challenge';
-      const allowedDuelChannels = [gChannels.tactics, gChannels.duel].filter(Boolean);
+      const isDuelSub = sub === 'challenge' || sub === 'taktik';
+      const allowedDuelChannels = [
+        gChannels.throne,
+        gChannels.duel_mythic,
+        gChannels.duel_legendary,
+        gChannels.tactics,
+        gChannels.duel
+      ].filter(Boolean);
       const targetDuelChannels = allowedDuelChannels.length > 0 ? allowedDuelChannels : [gChannels.play].filter(Boolean);
 
       const isSubChannelValid = isDuelSub
@@ -5274,8 +5315,11 @@ module.exports = {
         daily: 'Hadiah Harian',
         play: 'Main Gacha (Umum)',
         result: 'Hasil Tarikan',
-        tactics: 'Persiapan & Pasang Taktik',
-        duel: 'Arena Hasil Duel Tahta',
+        throne: 'Throne Lounge (Status Tahta & Hasil Duel)',
+        duel_mythic: 'Arena Duel Tahta Mythic',
+        duel_legendary: 'Arena Duel Tahta Legendary',
+        tactics: 'Persiapan & Pasang Taktik (Fallback)',
+        duel: 'Arena Hasil Duel Tahta (Throne Lounge)',
         broadcast: 'Broadcast Jackpot'
       };
       const label = typeLabels[type] || type;
@@ -5296,6 +5340,13 @@ module.exports = {
           desc = `Saluran utama gacha diatur ke <#${channel.id}> (menu umum & fallback jika pull/daily tidak diset).`;
         } else if (type === 'result') {
           desc = `Hasil tarikan gacha akan otomatis diposting ke <#${channel.id}> sebagai **Live Feed** publik. Reply di channel tarikan menjadi privat (ephemeral).`;
+        } else if (type === 'throne') {
+          desc = `Panel status tahta interaktif dipasang di <#${channel.id}> dan hasil akhir duel akan disiarkan ke sini.`;
+          await deployGachaPanel(interaction.guild, channel, 'duel', client);
+        } else if (type === 'duel_mythic') {
+          desc = `Kartu tantangan duel Tahta Mythic dan tombol pasang taktik dialokasikan di <#${channel.id}>.`;
+        } else if (type === 'duel_legendary') {
+          desc = `Kartu tantangan duel Tahta Legendary dan tombol pasang taktik dialokasikan di <#${channel.id}>.`;
         } else if (type === 'tactics') {
           desc = `Kartu tantangan duel tahta dan tombol **[Pasang Taktik]** akan dialihkan ke <#${channel.id}>. Panel Persiapan Taktik interaktif otomatis dipasang.`;
           await deployGachaPanel(interaction.guild, channel, 'tactics', client);
@@ -5340,6 +5391,12 @@ module.exports = {
           resetDesc = 'Pembatasan saluran umum gacha dihapus. Member dapat bermain di seluruh channel server.';
         } else if (type === 'result') {
           resetDesc = 'Live Feed dinonaktifkan. Hasil tarikan akan kembali ditampilkan langsung secara publik di channel tarikan.';
+        } else if (type === 'throne') {
+          resetDesc = 'Saluran Throne Lounge di-reset ke default.';
+        } else if (type === 'duel_mythic') {
+          resetDesc = 'Pengaturan saluran Duel Mythic dihapus (kembali mengikuti saluran taktik atau Throne Lounge).';
+        } else if (type === 'duel_legendary') {
+          resetDesc = 'Pengaturan saluran Duel Legendary dihapus (kembali mengikuti saluran taktik atau Throne Lounge).';
         } else if (type === 'tactics') {
           resetDesc = 'Pengalihan saluran pasang taktik dinonaktifkan (kembali mengikuti saluran arena duel atau saluran umum).';
         } else if (type === 'duel') {
@@ -5507,14 +5564,15 @@ module.exports = {
       }
 
       const gChannels = settingsData[guildId].gachaChannels || {};
+      const throneChText = gChannels.throne ? `<#${gChannels.throne}>` : (gChannels.duel ? `<#${gChannels.duel}>` : '_Sesuai Channel Gacha_');
+      const mythicDuelChText = gChannels.duel_mythic ? `<#${gChannels.duel_mythic}>` : (gChannels.tactics ? `<#${gChannels.tactics}>` : (gChannels.duel ? `<#${gChannels.duel}>` : '_Mengikuti Lounge_'));
+      const legDuelChText = gChannels.duel_legendary ? `<#${gChannels.duel_legendary}>` : (gChannels.tactics ? `<#${gChannels.tactics}>` : (gChannels.duel ? `<#${gChannels.duel}>` : '_Mengikuti Lounge_'));
       const pullChText = gChannels.pull ? `<#${gChannels.pull}>` : (gChannels.play ? `<#${gChannels.play}> (Umum)` : '_Bebas_');
       const dailyChText = gChannels.daily ? `<#${gChannels.daily}>` : (gChannels.play ? `<#${gChannels.play}> (Umum)` : '_Bebas_');
       const playChText = gChannels.play ? `<#${gChannels.play}>` : '_Semua Channel (Bebas)_';
       const resultChText = gChannels.result ? `<#${gChannels.result}>` : '_Tidak aktif (publik di channel play)_';
-      const tacticsChText = gChannels.tactics ? `<#${gChannels.tactics}>` : (gChannels.duel ? `<#${gChannels.duel}> (Mengikuti arena duel)` : '_Sesuai Channel Gacha_');
-      const duelChText = gChannels.duel ? `<#${gChannels.duel}>` : '_Sesuai Channel Gacha_';
       const bcastChText = (gChannels.broadcast || settingsData[guildId].gachaChannel) ? `<#${gChannels.broadcast || settingsData[guildId].gachaChannel}>` : '_Belum diatur_';
-      const channelsSummary = `• Tarik Gacha: ${pullChText}\n• Hadiah Harian: ${dailyChText}\n• Saluran Umum: ${playChText}\n• Hasil Tarikan: ${resultChText}\n• Pasang Taktik: ${tacticsChText}\n• Arena Duel: ${duelChText}\n• Jackpot Alert: ${bcastChText}`;
+      const channelsSummary = `• Throne Lounge: ${throneChText}\n• Duel Mythic: ${mythicDuelChText}\n• Duel Legendary: ${legDuelChText}\n• Tarik Gacha: ${pullChText}\n• Hadiah Harian: ${dailyChText}\n• Saluran Umum: ${playChText}\n• Hasil Tarikan: ${resultChText}\n• Jackpot Alert: ${bcastChText}`;
 
       // Cek duel aktif & antrean tahta
       const { guildData: guildThrone } = getGuildThroneData(guildId);
@@ -5640,19 +5698,20 @@ module.exports = {
         }
       }
 
-      if (panelType === 'duel' || panelType === 'both') {
+      if (panelType === 'duel' || panelType === 'throne' || panelType === 'both') {
         let ch = targetChannelOpt;
-        if (!ch && settingsData[guildId]?.gachaChannels?.duel) {
-          ch = await interaction.guild.channels.fetch(settingsData[guildId].gachaChannels.duel).catch(() => null);
+        if (!ch && (settingsData[guildId]?.gachaChannels?.throne || settingsData[guildId]?.gachaChannels?.duel)) {
+          const targetId = settingsData[guildId].gachaChannels.throne || settingsData[guildId].gachaChannels.duel;
+          ch = await interaction.guild.channels.fetch(targetId).catch(() => null);
         }
         if (!ch) ch = interaction.channel;
 
         if (ch && ch.isTextBased() && !ch.isThread()) {
           const msg = await deployGachaPanel(interaction.guild, ch, 'duel', client);
-          if (msg) results.push(`• **Panel Arena Duel Tahta:** Berhasil dipasang di <#${ch.id}>`);
-          else results.push(`• **Panel Arena Duel Tahta:** Gagal dipasang di <#${ch.id}>`);
+          if (msg) results.push(`• **Panel Throne Lounge:** Berhasil dipasang di <#${ch.id}>`);
+          else results.push(`• **Panel Throne Lounge:** Gagal dipasang di <#${ch.id}>`);
         } else {
-          results.push(`• **Panel Arena Duel Tahta:** Channel tidak valid atau bukan text channel.`);
+          results.push(`• **Panel Throne Lounge:** Channel tidak valid atau bukan text channel.`);
         }
       }
 
@@ -5879,6 +5938,61 @@ module.exports = {
     // === SUBCOMMAND: CHALLENGE ===
     if (sub === 'challenge') {
       return executeGachaChallenge(interaction, client);
+    }
+
+    // === SUBCOMMAND: TAKTIK ===
+    if (sub === 'taktik') {
+      const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
+      const activeDuelsList = Object.values(throneGuild?.activeDuels || {}).filter(d => d.status === 'WAITING_TACTICS');
+      const userDuel = activeDuelsList.find(d => d.challengerId === interaction.user.id || d.defenderId === interaction.user.id);
+
+      if (!userDuel) {
+        return interaction.reply({
+          content: 'Kamu tidak memiliki duel tahta yang sedang menunggu taktik saat ini.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const role = interaction.user.id === userDuel.challengerId ? 'challenger' : 'defender';
+      if (userDuel.tactics && userDuel.tactics[role]) {
+        const [r1, r2, r3] = userDuel.tactics[role];
+        return interaction.reply({
+          content:
+            `**Taktikmu sudah terkunci**\n\n` +
+            `• Ronde 1: **${MOVE_DISPLAY[r1]?.name}**\n` +
+            `• Ronde 2: **${MOVE_DISPLAY[r2]?.name}**\n` +
+            `• Ronde 3: **${MOVE_DISPLAY[r3]?.name}**\n\n` +
+            `*Menunggu lawan memasang taktik. Hasil akan disiarkan di Throne Lounge segera setelah kedua pihak siap.*`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`throne_pick:1:attack:${userDuel.id}`)
+          .setLabel('Serang')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(`throne_pick:1:defend:${userDuel.id}`)
+          .setLabel('Bertahan')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`throne_pick:1:special:${userDuel.id}`)
+          .setLabel('Jurus')
+          .setStyle(ButtonStyle.Success)
+      );
+
+      return interaction.reply({
+        content:
+          `**Pasang Taktik — Perebutan Tahta ${userDuel.itemTier} (Ronde 1 dari 3)**\n\n` +
+          `Pilih gerakan rahasiamu:\n` +
+          `• **Serang** mengalahkan Jurus\n` +
+          `• **Bertahan** mengalahkan Serang\n` +
+          `• **Jurus** mengalahkan Bertahan\n\n` +
+          `*Pilihan ini bersifat rahasia.*`,
+        components: [row],
+        flags: MessageFlags.Ephemeral
+      });
     }
 
     // === SUBCOMMAND: PULL ===

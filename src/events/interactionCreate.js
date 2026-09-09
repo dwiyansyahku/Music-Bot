@@ -329,12 +329,18 @@ module.exports = {
         requiredChannelId = gChannels.pull || gChannels.play;
         actionLabel = 'Tarik Gacha';
       } else if (action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status') {
-        requiredChannelId = gChannels.tactics || gChannels.duel || gChannels.play;
-        actionLabel = 'Tantangan & Pasang Taktik Tahta';
+        requiredChannelId = gChannels.throne || gChannels.duel || gChannels.duel_mythic || gChannels.duel_legendary || gChannels.tactics || gChannels.play;
+        actionLabel = 'Tantangan & Duel Tahta';
       }
 
       const isDuelAction = action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status';
-      const allowedDuelChannels = [gChannels.tactics, gChannels.duel].filter(Boolean);
+      const allowedDuelChannels = [
+        gChannels.throne,
+        gChannels.duel_mythic,
+        gChannels.duel_legendary,
+        gChannels.tactics,
+        gChannels.duel
+      ].filter(Boolean);
       const targetDuelChannels = allowedDuelChannels.length > 0 ? allowedDuelChannels : [gChannels.play].filter(Boolean);
 
       const isChannelValid = isDuelAction
