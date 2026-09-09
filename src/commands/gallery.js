@@ -6,7 +6,8 @@ const {
   ButtonBuilder,
   ButtonStyle,
   MessageFlags,
-  ChannelType
+  ChannelType,
+  AttachmentBuilder
 } = require('discord.js');
 const storage = require('../utils/storage');
 const { isOwnerOrMod } = require('../utils/helpers');
@@ -72,6 +73,117 @@ function createGalleryPanelPayload(guild) {
 }
 
 /**
+ * Unduh dan verifikasi file gambar dari URL (Mendukung link direct gambar, Imgur, Pinterest, OpenGraph og:image, dll.)
+ */
+async function resolveAndDownloadImage(inputUrl) {
+  let targetUrl = (inputUrl || '').trim();
+
+  if (!/^https?:\/\/.+/i.test(targetUrl)) {
+    throw new Error('Tautan tidak valid! Tautan harus diawali dengan http:// atau https://');
+  }
+
+  // 1. Tangani tautan Google Images redirect (https://www.google.com/imgres?imgurl=...)
+  if (targetUrl.includes('google.com/imgres') || targetUrl.includes('google.com/url')) {
+    try {
+      const u = new URL(targetUrl);
+      const realUrl = u.searchParams.get('imgurl') || u.searchParams.get('url');
+      if (realUrl && /^https?:\/\//i.test(realUrl)) targetUrl = realUrl;
+    } catch (_) {}
+  }
+
+  // 2. Tangani tautan Imgur page (https://imgur.com/xyz -> https://i.imgur.com/xyz.png)
+  const imgurMatch = targetUrl.match(/^https?:\/\/(?:www\.)?imgur\.com\/([a-zA-Z0-9]+)$/);
+  if (imgurMatch && !['gallery', 'a', 't', 'upload'].includes(imgurMatch[1])) {
+    targetUrl = `https://i.imgur.com/${imgurMatch[1]}.png`;
+  }
+
+  const defaultHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+  };
+
+  let res = null;
+  try {
+    res = await fetch(targetUrl, {
+      headers: defaultHeaders,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10000)
+    });
+  } catch (netErr) {
+    throw new Error(`Koneksi ke situs gagal (${netErr.message || 'Timeout / Server menolak koneksi'})`);
+  }
+
+  if (!res.ok) {
+    throw new Error(`Situs menolak akses gambar (HTTP ${res.status}: ${res.statusText || 'Forbidden'})`);
+  }
+
+  let contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+  // 3. Jika URL mengembalikan halaman HTML (bukan file gambar langsung), ambil OpenGraph / Twitter Image
+  if (contentType.includes('text/html') || contentType.includes('application/xhtml+xml')) {
+    const html = await res.text();
+    const ogMatch = html.match(/<meta[^>]+property=["']og:image(?::url)?["'][^>]+content=["']([^"']+)["']/i) ||
+                    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::url)?["']/i) ||
+                    html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
+                    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i) ||
+                    html.match(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i);
+
+    if (ogMatch && ogMatch[1]) {
+      let resolvedUrl = ogMatch[1].replace(/&amp;/g, '&');
+      if (resolvedUrl.startsWith('//')) {
+        resolvedUrl = 'https:' + resolvedUrl;
+      } else if (resolvedUrl.startsWith('/')) {
+        const u = new URL(targetUrl);
+        resolvedUrl = `${u.origin}${resolvedUrl}`;
+      }
+
+      try {
+        res = await fetch(resolvedUrl, {
+          headers: defaultHeaders,
+          redirect: 'follow',
+          signal: AbortSignal.timeout(10000)
+        });
+      } catch (ogErr) {
+        throw new Error(`Gagal mengunduh gambar pratinjau situs (${ogErr.message})`);
+      }
+
+      if (!res.ok) {
+        throw new Error(`Situs memblokir pratinjau gambar (HTTP ${res.status})`);
+      }
+      contentType = (res.headers.get('content-type') || '').toLowerCase();
+    } else {
+      throw new Error('Tautan tersebut adalah tautan halaman web (bukan gambar langsung) dan tidak memiliki gambar pratinjau.');
+    }
+  }
+
+  if (!contentType.includes('image/')) {
+    throw new Error(`Tautan tersebut bukan file gambar (Tipe: ${contentType || 'tidak diketahui'}). Gunakan link langsung berakhiran .png, .jpg, atau upload file.`);
+  }
+
+  const arrayBuffer = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  if (buffer.length > MAX_FILE_SIZE) {
+    const sizeMb = (buffer.length / (1024 * 1024)).toFixed(1);
+    throw new Error(`Ukuran gambar terlalu besar (${sizeMb}MB). Batas maksimal adalah 8MB.`);
+  }
+
+  // Tentukan ekstensi
+  let ext = 'png';
+  if (contentType.includes('jpeg') || contentType.includes('jpg')) ext = 'jpg';
+  else if (contentType.includes('png')) ext = 'png';
+  else if (contentType.includes('webp')) ext = 'webp';
+  else if (contentType.includes('gif')) ext = 'gif';
+
+  return {
+    buffer,
+    contentType,
+    ext,
+    size: buffer.length
+  };
+}
+
+/**
  * Core function to publish an image item to the Output Gallery Channel
  * Used by Slash Command (/gallery submit), Modal Submit, File Collector, and Message Auto-redirect
  */
@@ -118,8 +230,21 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
     };
   }
 
+  // Unduh dan validasi buffer gambar untuk menjamin gambar tampil 100% di Discord CDN
+  let downloadedImage = null;
+  try {
+    downloadedImage = await resolveAndDownloadImage(imageUrl);
+  } catch (dlErr) {
+    return {
+      success: false,
+      error: `Tautan gambar gagal diproses: ${dlErr.message}`
+    };
+  }
+
   // Generate Submission ID
   const submissionId = 'GAL_' + Date.now().toString(36).toUpperCase();
+  const fileName = `gallery_${submissionId}.${downloadedImage.ext}`;
+  const attachment = new AttachmentBuilder(downloadedImage.buffer, { name: fileName });
 
   // Buat Embed Galeri Rapi
   const postEmbed = new EmbedBuilder()
@@ -128,7 +253,7 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
       name: member?.displayName || user.username,
       iconURL: user.displayAvatarURL({ dynamic: true })
     })
-    .setImage(imageUrl)
+    .setImage(`attachment://${fileName}`)
     .setFooter({
       text: `Galeri Server • Submission ID: ${submissionId}`
     })
@@ -140,7 +265,7 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
 
   let postedMsg = null;
   try {
-    postedMsg = await galleryChannel.send({ embeds: [postEmbed] });
+    postedMsg = await galleryChannel.send({ embeds: [postEmbed], files: [attachment] });
     await postedMsg.react('❤️').catch(() => {});
     await postedMsg.react('🔥').catch(() => {});
 
@@ -160,13 +285,14 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
   }
 
   // Simpan ke storage
+  const finalImageUrl = postedMsg.attachments.first()?.url || imageUrl;
   galleryData[guildId].dailyUsage[userDayKey] = userTodayCount + 1;
   galleryData[guildId].submissions.push({
     id: submissionId,
     messageId: postedMsg.id,
     channelId: galleryChannel.id,
     userId: user.id,
-    imageUrl: imageUrl,
+    imageUrl: finalImageUrl,
     caption: caption || null,
     createdAt: Date.now()
   });
