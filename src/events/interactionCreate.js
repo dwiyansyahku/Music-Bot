@@ -329,17 +329,18 @@ module.exports = {
         requiredChannelId = gChannels.pull || gChannels.play;
         actionLabel = 'Tarik Gacha';
       } else if (action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status') {
-        requiredChannelId = gChannels.throne || gChannels.duel || gChannels.duel_mythic || gChannels.duel_legendary || gChannels.tactics || gChannels.play;
+        requiredChannelId = gChannels.live_duel || gChannels.duel || gChannels.throne || gChannels.duel_mythic || gChannels.duel_legendary || gChannels.tactics || gChannels.play;
         actionLabel = 'Tantangan & Duel Tahta';
       }
 
       const isDuelAction = action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status';
       const allowedDuelChannels = [
+        gChannels.live_duel,
+        gChannels.duel,
         gChannels.throne,
         gChannels.duel_mythic,
         gChannels.duel_legendary,
-        gChannels.tactics,
-        gChannels.duel
+        gChannels.tactics
       ].filter(Boolean);
       const targetDuelChannels = allowedDuelChannels.length > 0 ? allowedDuelChannels : [gChannels.play].filter(Boolean);
 
@@ -388,6 +389,7 @@ module.exports = {
         executeGachaDaily,
         executeGachaInventory,
         executeGachaRates,
+        executeGachaAlbum,
         executeGachaChallengePrompt,
         executeGachaDuelStatus,
         executeGachaDuelHelp
@@ -405,6 +407,9 @@ module.exports = {
         } else if (action === 'inv') {
           await interaction.deferReply();
           return await executeGachaInventory(interaction, interaction.user, client);
+        } else if (action === 'album') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          return await executeGachaAlbum(interaction);
         } else if (action === 'rates') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaRates(interaction);
@@ -553,7 +558,7 @@ module.exports = {
             `• **Konten yang Diizinkan:** Fotografi, ilustrasi, screenshot game, fan art, meme original bermutu, dan momen server.\n` +
             `• **Larangan Keras:** Dilarang konten NSFW/18+, gore, kebencian, pelecehan, atau hak cipta orang lain tanpa izin.\n` +
             `• **Format & Ukuran:** PNG, JPG, JPEG, GIF, WEBP (maksimal 8MB).\n` +
-            `• **Batas Harian:** Maksimal 5 kiriman per member per hari untuk menjaga kenyamanan seluruh anggota.\n` +
+            `• **Batas Harian:** Tanpa batasan kuota (bebas berbagi karya kapan saja untuk meramaikan galeri server).\n` +
             `• **Interaksi:** Gunakan Thread di bawah masing-masing foto untuk berdiskusi.`
           );
 
@@ -652,7 +657,7 @@ module.exports = {
             new ButtonBuilder().setLabel('Lihat Postingan').setStyle(ButtonStyle.Link).setURL(res.jumpUrl)
           );
           return interaction.editReply({
-            content: `✨ Gambar karyamu berhasil dipajang di <#${res.channelId}>!\nSisa kuota submit hari ini: **${res.remaining} Gambar**.`,
+            content: `✨ Gambar karyamu berhasil dipajang di <#${res.channelId}>!`,
             components: [jumpRow]
           });
         } else {

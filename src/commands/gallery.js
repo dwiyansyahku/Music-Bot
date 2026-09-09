@@ -15,7 +15,6 @@ const { sendModLog } = require('../utils/modlog');
 
 const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
-const MAX_DAILY_SUBMISSIONS = 5;
 
 /**
  * Get date string in YYYY-MM-DD for WIB
@@ -49,7 +48,7 @@ function createGalleryPanelPayload(guild) {
       `Cukup **unggah/kirim file gambar langsung** di saluran ini (bisa sertakan teks caption di chat), atau tekan tombol **Upload Gambar ke Galeri** di bawah. Bot akan otomatis merapikan dan memajang foto Anda secara resmi di ${outputText}.\n\n` +
       `**Ketentuan Pengiriman:**\n` +
       `• Format yang didukung: **PNG, JPG, JPEG, GIF, WEBP** (maksimal 8MB).\n` +
-      `• Batas kuota: **Maksimal ${MAX_DAILY_SUBMISSIONS} gambar per hari** per member.\n` +
+      `• Batas kuota: **Tanpa Batas Kuota** (bebas berbagi karya kapan saja).\n` +
       `• Member lain dapat memberikan reaksi ❤️, 🔥, dan berdiskusi di thread postingan Anda.\n` +
       `• Dilarang keras mengirimkan konten NSFW/18+, gore, atau sara.`
     )
@@ -200,8 +199,9 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
     };
   }
 
-  const galleryChannel = guild.channels.cache.get(galleryChannelId) ||
-    await guild.channels.fetch(galleryChannelId).catch(() => null);
+  const galleryChannel = (guild.channels?.cache ? guild.channels.cache.get(galleryChannelId) : null) ||
+    await guild.channels?.fetch?.(galleryChannelId).catch(() => null) ||
+    await client?.channels?.fetch?.(galleryChannelId).catch(() => null);
 
   if (!galleryChannel) {
     return {
@@ -210,7 +210,7 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
     };
   }
 
-  // Validasi Limit Harian (Anti-Spam)
+  // Pencatatan Statistik Harian (Tanpa batasan kuota / Unlimited)
   const galleryData = storage.read('gallery') || {};
   if (!galleryData[guildId]) {
     galleryData[guildId] = {
@@ -222,13 +222,6 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
   const todayStr = getWIBDateString();
   const userDayKey = `${user.id}_${todayStr}`;
   const userTodayCount = galleryData[guildId].dailyUsage?.[userDayKey] || 0;
-
-  if (userTodayCount >= MAX_DAILY_SUBMISSIONS) {
-    return {
-      success: false,
-      error: `Kamu telah mencapai batas harian pengiriman galeri (${MAX_DAILY_SUBMISSIONS}/${MAX_DAILY_SUBMISSIONS} Gambar hari ini). Coba lagi besok!`
-    };
-  }
 
   // Unduh dan validasi buffer gambar untuk menjamin gambar tampil 100% di Discord CDN
   let downloadedImage = null;
@@ -304,7 +297,7 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
     moderator: user,
     details: `Gambar berhasil diposting ke <#${galleryChannel.id}>.\n` +
       `• ID Pesan: \`${postedMsg.id}\`\n` +
-      `• Sisa Kuota Hari Ini: **${MAX_DAILY_SUBMISSIONS - (userTodayCount + 1)}/${MAX_DAILY_SUBMISSIONS}**\n` +
+      `• Total Kiriman Hari Ini: **${userTodayCount + 1} Gambar**\n` +
       (caption ? `• Caption: *${caption}*` : '')
   });
 
@@ -314,7 +307,7 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
     messageId: postedMsg.id,
     channelId: galleryChannel.id,
     jumpUrl,
-    remaining: MAX_DAILY_SUBMISSIONS - (userTodayCount + 1)
+    remaining: null
   };
 }
 
@@ -458,7 +451,7 @@ module.exports = {
       );
 
       return interaction.editReply({
-        content: `✨ Gambar karyamu berhasil dipajang di <#${res.channelId}>!\nSisa kuota submit hari ini: **${res.remaining}/${MAX_DAILY_SUBMISSIONS} Gambar**`,
+        content: `✨ Gambar karyamu berhasil dipajang di <#${res.channelId}>!`,
         components: [replyRow]
       });
     }
@@ -555,7 +548,7 @@ module.exports = {
           },
           {
             name: 'Batas Harian / Member',
-            value: `**${MAX_DAILY_SUBMISSIONS} Gambar / Hari**`,
+            value: '**Tanpa Batas Kuota (Unlimited)**',
             inline: true
           },
           {
