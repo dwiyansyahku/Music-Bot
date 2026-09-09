@@ -393,7 +393,9 @@ module.exports = {
         executeGachaChallengePrompt,
         executeGachaDuelStartPrompt,
         executeGachaDuelStatus,
-        executeGachaDuelHelp
+        executeGachaDuelHelp,
+        executeGachaShop,
+        handleShopPurchase
       } = require('../commands/gacha');
 
       try {
@@ -409,6 +411,36 @@ module.exports = {
           const isCrossToUmum = gChannels.umum && interaction.channelId !== gChannels.umum;
           await interaction.deferReply({ flags: isCrossToUmum ? MessageFlags.Ephemeral : undefined });
           return await executeGachaInventory(interaction, interaction.user, client);
+        } else if (action === 'shop') {
+          const isCrossToUmum = gChannels.umum && interaction.channelId !== gChannels.umum;
+          await interaction.deferReply({ flags: isCrossToUmum ? MessageFlags.Ephemeral : undefined });
+          return await executeGachaShop(interaction, client);
+        } else if (action.startsWith('shop_buy:')) {
+          const itemId = action.replace('shop_buy:', '');
+          return await handleShopPurchase(interaction, client, itemId, null);
+        } else if (action === 'shop_custom_tickets') {
+          const { buildShopCustomTicketsModal } = require('../commands/gacha');
+          return await interaction.showModal(buildShopCustomTicketsModal());
+        } else if (action === 'shop_recycle') {
+          const { executeGachaShopRecycle } = require('../commands/gacha');
+          return await executeGachaShopRecycle(interaction, client);
+        } else if (action.startsWith('shop_recycle_common:')) {
+          const targetUserId = action.replace('shop_recycle_common:', '');
+          const { handleShopRecycleAction } = require('../commands/gacha');
+          return await handleShopRecycleAction(interaction, client, 'all_common', targetUserId);
+        } else if (action.startsWith('shop_confirm:')) {
+          const parts = action.replace('shop_confirm:', '').split(':');
+          const itemId = parts[0];
+          const targetUserId = parts[1];
+          return await handleShopPurchase(interaction, client, itemId, targetUserId, true);
+        } else if (action.startsWith('shop_cancel:')) {
+          const targetUserId = action.replace('shop_cancel:', '');
+          if (interaction.user.id !== targetUserId) {
+            return interaction.reply({ content: 'Hanya pemilik transaksi yang dapat membatalkan.', flags: MessageFlags.Ephemeral });
+          }
+          return await interaction.update({ content: 'Pembelian telah dibatalkan. Saldo Stardust milikmu tetap utuh.', components: [] });
+        } else if (action === 'shop_close_recycle') {
+          return await interaction.update({ content: 'Panel daur ulang ditutup. Silakan lanjutkan berbelanja di katalog toko.', embeds: [], components: [] });
         } else if (action === 'album') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaAlbum(interaction);
@@ -471,6 +503,30 @@ module.exports = {
         return safeErrorReply(rainErr, 'Gagal memproses klaim Hujan Stardust.');
       }
       return;
+    }
+
+    // ====== Select Menu Interaction (Toko Relik & Stardust) ======
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('gacha_shop_select:')) {
+      const targetUserId = interaction.customId.split(':')[1];
+      const { handleShopPurchase } = require('../commands/gacha');
+      try {
+        const itemId = interaction.values[0];
+        return await handleShopPurchase(interaction, client, itemId, targetUserId);
+      } catch (shopErr) {
+        return safeErrorReply(shopErr, 'Gagal memproses pembelian toko.');
+      }
+    }
+
+    // ====== Select Menu Interaction (Daur Ulang Relik Gacha) ======
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('gacha_shop_recycle_select:')) {
+      const targetUserId = interaction.customId.split(':')[1];
+      const { handleShopRecycleAction } = require('../commands/gacha');
+      try {
+        const selectedRelic = interaction.values[0];
+        return await handleShopRecycleAction(interaction, client, selectedRelic, targetUserId);
+      } catch (recErr) {
+        return safeErrorReply(recErr, 'Gagal memproses daur ulang relik.');
+      }
     }
 
     // ====== Button Interaction (Peta Member Hub & Navigasi Mandiri) ======
@@ -627,6 +683,16 @@ module.exports = {
         await safeErrorReply(err, 'Gagal membuka panduan fitur ini.');
       }
       return;
+    }
+
+    // ====== Modal Submit Interaction (Beli Banyak Tiket Gacha Kustom) ======
+    if (interaction.isModalSubmit() && interaction.customId === 'gacha_shop_modal_tickets') {
+      const { handleShopCustomTicketsSubmit } = require('../commands/gacha');
+      try {
+        return await handleShopCustomTicketsSubmit(interaction, client);
+      } catch (err) {
+        return safeErrorReply(err, 'Gagal memproses pembelian tiket kustom.');
+      }
     }
 
     // ====== Modal Submit Interaction (Pop-up Form Card Member) ======

@@ -24,13 +24,13 @@ if (fs.existsSync(wingetPackagesPath)) {
   try {
     const dirs = fs.readdirSync(wingetPackagesPath);
     const addedPaths = [];
-    
+
     // Find yt-dlp dir
     const ytdlpDir = dirs.find(d => d.includes('yt-dlp.yt-dlp'));
     if (ytdlpDir) {
       addedPaths.push(path.join(wingetPackagesPath, ytdlpDir));
     }
-    
+
     // Find ffmpeg dir
     const ffmpegPkgDir = dirs.find(d => d.includes('yt-dlp.FFmpeg'));
     if (ffmpegPkgDir) {
@@ -45,7 +45,7 @@ if (fs.existsSync(wingetPackagesPath)) {
     if (denoDir) {
       addedPaths.push(path.join(wingetPackagesPath, denoDir));
     }
-    
+
     if (addedPaths.length > 0) {
       process.env.PATH = `${addedPaths.join(';')};${process.env.PATH}`;
       console.log('✅ Auto-configured PATH with binaries:', addedPaths);
@@ -87,7 +87,7 @@ function startProxyServer() {
 
       console.log(`🔌 [Proxy Server] Streaming: "${videoUrl}"`);
       const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(videoUrl);
-      
+
       const flags = {
         format: "bestaudio/best",
         userAgent: USER_AGENT,
@@ -255,30 +255,30 @@ function executeYtdlpRaw(url, flags, timeoutMs = 120000) {
   const ytdlpPath = process.platform === 'win32'
     ? path.join(process.cwd(), 'bin', 'yt-dlp.exe')
     : 'yt-dlp';
-  
+
   const cmdArgs = [url].concat(formatFlags(flags)).filter(Boolean);
-  
+
   return new Promise((resolve, reject) => {
     console.log(`⚡ [executeYtdlpRaw] Spawning: "${ytdlpPath}" ${cmdArgs.join(' ')}`);
     const proc = spawn(ytdlpPath, cmdArgs);
-    
+
     let stdout = '';
     let stderr = '';
-    
+
     const timeout = setTimeout(() => {
       console.warn(`⚠️ [executeYtdlpRaw] Process timed out after ${timeoutMs}ms. Killing process pid: ${proc.pid}`);
       proc.kill('SIGKILL');
       reject(new Error(`yt-dlp resolution timed out after ${timeoutMs / 1000} seconds.`));
     }, timeoutMs);
-    
+
     proc.stdout.on('data', (chunk) => {
       stdout += chunk;
     });
-    
+
     proc.stderr.on('data', (chunk) => {
       stderr += chunk;
     });
-    
+
     proc.on('close', (code) => {
       clearTimeout(timeout);
       if (code === 0) {
@@ -300,7 +300,7 @@ function executeYtdlpRaw(url, flags, timeoutMs = 120000) {
         reject(new Error(stderr.trim() || stdout.trim() || `Process exited with code ${code}`));
       }
     });
-    
+
     proc.on('error', (err) => {
       clearTimeout(timeout);
       reject(err);
@@ -349,17 +349,17 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
         delete scFlags.jsRuntimes;
         scFlags.noPluginDirs = true;
         const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 8000));
-        
+
         if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
           const queryWords = new Set(rawQuery.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 1));
-          
+
           let bestEntry = null;
           let bestScore = -1;
 
           for (const entry of scResult.entries) {
             const title = (entry.title || entry.fulltitle || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ');
             const titleWords = new Set(title.split(/\s+/).filter(w => w.length > 1));
-            
+
             let matches = 0;
             for (const w of queryWords) {
               if (titleWords.has(w)) matches++;
@@ -388,9 +388,9 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
 
     // 2. MULTI-CLIENT FALLBACK UNTUK DIRECT VIDEO URL (e.g. https://www.youtube.com/watch?v=...):
     if (errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') ||
-        errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')) {
+      errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')) {
       console.warn('🔄 [Cookies Fallback] YouTube bot-check terdeteksi pada video URL. Mencoba multi-client fallback...');
-      
+
       const fallbackClients = [
         'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
         'youtube:player_client=ios;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
@@ -473,7 +473,7 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     }
 
     if (errLower.includes('sign in') || errLower.includes('login_required') ||
-        errLower.includes('confirm you\'re not a bot')) {
+      errLower.includes('confirm you\'re not a bot')) {
       console.warn(`⚠️ [Auth Error] YouTube meminta login. Menggunakan mode unauthenticated android/SoundCloud fallback.`);
     }
 
@@ -507,9 +507,9 @@ function createYtDlpSong(plugin, info, options) {
 }
 
 // Override ytdlpPlugin.resolve to avoid passing deprecated --no-call-home option
-ytdlpPlugin.resolve = async function(url, options) {
+ytdlpPlugin.resolve = async function (url, options) {
   console.log(`🌐 [ytdlpPlugin.resolve] Starting resolution for URL: "${url}"`);
-  
+
   // Circuit breaker check — jangan request jika YouTube sedang blokir
   const cbCheck = circuitBreaker.canRequest();
   if (!cbCheck.allowed) {
@@ -573,7 +573,7 @@ ytdlpPlugin.resolve = async function(url, options) {
       const parsedUrl = new URL(url);
       const listParam = parsedUrl.searchParams.get('list');
       const videoId = parsedUrl.searchParams.get('v') ||
-                      url.match(/youtu\.be\/([^?&#]+)/)?.[1];
+        url.match(/youtu\.be\/([^?&#]+)/)?.[1];
       const isStartRadio = parsedUrl.searchParams.get('start_radio') === '1';
 
       if (listParam && listParam.startsWith('PL')) {
@@ -652,7 +652,7 @@ ytdlpPlugin.resolve = async function(url, options) {
   return createYtDlpSong(this, info, options);
 };
 
-ytdlpPlugin.getStreamURL = async function(song) {
+ytdlpPlugin.getStreamURL = async function (song) {
   if (!song.url) {
     throw new Error("Cannot get stream URL from invalid song.");
   }
@@ -695,12 +695,12 @@ ytdlpPlugin.getStreamURL = async function(song) {
 };
 
 // Bypass ytdl-core stream extractor and use highly robust yt-dlp instead
-ytPlugin.getStreamURL = async function(song) {
+ytPlugin.getStreamURL = async function (song) {
   return ytdlpPlugin.getStreamURL(song);
 };
 
 // Bypass ytdl-core metadata extractor and use highly robust yt-dlp instead
-ytPlugin.resolve = async function(url, options) {
+ytPlugin.resolve = async function (url, options) {
   return ytdlpPlugin.resolve(url, options);
 };
 
@@ -711,23 +711,23 @@ async function autoplaySearch(song) {
   // Get the queue safely
   let queue = null;
   try {
-    const guildId = song.member?.guild?.id || 
-                    song.metadata?.message?.guild?.id || 
-                    song.metadata?.interaction?.guild?.id || 
-                    song.guildId;
-    
+    const guildId = song.member?.guild?.id ||
+      song.metadata?.message?.guild?.id ||
+      song.metadata?.interaction?.guild?.id ||
+      song.guildId;
+
     if (guildId) {
       queue = client.distube.getQueue(guildId);
     }
-    
+
     // If not found, try searching in active queues for a queue containing this song
     if (!queue && client.distube.queues?.collection) {
-      queue = [...client.distube.queues.collection.values()].find(q => 
-        q.songs.some(s => s.id === song.id) || 
+      queue = [...client.distube.queues.collection.values()].find(q =>
+        q.songs.some(s => s.id === song.id) ||
         q.previousSongs.some(s => s.id === song.id)
       );
     }
-    
+
     // Fallback: if there is only one active queue, use it
     if (!queue && client.distube.queues?.collection && client.distube.queues.collection.size === 1) {
       queue = [...client.distube.queues.collection.values()][0];
@@ -750,7 +750,7 @@ async function autoplaySearch(song) {
     if (resolved && resolved.songs && resolved.songs.length > 0) {
       // Filter out the currently playing song
       const availableSongs = resolved.songs.filter(s => s.url !== song.url && s.name !== song.name);
-      
+
       if (availableSongs.length > 0) {
         // Pick a random song from the search results to provide variety
         const randomSong = availableSongs[Math.floor(Math.random() * availableSongs.length)];
@@ -772,7 +772,7 @@ ytdlpPlugin.getRelatedSongs = autoplaySearch;
 
 
 // Bypass broken ytsr search library and use highly robust yt-dlp search instead
-ytPlugin.searchSong = async function(query, options) {
+ytPlugin.searchSong = async function (query, options) {
   try {
     console.log(`🔍 [yt-dlp Search] Searching for: "${query}"`);
     const resolved = await ytdlpPlugin.resolve(`ytsearch1:${query}`, options);
@@ -794,9 +794,9 @@ const plugins = [
 
 const spotifyId = process.env.SPOTIFY_CLIENT_ID;
 const spotifySecret = process.env.SPOTIFY_CLIENT_SECRET;
-const hasSpotifyCreds = spotifyId && spotifySecret && 
-                        spotifyId !== 'your_spotify_client_id_here' && 
-                        spotifySecret !== 'your_spotify_client_secret_here';
+const hasSpotifyCreds = spotifyId && spotifySecret &&
+  spotifyId !== 'your_spotify_client_id_here' &&
+  spotifySecret !== 'your_spotify_client_secret_here';
 
 if (hasSpotifyCreds) {
   plugins.unshift(new SpotifyPlugin({
@@ -932,8 +932,8 @@ client.on('voiceStateUpdate', (oldState, newState) => {
           const MOD_ROLE_ID = '1396257049884622899';
           const TRUSTED_USER_IDS = ['1363187094973055116'];
           const hasModPerms = newState.member?.permissions.has(PermissionFlagsBits.ModerateMembers) ||
-                              newState.member?.roles.cache.has(MOD_ROLE_ID) ||
-                              TRUSTED_USER_IDS.includes(newState.member?.id);
+            newState.member?.roles.cache.has(MOD_ROLE_ID) ||
+            TRUSTED_USER_IDS.includes(newState.member?.id);
           if (!hasModPerms) {
             newState.disconnect('Bukan narapidana atau moderator/admin!').catch(err => {
               console.error(`[Jail Enforcer] Gagal menendang user non-jail dari VC penjara:`, err.message);
@@ -943,6 +943,12 @@ client.on('voiceStateUpdate', (oldState, newState) => {
       }
     }
   }
+
+  // Sapa member baru di Voice Channel dengan Suara AI Perempuan (Voice Welcome AI)
+  const { handleVoiceWelcome } = require('./utils/voiceWelcome');
+  handleVoiceWelcome(oldState, newState, client).catch(err => {
+    console.error('⚠️ [Voice Welcome Error]:', err.message);
+  });
 
   // If the bot itself leaves, clear any pending empty timeouts
   if (oldState.id === client.user.id && !newState.channelId) {
@@ -957,15 +963,15 @@ client.on('voiceStateUpdate', (oldState, newState) => {
   if (botVoiceChannel) {
     const nonBotMembers = botVoiceChannel.members.filter(m => !m.user.bot);
     const is247 = client.stay247 && client.stay247.has(guildId);
-    
+
     if (nonBotMembers.size === 0) {
       if (!is247) {
         if (!client.emptyTimeouts.has(guildId)) {
           const queue = client.distube.getQueue(guildId);
           if (queue && queue.textChannel) {
-            queue.textChannel.send('🎵 **Voice channel kosong.** Bot akan keluar dalam 1 menit.').catch(() => {});
+            queue.textChannel.send('🎵 **Voice channel kosong.** Bot akan keluar dalam 1 menit.').catch(() => { });
           }
-          
+
           const timeout = setTimeout(async () => {
             const currentChannel = oldState.guild.members.me?.voice?.channel;
             if (currentChannel) {
@@ -974,9 +980,9 @@ client.on('voiceStateUpdate', (oldState, newState) => {
               if (currentNonBots.size === 0 && stillNot247) {
                 const currentQueue = client.distube.getQueue(guildId);
                 if (currentQueue) {
-                  await currentQueue.stop().catch(() => {});
+                  await currentQueue.stop().catch(() => { });
                   if (currentQueue.textChannel) {
-                    currentQueue.textChannel.send('👋 **Bot keluar dari voice channel karena kosong.**').catch(() => {});
+                    currentQueue.textChannel.send('👋 **Bot keluar dari voice channel karena kosong.**').catch(() => { });
                   }
                 }
                 const disTubeVoice = client.distube.voices.get(guildId);
@@ -985,7 +991,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
             }
             client.emptyTimeouts.delete(guildId);
           }, 60000);
-          
+
           client.emptyTimeouts.set(guildId, timeout);
         }
       }
@@ -993,86 +999,247 @@ client.on('voiceStateUpdate', (oldState, newState) => {
       if (client.emptyTimeouts.has(guildId)) {
         clearTimeout(client.emptyTimeouts.get(guildId));
         client.emptyTimeouts.delete(guildId);
-        
+
         const queue = client.distube.getQueue(guildId);
         if (queue && queue.textChannel) {
-          queue.textChannel.send('🎵 **User bergabung kembali.** Otomatis keluar dibatalkan.').catch(() => {});
+          queue.textChannel.send('🎵 **User bergabung kembali.** Otomatis keluar dibatalkan.').catch(() => { });
         }
       }
     }
   }
 
-  // Anti Force-Disconnect Tracker: Cek siapa yang mendisconnect bot
-  if (oldState.id === client.user.id && oldState.channelId && !newState.channelId) {
+  // ─── 1. VOICE DISCONNECT TRACKER (Mendeteksi siapa yang mendisconnect member/bot) ───
+  if (oldState.channelId && !newState.channelId) {
     (async () => {
       try {
         const guild = oldState.guild;
-        if (guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
-          await new Promise(r => setTimeout(r, 600));
-          const auditLogs = await guild.fetchAuditLogs({
-            type: AuditLogEvent.MemberDisconnect,
-            limit: 1
-          }).catch(() => null);
+        if (!guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) return;
 
-          const entry = auditLogs?.entries.first();
-          if (entry && (Date.now() - entry.createdTimestamp < 10000)) {
-            const culprit = entry.executor;
-            if (culprit && culprit.id !== client.user.id) {
-              console.log(`🚨 [Anti-Disconnect] Bot didisconnect paksa oleh ${culprit.tag} (${culprit.id}) dari channel ${oldState.channel?.name || oldState.channelId}`);
-              
-              const is247 = client.stay247 && client.stay247.has(guildId);
-              const alertEmbed = new EmbedBuilder()
-                .setColor(0xED4245)
-                .setTitle('🚨 Terdeteksi Disconnect Paksa!')
-                .setDescription(`**<@${culprit.id}>** (\`${culprit.tag}\`) baru saja memutuskan sambungan (disconnect) bot dari voice channel <#${oldState.channelId}>!${is247 ? '\n\n🛡️ *Bot akan otomatis bergabung kembali dalam beberapa detik (Mode 24/7).*' : ''}`)
-                .setFooter({ text: 'Sistem Keamanan Voice' })
-                .setTimestamp();
+        // Beri jeda 700ms agar Discord selesai menulis entri ke Audit Log
+        await new Promise(r => setTimeout(r, 700));
 
-              let targetTextChannel = oldState.channel;
-              if (!targetTextChannel || typeof targetTextChannel.send !== 'function') {
-                const queue = client.distube.getQueue(guildId);
-                targetTextChannel = queue?.textChannel || guild.systemChannel;
-              }
+        const auditLogs = await guild.fetchAuditLogs({
+          type: AuditLogEvent.MemberDisconnect,
+          limit: 1
+        }).catch(() => null);
 
-              if (targetTextChannel && typeof targetTextChannel.send === 'function') {
-                targetTextChannel.send({ embeds: [alertEmbed] }).catch(() => {});
-              }
-            }
+        const entry = auditLogs?.entries.first();
+        if (!entry) return;
+
+        // Pastikan entri ini baru saja terjadi (dalam 6 detik terakhir)
+        if (Date.now() - entry.createdTimestamp > 6000) return;
+
+        // Validasi kecocokan target: target adalah user yang keluar, atau channelnya sama
+        const matchesTarget = !entry.target || entry.target.id === oldState.id;
+        const matchesChannel = !entry.extra?.channel || entry.extra.channel.id === oldState.channelId;
+        if (!matchesTarget && !matchesChannel) return;
+
+        // Deduplikasi agar tidak mencatat log ganda
+        if (!client.processedDisconnectAudits) client.processedDisconnectAudits = new Set();
+        const dedupeKey = `${entry.id}_${oldState.id}`;
+        if (client.processedDisconnectAudits.has(dedupeKey)) return;
+        client.processedDisconnectAudits.add(dedupeKey);
+        setTimeout(() => client.processedDisconnectAudits?.delete(dedupeKey), 60000);
+
+        const executor = entry.executor;
+        if (!executor || executor.id === client.user.id) return;
+
+        const isBotDisconnected = (oldState.id === client.user.id);
+        const targetUser = oldState.member?.user || { id: oldState.id, tag: `User (${oldState.id})` };
+        const channelName = oldState.channel?.name || `Voice Channel (${oldState.channelId})`;
+
+        console.log(`🚨 [Voice Disconnect Tracker] ${targetUser.tag || targetUser.username} didisconnect paksa dari "${channelName}" oleh ${executor.tag} (${executor.id})`);
+
+        // Kirim log ke Mod Log channel
+        const { sendModLog } = require('./utils/modlog');
+        await sendModLog(guild, client, {
+          action: 'VOICE_DISCONNECT',
+          moderator: executor,
+          target: targetUser,
+          reason: isBotDisconnected
+            ? 'Memutuskan sambungan (disconnect) paksa bot dari Voice Channel'
+            : 'Memutuskan sambungan (disconnect) paksa pengguna dari Voice Channel',
+          details: `• **Saluran Voice:** <#${oldState.channelId}> (\`${channelName}\`)\n` +
+            `• **Pelaku Disconnect:** <@${executor.id}> (\`${executor.tag}\`)\n` +
+            `• **Korban Disconnect:** <@${oldState.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
+            `• **Jumlah Pengguna Terkena:** ${entry.extra?.count || 1} orang`,
+          color: 0xFEE75C
+        });
+
+        // Jika yang didisconnect adalah bot: notifikasi text channel & reconnect jika 24/7
+        if (isBotDisconnected) {
+          const is247 = client.stay247 && client.stay247.has(guildId);
+          const alertEmbed = new EmbedBuilder()
+            .setColor(0xED4245)
+            .setTitle('🚨 Terdeteksi Disconnect Paksa pada Bot!')
+            .setDescription(`**<@${executor.id}>** (\`${executor.tag}\`) baru saja memutuskan sambungan (disconnect) bot dari voice channel <#${oldState.channelId}>!${is247 ? '\n\n🛡️ *Bot akan otomatis bergabung kembali dalam beberapa detik (Mode 24/7).*' : ''}`)
+            .setFooter({ text: 'Sistem Keamanan Voice' })
+            .setTimestamp();
+
+          let targetTextChannel = oldState.channel;
+          if (!targetTextChannel || typeof targetTextChannel.send !== 'function') {
+            const queue = client.distube.getQueue(guildId);
+            targetTextChannel = queue?.textChannel || guild.systemChannel;
+          }
+
+          if (targetTextChannel && typeof targetTextChannel.send === 'function') {
+            targetTextChannel.send({ embeds: [alertEmbed] }).catch(() => { });
           }
         }
       } catch (logErr) {
-        console.warn('⚠️ [AuditLog Tracker] Gagal membaca audit log disconnect:', logErr.message);
+        console.warn('⚠️ [Voice Disconnect Tracker] Gagal membaca audit log disconnect:', logErr.message);
       }
     })();
   }
 
-  // Anti Force-Move Tracker: Cek jika bot dipindahkan dari channel 24/7
-  if (oldState.id === client.user.id && newState.channelId && oldState.channelId && newState.channelId !== oldState.channelId) {
-    if (client.stay247 && client.stay247.has(guildId)) {
-      const designatedChannelId = client.stay247Settings?.get(guildId)?.channelId;
-      if (designatedChannelId && newState.channelId !== designatedChannelId) {
-        (async () => {
-          try {
-            const guild = newState.guild;
-            let moverTag = null;
-            let moverId = null;
+  // ─── 1.5. BOT VOICE IMMUNITY (AUTO-UNMUTE & UNDEAFEN GUARDIAN) ───
+  if (newState.id === client.user.id && newState.channelId) {
+    if (newState.serverMute) {
+      console.log(`🔊 [Voice Immunity] Bot di-Server Mute di "${newState.guild.name}". Melepaskan mute otomatis...`);
+      newState.setMute(false, 'Auto-Recovery: Bot wajib dapat bersuara').catch(err => {
+        console.warn('⚠️ [Voice Immunity] Gagal melepaskan server mute:', err.message);
+      });
+    }
+    if (newState.serverDeaf) {
+      console.log(`🎧 [Voice Immunity] Bot di-Server Deafen di "${newState.guild.name}". Melepaskan deafen otomatis...`);
+      newState.setDeaf(false, 'Auto-Recovery: Bot wajib dapat beroperasi normal').catch(err => {
+        console.warn('⚠️ [Voice Immunity] Gagal melepaskan server deafen:', err.message);
+      });
+    }
+    if (newState.selfMute) {
+      newState.guild.members.me?.voice?.setMute(false).catch(() => { });
+    }
+  }
 
-            if (guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
-              await new Promise(r => setTimeout(r, 600));
-              const auditLogs = await guild.fetchAuditLogs({
-                type: AuditLogEvent.MemberMove,
-                limit: 1
-              }).catch(() => null);
+  // ─── 2. VOICE SERVER MUTE & SERVER DEAFEN TRACKER ───
+  if (oldState.serverMute !== newState.serverMute || oldState.serverDeaf !== newState.serverDeaf) {
+    (async () => {
+      try {
+        const guild = newState.guild;
+        if (!guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) return;
 
-              const entry = auditLogs?.entries.first();
-              if (entry && (Date.now() - entry.createdTimestamp < 10000)) {
-                if (entry.executor && entry.executor.id !== client.user.id) {
-                  moverId = entry.executor.id;
-                  moverTag = entry.executor.tag;
-                }
+        await new Promise(r => setTimeout(r, 700));
+
+        const auditLogs = await guild.fetchAuditLogs({
+          type: AuditLogEvent.MemberUpdate,
+          limit: 1
+        }).catch(() => null);
+
+        const entry = auditLogs?.entries.first();
+        if (!entry) return;
+
+        if (Date.now() - entry.createdTimestamp > 6000) return;
+        if (entry.target && entry.target.id !== newState.id) return;
+
+        // Cek apakah entri ini memuat perubahan mute/deaf
+        const hasMuteChange = entry.changes?.some(c => c.key === 'mute');
+        const hasDeafChange = entry.changes?.some(c => c.key === 'deaf');
+        if (!hasMuteChange && !hasDeafChange && oldState.serverMute === newState.serverMute && oldState.serverDeaf === newState.serverDeaf) return;
+
+        if (!client.processedMuteAudits) client.processedMuteAudits = new Set();
+        const dedupeKey = `${entry.id}_${newState.id}_${newState.serverMute}_${newState.serverDeaf}`;
+        if (client.processedMuteAudits.has(dedupeKey)) return;
+        client.processedMuteAudits.add(dedupeKey);
+        setTimeout(() => client.processedMuteAudits?.delete(dedupeKey), 60000);
+
+        const executor = entry.executor;
+        if (!executor || executor.id === client.user.id) return;
+
+        const targetUser = newState.member?.user || { id: newState.id, tag: `User (${newState.id})` };
+        const channelName = newState.channel?.name || `Voice Channel (${newState.channelId})`;
+        const { sendModLog } = require('./utils/modlog');
+
+        // A. Perubahan Server Mute
+        if (oldState.serverMute !== newState.serverMute) {
+          const isMuted = newState.serverMute;
+          console.log(`🎙️ [Voice Mute Tracker] ${targetUser.tag || targetUser.username} di-${isMuted ? 'Mute' : 'Unmute'} Server oleh ${executor.tag}`);
+          await sendModLog(guild, client, {
+            action: isMuted ? 'VOICE_SERVER_MUTE' : 'VOICE_SERVER_UNMUTE',
+            moderator: executor,
+            target: targetUser,
+            reason: isMuted ? 'Server Mute di Voice Channel' : 'Server Unmute di Voice Channel',
+            details: `• **Saluran Voice:** <#${newState.channelId}> (\`${channelName}\`)\n` +
+              `• **Status:** ${isMuted ? '🔇 **Di-mute Server (Tidak dapat berbicara)**' : '🔊 **Di-unmute Server (Dapat berbicara kembali)**'}\n` +
+              `• **Pelaku:** <@${executor.id}> (\`${executor.tag}\`)\n` +
+              `• **Target:** <@${newState.id}> (\`${targetUser.tag || targetUser.username}\`)`,
+            color: isMuted ? 0xFEE75C : 0x57F287
+          });
+        }
+
+        // B. Perubahan Server Deafen
+        if (oldState.serverDeaf !== newState.serverDeaf) {
+          const isDeaf = newState.serverDeaf;
+          console.log(`🎧 [Voice Deafen Tracker] ${targetUser.tag || targetUser.username} di-${isDeaf ? 'Deafen' : 'Undeafen'} Server oleh ${executor.tag}`);
+          await sendModLog(guild, client, {
+            action: isDeaf ? 'VOICE_SERVER_DEAF' : 'VOICE_SERVER_UNDEAF',
+            moderator: executor,
+            target: targetUser,
+            reason: isDeaf ? 'Server Deafen di Voice Channel' : 'Server Undeafen di Voice Channel',
+            details: `• **Saluran Voice:** <#${newState.channelId}> (\`${channelName}\`)\n` +
+              `• **Status:** ${isDeaf ? '🛑 **Di-deafen Server (Tidak dapat mendengar/berbicara)**' : '🎧 **Di-undeafen Server (Dapat mendengar kembali)**'}\n` +
+              `• **Pelaku:** <@${executor.id}> (\`${executor.tag}\`)\n` +
+              `• **Target:** <@${newState.id}> (\`${targetUser.tag || targetUser.username}\`)`,
+            color: isDeaf ? 0xED4245 : 0x57F287
+          });
+        }
+
+      } catch (logErr) {
+        console.warn('⚠️ [Voice Mute/Deaf Tracker] Gagal membaca audit log mute/deafen:', logErr.message);
+      }
+    })();
+  }
+
+  // ─── 3. VOICE MOVE TRACKER (Mendeteksi pemindahan member / bot) ───
+  if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+    (async () => {
+      try {
+        const guild = newState.guild;
+        let moverTag = null;
+        let moverId = null;
+        let moverObj = null;
+
+        if (guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
+          await new Promise(r => setTimeout(r, 700));
+          const auditLogs = await guild.fetchAuditLogs({
+            type: AuditLogEvent.MemberMove,
+            limit: 1
+          }).catch(() => null);
+
+          const entry = auditLogs?.entries.first();
+          if (entry && (Date.now() - entry.createdTimestamp < 6000)) {
+            if (entry.executor && entry.executor.id !== client.user.id) {
+              moverObj = entry.executor;
+              moverId = entry.executor.id;
+              moverTag = entry.executor.tag;
+
+              if (!client.processedMoveAudits) client.processedMoveAudits = new Set();
+              const dedupeKey = `${entry.id}_${newState.id}_${newState.channelId}`;
+              if (!client.processedMoveAudits.has(dedupeKey)) {
+                client.processedMoveAudits.add(dedupeKey);
+                setTimeout(() => client.processedMoveAudits?.delete(dedupeKey), 60000);
+
+                const targetUser = newState.member?.user || { id: newState.id, tag: `User (${newState.id})` };
+                const { sendModLog } = require('./utils/modlog');
+                await sendModLog(guild, client, {
+                  action: 'VOICE_MOVE',
+                  moderator: moverObj,
+                  target: targetUser,
+                  reason: 'Memindahkan pengguna antar saluran voice',
+                  details: `• **Dari Saluran:** <#${oldState.channelId}> (\`${oldState.channel?.name || oldState.channelId}\`)\n` +
+                    `• **Ke Saluran:** <#${newState.channelId}> (\`${newState.channel?.name || newState.channelId}\`)\n` +
+                    `• **Pelaku Pemindahan:** <@${moverId}> (\`${moverTag}\`)\n` +
+                    `• **Pengguna Dipindahkan:** <@${newState.id}> (\`${targetUser.tag || targetUser.username}\`)`,
+                  color: 0x5865F2
+                });
               }
             }
+          }
+        }
 
+        // Jika yang dipindahkan adalah bot musik dan 24/7 aktif: kembalikan ke channel 24/7
+        if (oldState.id === client.user.id && client.stay247 && client.stay247.has(guildId)) {
+          const designatedChannelId = client.stay247Settings?.get(guildId)?.channelId;
+          if (designatedChannelId && newState.channelId !== designatedChannelId) {
             console.log(`🚨 [Anti-Move] Bot dipindahkan dari channel 24/7 ke ${newState.channelId} oleh ${moverTag || 'Unknown'}. Mengembalikan ke channel asal...`);
 
             const alertEmbed = new EmbedBuilder()
@@ -1086,19 +1253,19 @@ client.on('voiceStateUpdate', (oldState, newState) => {
               .setFooter({ text: 'Sistem Keamanan Voice 24/7' })
               .setTimestamp();
 
-            await newState.member?.voice?.setChannel(designatedChannelId).catch(() => {});
-            
+            await newState.member?.voice?.setChannel(designatedChannelId).catch(() => { });
+
             const queue = client.distube.getQueue(guildId);
             let notifCh = queue?.textChannel || newState.channel || guild.systemChannel;
             if (notifCh && typeof notifCh.send === 'function') {
-              notifCh.send({ embeds: [alertEmbed] }).catch(() => {});
+              notifCh.send({ embeds: [alertEmbed] }).catch(() => { });
             }
-          } catch (mErr) {
-            console.warn('⚠️ [Voice Move Tracker] Gagal mengembalikan bot ke channel asal:', mErr.message);
           }
-        })();
+        }
+      } catch (mErr) {
+        console.warn('⚠️ [Voice Move Tracker] Error:', mErr.message);
       }
-    }
+    })();
   }
 
   // 24/7 Enforcer: If the bot itself disconnects (or gets kicked) and 24/7 is enabled, force it to rejoin!
@@ -1119,7 +1286,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
         // Kirim notif ke text channel jika ada queue
         const queueForNotif = client.distube.getQueue(guildId);
         if (queueForNotif?.textChannel) {
-          queueForNotif.textChannel.send('⚠️ **24/7 dinonaktifkan otomatis** karena bot gagal reconnect 3x berturut-turut. Gunakan `/q247` untuk mengaktifkan kembali.').catch(() => {});
+          queueForNotif.textChannel.send('⚠️ **24/7 dinonaktifkan otomatis** karena bot gagal reconnect 3x berturut-turut. Gunakan `/q247` untuk mengaktifkan kembali.').catch(() => { });
         }
         return;
       }
@@ -1243,17 +1410,17 @@ async function checkAndRestoreAll247() {
 // Event saat Shard resume/reconnect ke gateway Discord
 client.on('shardResume', async (shardId) => {
   console.log(`📶 [Shard] Shard ${shardId} berhasil resume connection ke Discord.`);
-  setTimeout(() => checkAndRestoreAll247().catch(() => {}), 3000);
+  setTimeout(() => checkAndRestoreAll247().catch(() => { }), 3000);
 });
 
 client.on('shardReady', async (shardId) => {
   console.log(`📶 [Shard] Shard ${shardId} siap (ready).`);
-  setTimeout(() => checkAndRestoreAll247().catch(() => {}), 3000);
+  setTimeout(() => checkAndRestoreAll247().catch(() => { }), 3000);
 });
 
 // Watchdog timer: Cek dan pulihkan koneksi voice 24/7 setiap 30 detik
 setInterval(() => {
-  checkAndRestoreAll247().catch(() => {});
+  checkAndRestoreAll247().catch(() => { });
 }, 30000);
 
 // Debug logging disabled for performance
@@ -1270,7 +1437,7 @@ client.distube
     // Jangan kirim kartu "Sedang Diputar" jika lagu berasal dari Music Quiz (agar tidak membocorkan jawaban!)
     if (song.metadata?.isQuiz || queue.isQuiz) {
       if (queue._nowPlayingMsg) {
-        queue._nowPlayingMsg.delete().catch(() => {});
+        queue._nowPlayingMsg.delete().catch(() => { });
         queue._nowPlayingMsg = null;
       }
       return;
@@ -1281,11 +1448,11 @@ client.distube
 
     // Hapus pesan "Mencari..." dari slash command /play jika ada
     if (song.metadata?.interaction) {
-      song.metadata.interaction.deleteReply().catch(() => {});
+      song.metadata.interaction.deleteReply().catch(() => { });
     }
     // Hapus pesan teks user (qp https://...) agar preview video hilang dan chat tetap bersih
     if (song.metadata?.message?.deletable) {
-      song.metadata.message.delete().catch(() => {});
+      song.metadata.message.delete().catch(() => { });
     }
 
     const embed = nowPlayingEmbed(song, queue);
@@ -1314,14 +1481,14 @@ client.distube
     // Hanya tampilkan notifikasi jika lagu ditambahkan ke antrian yang SUDAH BERJALAN
     // (queue.songs.length > 1 artinya sudah ada lagu yang sedang diputar)
     if (queue.songs.length > 1) {
-      queue.textChannel?.send({ embeds: [addedToQueueEmbed(song, queue)] }).catch(() => {});
+      queue.textChannel?.send({ embeds: [addedToQueueEmbed(song, queue)] }).catch(() => { });
     }
   })
   .on('addList', (queue, playlist) => {
     // Hanya tampilkan notifikasi jika playlist ditambahkan ke antrian yang SUDAH BERJALAN
     // (queue.songs.length > playlist.songs.length artinya ada lagu lain sebelumnya)
     if (queue.songs.length > playlist.songs.length) {
-      queue.textChannel?.send({ embeds: [addedPlaylistEmbed(playlist, queue)] }).catch(() => {});
+      queue.textChannel?.send({ embeds: [addedPlaylistEmbed(playlist, queue)] }).catch(() => { });
     }
   })
   .on('error', async (error, queue) => {
@@ -1342,13 +1509,13 @@ client.distube
       if (cbResult.shouldStop) {
         userMsg += `\n\n${cbResult.message}`;
         userMsg += `\n⏹️ Antrian dihentikan otomatis untuk mencegah spam error.`;
-        queue?.textChannel?.send(userMsg).catch(() => {});
+        queue?.textChannel?.send(userMsg).catch(() => { });
 
         // Stop queue tanpa leave VC
         try {
           if (queue && queue.songs) queue.songs.length = 0;
-          await queue?.stop().catch(() => {});
-        } catch (_) {}
+          await queue?.stop().catch(() => { });
+        } catch (_) { }
         return;
       }
 
@@ -1367,7 +1534,7 @@ client.distube
                 `Server: **${queue?.textChannel?.guild?.name || 'Unknown'}**`,
                 `Error: \`${errMsg.slice(0, 200)}\``,
                 `Cek cookies atau tunggu cooldown otomatis.`
-              ].join('\n')).catch(() => {});
+              ].join('\n')).catch(() => { });
             }
           }
         } catch (alertErr) {
@@ -1396,7 +1563,7 @@ client.distube
       }
     }
 
-    queue?.textChannel?.send(userMsg).catch(() => {});
+    queue?.textChannel?.send(userMsg).catch(() => { });
   })
   .on('initQueue', (queue) => {
     const guildId = queue.textChannel?.guild?.id;
@@ -1411,7 +1578,7 @@ client.distube
 
     // Update pesan NowPlaying — antrean selesai
     if (queue._nowPlayingMsg) {
-      queue._nowPlayingMsg.edit({ embeds: [], content: '✅ **Antrean lagu telah selesai.**' }).catch(() => {});
+      queue._nowPlayingMsg.edit({ embeds: [], content: '✅ **Antrean lagu telah selesai.**' }).catch(() => { });
       queue._nowPlayingMsg = null;
     }
 
@@ -1439,16 +1606,16 @@ client.distube
     if (queue._stoppedByCmd) {
       queue._stoppedByCmd = false;
       if (queue._nowPlayingMsg) {
-        queue._nowPlayingMsg.delete().catch(() => {});
+        queue._nowPlayingMsg.delete().catch(() => { });
         queue._nowPlayingMsg = null;
       }
       return;
     }
     if (queue._nowPlayingMsg) {
-      queue._nowPlayingMsg.edit({ embeds: [], content: '👋 **Bot terputus dari voice channel.**' }).catch(() => {});
+      queue._nowPlayingMsg.edit({ embeds: [], content: '👋 **Bot terputus dari voice channel.**' }).catch(() => { });
       queue._nowPlayingMsg = null;
     } else {
-      queue.textChannel?.send('👋 **Bot terputus dari voice channel.**').catch(() => {});
+      queue.textChannel?.send('👋 **Bot terputus dari voice channel.**').catch(() => { });
     }
   })
   .on('empty', (queue) => {

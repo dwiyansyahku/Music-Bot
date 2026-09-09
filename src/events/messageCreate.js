@@ -102,21 +102,27 @@ module.exports = {
       // 1. Channel 1: Saluran Khusus Upload Gambar dari Device
       if (galleryUploadId && message.channel.id === galleryUploadId) {
         if (!message.author.bot) {
-          const imageAtt = message.attachments.find(att => {
+          const imageAttachments = message.attachments.filter(att => {
             const ext = (att.name?.split('.').pop() || '').toLowerCase();
             return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) || att.contentType?.startsWith('image/');
           });
 
-          if (imageAtt) {
+          if (imageAttachments.size > 0) {
             const caption = message.content?.trim() || '';
             const { publishGalleryItem } = require('../commands/gallery');
-            const res = await publishGalleryItem(message.guild, message.author, message.member, imageAtt.url, caption, client);
+            let successCount = 0;
+            let lastErr = null;
+            for (const [, att] of imageAttachments) {
+              const res = await publishGalleryItem(message.guild, message.author, message.member, att.url, caption, client);
+              if (res.success) successCount++;
+              else lastErr = res.error;
+            }
 
-            if (res.success) {
+            if (successCount > 0) {
               await message.react('🖼️').catch(() => {});
-            } else {
+            } else if (lastErr) {
               message.reply({
-                content: `Gagal memposting gambar ke galeri: ${res.error}`
+                content: `Gagal memposting gambar ke galeri: ${lastErr}`
               }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
             }
           }
@@ -128,16 +134,18 @@ module.exports = {
       // Jika hanya chat teks biasa tanpa gambar, langsung dihapus karena dilarang chat langsung
       if (galleryOutputId && message.channel.id === galleryOutputId) {
         if (!message.author.bot) {
-          const imageAtt = message.attachments.find(att => {
+          const imageAttachments = message.attachments.filter(att => {
             const ext = (att.name?.split('.').pop() || '').toLowerCase();
             return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) || att.contentType?.startsWith('image/');
           });
 
-          if (imageAtt) {
+          if (imageAttachments.size > 0) {
             const caption = message.content?.trim() || '';
             await message.delete().catch(() => {});
             const { publishGalleryItem } = require('../commands/gallery');
-            await publishGalleryItem(message.guild, message.author, message.member, imageAtt.url, caption, client);
+            for (const [, att] of imageAttachments) {
+              await publishGalleryItem(message.guild, message.author, message.member, att.url, caption, client);
+            }
             return;
           } else {
             // Hapus chat teks biasa
@@ -166,6 +174,49 @@ module.exports = {
         (automodConfig.ignoredChannels.length > 0 && automodConfig.ignoredChannels.includes(message.channel.id));
 
       if (!isExempt) {
+        // 0. KARANTINA MEDIA UNTUK MEMBER BARU (JOIN KURANG DARI 24 JAM)
+        const isStaff = message.member?.permissions?.has(PermissionFlagsBits.ManageMessages) || message.member?.permissions?.has(PermissionFlagsBits.ManageGuild);
+        const joinAgeMs = Date.now() - (message.member?.joinedTimestamp || 0);
+        const isNewJoiner = joinAgeMs < 24 * 60 * 60 * 1000;
+
+        if (isNewJoiner && !isStaff && message.attachments.size > 0) {
+          await message.delete().catch(() => {});
+
+          const fileNames = message.attachments.map(a => a.name).join(', ');
+          const quarantineEmbed = new EmbedBuilder()
+            .setColor(0xFEE75C)
+            .setAuthor({
+              name: `KEAMANAN SERVER — ${message.guild.name.toUpperCase()}`,
+              iconURL: message.guild.iconURL({ dynamic: true }) || undefined
+            })
+            .setTitle('🛡️ Karantina Media Member Baru')
+            .setDescription(
+              `⚠️ <@${message.author.id}>, demi menjaga keamanan server dari spam dan penyebaran malware, member baru (**bergabung kurang dari 24 jam**) belum diizinkan mengunggah lampiran gambar atau file.\n\n` +
+              `Silakan mengobrol dan berkenalan terlebih dahulu di chatroom ya! 🙌`
+            )
+            .setFooter({ text: 'Peringatan ini akan terhapus otomatis dalam 6 detik' })
+            .setTimestamp();
+
+          message.channel.send({ embeds: [quarantineEmbed] })
+            .then(m => setTimeout(() => m.delete().catch(() => {}), 6000))
+            .catch(() => {});
+
+          await sendModLog(message.guild, client, {
+            action: 'NEW_MEMBER_MEDIA',
+            moderator: { id: client.user.id, username: 'AutoMod Sentinel', tag: client.user.tag },
+            target: message.author,
+            reason: 'Member baru (< 24 jam) dibatasi mengirim lampiran media/file.',
+            details: `• **Pengirim:** <@${message.author.id}> (\`${message.author.tag}\`)\n` +
+                     `• **Saluran:** <#${message.channel.id}>\n` +
+                     `• **File Dicegah:** \`${fileNames}\`\n` +
+                     `• **Lama Bergabung:** ${Math.floor(joinAgeMs / (1000 * 60))} menit yang lalu\n` +
+                     `• **Tindakan:** Pesan dihapus otomatis.`,
+            color: 0xFEE75C
+          });
+
+          return;
+        }
+
         // 1. Deteksi Phishing / Scam / Malware File / Jebakan QR & Kebocoran Token
         if (automodConfig.antiPhishing || automodConfig.antiMalware || automodConfig.antiTokenLeak) {
           const phishingCheck = checkPhishing(message);
@@ -221,11 +272,29 @@ module.exports = {
               return;
             }
 
-            // KASUS B: File Berbahaya / Malware / Trojan Grabber
+            // KASUS B: File Berbahaya / Malware / Trojan Grabber / Scam Arsip (seperti FPS_BOOST.zip)
             if (phishingCheck.isMalware) {
-              if (automodConfig.timeoutOnPhishing && message.member && message.member.moderatable) {
-                await message.member.timeout(60 * 60 * 1000, 'Mengirim file berbahaya / trojan token stealer').catch(() => {});
+              let isKicked = false;
+              let kickError = null;
+
+              if (automodConfig.kickOnMalware && message.member && message.member.kickable) {
+                try {
+                  await message.member.kick(`AutoMod Sentinel: ${phishingCheck.reason}`);
+                  isKicked = true;
+                } catch (kErr) {
+                  kickError = kErr.message;
+                  console.error('[AutoMod Kick Error]:', kErr.message);
+                }
               }
+
+              // Jika tidak bisa di-kick (role setara/lebih tinggi), lakukan timeout 24 jam
+              if (!isKicked && message.member && message.member.moderatable) {
+                await message.member.timeout(24 * 60 * 60 * 1000, `Mengirim file berbahaya: ${phishingCheck.reason}`).catch(() => {});
+              }
+
+              const actionText = isKicked
+                ? '🚨 **Pelaku telah di-KICK dari server!**'
+                : (kickError ? `⚠️ Gagal Kick (${kickError}) — Akun di-timeout 24 jam.` : '⚠️ Akun di-timeout 24 jam untuk karantina.');
 
               const malwareAlertEmbed = new EmbedBuilder()
                 .setColor(0xED4245)
@@ -233,96 +302,99 @@ module.exports = {
                   name: `KEAMANAN SERVER — ${message.guild.name.toUpperCase()}`,
                   iconURL: message.guild.iconURL({ dynamic: true }) || undefined
                 })
-                .setTitle('🚨 File Berbahaya / Malware Dicegah')
+                .setTitle('🚨 File Berbahaya / Malware Dicegah — Pelaku Dikeluarkan')
                 .setDescription(
-                  `Pesan dari <@${message.author.id}> telah dihapus secara otomatis demi keamanan seluruh member.\n\n` +
+                  `Pesan dari <@${message.author.id}> (\`${message.author.tag}\`) telah dihapus secara otomatis demi keamanan seluruh member.\n\n` +
                   `• **Alasan:** ${phishingCheck.reason}\n` +
-                  `• **Tindakan:** File dihapus & akun di-timeout 1 jam untuk mencegah infeksi/pembajakan.`
+                  `• **File Terdeteksi:** \`${phishingCheck.filename || phishingCheck.url}\`\n` +
+                  `• **Tindakan:** ${actionText}\n` +
+                  (phishingCheck.isForwarded ? '• **Metode:** Pesan Diteruskan (*Forwarded Message*)\n' : '')
                 )
-                .setFooter({ text: 'Peringatan ini akan terhapus otomatis dalam 5 detik' })
+                .setFooter({ text: 'Tindakan dicatat di Mod Log • Pesan terhapus otomatis dalam 7 detik' })
                 .setTimestamp();
 
               message.channel.send({ embeds: [malwareAlertEmbed] })
-                .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 7000))
                 .catch(() => {});
 
-              if (automodConfig.logChannelId) {
-                const logChannel = message.guild.channels.cache.get(automodConfig.logChannelId);
-                if (logChannel) {
-                  const logEmbed = new EmbedBuilder()
-                    .setColor(0xED4245)
-                    .setTitle('Log Keamanan: File Berbahaya Dihapus')
-                    .setDescription(
-                      `• **Pengirim:** <@${message.author.id}> (${message.author.tag})\n` +
-                      `• **Channel:** <#${message.channel.id}>\n` +
-                      `• **Nama File:** \`${phishingCheck.filename || phishingCheck.url}\`\n` +
-                      `• **Tindakan:** Pesan dihapus & Timeout 1 Jam.`
-                    )
-                    .setTimestamp();
-                  logChannel.send({ embeds: [logEmbed] }).catch(() => {});
-                }
-              }
-
               await sendModLog(message.guild, client, {
-                action: 'AUTOMOD_TIMEOUT',
-                moderator: { id: client.user.id, username: 'AutoMod Sentinel' },
+                action: isKicked ? 'KICK' : 'AUTOMOD',
+                moderator: { id: client.user.id, username: 'AutoMod Sentinel', tag: client.user.tag },
                 target: message.author,
                 reason: phishingCheck.reason,
-                details: `File berbahaya \`${phishingCheck.filename || phishingCheck.url}\` di <#${message.channel.id}> dihapus & timeout 1 jam.`
+                details: `• **Tindakan:** Pesan Dihapus & ${isKicked ? 'Pelaku di-KICK dari server' : 'Pelaku di-timeout 24 Jam (Role tidak dapat di-kick)'}.\n` +
+                         `• **Saluran:** <#${message.channel.id}>\n` +
+                         `• **File Terdeteksi:** \`${phishingCheck.filename || phishingCheck.url}\`\n` +
+                         `• **Pesan Forwarded:** ${phishingCheck.isForwarded ? 'Ya (Diteruskan)' : 'Tidak'}\n` +
+                         `• **Status Eksekusi:** ${isKicked ? 'Berhasil Di-kick' : (kickError ? `Gagal Kick (${kickError})` : 'Timeout 24 Jam')}`,
+                color: 0xED4245
               });
 
               return;
             }
 
-            // KASUS C: Link Phishing / Scam Nitro / QR Code
-            if (automodConfig.timeoutOnPhishing && message.member && message.member.moderatable) {
-              await message.member.timeout(60 * 60 * 1000, 'Terdeteksi mengirim link phishing/scam berbahaya').catch(() => {});
+            // KASUS C: Link Phishing / Scam Nitro / QR Code / Anti-Invite / MrBeast Crypto Scam
+            let isKicked = false;
+            let kickError = null;
+
+            // Untuk Phishing dan Scam berat: KICK pelaku
+            // Untuk Invite: jika dikonfigurasi atau forwarded invite scam: KICK / Timeout
+            const shouldKick = automodConfig.kickOnMalware && (!phishingCheck.isInvite || phishingCheck.isForwarded);
+
+            if (shouldKick && message.member && message.member.kickable) {
+              try {
+                await message.member.kick(`AutoMod Sentinel: ${phishingCheck.reason}`);
+                isKicked = true;
+              } catch (kErr) {
+                kickError = kErr.message;
+              }
             }
 
+            if (!isKicked && message.member && message.member.moderatable) {
+              const timeoutDuration = phishingCheck.isInvite ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000;
+              await message.member.timeout(timeoutDuration, `AutoMod: ${phishingCheck.reason}`).catch(() => {});
+            }
+
+            const actionText = isKicked
+              ? '🚨 **Pelaku telah di-KICK dari server!**'
+              : (phishingCheck.isInvite ? '⚠️ Pesan undangan server lain dihapus & akun di-timeout 10 menit.' : '⚠️ Akun di-timeout 24 jam.');
+
+            const alertTitle = phishingCheck.isInvite
+              ? '🚫 Undangan Server Tidak Diizinkan (Anti-Invite)'
+              : '🚨 Phishing / Scam Dicegah — Pelaku Dikeluarkan';
+
             const alertEmbed = new EmbedBuilder()
-              .setColor(0x2B2D31)
+              .setColor(0xED4245)
               .setAuthor({
                 name: `KEAMANAN SERVER — ${message.guild.name.toUpperCase()}`,
                 iconURL: message.guild.iconURL({ dynamic: true }) || undefined
               })
-              .setTitle('Tautan Mencurigakan / Phishing Diamankan')
+              .setTitle(alertTitle)
               .setDescription(
-                `Pesan dari <@${message.author.id}> telah dihapus secara otomatis demi keamanan seluruh member server.\n\n` +
+                `Pesan dari <@${message.author.id}> (\`${message.author.tag}\`) telah dihapus secara otomatis demi keamanan seluruh member server.\n\n` +
                 `• **Alasan:** \`${phishingCheck.reason}\`\n` +
-                `• **Tindakan:** Pesan dihapus & akun di-timeout 1 jam untuk pencegahan penyebaran scam.`
+                `• **Tautan / Pemicu:** \`${phishingCheck.url || 'Link Scam'}\`\n` +
+                `• **Tindakan:** ${actionText}\n` +
+                (phishingCheck.isForwarded ? '• **Metode:** Pesan Diteruskan (*Forwarded Message*)\n' : '')
               )
-              .setFooter({ text: 'Peringatan ini akan terhapus otomatis dalam 5 detik' })
+              .setFooter({ text: 'Tindakan dicatat di Mod Log • Pesan terhapus otomatis dalam 7 detik' })
               .setTimestamp();
 
             message.channel.send({ embeds: [alertEmbed] })
-              .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+              .then(m => setTimeout(() => m.delete().catch(() => {}), 7000))
               .catch(() => {});
 
-            // Log ke channel audit jika dikonfigurasi
-            if (automodConfig.logChannelId) {
-              const logChannel = message.guild.channels.cache.get(automodConfig.logChannelId);
-              if (logChannel) {
-                const logEmbed = new EmbedBuilder()
-                  .setColor(0x2B2D31)
-                  .setTitle('Log Anti-Phishing: Tautan Dihapus')
-                  .setDescription(
-                    `• **Pengirim:** <@${message.author.id}> (${message.author.tag})\n` +
-                    `• **Channel:** <#${message.channel.id}>\n` +
-                    `• **Alasan:** ${phishingCheck.reason}\n` +
-                    `• **Tautan:** \`${phishingCheck.url}\`\n` +
-                    `• **Isi Pesan Asli:**\n\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``
-                  )
-                  .setTimestamp();
-                logChannel.send({ embeds: [logEmbed] }).catch(() => {});
-              }
-            }
-
             await sendModLog(message.guild, client, {
-              action: 'AUTOMOD_TIMEOUT',
-              moderator: { id: client.user.id, username: 'AutoMod Sentinel' },
+              action: isKicked ? 'KICK' : 'AUTOMOD',
+              moderator: { id: client.user.id, username: 'AutoMod Sentinel', tag: client.user.tag },
               target: message.author,
               reason: phishingCheck.reason,
-              details: `Tautan phishing terdeteksi di <#${message.channel.id}>: \`${phishingCheck.url}\``
+              details: `• **Tindakan:** Pesan Dihapus & ${isKicked ? 'Pelaku di-KICK dari server' : 'Pelaku di-timeout'}.\n` +
+                       `• **Saluran:** <#${message.channel.id}>\n` +
+                       `• **Tautan/Pemicu:** \`${phishingCheck.url || '-'}\`\n` +
+                       `• **Pesan Forwarded:** ${phishingCheck.isForwarded ? 'Ya (Diteruskan)' : 'Tidak'}\n` +
+                       `• **Status Eksekusi:** ${isKicked ? 'Berhasil Di-kick' : (kickError ? `Gagal Kick (${kickError})` : 'Timeout')}`,
+              color: 0xED4245
             });
 
             return; // Hentikan pemrosesan pesan

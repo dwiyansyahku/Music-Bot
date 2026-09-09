@@ -42,7 +42,7 @@ function buildHelpEmbed(category, client, guild = null) {
               '• **Gacha & Kursi Tahta** — Koleksi relik, perebutan tahta, & duel strategi',
               '• **Kapsul Waktu** — Pesan rahasia terjadwal untuk masa depan',
               '• **Jadwal & Ulang Tahun** — Perayaan otomatis & event server',
-              '• **Voice & Achievements** — Tracking durasi voice & lencana',
+              '• **Voice, Sapaan AI & Pengingat Malam** — Tracking voice, sapaan AI, pengingat 22:00 WIB, & lencana',
               '• **Moderasi & Penjara** — Sistem warn, mute, jail, dan clear chat'
             ].join('\n'),
             inline: false
@@ -212,20 +212,36 @@ function buildHelpEmbed(category, client, guild = null) {
       return new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({ name: `PANDUAN FITUR — ${guildName.toUpperCase()}` })
-        .setTitle('Voice Tracking & Achievements')
+        .setTitle('Voice Tracker, Sapaan AI & Achievements')
         .setDescription(
           `**Fungsi:**\n` +
-          `Mencatat durasi aktif di Voice Channel, mendeteksi teman ngobrol terdekat (**Top Voice Companions**), dan membuka lencana pencapaian.\n\n` +
-          `◈ **Langkah Penggunaan:**\n` +
+          `Mencatat durasi aktif di Voice Channel, mendeteksi teman ngobrol terdekat (**Top Voice Companions**), membuka lencana pencapaian, serta menyapa member baru dengan suara AI perempuan natural.\n\n` +
+          `◈ **Sapaan Suara AI Perempuan (Voice Welcome AI):**\n` +
+          `• **Otomatis & Siap Pakai:** Bekerja di seluruh Voice Channel tanpa perlu setup manual.\n` +
+          `• **Suara AI Ramah:** Mengucapkan salam hangat (20+ variasi sapaan + salam waktu WIB) dan memanggil nama akun Discord kamu secara natural.\n` +
+          `• **Proteksi Anti-Troll:** Dilengkapi cooldown 15 menit per user dan 15 detik per saluran. Member yang iseng spam keluar-masuk (>3x dalam 10s) otomatis di-timeout 3 menit & dicatat ke Mod Log.\n` +
+          `• **Music Guard:** Tidak akan menimpa atau mengganggu musik yang sedang diputar bot di VC.\n` +
+          `• **Auto-Leave:** Bot pamit dan keluar secara otomatis 1.2 detik setelah sapaan selesai.\n\n` +
+          `◈ **Daftar Perintah Voice Welcome:**\n` +
+          `• \`/voicewelcome status\` — Cek status, cooldown, dan konfigurasi Voice Welcome AI.\n` +
+          `• \`/voicewelcome test\` — Uji coba dengar sapaan suara AI langsung di voice channel-mu!\n` +
+          `• \`/voicewelcome toggle [status]\` — Aktifkan / matikan fitur sapaan suara di server (Admin/Mod).\n` +
+          `• \`/voicewelcome setchannel [channel]\` — Batasi sapaan ke channel tertentu atau reset ke semua VC (Admin/Mod).\n\n` +
+          `◈ **Pengingat Istirahat Malam di Voice (22:00 WIB):**\n` +
+          `• **Otomatis Pukul 22:00 WIB:** Tepat pukul 22:00 WIB, jika di saluran voice tempat bot berada terdapat **lebih dari 1 orang member**, bot menyapa dengan suara AI perempuan mengingatkan untuk menyudahi kegiatan malam dan beristirahat.\n` +
+          `• **15+ Variasi Ucapan Hangat:** Kalimat pengingat dipilih acak, santai, dan penuh perhatian agar tidak monoton.\n` +
+          `• **Harmonisasi Musik:** Jika lagu sedang berputar, musik di-pause sejenak saat pengumuman dan otomatis dilanjutkan kembali setelahnya.\n` +
+          `• **Kartu Pesan Menenangkan:** Dilengkapi kartu teks embed estetik di text chat voice channel.\n\n` +
+          `◈ **Voice Tracking & Achievements:**\n` +
           `1. Cukup masuk dan aktif di Voice Channel seperti biasa.\n` +
           `2. Sistem bot mencatat jam aktifmu secara otomatis di latar belakang.\n` +
           `3. Semakin sering ngobrol bersama teman tertentu, namanya akan otomatis naik ke daftar teman terdekat di profilmu.\n` +
           `4. Raih target jam aktif untuk membuka lencana khusus!\n\n` +
-          `◈ **Perintah Terkait:**\n` +
+          `◈ **Perintah Voice Tracker:**\n` +
           `• \`/achievements\` — Cek daftar lencana yang sudah terbuka.\n` +
           `• \`/userinfo [user]\` — Cek statistik voice lengkap seseorang.`
         )
-        .setFooter({ text: 'Sistem pencatatan voice berjalan otomatis tanpa membebani performa' });
+        .setFooter({ text: 'Sistem pencatatan voice & sapaan AI berjalan otomatis tanpa membebani performa' });
 
     case 'mod':
       return new EmbedBuilder()
@@ -245,10 +261,17 @@ function buildHelpEmbed(category, client, guild = null) {
           `• \`/mod kick [user]\` — Keluarkan member dari server.\n` +
           `• \`/mod ban [user]\` — Blokir member dari server.\n` +
           `• \`/clear [jumlah]\` atau \`/qclear\` — Hapus pesan chat dalam jumlah banyak secara instan.\n\n` +
-          `◈ **Sistem Keamanan & Auto-Moderation:**\n` +
-          `• \`/automod status\` — Pantau konfigurasi Anti-Phishing, Anti-Spam, & Anti-Malware.\n` +
-          `• \`/automod toggle\` — Aktifkan/nonaktifkan modul keamanan & proteksi token/spam.\n` +
-          `• \`/automod setlog [channel]\` — Tentukan saluran log audit tindakan Auto-Mod.\n\n` +
+          `◈ **Sistem Keamanan & Auto-Moderation (Guardian Layer):**\n` +
+          `• \`/automod status\` — Pantau konfigurasi Anti-Phishing, Anti-Malware Arsip (.zip/.rar), Anti-Invite, Auto-Kick, & Anti-Spam.\n` +
+          `• \`/automod toggle\` — Ubah modul keamanan (\`phishing\`, \`malware\`, \`invite\`, \`kick\`, \`spam\`, \`badwords\`).\n` +
+          `• \`/mod setlogchannel [channel]\` — Saluran Mod Log audit terpusat (Auto-Kick, Ban, Jail, Voice Disconnect, Server Mute/Deafen, Anti-Nuke, Anti-Raid, Webhook, & Ghost Ping).\n\n` +
+          `◈ **Perlindungan Otomatis Tanpa Perintah (Passive Security):**\n` +
+          `• **🚨 Proteksi Anti-Nuke:** Memantau aksi beruntun moderator (channel/role delete, mass ban/kick). Jika melampaui batas wajar (15s), role izin berbahaya langsung dicabut & akun di-timeout 24 jam.\n` +
+          `• **🚪 Anti-Raid Join Gate:** Otomatis menolak & meng-kick akun kloningan/bot yang berusia **kurang dari 3 hari** serta mendeteksi lonjakan mass-join (> 5 akun dalam 10s).\n` +
+          `• **🔗 Proteksi Webhook Liar:** Menghapus seketika webhook tidak berwenang yang dibuat di channel server untuk mencegah broadcast scam.\n` +
+          `• **👻 Anti-Ghost Ping & Edit Monitor:** Melacak pesan mention yang sengaja dihapus cepat serta memindai pesan yang diedit menjadi link phising.\n` +
+          `• **🔒 Karantina Media Member Baru:** Member yang baru bergabung < 24 jam dibatasi mengirim file lampiran/media di chatroom umum.\n` +
+          `• **🛡️ Bot Voice Immunity (Anti-Mute & Anti-Deafen):** Bot kebal terhadap pembungkaman suara. Jika ada yang memasang Server Mute, Server Deafen, atau Self-Mute pada bot, bot seketika membatalkan status tersebut dalam hitungan milidetik agar suara bot selalu terdengar jelas.\n\n` +
           `◈ **Sistem Penjara (Jail System):**\n` +
           `• \`/fun jail [user] [durasi] [alasan]\` — Masukkan member ke penjara & isolasi channel server.\n` +
           `• \`/fun bail [user]\` — Bebaskan tahanan dari penjara lebih awal.\n` +
@@ -275,7 +298,7 @@ function buildHelpEmbed(category, client, guild = null) {
           },
           {
             name: '✦ Komunitas, Galeri & Profil',
-            value: '`/card`, `/setcard`, `/gallery submit`, `/gallery panel`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/achievements`, `/userinfo`, `/serverinfo`',
+            value: '`/card`, `/setcard`, `/gallery submit`, `/gallery panel`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/voicewelcome`, `/achievements`, `/userinfo`, `/serverinfo`',
             inline: false
           },
           {
@@ -341,8 +364,8 @@ function createHelpGuidePanelPayload(guild) {
         value: 'daily'
       },
       {
-        label: 'Voice Tracker & Badges',
-        description: 'Catatan jam voice, companions & lencana pencapaian',
+        label: 'Voice Tracker & Sapaan AI',
+        description: 'Jam voice, sapaan AI, pengingat malam 22:00 WIB & badge',
         value: 'voice'
       },
       {

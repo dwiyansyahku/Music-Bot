@@ -26,6 +26,8 @@ module.exports = {
               { name: 'Anti-Phishing & Scam Links', value: 'phishing' },
               { name: 'Anti-Spam & Message Flood', value: 'spam' },
               { name: 'Anti-Malware & File Berbahaya', value: 'malware' },
+              { name: 'Anti-Invite Server Discord', value: 'invite' },
+              { name: 'Auto-Kick Pelaku Malware/Scam', value: 'kick' },
               { name: 'Perlindungan Kebocoran Token', value: 'token' },
               { name: 'Filter Kata Kurang Pantas', value: 'badwords' },
               { name: 'Auto-Timeout Phishing (1 Jam)', value: 'timeout' },
@@ -118,10 +120,12 @@ module.exports = {
           `• **Sistem Auto-Mod:** \`${config.enabled ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Proteksi Anti-Phishing & Scam:** \`${config.antiPhishing ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Proteksi Anti-Spam (Flood/Duplikasi/Caps):** \`${config.antiSpam ? 'AKTIF' : 'NONAKTIF'}\`\n` +
-          `• **Proteksi Anti-Malware / Trojan File:** \`${config.antiMalware ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Proteksi Anti-Malware / Trojan & Arsip:** \`${config.antiMalware ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Proteksi Anti-Invite Server:** \`${config.antiInvite ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Auto-Kick Pelaku Malware/Scam:** \`${config.kickOnMalware ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Perlindungan Kebocoran Token:** \`${config.antiTokenLeak ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Filter Kata Kurang Pantas:** \`${config.badWords ? 'AKTIF' : 'NONAKTIF'}\`\n` +
-          `• **Auto-Timeout Phishing (1 Jam):** \`${config.timeoutOnPhishing ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Auto-Timeout Phishing (1 Jam Fallback):** \`${config.timeoutOnPhishing ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Auto-Timeout Spam (1 Menit):** \`${config.timeoutOnSpam ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Channel Log Audit:** ${logChannelText}\n` +
           `• **Kata Terlarang Khusus:** \`${config.customBadWords.length} kata\`\n` +
@@ -145,6 +149,8 @@ module.exports = {
       if (feature === 'badwords') allSettings[guildId].badWords = status;
       if (feature === 'spam') allSettings[guildId].antiSpam = status;
       if (feature === 'malware') allSettings[guildId].antiMalware = status;
+      if (feature === 'invite') allSettings[guildId].antiInvite = status;
+      if (feature === 'kick') allSettings[guildId].kickOnMalware = status;
       if (feature === 'token') allSettings[guildId].antiTokenLeak = status;
       if (feature === 'timeout') allSettings[guildId].timeoutOnPhishing = status;
       if (feature === 'timeout_spam') allSettings[guildId].timeoutOnSpam = status;

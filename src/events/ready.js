@@ -88,6 +88,14 @@ module.exports = {
     }, 15000);
 
     // =============================================
+    // INITIAL VOICE IMMUNITY RECOVERY SWEEP
+    // =============================================
+    const { enforceBotVoiceImmunity, broadcastVoiceNightReminder } = require('../utils/voiceWelcome');
+    for (const guild of client.guilds.cache.values()) {
+      enforceBotVoiceImmunity(guild, client).catch(() => { });
+    }
+
+    // =============================================
     // MASTER SCHEDULER — cek setiap menit (WIB)
     // =============================================
     if (!client.morningSettings) client.morningSettings = new Map();
@@ -97,6 +105,7 @@ module.exports = {
     const lastSentNight = new Map();
     const lastSentAnnounce = new Map(); // key: `${guildId}_${id}`
     let lastBirthdayCheck = ''; // "DD-MM" string
+    let lastVoiceNightReminder = ''; // "DD-MM" string
 
     setInterval(async () => {
       // ====== Hitung waktu WIB sekarang ======
@@ -165,6 +174,17 @@ module.exports = {
           console.log(`🌙 [Night] Terkirim ke ${guild.name} (${currentTimeKey} WIB)`);
         } catch (err) {
           console.error(`[Night] Gagal kirim ke guild ${guildId}:`, err.message);
+        }
+      }
+
+      // ====== 2.5. VOICE NIGHT REST REMINDER (22:00 WIB) ======
+      // Syarat: Jam 22:00 WIB, di VC yang ada botnya, terdapat LEBIH DARI 1 ORANG member aktif
+      if (currentHour === 22 && currentMinute === 0 && lastVoiceNightReminder !== birthdayKey) {
+        lastVoiceNightReminder = birthdayKey;
+        try {
+          await broadcastVoiceNightReminder(client);
+        } catch (vErr) {
+          console.error('⚠️ [Voice Night Reminder] Error:', vErr.message);
         }
       }
 
@@ -355,13 +375,13 @@ module.exports = {
                 member.send({ embeds: [embed] }).catch(() => {
                   // Fallback kirim ke channel jika DM terkunci
                   const channel = guild.channels.cache.get(cap.channelId);
-                  if (channel) channel.send({ content: `📮 <@${cap.userId}> *(DM terkunci, kapsul dikirimkan ke sini)*`, embeds: [embed] }).catch(() => {});
+                  if (channel) channel.send({ content: `📮 <@${cap.userId}> *(DM terkunci, kapsul dikirimkan ke sini)*`, embeds: [embed] }).catch(() => { });
                 });
-              }).catch(() => {});
+              }).catch(() => { });
             } else {
               const channel = guild.channels.cache.get(cap.channelId);
               if (channel) {
-                channel.send({ content: `📮 **Kapsul Waktu Terbuka!** <@${cap.userId}>`, embeds: [embed] }).catch(() => {});
+                channel.send({ content: `📮 **Kapsul Waktu Terbuka!** <@${cap.userId}>`, embeds: [embed] }).catch(() => { });
               }
             }
 
@@ -406,7 +426,7 @@ module.exports = {
             if (userCard.publishedMessageId) {
               const member = await guild.members.fetch(userId).catch(() => null);
               if (member) {
-                await publishCardToChannel(guild, member, client, true).catch(() => {});
+                await publishCardToChannel(guild, member, client, true).catch(() => { });
               }
             }
           }
@@ -420,7 +440,7 @@ module.exports = {
         const { updateDuelPanelIfExists } = require('../commands/gacha');
         if (updateDuelPanelIfExists) {
           for (const guild of client.guilds.cache.values()) {
-            await updateDuelPanelIfExists(guild, client).catch(() => {});
+            await updateDuelPanelIfExists(guild, client).catch(() => { });
           }
           console.log('[DuelSync] Panel Tahta & Arena Duel berhasil diperbarui otomatis pada startup.');
         }
@@ -459,7 +479,7 @@ module.exports = {
                 if (galleryChannel) {
                   const oldMsg = await galleryChannel.messages.fetch(userCard.publishedMessageId).catch(() => null);
                   if (oldMsg) {
-                    await oldMsg.delete().catch(() => {});
+                    await oldMsg.delete().catch(() => { });
                     console.log(`🧹 [Card Sweeper] Menghapus kartu usang milik user ${userId} di #${galleryChannel.name} (Sudah keluar).`);
                   }
                 }
@@ -471,7 +491,7 @@ module.exports = {
 
             // Sync live status jika member sedang ada di Voice Channel
             if (userCard.publishedMessageId && isUserInVoice(guild.id, userId)) {
-              await publishCardToChannel(guild, member, client, true).catch(() => {});
+              await publishCardToChannel(guild, member, client, true).catch(() => { });
             }
           }
 
@@ -483,7 +503,7 @@ module.exports = {
           try {
             const { updateMemberMapPanel } = require('../utils/memberMapHelper');
             await updateMemberMapPanel(guild, client);
-          } catch (_) {}
+          } catch (_) { }
         }
       } catch (err) {
         console.warn('[CardSync] Auto-sync published cards failed:', err.message);
@@ -518,25 +538,25 @@ module.exports = {
               delete currentJailData[guildId][userId];
               storage.write('jail', currentJailData);
               const { updateJailVisibility } = require('../utils/helpers');
-              await updateJailVisibility(guild).catch(() => {});
+              await updateJailVisibility(guild).catch(() => { });
 
               const member = await guild.members.fetch(userId).catch(() => null);
               if (member) {
-                await member.roles.set(data.originalRoles || []).catch(() => {});
-                await member.setNickname(data.originalNick || null).catch(() => {});
-                
+                await member.roles.set(data.originalRoles || []).catch(() => { });
+                await member.setNickname(data.originalNick || null).catch(() => { });
+
                 // Kembalikan ke voice channel asal jika ada, jika tidak ada/tidak valid putuskan koneksi voice
                 const jailConfig = settings[guildId]?.jail;
                 if (member.voice.channelId === jailConfig?.voiceChannelId) {
-                   let movedBack = false;
-                   if (data.originalVoiceChannelId) {
-                     await member.voice.setChannel(data.originalVoiceChannelId)
-                       .then(() => { movedBack = true; })
-                       .catch(() => {});
-                   }
-                   if (!movedBack) {
-                     await member.voice.disconnect('Bebas dari penjara!').catch(() => {});
-                   }
+                  let movedBack = false;
+                  if (data.originalVoiceChannelId) {
+                    await member.voice.setChannel(data.originalVoiceChannelId)
+                      .then(() => { movedBack = true; })
+                      .catch(() => { });
+                  }
+                  if (!movedBack) {
+                    await member.voice.disconnect('Bebas dari penjara!').catch(() => { });
+                  }
                 }
               }
 
@@ -549,7 +569,7 @@ module.exports = {
                   .setFooter({ text: 'Pengadilan Server' })
                   .setTimestamp();
 
-                await jailChannel.send({ content: `<@${userId}> kamu telah bebas.`, embeds: [freeEmbed] }).catch(() => {});
+                await jailChannel.send({ content: `<@${userId}> kamu telah bebas.`, embeds: [freeEmbed] }).catch(() => { });
               }
               console.log(`🔓 [Jail Startup] Berhasil membebaskan ${userId} di guild ${guild.name}`);
             } catch (err) {
@@ -567,10 +587,10 @@ module.exports = {
             setTimeout(releaseUser, timeLeft);
           }
         }
-        
+
         // Set visibilitas awal pada boot
         const { updateJailVisibility } = require('../utils/helpers');
-        await updateJailVisibility(guild).catch(() => {});
+        await updateJailVisibility(guild).catch(() => { });
       }
       if (jailCount > 0) {
         console.log(`✅ [Jail Startup] Berhasil memproses ${jailCount} tahanan aktif.`);
@@ -594,7 +614,7 @@ module.exports = {
             const msg = await ch.messages.fetch(guildSettings.cardHubMessageId).catch(() => null);
             if (msg) {
               const payload = createCardHubPayload(guild);
-              await msg.edit(payload).catch(() => {});
+              await msg.edit(payload).catch(() => { });
               console.log(`✨ [CardHub] Panel #create-card otomatis diperbarui untuk ${guild.name}`);
             }
           }
@@ -619,7 +639,7 @@ module.exports = {
             const msg = await ch.messages.fetch(guildSettings.helpPanelMessageId).catch(() => null);
             if (msg) {
               const payload = createHelpGuidePanelPayload(guild);
-              await msg.edit(payload).catch(() => {});
+              await msg.edit(payload).catch(() => { });
               console.log(`📖 [HelpPanel] Direktori panduan otomatis diperbarui untuk ${guild.name}`);
             }
           }

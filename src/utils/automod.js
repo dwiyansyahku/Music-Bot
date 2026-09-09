@@ -1,12 +1,30 @@
 const { PermissionFlagsBits } = require('discord.js');
 const storage = require('./storage');
 
-// Ekstensi file berbahaya yang sering digunakan untuk Trojan, Token Grabber & RAT
+// Ekstensi file langsung berbahaya (Executables, Scripts, & Installers)
 const MALICIOUS_FILE_EXTENSIONS = [
   '.exe', '.scr', '.bat', '.cmd', '.vbs', '.vbe', '.js', '.jse',
   '.wsf', '.wsh', '.ps1', '.ps1xml', '.jar', '.apk', '.com', '.pif',
-  '.hta', '.cpl', '.msi', '.msp', '.gadget', '.reg'
+  '.hta', '.cpl', '.msi', '.msp', '.gadget', '.reg', '.dll', '.drv',
+  '.sys', '.deb', '.rpm', '.sh', '.bash', '.appimage'
 ];
+
+// Ekstensi file arsip yang sering digunakan untuk menyamarkan Trojan / Token Grabber
+const ARCHIVE_FILE_EXTENSIONS = [
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.img', '.bin', '.cab', '.xz', '.bz2'
+];
+
+// Kata kunci nama file malware / trojan yang sangat mencurigakan (contoh: FPS_BOOST.zip)
+const SUSPICIOUS_FILENAME_KEYWORDS = [
+  'boost', 'fps', 'cheat', 'hack', 'crack', 'patch', 'stealer', 'grabber',
+  'token', 'generator', 'nitro', 'promo', 'bypass', 'spoofer', 'injector',
+  'aimbot', 'robux', 'free', 'gift', 'modmenu', 'mod_menu', 'exploit',
+  'wallet', 'crypto', 'airdrop', 'giveaway', 'reshade', 'res shade', 'unlocker',
+  'fps_boost', 'fpsboost', 'gingamb', 'free_nitro', 'nitro_free', 'trojan'
+];
+
+// Pola regex link undangan Discord
+const DISCORD_INVITE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:discord\.(?:gg|io|me|li|com\/invite)|discordapp\.com\/invite)\/([a-zA-Z0-9-]{2,32})/gi;
 
 // Pola regex Token Discord (User Account & Bot Token) untuk mencegah kebocoran kredensial
 const DISCORD_TOKEN_REGEX = /(?:mfa\.[a-zA-Z0-9_-]{84}|[a-zA-Z0-9_-]{24,28}\.[a-zA-Z0-9_-]{6}\.[a-zA-Z0-9_-]{27,38})/g;
@@ -143,7 +161,16 @@ const KNOWN_MALICIOUS_DOMAINS = [
   'discorcl.com',
   'dlscord.com',
   'ps3cfw.com',
-  'shorte.st'
+  'shorte.st',
+  'gingamb.at',
+  'gingamb.com',
+  'gingamb.net',
+  'mrbeast-promo.at',
+  'mrbeast-bonus.com',
+  'claim-usdt.com',
+  'free-usdt.net',
+  'crypto-bonus.net',
+  'usdt-giveaway.org'
 ];
 
 /**
@@ -263,22 +290,54 @@ function checkBadWords(content, customBadWords = [], whitelistedWords = []) {
 }
 
 /**
- * Deteksi apakah pesan/gambar mengandung link phishing, scam, malware grabber, atau kebocoran token
+ * Deteksi apakah pesan/gambar mengandung link phishing, scam, malware grabber, invite terlarang, atau kebocoran token
  */
 function checkPhishing(messageOrContent) {
   let content = '';
   let attachments = [];
   let embeds = [];
+  let isForwarded = false;
+  let member = null;
 
   if (typeof messageOrContent === 'string') {
     content = messageOrContent;
   } else if (messageOrContent && typeof messageOrContent === 'object') {
     content = messageOrContent.content || '';
+    member = messageOrContent.member || null;
+
     if (messageOrContent.attachments) {
       attachments = Array.from(messageOrContent.attachments.values());
     }
     if (messageOrContent.embeds) {
-      embeds = messageOrContent.embeds;
+      embeds = [...messageOrContent.embeds];
+    }
+
+    // ─── DUKUNGAN PESAN FORWARDED (messageSnapshots di Discord.js) ───
+    if (messageOrContent.messageSnapshots && messageOrContent.messageSnapshots.size > 0) {
+      isForwarded = true;
+      for (const [, snapshot] of messageOrContent.messageSnapshots) {
+        if (snapshot.content) {
+          content += '\n' + snapshot.content;
+        }
+        if (snapshot.attachments && snapshot.attachments.size > 0) {
+          attachments.push(...snapshot.attachments.values());
+        }
+        if (snapshot.embeds && snapshot.embeds.length > 0) {
+          embeds.push(...snapshot.embeds);
+        }
+      }
+    }
+  }
+
+  // Ekstrak teks dari embeds (url, title, description, fields)
+  for (const emb of embeds) {
+    if (emb.url) content += `\n${emb.url}`;
+    if (emb.title) content += `\n${emb.title}`;
+    if (emb.description) content += `\n${emb.description}`;
+    if (emb.fields && Array.isArray(emb.fields)) {
+      for (const f of emb.fields) {
+        content += `\n${f.name || ''} ${f.value || ''}`;
+      }
     }
   }
 
@@ -291,22 +350,75 @@ function checkPhishing(messageOrContent) {
     return {
       isPhishing: true,
       isTokenLeak: true,
+      isForwarded,
       reason: 'Kebocoran Token Discord (Akun/Bot) terdeteksi di dalam pesan.',
       url: 'TOKEN_DISCORD_RAHASIA'
     };
   }
 
-  // 0B. CEK LAMPIRAN FILE BERBAHAYA (TROJAN, TOKEN STEALER, RAT & MALWARE)
+  // 0B. CEK LAMPIRAN FILE BERBAHAYA (TROJAN, TOKEN STEALER, RAT, MALWARE & ARSIP MENCURIGAKAN)
+  const doubleExtRegex = /\.(png|jpg|jpeg|gif|pdf|docx|xlsx|txt|mp4|mp3)\.(exe|scr|bat|cmd|vbs|ps1|apk|msi|zip|rar)$/i;
+
   for (const att of attachments) {
     const fn = (att.name || '').toLowerCase();
-    const isDangerous = MALICIOUS_FILE_EXTENSIONS.some(ext => fn.endsWith(ext) || fn.includes(ext + '.'));
-    if (isDangerous) {
+
+    // 1. Ekstensi berbahaya langsung (.exe, .scr, .bat, .cmd, dll.)
+    const isMaliciousDirect = MALICIOUS_FILE_EXTENSIONS.some(ext => fn.endsWith(ext) || fn.includes(ext + '.'));
+    if (isMaliciousDirect) {
       return {
         isPhishing: true,
         isMalware: true,
-        reason: `Lampiran file berbahaya / Trojan / Token Grabber terdeteksi (\`${att.name}\`).`,
+        isForwarded,
+        reason: `Lampiran file berbahaya / Trojan / Executable terdeteksi (\`${att.name}\`).`,
         filename: att.name,
         url: att.name
+      };
+    }
+
+    // 2. Serangan ekstensi ganda (Double Extension Attack, misal: invoice.pdf.exe)
+    if (doubleExtRegex.test(fn)) {
+      return {
+        isPhishing: true,
+        isMalware: true,
+        isForwarded,
+        reason: `Lampiran file manipulatif dengan ekstensi ganda terdeteksi (\`${att.name}\`).`,
+        filename: att.name,
+        url: att.name
+      };
+    }
+
+    // 3. File arsip (.zip, .rar, .7z) dengan nama mencurigakan (seperti FPS_BOOST.zip, Nitro_Gen.rar)
+    const isArchive = ARCHIVE_FILE_EXTENSIONS.some(ext => fn.endsWith(ext));
+    if (isArchive) {
+      const hasSuspiciousKeyword = SUSPICIOUS_FILENAME_KEYWORDS.some(kw => fn.includes(kw));
+      if (hasSuspiciousKeyword) {
+        return {
+          isPhishing: true,
+          isMalware: true,
+          isForwarded,
+          reason: `Lampiran arsip berbahaya terindikasi Trojan / Token Grabber (\`${att.name}\`).`,
+          filename: att.name,
+          url: att.name
+        };
+      }
+    }
+  }
+
+  // 0C. CEK LINK UNDANGAN DISCORD (ANTI-INVITE)
+  const isStaff = member && (
+    member.permissions?.has(PermissionFlagsBits.ManageGuild) ||
+    member.permissions?.has(PermissionFlagsBits.Administrator)
+  );
+
+  const inviteMatches = content.match(DISCORD_INVITE_REGEX);
+  if (inviteMatches && inviteMatches.length > 0) {
+    if (!isStaff) {
+      return {
+        isPhishing: true,
+        isInvite: true,
+        isForwarded,
+        reason: 'Link undangan Discord server lain (Anti-Invite). Promosi server tidak diizinkan.',
+        url: inviteMatches[0]
       };
     }
   }
@@ -323,7 +435,7 @@ function checkPhishing(messageOrContent) {
       // A. Cek domain terkonfirmasi berbahaya
       for (const malDomain of KNOWN_MALICIOUS_DOMAINS) {
         if (hostname === malDomain || hostname.endsWith(`.${malDomain}`)) {
-          return { isPhishing: true, reason: 'Domain terindikasi IP Logger / Scam link berbahaya.', url: rawUrl };
+          return { isPhishing: true, isForwarded, reason: 'Domain terindikasi IP Logger / Scam link berbahaya.', url: rawUrl };
         }
       }
 
@@ -334,39 +446,45 @@ function checkPhishing(messageOrContent) {
         const fakeDiscordMatch = hostname.match(/(disord|dlscord|dlsord|dicord|discrod|disccord|discorcl|discort|discrold|discood)/i);
         const fakeSteamMatch = hostname.match(/(steamcommuntiy|steamcomminuty|steamcommuniity|steamcommunitys|steamcomunty|steancommunity|steam-trade|steam-gift|steam-nitro|trade-offer.*steam)/i);
         const nitroKeywordsMatch = hostname.match(/(discord.*nitro|nitro.*discord|discord.*gift|free.*nitro|claim.*nitro|steam.*nitro|nitro.*drop|discord.*airdrop|nitro.*boost|discord.*event|nitro.*claim)/i);
-        const mrBeastDomainMatch = hostname.match(/(mrbeast|beast.*gift|beast.*drop|beast.*claim|beast.*promo|elon.*crypto|free.*robux)/i);
+        const mrBeastDomainMatch = hostname.match(/(mrbeast|beast.*gift|beast.*drop|beast.*claim|beast.*promo|elon.*crypto|free.*robux|gingamb)/i);
 
         if (fakeDiscordMatch || fakeSteamMatch || nitroKeywordsMatch) {
-          return { isPhishing: true, reason: 'Domain meniru layanan resmi Discord/Nitro/Steam (Fake Phishing Scam).', url: rawUrl };
+          return { isPhishing: true, isForwarded, reason: 'Domain meniru layanan resmi Discord/Nitro/Steam (Fake Phishing Scam).', url: rawUrl };
         }
 
         if (mrBeastDomainMatch) {
-          return { isPhishing: true, reason: 'Domain palsu mengatasnamakan MrBeast / Giveaway Scam.', url: rawUrl };
+          return { isPhishing: true, isForwarded, reason: 'Domain palsu mengatasnamakan MrBeast / Giveaway Scam.', url: rawUrl };
         }
       }
     } catch (_) {}
   }
 
-  // 2. CEK POLA SCAM MRBEAST & CELEBRITY GIVEAWAY
+  // 2. CEK POLA SCAM MRBEAST, GINGAMB & CRYPTO GIVEAWAY
   const isMrBeastScam = (
     rawLower.includes('mrbeast') || rawLower.includes('mr beast') ||
     rawLower.includes('beast giveaway') || rawLower.includes('beast promo') ||
-    rawLower.includes('elon musk giveaway') || rawLower.includes('crypto airdrop')
+    rawLower.includes('gingamb') || rawLower.includes('elon musk giveaway') ||
+    rawLower.includes('crypto airdrop') || rawLower.includes('crypto casino')
   );
 
   const hasGiveawayKeywords = (
     rawLower.includes('giveaway') || rawLower.includes('claim') ||
+    rawLower.includes('bonus') || rawLower.includes('5400') ||
+    rawLower.includes('5,400') || rawLower.includes('usdt') ||
+    rawLower.includes('promo code') || rawLower.includes('reward received') ||
+    rawLower.includes('withdrawal') || rawLower.includes('activate code') ||
     rawLower.includes('1000$') || rawLower.includes('10,000$') ||
     rawLower.includes('gift card') || rawLower.includes('free robux') ||
     rawLower.includes('airdrop') || rawLower.includes('prize')
   );
 
-  // Jika menyebut MrBeast/Giveaway besar dan menyertakan URL tidak resmi atau attachment
+  // Jika menyebut MrBeast/Gingamb/Giveaway besar dan menyertakan URL tidak resmi atau attachment/scam keyword
   if (isMrBeastScam && (urls.length > 0 || attachments.length > 0 || hasGiveawayKeywords)) {
     return {
       isPhishing: true,
-      reason: 'Pesan terindikasi Scam / Phishing palsu mengatasnamakan MrBeast / Giveaway.',
-      url: urls[0] || 'Gambar / Banner Giveaway Palsu'
+      isForwarded,
+      reason: 'Pesan terindikasi Scam Crypto / Phishing palsu mengatasnamakan MrBeast / Giveaway USDT.',
+      url: urls[0] || (attachments[0]?.name ? `Lampiran: ${attachments[0].name}` : 'Gambar / Banner Giveaway Palsu')
     };
   }
 
@@ -382,6 +500,7 @@ function checkPhishing(messageOrContent) {
   if (isQrCodeLoginTrap) {
     return {
       isPhishing: true,
+      isForwarded,
       reason: 'Jebakan Scam QR Code Login (Mencuri Akun / Token Discord via Scan QR).',
       url: 'QR Code Scam Image'
     };
@@ -396,6 +515,7 @@ function checkPhishing(messageOrContent) {
   if (isGameBetaScam) {
     return {
       isPhishing: true,
+      isForwarded,
       reason: 'Pesan terindikasi modus Trojan Grabber berkedok uji coba game baru (Beta Game Scam).',
       url: urls[0] || 'Game Installer'
     };
@@ -407,10 +527,12 @@ function checkPhishing(messageOrContent) {
     if (
       fn.includes('mrbeast') || fn.includes('nitro_gift') ||
       fn.includes('free_nitro') || fn.includes('qr_login') ||
-      fn.includes('claim_reward') || fn.includes('airdrop_proof')
+      fn.includes('claim_reward') || fn.includes('airdrop_proof') ||
+      fn.includes('gingamb') || fn.includes('fps_boost') || fn.includes('usdt')
     ) {
       return {
         isPhishing: true,
+        isForwarded,
         reason: 'Gambar lampiran terindikasi banner promosi phishing / scam.',
         url: att.name
       };
@@ -426,7 +548,7 @@ function checkPhishing(messageOrContent) {
   ) && urls.length > 0;
 
   if (hasMassMention && hasScamKeywords) {
-    return { isPhishing: true, reason: 'Pola pesan terdeteksi sebagai broadcast scam massal.', url: urls[0] || 'Tautan Eksternal' };
+    return { isPhishing: true, isForwarded, reason: 'Pola pesan terdeteksi sebagai broadcast scam massal.', url: urls[0] || 'Tautan Eksternal' };
   }
 
   return { isPhishing: false, reason: null, url: null };
@@ -628,9 +750,11 @@ function getGuildAutomodSettings(guildId) {
     antiSpam: guildSettings.antiSpam !== false, // default: true
     antiMalware: guildSettings.antiMalware !== false, // default: true
     antiTokenLeak: guildSettings.antiTokenLeak !== false, // default: true
-    timeoutOnPhishing: guildSettings.timeoutOnPhishing !== false, // default: true (1 jam)
+    antiInvite: guildSettings.antiInvite !== false, // default: true
+    kickOnMalware: guildSettings.kickOnMalware !== false, // default: true (Auto-Kick pelaku)
+    timeoutOnPhishing: guildSettings.timeoutOnPhishing !== false, // default: true (1 jam fallback)
     timeoutOnSpam: guildSettings.timeoutOnSpam !== false, // default: true (1 menit)
-    logChannelId: guildSettings.modLogChannelId || null,
+    logChannelId: guildSettings.modLogChannel || guildSettings.modLogChannelId || null,
     customBadWords: guildSettings.customBadWords || [],
     whitelistedWords: guildSettings.whitelistedWords || [],
     ignoredRoles: guildSettings.automodIgnoredRoles || [],
@@ -647,5 +771,8 @@ module.exports = {
   OFFICIAL_DOMAINS,
   KNOWN_MALICIOUS_DOMAINS,
   MALICIOUS_FILE_EXTENSIONS,
+  ARCHIVE_FILE_EXTENSIONS,
+  SUSPICIOUS_FILENAME_KEYWORDS,
+  DISCORD_INVITE_REGEX,
   DISCORD_TOKEN_REGEX
 };

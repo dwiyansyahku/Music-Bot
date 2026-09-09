@@ -11,9 +11,93 @@ const WELCOME_MESSAGES = [
   (name, server) => `Hello **${name}**! Baru mendarat di **${server}** nih?\nYuk langsung ramaikan chatroom atau mabar game di voice channel.`
 ];
 
+// Tracker lonjakan join massal per guild (in-memory)
+const joinSpikeTracker = new Map();
+
 module.exports = {
   name: 'guildMemberAdd',
   async execute(member, client) {
+    const guild = member.guild;
+    const now = Date.now();
+
+    // ─── 1. ANTI-RAID: PEMERIKSAAN UMUR AKUN MINIMAL (MIN 3 HARI / 72 JAM) ───
+    const accountAgeMs = now - member.user.createdTimestamp;
+    const minAgeMs = 3 * 24 * 60 * 60 * 1000; // 3 hari
+
+    if (accountAgeMs < minAgeMs && !member.user.bot) {
+      const ageHours = Math.max(1, Math.floor(accountAgeMs / (1000 * 60 * 60)));
+      const ageDays = (accountAgeMs / (1000 * 60 * 60 * 24)).toFixed(1);
+
+      console.warn(`🚨 [Anti-Raid] Akun baru bergabung di ${guild.name}: ${member.user.tag} (${member.id}) — Umur baru ${ageHours} jam.`);
+
+      // Kirim pesan edukasi ke DM user sebelum di-kick
+      try {
+        await member.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xED4245)
+              .setTitle(`🛡️ Akses Server Ditolak — ${guild.name}`)
+              .setDescription(
+                `Halo **${member.user.username}**,\n\n` +
+                `Demi menjaga keamanan komunitas dari serangan bot raid dan akun kloningan, server **${guild.name}** mewajibkan akun Discord berusia **minimal 3 hari (72 jam)**.\n\n` +
+                `• **Umur Akunmu:** ${ageHours < 24 ? `${ageHours} jam` : `${ageDays} hari`}\n` +
+                `• **Syarat Minimal:** 3 hari (72 jam)\n\n` +
+                `Silakan bergabung kembali setelah akunmu melewati batas usia minimal ya. Terima kasih atas pengertiannya! 🙏`
+              )
+          ]
+        }).catch(() => {});
+      } catch (_) {}
+
+      // Kick akun dari server
+      let kickSuccess = false;
+      if (member.kickable) {
+        await member.kick('Anti-Raid: Umur akun < 3 hari (Pencegahan bot raid)').then(() => {
+          kickSuccess = true;
+        }).catch(err => {
+          console.error('[Anti-Raid Kick Error]:', err.message);
+        });
+      }
+
+      // Kirim log ke Mod Log
+      const { sendModLog } = require('../utils/modlog');
+      await sendModLog(guild, client, {
+        action: 'ANTI_RAID',
+        moderator: { id: client.user.id, username: 'Anti-Raid Gatekeeper', tag: client.user.tag },
+        target: member.user,
+        reason: `Akun baru berusia ${ageHours} jam (kurang dari 3 hari). Dikeluarkan otomatis.`,
+        details: `• **Akun Terdeteksi:** <@${member.user.id}> (\`${member.user.tag}\`)\n` +
+                 `• **Tanggal Dibuat:** <t:${Math.floor(member.user.createdTimestamp / 1000)}:R> (<t:${Math.floor(member.user.createdTimestamp / 1000)}:F>)\n` +
+                 `• **Umur Akun:** ${ageHours < 24 ? `${ageHours} jam` : `${ageDays} hari`}\n` +
+                 `• **Tindakan:** ${kickSuccess ? '✅ Berhasil di-KICK dari server' : '⚠️ Gagal kick (Role bot tidak mencukupi)'}`,
+        color: 0xED4245
+      });
+
+      return; // Hentikan alur agar tidak kirim welcome embed
+    }
+
+    // ─── 2. ANTI-RAID: DETEKSI LONJAKAN MASS-JOIN (SPIKE DETECTION) ───
+    let joinTimestamps = joinSpikeTracker.get(guild.id) || [];
+    joinTimestamps = joinTimestamps.filter(t => now - t <= 10000); // 10 detik terakhir
+    joinTimestamps.push(now);
+    joinSpikeTracker.set(guild.id, joinTimestamps);
+
+    if (joinTimestamps.length >= 5) {
+      console.warn(`🚨 [Anti-Raid Spike] Terdeteksi ${joinTimestamps.length} member bergabung dalam 10 detik di ${guild.name}!`);
+      const { sendModLog } = require('../utils/modlog');
+      await sendModLog(guild, client, {
+        action: 'ANTI_RAID',
+        moderator: { id: client.user.id, username: 'Anti-Raid Sentinel', tag: client.user.tag },
+        target: member.user,
+        reason: 'Lonjakan Mass-Join Terdeteksi (Potensi Serangan Raid)',
+        details: `⚠️ **PERINGATAN: LONJAKAN MEMBER BERGABUNG**\n` +
+                 `• **Jumlah Akun Bergabung:** ${joinTimestamps.length} akun dalam 10 detik terakhir!\n` +
+                 `• **Akun Terakhir:** <@${member.user.id}> (\`${member.user.tag}\`)\n` +
+                 `• **Saran Staff:** Segera pantau saluran teks atau aktifkan Server Verification level tinggi jika terjadi spam.`,
+        color: 0xED4245
+      });
+    }
+
+    // ─── 3. WELCOME SYSTEM ───
     const config = client.welcomeSettings?.get(member.guild.id);
     if (!config || !config.channelId || !config.enabled) return;
 
@@ -31,7 +115,6 @@ module.exports = {
       return;
     }
 
-    const guild = member.guild;
     const memberCount = guild.memberCount;
     const avatarURL = member.user.displayAvatarURL({ dynamic: true, size: 256 });
 

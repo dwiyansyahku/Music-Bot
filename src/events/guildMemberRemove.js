@@ -1,5 +1,7 @@
 const storage = require('../utils/storage');
 const { GALLERY_CHANNEL_ID } = require('../utils/cardHandler');
+const { AuditLogEvent, PermissionFlagsBits } = require('discord.js');
+const { checkAntiNuke } = require('../utils/antiNuke');
 
 module.exports = {
   name: 'guildMemberRemove',
@@ -7,6 +9,25 @@ module.exports = {
     const guild = member.guild;
     const guildId = guild.id;
     const userId = member.id;
+
+    // ─── ANTI-NUKE KICK MONITOR ───
+    try {
+      if (guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
+        const auditLogs = await guild.fetchAuditLogs({
+          type: AuditLogEvent.MemberKick,
+          limit: 1
+        }).catch(() => null);
+
+        const entry = auditLogs?.entries.first();
+        if (entry && (Date.now() - entry.createdTimestamp < 5000) && entry.target?.id === userId) {
+          if (entry.executor) {
+            await checkAntiNuke(guild, entry.executor, 'kick', member.user?.tag || userId, client);
+          }
+        }
+      }
+    } catch (nukeErr) {
+      console.warn('[guildMemberRemove AntiNuke Kick Error]:', nukeErr.message);
+    }
 
     try {
       const cardsData = storage.read('cards');

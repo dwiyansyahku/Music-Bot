@@ -5,6 +5,9 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   MessageFlags,
   PermissionFlagsBits
 } = require('discord.js');
@@ -969,7 +972,7 @@ const TIER_RANK = {
 const GACHA_SHOP_ITEMS = [
   {
     id: 'ticket_1',
-    name: '1x Gacha Ticket',
+    name: '1x Tiket Gacha',
     cost: 100,
     desc: 'Tiket standar untuk membuka 1 Kotak Misteri Gacha.',
     type: 'ticket',
@@ -977,58 +980,58 @@ const GACHA_SHOP_ITEMS = [
   },
   {
     id: 'ticket_5',
-    name: '5x Gacha Ticket Bundle',
+    name: '5x Tiket Gacha (Bundle)',
     cost: 450,
-    desc: 'Paket hemat 5 tiket gacha (Diskon 10%!).',
+    desc: 'Paket hemat 5 tiket gacha (Diskon 10%).',
     type: 'ticket',
     amount: 5
   },
   {
     id: 'ticket_10',
-    name: '10x Gacha Ticket Bundle',
+    name: '10x Tiket Gacha (Bundle)',
     cost: 850,
-    desc: 'Paket sultan 10 tiket gacha sekaligus (Diskon 15%!).',
+    desc: 'Paket sultan 10 tiket gacha sekaligus (Diskon 15%).',
     type: 'ticket',
     amount: 10
   },
   {
     id: 'rain_stardust',
-    name: '🌧️ Hujan Stardust (Bagi Rezeki)',
+    name: 'Hujan Stardust (Bagi Rezeki)',
     cost: 500,
     desc: 'Lepaskan hujan debu bintang di chat publik! 5 orang tercepat yang menekan tombol akan mendapat 50–100 Stardust.',
     type: 'rain'
   },
   {
     id: 'throne_shield',
-    name: '🛡️ Perisai Tahta (+3 Jam Kebal)',
+    name: 'Perisai Tahta (+3 Jam Kebal)',
     cost: 750,
     desc: 'Perpanjang masa kekebalan tahta (+3 Jam) dari tantangan duel. Khusus pemegang tahta Mythic/Legendary.',
     type: 'shield'
   },
   {
     id: 'duel_reset',
-    name: '⚡ Jimat Balas Dendam (Reset CD)',
+    name: 'Jimat Balas Dendam (Reset CD)',
     cost: 350,
     desc: 'Hapus masa jeda cooldown 30 menit setelah kalah duel agar bisa langsung menantang tahta kembali seketika.',
     type: 'duel_reset'
   },
   {
     id: 'mystery_box',
-    name: '🎁 Kotak Misteri Semesta',
+    name: 'Kotak Misteri Semesta',
     cost: 300,
-    desc: 'Buka kotak kejutan! Berisi tiket berlipat, jackpot hingga 1.000 Dust, relik acak, atau gelar rahasia "Lucky Star".',
+    desc: 'Buka kotak kejutan! Berisi tiket berlipat, jackpot hingga 1.200 Dust, relik acak, atau gelar rahasia "Lucky Star".',
     type: 'mystery_box'
   },
   {
     id: 'lucky_charm',
-    name: '🍀 Jimat Keberuntungan (2x Rate)',
+    name: 'Jimat Keberuntungan (2x Rate)',
     cost: 400,
     desc: 'Gandakan peluang (2x Rate) memperoleh relik Mythic & Legendary untuk 3 tarikan gacha berikutnya.',
     type: 'lucky_charm'
   },
   {
     id: 'custom_title',
-    name: '📜 Gulungan Gelar Kustom',
+    name: 'Gulungan Gelar Kustom',
     cost: 1500,
     desc: 'Dapatkan hak istimewa membuat gelar kustom sendiri untuk dipasang di profil kartumu lewat /gacha customtitle.',
     type: 'custom_title_scroll'
@@ -3143,8 +3146,14 @@ function createPullPanelPayload(guild) {
       .setStyle(ButtonStyle.Secondary)
   ];
 
-  const row = new ActionRowBuilder().addComponents(buttons);
-  return { embeds: [embed], components: [row] };
+  const row1 = new ActionRowBuilder().addComponents(buttons);
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_shop')
+      .setLabel('Toko Stardust / Shop')
+      .setStyle(ButtonStyle.Success)
+  );
+  return { embeds: [embed], components: [row1, row2] };
 }
 
 /**
@@ -4056,7 +4065,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
 
     let luckyText = '';
     if (pullResult.luckyBuffActive) {
-      luckyText = `\n• 🍀 **Jimat Keberuntungan:** 2x Rate Mythic & Legendary aktif! (Sisa: **${userData.luckyBuffPulls || 0}x**)`;
+      luckyText = `\n• **Jimat Keberuntungan:** 2x Rate Mythic & Legendary aktif! (Sisa: **${userData.luckyBuffPulls || 0}x**)`;
     }
 
     const embed = new EmbedBuilder()
@@ -4158,7 +4167,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
   const luckyPullsCount = results.filter(r => r.luckyBuffActive).length;
   let luckySummary = '';
   if (luckyPullsCount > 0) {
-    luckySummary = `• 🍀 **${luckyPullsCount}x Tarikan** diperkuat oleh Jimat Keberuntungan (Sisa: **${userData.luckyBuffPulls || 0}x**)\n`;
+    luckySummary = `• **${luckyPullsCount}x Tarikan** diperkuat oleh Jimat Keberuntungan (Sisa: **${userData.luckyBuffPulls || 0}x**)\n`;
   }
 
   const multiEmbed = new EmbedBuilder()
@@ -4587,6 +4596,10 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
       .setLabel('Tarik 10x')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
+      .setCustomId('gacha_btn_shop')
+      .setLabel('Toko Stardust')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
       .setCustomId('gacha_btn_album')
       .setLabel('Cek Album')
       .setStyle(ButtonStyle.Secondary),
@@ -4596,7 +4609,9 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
       .setStyle(ButtonStyle.Secondary)
   ];
 
-  // Tombol pintas Tantang Tahta jika melihat inventaris sendiri & memiliki relik eligible (maksimal 5 tombol per ActionRow)
+  const rows = [new ActionRowBuilder().addComponents(invButtons)];
+
+  // Tombol pintas Tantang Tahta jika melihat inventaris sendiri & memiliki relik eligible
   if (user.id === interaction.user.id) {
     const hasMythic = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'MYTHIC');
     const hasLegendary = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'LEGENDARY');
@@ -4608,16 +4623,16 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
     }
 
     if (challengeTier) {
-      invButtons.push(
-        new ButtonBuilder()
-          .setCustomId(`gacha_btn_challenge_prompt:${challengeTier}`)
-          .setLabel('Tantang Tahta')
-          .setStyle(ButtonStyle.Danger)
+      rows.push(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`gacha_btn_challenge_prompt:${challengeTier}`)
+            .setLabel('Tantang Tahta')
+            .setStyle(ButtonStyle.Danger)
+        )
       );
     }
   }
-
-  const row = new ActionRowBuilder().addComponents(invButtons);
 
   const gChannels = settingsData[guildId]?.gachaChannels || {};
   const umumChannelId = gChannels.umum;
@@ -4631,7 +4646,7 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
       sentMessage = await umumChannel.send({
         content: `<@${user.id}>`,
         embeds: [embed],
-        components: [row]
+        components: rows
       }).catch(() => null);
       if (sentMessage) sentInUmum = true;
     }
@@ -4656,6 +4671,10 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
         .setStyle(ButtonStyle.Link)
         .setURL(msgUrl),
       new ButtonBuilder()
+        .setCustomId('gacha_btn_shop')
+        .setLabel('Toko Stardust')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
         .setCustomId('gacha_btn_album')
         .setLabel('Cek Album')
         .setStyle(ButtonStyle.Secondary)
@@ -4668,9 +4687,698 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
   }
 
   if (interaction.replied || interaction.deferred) {
-    return interaction.editReply({ content: `<@${user.id}>`, embeds: [embed], components: [row] });
+    return interaction.editReply({ content: `<@${user.id}>`, embeds: [embed], components: rows });
   }
-  return interaction.reply({ content: `<@${user.id}>`, embeds: [embed], components: [row] });
+  return interaction.reply({ content: `<@${user.id}>`, embeds: [embed], components: rows });
+}
+
+/**
+ * Build Payload for Interactive Stardust Shop
+ */
+function buildShopPayload(guild, user, userData) {
+  const shopListText = GACHA_SHOP_ITEMS.map((item, idx) => {
+    return `\`#${idx + 1}\` **${item.name}** — **${item.cost} Dust**\n*${item.desc}*`;
+  }).join('\n\n');
+
+  const embed = new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: `Toko Relik & Stardust — ${user.username}`,
+      iconURL: user.displayAvatarURL({ dynamic: true })
+    })
+    .setTitle('KATALOG TOKO STARDUST')
+    .setDescription(
+      `Tukarkan Stardust hasil tarikan duplikat dengan tiket, buff keberuntungan, atau gelar eksklusif!\n\n` +
+      `• **Saldo Stardust:** **${userData.stardust} Dust**\n` +
+      `• **Saldo Tiket:** **${userData.tickets} Tiket**\n\n` +
+      `**Katalog Barang:**\n\n${shopListText}`
+    )
+    .setFooter({ text: 'Pilih nomor barang dari menu dropdown di bawah • Menu aktif selama 15 menit' })
+    .setTimestamp();
+
+  // Dropdown Select Menu
+  const selectOptions = GACHA_SHOP_ITEMS.map((item, idx) => {
+    let extraDesc = `${item.cost} Dust`;
+    if (item.type === 'title_badge' && userData.titles.includes(item.title)) {
+      extraDesc += ' • [Sudah Dimiliki]';
+    } else if (userData.stardust < item.cost) {
+      extraDesc += ` • (Kurang ${item.cost - userData.stardust} Dust)`;
+    } else {
+      extraDesc += ' • Klik untuk Beli';
+    }
+
+    return {
+      label: `#${idx + 1}. ${item.name}`.slice(0, 100),
+      description: extraDesc.slice(0, 100),
+      value: item.id
+    };
+  });
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`gacha_shop_select:${user.id}`)
+    .setPlaceholder('Pilih nomor atau barang yang ingin kamu beli...')
+    .addOptions(selectOptions.slice(0, 25));
+
+  const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+  // Row 2: Opsi Pembelian Tiket Cepat & Kustom
+  const buttonRow1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_shop_buy:ticket_1')
+      .setLabel('Beli 1x (100 Dust)')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_shop_buy:ticket_10')
+      .setLabel('Beli 10x (850 Dust)')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_shop_custom_tickets')
+      .setLabel('Beli Banyak Tiket')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  // Row 3: Daur Ulang & Utilitas Tas
+  const buttonRow2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_shop_recycle')
+      .setLabel('Daur Ulang Relik')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_inv')
+      .setLabel('Cek Inventory')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_album')
+      .setLabel('Cek Album')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return { embeds: [embed], components: [selectRow, buttonRow1, buttonRow2] };
+}
+
+/**
+ * Handle Stardust Shop Display Logic
+ * Routes output to #umum mentioning the user
+ * Auto-cleanup: disables components after 15 minutes
+ */
+async function executeGachaShop(interaction, client = null) {
+  const guildId = interaction.guild.id;
+  const user = interaction.user;
+
+  const settingsData = storage.read('settings') || {};
+  const gChannels = settingsData[guildId]?.gachaChannels || {};
+  const umumChannelId = gChannels.umum;
+
+  const gachaData = storage.read('gacha_data') || {};
+  const userData = getOrInitUserData(gachaData, guildId, user.id);
+
+  const shopPayload = buildShopPayload(interaction.guild, user, userData);
+
+  let sentInUmum = false;
+  let sentMessage = null;
+
+  if (umumChannelId && interaction.channelId !== umumChannelId && client) {
+    const umumChannel = await client.channels.fetch(umumChannelId).catch(() => null);
+    if (umumChannel && umumChannel.isTextBased()) {
+      sentMessage = await umumChannel.send({
+        content: `<@${user.id}>`,
+        ...shopPayload
+      }).catch(() => null);
+      if (sentMessage) {
+        sentInUmum = true;
+
+        // Auto-cleanup timer: 15 menit (900.000 ms)
+        const sentMsgId = sentMessage.id;
+        const cleanupTimer = setTimeout(async () => {
+          try {
+            const fetchedMsg = await umumChannel.messages.fetch(sentMsgId).catch(() => null);
+            if (fetchedMsg && fetchedMsg.components.length > 0) {
+              const disabledRows = fetchedMsg.components.map(row => {
+                const r = ActionRowBuilder.from(row);
+                r.components.forEach(c => c.setDisabled(true));
+                return r;
+              });
+              const originalEmbed = fetchedMsg.embeds[0];
+              const expiredEmbed = originalEmbed
+                ? EmbedBuilder.from(originalEmbed).setFooter({ text: 'Sesi Toko Telah Berakhir (15 Menit) • Buka toko baru untuk berbelanja' })
+                : null;
+              await fetchedMsg.edit({
+                embeds: expiredEmbed ? [expiredEmbed] : fetchedMsg.embeds,
+                components: disabledRows
+              }).catch(() => {});
+            }
+          } catch (_) {}
+        }, 15 * 60 * 1000);
+        if (cleanupTimer.unref) cleanupTimer.unref();
+      }
+    }
+  }
+
+  if (sentInUmum && sentMessage) {
+    const targetChannel = interaction.guild?.channels?.cache?.get(umumChannelId);
+    const chName = targetChannel ? `#${targetChannel.name}` : 'Saluran Umum';
+    const msgUrl = `https://discord.com/channels/${guildId}/${umumChannelId}/${sentMessage.id}`;
+
+    const confirmEmbed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('Toko Stardust Terbuka di Saluran Umum')
+      .setDescription(
+        `Katalog Toko Stardust untuk <@${user.id}> telah dibuka di <#${umumChannelId}>.\n\n` +
+        `Silakan pilih barang yang ingin kamu beli langsung melalui menu dropdown tanpa perlu mengetik perintah!\n` +
+        `*(Sesi katalog aktif selama 15 menit)*`
+      );
+
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel(`Buka Toko di ${chName}`.slice(0, 80))
+        .setStyle(ButtonStyle.Link)
+        .setURL(msgUrl),
+      new ButtonBuilder()
+        .setCustomId('gacha_btn_album')
+        .setLabel('Cek Album')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    if (interaction.replied || interaction.deferred) {
+      return interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
+    }
+    return interaction.reply({ embeds: [confirmEmbed], components: [confirmRow], flags: MessageFlags.Ephemeral });
+  }
+
+  let localReply = null;
+  if (interaction.replied || interaction.deferred) {
+    localReply = await interaction.editReply({ content: `<@${user.id}>`, ...shopPayload }).catch(() => null);
+  } else {
+    localReply = await interaction.reply({ content: `<@${user.id}>`, ...shopPayload }).catch(() => null);
+  }
+
+  // Auto-cleanup timer jika toko dibuka langsung di channel saat ini (15 menit)
+  const sentMsg = localReply || (interaction.fetchReply ? await interaction.fetchReply().catch(() => null) : null);
+  if (sentMsg && sentMsg.id && interaction.channel) {
+    const ch = interaction.channel;
+    const sentMsgId = sentMsg.id;
+    const cleanupTimer = setTimeout(async () => {
+      try {
+        const fetchedMsg = await ch.messages.fetch(sentMsgId).catch(() => null);
+        if (fetchedMsg && fetchedMsg.components.length > 0) {
+          const disabledRows = fetchedMsg.components.map(row => {
+            const r = ActionRowBuilder.from(row);
+            r.components.forEach(c => c.setDisabled(true));
+            return r;
+          });
+          const originalEmbed = fetchedMsg.embeds[0];
+          const expiredEmbed = originalEmbed
+            ? EmbedBuilder.from(originalEmbed).setFooter({ text: 'Sesi Toko Telah Berakhir (15 Menit) • Buka toko baru untuk berbelanja' })
+            : null;
+          await fetchedMsg.edit({
+            embeds: expiredEmbed ? [expiredEmbed] : fetchedMsg.embeds,
+            components: disabledRows
+          }).catch(() => {});
+        }
+      } catch (_) {}
+    }, 15 * 60 * 1000);
+    if (cleanupTimer.unref) cleanupTimer.unref();
+  }
+
+  return localReply;
+}
+
+/**
+ * Handle Interactive Shop Purchase (Dropdown or Quick Button)
+ * Supports confirmation modal for high-cost items (>= 1,000 Dust)
+ */
+async function handleShopPurchase(interaction, client, itemId, targetUserId = null, isConfirmed = false) {
+  const guildId = interaction.guild.id;
+  const userId = interaction.user.id;
+
+  if (targetUserId && userId !== targetUserId) {
+    return interaction.reply({
+      content: `Hanya <@${targetUserId}> yang dapat berbelanja dari menu ini. Silakan klik tombol Toko untuk membuka katalog tokomu sendiri.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const shopItem = GACHA_SHOP_ITEMS.find(i => i.id === itemId);
+  if (!shopItem) {
+    return interaction.reply({
+      content: 'Barang tidak ditemukan di toko.',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const gachaData = storage.read('gacha_data') || {};
+  const userData = getOrInitUserData(gachaData, guildId, userId);
+
+  if (userData.stardust < shopItem.cost) {
+    return interaction.reply({
+      content: `Stardust tidak mencukupi. Dibutuhkan **${shopItem.cost} Dust**, saat ini kamu memiliki **${userData.stardust} Dust**.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // 1. Validasi khusus title_badge
+  if (shopItem.type === 'title_badge') {
+    if (userData.titles.includes(shopItem.title)) {
+      return interaction.reply({
+        content: `Kamu sudah memiliki gelar **"${shopItem.title}"**.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+  }
+
+  // 2. Validasi khusus shield
+  if (shopItem.type === 'shield') {
+    if (!userData.activeRole || (userData.activeRole.tier !== 'MYTHIC' && userData.activeRole.tier !== 'LEGENDARY')) {
+      return interaction.reply({
+        content: 'Perisai Tahta hanya dapat digunakan oleh pemegang Tahta Mythic atau Legendary yang sedang aktif menduduki tahta.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+  }
+
+  // 3. Validasi khusus duel_reset
+  if (shopItem.type === 'duel_reset') {
+    if (!userData.challengeCooldownUntil || userData.challengeCooldownUntil <= Date.now()) {
+      return interaction.reply({
+        content: 'Kamu sedang tidak memiliki jeda cooldown duel. Simpan Stardust milikmu untuk saat dibutuhkan nanti!',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+  }
+
+  // 4. Validasi khusus rain
+  if (shopItem.type === 'rain') {
+    const rainStorage = storage.read('stardust_rain') || {};
+    const now = Date.now();
+    const existingRain = Object.values(rainStorage).find(
+      r => r.guildId === guildId && r.channelId === interaction.channelId && r.expiresAt > now && r.claimants.length < r.quota
+    );
+    if (existingRain) {
+      return interaction.reply({
+        content: 'Masih ada Hujan Stardust yang sedang berlangsung di channel ini! Tangkap bintang yang ada atau tunggu sampai selesai.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+  }
+
+  // 5. Pop-up Konfirmasi Khusus untuk Item Bernilai Tinggi (>= 1.000 Dust)
+  if (shopItem.cost >= 1000 && !isConfirmed) {
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`gacha_btn_shop_confirm:${shopItem.id}:${userId}`)
+        .setLabel(`Ya, Beli (${shopItem.cost} Dust)`)
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`gacha_btn_shop_cancel:${userId}`)
+        .setLabel('Batalkan')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    const warnContent = `⚠️ **Konfirmasi Pembelian Item Bernilai Tinggi**\n\n` +
+      `Kamu akan membeli **${shopItem.name}** seharga **${shopItem.cost} Stardust**.\n` +
+      `• Saldo Stardust saat ini: **${userData.stardust} Dust**\n` +
+      `• Sisa saldo setelah beli: **${userData.stardust - shopItem.cost} Dust**\n\n` +
+      `Apakah kamu yakin ingin melanjutkan transaksi ini?`;
+
+    if (interaction.replied || interaction.deferred) {
+      return interaction.followUp({ content: warnContent, components: [confirmRow], flags: MessageFlags.Ephemeral });
+    }
+    return interaction.reply({ content: warnContent, components: [confirmRow], flags: MessageFlags.Ephemeral });
+  }
+
+  userData.stardust -= shopItem.cost;
+
+  let rewardText = '';
+  if (shopItem.type === 'ticket') {
+    userData.tickets += shopItem.amount;
+    rewardText = `• **+${shopItem.amount} Tiket Gacha** ditambahkan ke akunmu.`;
+  } else if (shopItem.type === 'title_badge') {
+    if (!userData.titles.includes(shopItem.title)) userData.titles.push(shopItem.title);
+    if (!userData.badges.includes(shopItem.badge)) userData.badges.push(shopItem.badge);
+    if (!Array.isArray(userData.shopPurchases)) userData.shopPurchases = [];
+    userData.shopPurchases.push({
+      itemId: shopItem.id,
+      title: shopItem.title,
+      cost: shopItem.cost,
+      boughtAt: Date.now()
+    });
+    rewardText = `• Gelar & Lencana Terbuka: \`"${shopItem.title}"\` & \`${shopItem.badge}\`\n*(Catatan: Mendapatkan 50% cashback Dust saat Reset Season pergantian bulan)*`;
+  } else if (shopItem.type === 'shield') {
+    const now = Date.now();
+    const currentProtected = (userData.throneProtectedUntil && userData.throneProtectedUntil > now)
+      ? userData.throneProtectedUntil
+      : now;
+    userData.throneProtectedUntil = currentProtected + (3 * 60 * 60 * 1000); // +3 Jam
+    const remainingHours = ((userData.throneProtectedUntil - now) / (60 * 60 * 1000)).toFixed(1);
+    rewardText = `• **Perisai Tahta Diaktifkan!**\nTahta <@&${userData.activeRole.roleId}> milikmu kini kebal dari tantangan duel selama **+3 Jam** tambahan (Total perlindungan: **${remainingHours} Jam**).`;
+  } else if (shopItem.type === 'duel_reset') {
+    userData.challengeCooldownUntil = 0;
+    rewardText = `• **Jimat Balas Dendam Berhasil Digunakan!**\nJeda cooldown duel 30 menit telah dihapus. Kamu dapat langsung menantang tahta kembali sekarang juga!`;
+  } else if (shopItem.type === 'mystery_box') {
+    const roll = Math.random() * 100;
+    if (roll < 1) {
+      userData.stardust += 1200;
+      rewardText = `• **JACKPOT SEMESTA!**\nPeti terbuka dan memancarkan cahaya silau! Kamu mendapatkan **+1.200 Stardust**!`;
+    } else if (roll < 5) {
+      if (!userData.titles.includes('Lucky Star')) {
+        userData.titles.push('Lucky Star');
+        if (!userData.badges.includes('Stellar Fortune')) userData.badges.push('Stellar Fortune');
+        rewardText = `• **GELAR RAHASIA DITEMUKAN!**\nKamu mendapatkan Gelar: \`"Lucky Star"\` & Lencana \`Stellar Fortune\`!`;
+      } else {
+        userData.stardust += 600;
+        rewardText = `• Peti berisi Gelar \`"Lucky Star"\`! Dikonversi menjadi **+600 Stardust**!`;
+      }
+    } else if (roll < 20) {
+      userData.tickets += 5;
+      rewardText = `• **PETI HADIAH SPESIAL!**\nKamu mendapatkan **+5x Tiket Gacha**!`;
+    } else if (roll < 50) {
+      userData.tickets += 3;
+      rewardText = `• Kamu mendapatkan **+3x Tiket Gacha**!`;
+    } else if (roll < 75) {
+      const bonusDust = Math.floor(Math.random() * 151) + 350;
+      userData.stardust += bonusDust;
+      rewardText = `• Kamu mendapatkan **+${bonusDust} Stardust**!`;
+    } else {
+      userData.tickets += 1;
+      userData.stardust += 150;
+      rewardText = `• Kamu mendapatkan **+1x Tiket Gacha** dan **+150 Stardust**!`;
+    }
+  } else if (shopItem.type === 'lucky_charm') {
+    userData.luckyBuffPulls = (userData.luckyBuffPulls || 0) + 3;
+    rewardText = `• **Jimat Keberuntungan Aktif!**\nBuff **2x Rate Mythic & Legendary** aktif untuk **3 tarikan berikutnya** (Total sisa buff: **${userData.luckyBuffPulls}x Tarikan**).`;
+  } else if (shopItem.type === 'custom_title_scroll') {
+    userData.customTitleTokens = (userData.customTitleTokens || 0) + 1;
+    rewardText = `• **Gulungan Gelar Kustom Diperoleh!**\nKamu kini memiliki **${userData.customTitleTokens}x Token Gelar Kustom**. Gunakan perintah \`/gacha customtitle [nama_gelar]\` untuk membuat gelar impianmu!`;
+  } else if (shopItem.type === 'rain') {
+    const rainStorage = storage.read('stardust_rain') || {};
+    const rainId = 'rain_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    rainStorage[rainId] = {
+      id: rainId,
+      guildId,
+      channelId: interaction.channelId,
+      creatorId: userId,
+      creatorName: interaction.user.username,
+      quota: 5,
+      claimants: [],
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 10 * 60 * 1000
+    };
+    storage.write('stardust_rain', rainStorage);
+    storage.write('gacha_data', gachaData);
+
+    const rainEmbed = new EmbedBuilder()
+      .setColor(0xFEE75C)
+      .setTitle('Hujan Stardust Telah Turun!')
+      .setDescription(
+        `<@${userId}> menebarkan berkah **Hujan Stardust** ke seluruh channel!\n\n` +
+        `**5 orang tercepat** yang menekan tombol di bawah akan mendapatkan **50–100 Stardust** secara acak!\n\n` +
+        `Penerima Rezeki (0/5): *Belum ada yang menangkap bintang... Ayo rebutan!*`
+      )
+      .setFooter({ text: 'Rebutan Stardust • Terbuka untuk semua member' })
+      .setTimestamp();
+
+    const rainRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`stardust_rain:${rainId}`)
+        .setLabel('Tangkap Bintang! (0/5)')
+        .setStyle(ButtonStyle.Success)
+    );
+
+    await interaction.channel.send({ embeds: [rainEmbed], components: [rainRow] }).catch(() => {});
+    rewardText = '• **Hujan Stardust berhasil dilepaskan di channel ini!**';
+  }
+
+  storage.write('gacha_data', gachaData);
+
+  const successContent = `Pembelian Berhasil: **${shopItem.name}**\n${rewardText}\n• Sisa Saldo: **${userData.stardust} Dust** • Saldo Tiket: **${userData.tickets} Tiket**`;
+
+  // Jika pembelian dikonfirmasi dari pop-up konfirmasi ephemeral
+  if (isConfirmed) {
+    if (interaction.isButton() || interaction.isStringSelectMenu()) {
+      return interaction.update({ content: successContent, components: [] });
+    }
+    return interaction.reply({ content: successContent, flags: MessageFlags.Ephemeral });
+  }
+
+  // Perbarui pesan toko dengan saldo terbaru jika pembelian langsung
+  const freshPayload = buildShopPayload(interaction.guild, interaction.user, userData);
+
+  if (interaction.isStringSelectMenu() || interaction.isButton()) {
+    await interaction.update({
+      content: `<@${userId}>`,
+      ...freshPayload
+    }).catch(() => {});
+
+    return interaction.followUp({
+      content: successContent,
+      flags: MessageFlags.Ephemeral
+    });
+  } else {
+    return interaction.reply({
+      content: successContent,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+}
+
+/**
+ * Buat Modal Input untuk Pembelian Tiket Gacha Kustom
+ */
+function buildShopCustomTicketsModal() {
+  const modal = new ModalBuilder()
+    .setCustomId('gacha_shop_modal_tickets')
+    .setTitle('Beli Banyak Tiket Gacha');
+
+  const ticketInput = new TextInputBuilder()
+    .setCustomId('ticket_amount')
+    .setLabel('Jumlah Tiket yang Ingin Dibeli (1-100)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('Contoh: 15 (Diskon 10% jika >=5, 15% jika >=10)')
+    .setMinLength(1)
+    .setMaxLength(3)
+    .setRequired(true);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(ticketInput));
+  return modal;
+}
+
+/**
+ * Tangani Submit Modal Pembelian Tiket Kustom
+ */
+async function handleShopCustomTicketsSubmit(interaction, client) {
+  const guildId = interaction.guild.id;
+  const userId = interaction.user.id;
+  const inputVal = interaction.fields.getTextInputValue('ticket_amount').trim();
+  const amount = parseInt(inputVal, 10);
+
+  if (isNaN(amount) || amount < 1 || amount > 100) {
+    return interaction.reply({
+      content: 'Jumlah tiket tidak valid. Masukkan angka bulat antara 1 sampai 100.',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  let unitPrice = 100;
+  let discountNote = '';
+  if (amount >= 10) {
+    unitPrice = 85;
+    discountNote = ' (Diskon Paket Sultan 15%)';
+  } else if (amount >= 5) {
+    unitPrice = 90;
+    discountNote = ' (Diskon Paket Hemat 10%)';
+  }
+  const totalCost = amount * unitPrice;
+
+  const gachaData = storage.read('gacha_data') || {};
+  const userData = getOrInitUserData(gachaData, guildId, userId);
+
+  if (userData.stardust < totalCost) {
+    return interaction.reply({
+      content: `Stardust tidak mencukupi untuk membeli **${amount}x Tiket** seharga **${totalCost} Dust**${discountNote}.\n• Saldo saat ini: **${userData.stardust} Dust**\n• Kurang: **${totalCost - userData.stardust} Dust**`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  userData.stardust -= totalCost;
+  userData.tickets += amount;
+  storage.write('gacha_data', gachaData);
+
+  return interaction.reply({
+    content: `Pembelian Berhasil: **${amount}x Tiket Gacha**${discountNote}\n• Total Biaya: **${totalCost} Dust** (@${unitPrice} Dust/tiket)\n• Saldo Tiket Baru: **${userData.tickets} Tiket**\n• Sisa Stardust: **${userData.stardust} Dust**`,
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+/**
+ * Tampilkan Panel Daur Ulang Relik Menjadi Stardust
+ */
+async function executeGachaShopRecycle(interaction, client) {
+  const guildId = interaction.guild.id;
+  const userId = interaction.user.id;
+  const gachaData = storage.read('gacha_data') || {};
+  const userData = getOrInitUserData(gachaData, guildId, userId);
+
+  const inventory = userData.inventory || [];
+  if (inventory.length === 0) {
+    return interaction.reply({
+      content: 'Inventarismu saat ini kosong. Tarik gacha terlebih dahulu untuk mengumpulkan relik!',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // Kelompokkan relik yang dimiliki
+  const counts = {};
+  for (const name of inventory) {
+    counts[name] = (counts[name] || 0) + 1;
+  }
+
+  // Hitung total common relics untuk opsi quick recycle
+  let totalCommonCount = 0;
+  let totalCommonDust = 0;
+  for (const name of inventory) {
+    const item = GACHA_ITEMS.find(g => g.name === name);
+    if (item && item.tier === 'COMMON') {
+      totalCommonCount++;
+      totalCommonDust += (item.recycleStardust || 25);
+    }
+  }
+
+  const distinctNames = Object.keys(counts);
+  const options = distinctNames.slice(0, 25).map(name => {
+    const item = GACHA_ITEMS.find(g => g.name === name);
+    const dust = item ? (item.recycleStardust || 25) : 25;
+    const tier = item ? item.tier : 'RELIC';
+    return {
+      label: `${name} (${counts[name]}x)`.slice(0, 100),
+      description: `Tier: ${tier} • Daur ulang: +${dust} Dust`.slice(0, 100),
+      value: name
+    };
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle('Daur Ulang Relik Menjadi Stardust')
+    .setDescription(
+      `Pilih relik yang ingin kamu lebur dari daftar di bawah untuk mendapatkan Stardust secara instan.\n\n` +
+      `• **Saldo Stardust Saat Ini:** **${userData.stardust} Dust**\n` +
+      `• **Total Relik di Tas:** **${inventory.length} Relik** (${distinctNames.length} jenis)\n` +
+      (totalCommonCount > 0 ? `• **Relik Common:** **${totalCommonCount} Item** (Nilai lebur: **+${totalCommonDust} Dust**)` : '')
+    )
+    .setFooter({ text: 'Pilih 1 relik dari menu dropdown untuk melebur 1 salinan' });
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`gacha_shop_recycle_select:${userId}`)
+    .setPlaceholder('Pilih relik yang ingin kamu lebur...')
+    .addOptions(options);
+
+  const rows = [new ActionRowBuilder().addComponents(selectMenu)];
+
+  const buttons = [];
+  if (totalCommonCount > 0) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`gacha_btn_shop_recycle_common:${userId}`)
+        .setLabel(`Lebur Semua Common (+${totalCommonDust} Dust)`)
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
+  buttons.push(
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_shop_close_recycle')
+      .setLabel('Tutup Daur Ulang')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  rows.push(new ActionRowBuilder().addComponents(buttons));
+
+  if (interaction.replied || interaction.deferred) {
+    return interaction.followUp({ embeds: [embed], components: rows, flags: MessageFlags.Ephemeral });
+  }
+  return interaction.reply({ embeds: [embed], components: rows, flags: MessageFlags.Ephemeral });
+}
+
+/**
+ * Eksekusi Daur Ulang Relik (Satu per Satu atau Seluruh Common)
+ */
+async function handleShopRecycleAction(interaction, client, relicNameOrAction, targetUserId = null) {
+  const guildId = interaction.guild.id;
+  const userId = interaction.user.id;
+
+  if (targetUserId && userId !== targetUserId) {
+    return interaction.reply({
+      content: 'Hanya pemilik menu daur ulang yang dapat melakukan aksi ini.',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const gachaData = storage.read('gacha_data') || {};
+  const userData = getOrInitUserData(gachaData, guildId, userId);
+
+  if (!userData.inventory || userData.inventory.length === 0) {
+    const emptyMsg = 'Inventarismu kosong, tidak ada relik yang dapat didaur ulang.';
+    if (interaction.isButton() || interaction.isStringSelectMenu()) {
+      return interaction.update({ content: emptyMsg, embeds: [], components: [] });
+    }
+    return interaction.reply({ content: emptyMsg, flags: MessageFlags.Ephemeral });
+  }
+
+  if (relicNameOrAction === 'all_common') {
+    const commonItems = [];
+    let gainedDust = 0;
+
+    const remainingInventory = [];
+    for (const name of userData.inventory) {
+      const item = GACHA_ITEMS.find(g => g.name === name);
+      if (item && item.tier === 'COMMON') {
+        commonItems.push(name);
+        gainedDust += (item.recycleStardust || 25);
+      } else {
+        remainingInventory.push(name);
+      }
+    }
+
+    if (commonItems.length === 0) {
+      return interaction.reply({
+        content: 'Kamu tidak memiliki relik tier Common di inventaris.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    userData.inventory = remainingInventory;
+    userData.stardust += gainedDust;
+    storage.write('gacha_data', gachaData);
+
+    const replyText = `Berhasil melebur **${commonItems.length}x Relik Common**!\n• Kamu memperoleh: **+${gainedDust} Stardust**\n• Saldo Stardust Sekarang: **${userData.stardust} Dust**`;
+
+    if (interaction.isButton() || interaction.isStringSelectMenu()) {
+      return interaction.update({ content: replyText, embeds: [], components: [] });
+    }
+    return interaction.reply({ content: replyText, flags: MessageFlags.Ephemeral });
+  }
+
+  // Daur ulang 1 relik spesifik dari dropdown
+  const relicName = relicNameOrAction;
+  const idx = userData.inventory.indexOf(relicName);
+  if (idx === -1) {
+    return interaction.reply({
+      content: `Relik **"${relicName}"** tidak ditemukan di inventarismu.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const relicObj = GACHA_ITEMS.find(g => g.name === relicName);
+  const gainedDust = relicObj ? (relicObj.recycleStardust || 25) : 25;
+
+  userData.inventory.splice(idx, 1);
+  userData.stardust += gainedDust;
+  storage.write('gacha_data', gachaData);
+
+  const replyText = `Berhasil mendaur ulang 1x **${relicName}** (${relicObj ? relicObj.tier : 'RELIC'})!\n• Kamu memperoleh: **+${gainedDust} Stardust**\n• Saldo Stardust Sekarang: **${userData.stardust} Dust**\n• Sisa Relik di Tas: **${userData.inventory.length} Item**`;
+
+  if (interaction.isButton() || interaction.isStringSelectMenu()) {
+    return interaction.update({ content: replyText, embeds: [], components: [] });
+  }
+  return interaction.reply({ content: replyText, flags: MessageFlags.Ephemeral });
 }
 
 /**
@@ -5647,6 +6355,13 @@ module.exports = {
   deployGachaPanel,
   calculateSeasonScore,
   executeSeasonReset,
+  executeGachaShop,
+  handleShopPurchase,
+  buildShopPayload,
+  buildShopCustomTicketsModal,
+  handleShopCustomTicketsSubmit,
+  executeGachaShopRecycle,
+  handleShopRecycleAction,
   checkAndExecuteSeasonReset,
   resolveDuelChannel,
   resolveThroneLoungeChannel,
@@ -5794,7 +6509,7 @@ module.exports = {
           await deployGachaPanel(interaction.guild, channel, 'pull', client);
         } else if (type === 'duel') {
           settingsData[guildId].gachaChannels.throne = channel.id;
-          desc = `Panel informasi tahta server dipasang di <#${channel.id}>. Menyediakan 4 tombol tantangan tahta, riwayat, dan panduan taktik.`;
+          desc = `Panel informasi tahta server dipasang di <#${channel.id}>. Menyediakan 1 tombol utama [Tantang Tahta].`;
           await deployGachaPanel(interaction.guild, channel, 'duel', client);
         } else if (type === 'announce') {
           settingsData[guildId].gachaChannels.result = channel.id;
@@ -6012,15 +6727,13 @@ module.exports = {
       }
 
       const gChannels = settingsData[guildId].gachaChannels || {};
-      const throneChText = gChannels.throne ? `<#${gChannels.throne}>` : (gChannels.duel ? `<#${gChannels.duel}>` : '_Sesuai Channel Gacha_');
-      const mythicDuelChText = gChannels.duel_mythic ? `<#${gChannels.duel_mythic}>` : (gChannels.tactics ? `<#${gChannels.tactics}>` : (gChannels.duel ? `<#${gChannels.duel}>` : '_Mengikuti Lounge_'));
-      const legDuelChText = gChannels.duel_legendary ? `<#${gChannels.duel_legendary}>` : (gChannels.tactics ? `<#${gChannels.tactics}>` : (gChannels.duel ? `<#${gChannels.duel}>` : '_Mengikuti Lounge_'));
-      const pullChText = gChannels.pull ? `<#${gChannels.pull}>` : (gChannels.play ? `<#${gChannels.play}> (Umum)` : '_Bebas_');
-      const dailyChText = gChannels.daily ? `<#${gChannels.daily}>` : (gChannels.play ? `<#${gChannels.play}> (Umum)` : '_Bebas_');
+      const dailyChText = gChannels.daily ? `<#${gChannels.daily}>` : '_Belum diatur_';
+      const umumChText = gChannels.umum ? `<#${gChannels.umum}>` : '_Belum diatur_';
       const playChText = gChannels.play ? `<#${gChannels.play}>` : '_Semua Channel (Bebas)_';
-      const resultChText = gChannels.result ? `<#${gChannels.result}>` : '_Tidak aktif (publik di channel play)_';
-      const bcastChText = (gChannels.broadcast || settingsData[guildId].gachaChannel) ? `<#${gChannels.broadcast || settingsData[guildId].gachaChannel}>` : '_Belum diatur_';
-      const channelsSummary = `• Throne Lounge: ${throneChText}\n• Duel Mythic: ${mythicDuelChText}\n• Duel Legendary: ${legDuelChText}\n• Tarik Gacha: ${pullChText}\n• Hadiah Harian: ${dailyChText}\n• Saluran Umum: ${playChText}\n• Hasil Tarikan: ${resultChText}\n• Jackpot Alert: ${bcastChText}`;
+      const duelChText = gChannels.duel ? `<#${gChannels.duel}>` : (gChannels.throne ? `<#${gChannels.throne}>` : '_Belum diatur_');
+      const announceChText = (gChannels.announce || gChannels.result || gChannels.broadcast || settingsData[guildId].gachaChannel) ? `<#${gChannels.announce || gChannels.result || gChannels.broadcast || settingsData[guildId].gachaChannel}>` : '_Belum diatur_';
+      const liveDuelChText = gChannels.live_duel ? `<#${gChannels.live_duel}>` : (gChannels.duel_mythic ? `<#${gChannels.duel_mythic}>` : '_Belum diatur_');
+      const channelsSummary = `• 1. Hadiah Harian: ${dailyChText}\n• 2. Saluran Umum: ${umumChText}\n• 3. Main Gacha: ${playChText}\n• 4. Panel Duel Tahta: ${duelChText}\n• 5. Announce Hasil: ${announceChText}\n• 6. Live Duel: ${liveDuelChText}`;
 
       // Cek duel aktif & antrean tahta
       const { guildData: guildThrone } = getGuildThroneData(guildId);
@@ -6622,207 +7335,16 @@ module.exports = {
 
     // === SUBCOMMAND: SHOP ===
     if (sub === 'shop') {
-      const gachaData = storage.read('gacha_data');
-      const userData = getOrInitUserData(gachaData, guildId, userId);
-
-      const shopList = GACHA_SHOP_ITEMS.map((item, idx) => {
-        return `\`#${idx + 1}\` **${item.name}** — **${item.cost} Dust**\n*${item.desc}*`;
-      }).join('\n\n');
-
-      const embed = new EmbedBuilder()
-        .setColor(0x2B2D31)
-        .setTitle('Toko Stardust Gacha')
-        .setDescription(
-          `Gunakan Stardust hasil daur ulang relik duplikat untuk membeli tiket dan gelar.\n\n` +
-          `• **Saldo Stardust:** **${userData.stardust} Dust**\n` +
-          `• **Saldo Tiket:** **${userData.tickets} Tiket**\n\n` +
-          `**Katalog Barang:**\n\n${shopList}`
-        )
-        .setFooter({ text: 'Gunakan /gacha buy [item] untuk membeli' });
-
-      return interaction.reply({ embeds: [embed] });
+      const gChannels = settingsData[guildId]?.gachaChannels || {};
+      const isCrossToUmum = gChannels.umum && interaction.channelId !== gChannels.umum;
+      await interaction.deferReply({ flags: isCrossToUmum ? MessageFlags.Ephemeral : undefined });
+      return await executeGachaShop(interaction, client);
     }
 
     // === SUBCOMMAND: BUY ===
     if (sub === 'buy') {
       const itemId = interaction.options.getString('item');
-      const shopItem = GACHA_SHOP_ITEMS.find(i => i.id === itemId);
-
-      if (!shopItem) {
-        return interaction.reply({ content: 'Barang tidak ditemukan di toko.', flags: MessageFlags.Ephemeral });
-      }
-
-      const gachaData = storage.read('gacha_data');
-      const userData = getOrInitUserData(gachaData, guildId, userId);
-
-      if (userData.stardust < shopItem.cost) {
-        return interaction.reply({
-          content: `Stardust tidak mencukupi. Dibutuhkan **${shopItem.cost} Dust**, kamu saat ini memiliki **${userData.stardust} Dust**.`,
-          flags: MessageFlags.Ephemeral
-        });
-      }
-
-      // 1. Validasi khusus title_badge
-      if (shopItem.type === 'title_badge') {
-        if (userData.titles.includes(shopItem.title)) {
-          return interaction.reply({
-            content: `Kamu sudah memiliki gelar **"${shopItem.title}"**.`,
-            flags: MessageFlags.Ephemeral
-          });
-        }
-      }
-
-      // 2. Validasi khusus shield
-      if (shopItem.type === 'shield') {
-        if (!userData.activeRole || (userData.activeRole.tier !== 'MYTHIC' && userData.activeRole.tier !== 'LEGENDARY')) {
-          return interaction.reply({
-            content: 'Perisai Tahta hanya dapat digunakan oleh pemegang Tahta Mythic atau Legendary yang sedang aktif menduduki tahta.',
-            flags: MessageFlags.Ephemeral
-          });
-        }
-      }
-
-      // 3. Validasi khusus duel_reset
-      if (shopItem.type === 'duel_reset') {
-        if (!userData.challengeCooldownUntil || userData.challengeCooldownUntil <= Date.now()) {
-          return interaction.reply({
-            content: 'Kamu sedang tidak memiliki jeda cooldown duel. Simpan Stardust milikmu untuk saat dibutuhkan nanti!',
-            flags: MessageFlags.Ephemeral
-          });
-        }
-      }
-
-      // 4. Validasi khusus rain
-      if (shopItem.type === 'rain') {
-        const rainStorage = storage.read('stardust_rain') || {};
-        const now = Date.now();
-        const existingRain = Object.values(rainStorage).find(
-          r => r.guildId === guildId && r.channelId === interaction.channelId && r.expiresAt > now && r.claimants.length < r.quota
-        );
-        if (existingRain) {
-          return interaction.reply({
-            content: 'Masih ada Hujan Stardust yang sedang berlangsung di channel ini! Tangkap bintang yang ada atau tunggu sampai selesai.',
-            flags: MessageFlags.Ephemeral
-          });
-        }
-      }
-
-      userData.stardust -= shopItem.cost;
-
-      let rewardText = '';
-      if (shopItem.type === 'ticket') {
-        userData.tickets += shopItem.amount;
-        rewardText = `• **+${shopItem.amount} Tiket Gacha** ditambahkan ke akunmu.`;
-      } else if (shopItem.type === 'title_badge') {
-        if (!userData.titles.includes(shopItem.title)) userData.titles.push(shopItem.title);
-        if (!userData.badges.includes(shopItem.badge)) userData.badges.push(shopItem.badge);
-        if (!Array.isArray(userData.shopPurchases)) userData.shopPurchases = [];
-        userData.shopPurchases.push({
-          itemId: shopItem.id,
-          title: shopItem.title,
-          cost: shopItem.cost,
-          boughtAt: Date.now()
-        });
-        rewardText = `• Gelar & Lencana Terbuka: \`"${shopItem.title}"\` & \`${shopItem.badge}\`\n*(Catatan: Mendapatkan 50% cashback Dust saat Reset Season pergantian bulan)*`;
-      } else if (shopItem.type === 'shield') {
-        const now = Date.now();
-        const currentProtected = (userData.throneProtectedUntil && userData.throneProtectedUntil > now)
-          ? userData.throneProtectedUntil
-          : now;
-        userData.throneProtectedUntil = currentProtected + (3 * 60 * 60 * 1000); // +3 Jam
-        const remainingHours = ((userData.throneProtectedUntil - now) / (60 * 60 * 1000)).toFixed(1);
-        rewardText = `• **🛡️ Perisai Tahta Diaktifkan!**\nTahta <@&${userData.activeRole.roleId}> milikmu kini kebal dari tantangan duel selama **+3 Jam** tambahan (Total durasi perlindungan: **${remainingHours} Jam**).`;
-      } else if (shopItem.type === 'duel_reset') {
-        userData.challengeCooldownUntil = 0;
-        rewardText = `• **⚡ Jimat Balas Dendam Berhasil Digunakan!**\nJeda cooldown duel 30 menit telah dihapus. Kamu dapat langsung menantang tahta kembali sekarang juga lewat \`/gacha challenge\`!`;
-      } else if (shopItem.type === 'mystery_box') {
-        const roll = Math.random() * 100;
-        if (roll < 1) {
-          userData.stardust += 1200;
-          rewardText = `• 🌟 **JACKPOT SEMESTA!**\nPeti terbuka dan memancarkan cahaya silau spektakuler! Kamu mendapatkan **+1.200 Stardust**!`;
-        } else if (roll < 5) {
-          if (!userData.titles.includes('Lucky Star')) {
-            userData.titles.push('Lucky Star');
-            if (!userData.badges.includes('Stellar Fortune')) userData.badges.push('Stellar Fortune');
-            rewardText = `• 🎖️ **GELAR RAHASIA DITEMUKAN!**\nKamu mendapatkan Gelar Langka: \`"Lucky Star"\` & Lencana \`Stellar Fortune\`!`;
-          } else {
-            userData.stardust += 600;
-            rewardText = `• 🎖️ Peti berisi Gelar Rahasia \`"Lucky Star"\`! Karena kamu sudah memilikinya, dikonversi menjadi **+600 Stardust**!`;
-          }
-        } else if (roll < 20) {
-          userData.tickets += 5;
-          rewardText = `• 🎟️ **PETI HADIAH SPESIAL!**\nKamu mendapatkan **+5x Tiket Gacha**!`;
-        } else if (roll < 50) {
-          userData.tickets += 3;
-          rewardText = `• 🎟️ **BERUNTUNG!**\nKamu mendapatkan **+3x Tiket Gacha**!`;
-        } else if (roll < 75) {
-          const bonusDust = Math.floor(Math.random() * 151) + 350; // 350 - 500 Dust
-          userData.stardust += bonusDust;
-          rewardText = `• 💰 **KANTONG DEBU BINTANG!**\nKamu mendapatkan **+${bonusDust} Stardust**!`;
-        } else {
-          userData.tickets += 1;
-          userData.stardust += 150;
-          rewardText = `• 🎁 Kamu mendapatkan **+1x Tiket Gacha** dan **+150 Stardust**!`;
-        }
-      } else if (shopItem.type === 'lucky_charm') {
-        userData.luckyBuffPulls = (userData.luckyBuffPulls || 0) + 3;
-        rewardText = `• **🍀 Jimat Keberuntungan Aktif!**\nKamu mendapatkan buff **2x Rate Mythic & Legendary** untuk **3 tarikan gacha berikutnya** (Total sisa buff: **${userData.luckyBuffPulls}x Tarikan**).`;
-      } else if (shopItem.type === 'custom_title_scroll') {
-        userData.customTitleTokens = (userData.customTitleTokens || 0) + 1;
-        rewardText = `• **📜 Gulungan Gelar Kustom Diperoleh!**\nKamu kini memiliki **${userData.customTitleTokens}x Token Gelar Kustom**. Gunakan perintah \`/gacha customtitle [nama_gelar]\` untuk membuat gelar impianmu!`;
-      } else if (shopItem.type === 'rain') {
-        const rainStorage = storage.read('stardust_rain') || {};
-        const rainId = 'rain_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-        rainStorage[rainId] = {
-          id: rainId,
-          guildId,
-          channelId: interaction.channelId,
-          creatorId: userId,
-          creatorName: interaction.user.username,
-          quota: 5,
-          claimants: [],
-          createdAt: Date.now(),
-          expiresAt: Date.now() + 10 * 60 * 1000
-        };
-        storage.write('stardust_rain', rainStorage);
-        storage.write('gacha_data', gachaData);
-
-        const rainEmbed = new EmbedBuilder()
-          .setColor(0xFEE75C)
-          .setTitle('🌧️ Hujan Stardust Telah Turun!')
-          .setDescription(
-            `<@${userId}> menebarkan berkah **Hujan Stardust** ke seluruh channel!\n\n` +
-            `⭐ **5 orang tercepat** yang menekan tombol di bawah akan mendapatkan **50–100 Stardust** secara acak!\n\n` +
-            `👥 **Penerima Rezeki (0/5):**\n*Belum ada yang menangkap bintang... Ayo buruan rebutan!*`
-          )
-          .setFooter({ text: 'Rebutan Stardust • Terbuka untuk semua member server' })
-          .setTimestamp();
-
-        const rainRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`stardust_rain:${rainId}`)
-            .setLabel('✨ Tangkap Bintang! (0/5)')
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('⭐')
-        );
-
-        return interaction.reply({ embeds: [rainEmbed], components: [rainRow] });
-      }
-
-      storage.write('gacha_data', gachaData);
-
-      const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('Pembelian Berhasil')
-        .setDescription(
-          `Kamu telah membeli **${shopItem.name}** seharga **${shopItem.cost} Stardust**.\n\n` +
-          `${rewardText}\n\n` +
-          `• **Sisa Stardust:** **${userData.stardust} Dust**\n` +
-          `• **Sisa Tiket:** **${userData.tickets} Tiket**`
-        )
-        .setFooter({ text: 'Gunakan /gacha inventory untuk melihat inventaris' });
-
-      return interaction.reply({ embeds: [embed] });
+      return await handleShopPurchase(interaction, client, itemId, interaction.user.id);
     }
 
     // === SUBCOMMAND: CUSTOMTITLE ===
