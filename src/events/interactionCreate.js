@@ -319,9 +319,9 @@ module.exports = {
       } else if (action === 'pull_1' || action === 'pull_10') {
         requiredChannelId = gChannels.pull || gChannels.play;
         actionLabel = 'Tarik Gacha';
-      } else if (action.startsWith('challenge_prompt')) {
+      } else if (action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status') {
         requiredChannelId = gChannels.duel || gChannels.play;
-        actionLabel = 'Tantangan Tahta';
+        actionLabel = 'Arena Duel Tahta';
       }
 
       if (requiredChannelId && interaction.channelId !== requiredChannelId) {
@@ -365,7 +365,9 @@ module.exports = {
         executeGachaDaily,
         executeGachaInventory,
         executeGachaRates,
-        executeGachaChallengePrompt
+        executeGachaChallengePrompt,
+        executeGachaDuelStatus,
+        executeGachaDuelHelp
       } = require('../commands/gacha');
 
       try {
@@ -392,6 +394,18 @@ module.exports = {
           const tier = action.split(':')[1];
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaChallengePrompt(interaction, client, tier);
+        } else if (action === 'duel_mythic') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          return await executeGachaChallengePrompt(interaction, client, 'MYTHIC');
+        } else if (action === 'duel_legendary') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          return await executeGachaChallengePrompt(interaction, client, 'LEGENDARY');
+        } else if (action === 'duel_status') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          return await executeGachaDuelStatus(interaction, client);
+        } else if (action === 'duel_help') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          return await executeGachaDuelHelp(interaction);
         }
       } catch (gachaErr) {
         return safeErrorReply(gachaErr, 'Gagal memproses aksi Gacha.');
