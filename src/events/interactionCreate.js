@@ -329,11 +329,19 @@ module.exports = {
         requiredChannelId = gChannels.pull || gChannels.play;
         actionLabel = 'Tarik Gacha';
       } else if (action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status') {
-        requiredChannelId = gChannels.duel || gChannels.play;
-        actionLabel = 'Arena Duel Tahta';
+        requiredChannelId = gChannels.tactics || gChannels.duel || gChannels.play;
+        actionLabel = 'Tantangan & Pasang Taktik Tahta';
       }
 
-      if (requiredChannelId && interaction.channelId !== requiredChannelId) {
+      const isDuelAction = action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status';
+      const allowedDuelChannels = [gChannels.tactics, gChannels.duel].filter(Boolean);
+      const targetDuelChannels = allowedDuelChannels.length > 0 ? allowedDuelChannels : [gChannels.play].filter(Boolean);
+
+      const isChannelValid = isDuelAction
+        ? (targetDuelChannels.length === 0 || targetDuelChannels.includes(interaction.channelId))
+        : (!requiredChannelId || interaction.channelId === requiredChannelId);
+
+      if (!isChannelValid && requiredChannelId) {
         const { isOwnerOrMod } = require('../utils/helpers');
         const isAuthorized = await isOwnerOrMod(interaction, client);
         if (!isAuthorized) {
@@ -440,6 +448,17 @@ module.exports = {
       return;
     }
 
+    // ====== Button Interaction (🌧️ Hujan Stardust Rezeki) ======
+    if (interaction.isButton() && interaction.customId.startsWith('stardust_rain:')) {
+      const { processStardustRainButton } = require('../commands/gacha');
+      try {
+        await processStardustRainButton(interaction, client);
+      } catch (rainErr) {
+        return safeErrorReply(rainErr, 'Gagal memproses klaim Hujan Stardust.');
+      }
+      return;
+    }
+
     // ====== Button Interaction (Peta Member Hub & Navigasi Mandiri) ======
     if (interaction.isButton() && (interaction.customId === 'mmap_open_panel' || interaction.customId.startsWith('mmap_'))) {
       const {
@@ -504,118 +523,24 @@ module.exports = {
       const galleryChId = settings[interaction.guild?.id]?.galleryChannel;
       const targetText = galleryChId ? `di saluran <#${galleryChId}>` : 'di Saluran Galeri';
 
-      // 1. Klik Tombol Utama: Tampilkan Menu Pilihan Upload Interaktif
-      if (interaction.customId === 'gallery_btn_submit') {
-        const promptEmbed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle('📸 Unggah Karyamu ke Galeri')
-          .setDescription(
-            `Karyamu akan otomatis dipajang oleh bot ${targetText}.\n\n` +
-            `**Silakan pilih metode pengiriman gambar:**\n` +
-            `• **📁 Upload File dari HP/PC**: Kirimkan file gambar langsung dari galeri HP atau folder laptop Anda.\n` +
-            `• **🔗 Masukkan Link / URL**: Masukkan tautan gambar via formulir pop-up langsung.\n\n` +
-            `*Format didukung: PNG, JPG, GIF, WebP (Maksimal 8MB)*`
-          );
+      // 1. Klik Tombol Panduan / Unggah Gambar
+      if (interaction.customId === 'gallery_btn_submit' || interaction.customId === 'gallery_btn_upload_file') {
+        const uploadChId = settings[interaction.guild?.id]?.galleryUploadChannel || settings[interaction.guild?.id]?.galleryPanelChannel;
+        const uploadChText = uploadChId ? `<#${uploadChId}>` : 'Channel 1 (Upload)';
 
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('gallery_btn_upload_file')
-            .setLabel('Upload File dari HP/PC')
-            .setEmoji('📁')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId('gallery_btn_open_modal')
-            .setLabel('Input via Link / URL')
-            .setEmoji('🔗')
-            .setStyle(ButtonStyle.Primary)
-        );
-
-        return interaction.reply({ embeds: [promptEmbed], components: [row], flags: MessageFlags.Ephemeral });
-      }
-
-      // 2. Klik Buka Modal (Input Link / URL)
-      if (interaction.customId === 'gallery_btn_open_modal') {
-        const modal = new ModalBuilder()
-          .setCustomId('gallery_modal_submit')
-          .setTitle('Kirim Gambar ke Galeri');
-
-        const urlInput = new TextInputBuilder()
-          .setCustomId('gallery_input_url')
-          .setLabel('Tautan / URL Gambar (Wajib)')
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('https://i.imgur.com/... atau link gambar Discord')
-          .setRequired(true);
-
-        const captionInput = new TextInputBuilder()
-          .setCustomId('gallery_input_caption')
-          .setLabel('Caption / Judul Karya (Opsional)')
-          .setStyle(TextInputStyle.Paragraph)
-          .setPlaceholder('Tuliskan cerita atau judul karyamu...')
-          .setMaxLength(500)
-          .setRequired(false);
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(urlInput),
-          new ActionRowBuilder().addComponents(captionInput)
-        );
-
-        return interaction.showModal(modal);
-      }
-
-      // 3. Klik Upload File Langsung (HP/PC)
-      if (interaction.customId === 'gallery_btn_upload_file') {
-        await interaction.update({
-          content: `📸 **Sesi Upload File Aktif!**\n` +
-            `Silakan **lampirkan/kirim file foto** dari HP/PC Anda di channel ini sekarang (Batas waktu: 60 detik).\n\n` +
-            `• *Tips: Anda bisa menyertakan teks caption di kolom chat bersamaan dengan foto.*\n` +
-            `• *Pesan upload Anda di channel ini akan otomatis dihapus dan dipajang secara resmi oleh bot ${targetText}.*`,
-          embeds: [],
-          components: []
+        return interaction.reply({
+          content: `📸 **Panduan Pengiriman Gambar Galeri (Sistem 2-Saluran):**\n\n` +
+            `1. **Kirim Gambar di Channel 1 (${uploadChText})**:\n` +
+            `   • Cukup lampirkan/kirim file foto langsung dari galeri HP atau folder laptop Anda.\n` +
+            `   • Anda bisa mengobrol santai atau mengetik teks caption bersamaan dengan foto (obrolan chat biasa di sana tetap normal dan tidak akan terganggu).\n\n` +
+            `2. **Otomatis Masuk ke Channel 2 (${targetText})**:\n` +
+            `   • Bot akan otomatis mendeteksi file gambar dan memajangnya secara rapi di galeri terkurasi.\n` +
+            `   • Lengkap dengan reaksi emoji ❤️/🔥 dan **Thread Diskusi** otomatis di bawah foto!`,
+          flags: MessageFlags.Ephemeral
         });
-
-        const filter = m => m.author.id === interaction.user.id;
-        const collector = interaction.channel.createMessageCollector({ filter, time: 60000, max: 1 });
-
-        collector.on('collect', async (msg) => {
-          const imageAtt = msg.attachments.find(att => {
-            const ext = (att.name?.split('.').pop() || '').toLowerCase();
-            return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) || att.contentType?.startsWith('image/');
-          });
-
-          if (!imageAtt) {
-            await msg.delete().catch(() => {});
-            return interaction.followUp({
-              content: '❌ Pesan yang kamu kirimkan tidak memiliki lampiran file gambar (PNG, JPG, GIF, WEBP). Silakan tekan tombol lagi untuk mengulang.',
-              flags: MessageFlags.Ephemeral
-            });
-          }
-
-          const caption = msg.content?.trim() || '';
-          await msg.delete().catch(() => {});
-
-          const { publishGalleryItem } = require('../commands/gallery');
-          const res = await publishGalleryItem(msg.guild, msg.author, msg.member, imageAtt.url, caption, client);
-
-          if (res.success) {
-            const jumpRow = new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setLabel('Lihat Postingan').setStyle(ButtonStyle.Link).setURL(res.jumpUrl)
-            );
-            return interaction.followUp({
-              content: `✨ Gambar karyamu berhasil dipajang di <#${res.channelId}>!\nSisa kuota submit hari ini: **${res.remaining} Gambar**.`,
-              components: [jumpRow],
-              flags: MessageFlags.Ephemeral
-            });
-          } else {
-            return interaction.followUp({
-              content: `❌ Gagal memposting gambar: ${res.error}`,
-              flags: MessageFlags.Ephemeral
-            });
-          }
-        });
-        return;
       }
 
-      // 4. Panduan & Ketentuan
+      // 2. Panduan & Ketentuan
       if (interaction.customId === 'gallery_btn_rules') {
         const embed = new EmbedBuilder()
           .setColor(0x2B2D31)
@@ -625,7 +550,7 @@ module.exports = {
             `• **Larangan Keras:** Dilarang konten NSFW/18+, gore, kebencian, pelecehan, atau hak cipta orang lain tanpa izin.\n` +
             `• **Format & Ukuran:** PNG, JPG, JPEG, GIF, WEBP (maksimal 8MB).\n` +
             `• **Batas Harian:** Maksimal 5 kiriman per member per hari untuk menjaga kenyamanan seluruh anggota.\n` +
-            `• **Moderasi:** Gambar yang melanggar dapat dihapus sewaktu-waktu oleh Moderator/Admin dengan sanksi moderasi.`
+            `• **Interaksi:** Gunakan Thread di bawah masing-masing foto untuk berdiskusi.`
           );
 
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

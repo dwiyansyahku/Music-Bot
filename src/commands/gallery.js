@@ -44,14 +44,14 @@ function createGalleryPanelPayload(guild) {
     .setTitle('📸 Saluran Pengiriman Galeri Foto & Karya Seni')
     .setDescription(
       `Selamat datang di **Pusat Pengiriman Galeri**!\n\n` +
-      `Gunakan panel interaktif ini untuk mengirimkan karyamu secara langsung ke ${outputText}.\n\n` +
+      `Saluran ini dikhususkan bagi para member untuk membagikan foto momen seru, ilustrasi, screenshot game, dan karya seni Anda.\n\n` +
+      `**Cara Mengirim:**\n` +
+      `Cukup **unggah/kirim file gambar langsung** di saluran ini (bisa sertakan teks caption di chat), atau tekan tombol **Upload Gambar ke Galeri** di bawah. Bot akan otomatis merapikan dan memajang foto Anda secara resmi di ${outputText}.\n\n` +
       `**Ketentuan Pengiriman:**\n` +
-      `• Seluruh foto yang dikirim akan dipajang secara otomatis oleh bot di ${outputText}.\n` +
       `• Format yang didukung: **PNG, JPG, JPEG, GIF, WEBP** (maksimal 8MB).\n` +
       `• Batas kuota: **Maksimal ${MAX_DAILY_SUBMISSIONS} gambar per hari** per member.\n` +
-      `• Dilarang keras mengirimkan konten NSFW, gore, atau sara.\n\n` +
-      `**Cara Mengirim:**\n` +
-      `Tekan tombol **Kirim Gambar ke Galeri** di bawah ini untuk memilih upload file dari HP/PC atau memasukkan tautan gambar.`
+      `• Member lain dapat memberikan reaksi ❤️, 🔥, dan berdiskusi di thread postingan Anda.\n` +
+      `• Dilarang keras mengirimkan konten NSFW/18+, gore, atau sara.`
     )
     .setFooter({ text: `${guild.name} • Galeri Bot Terkurasi` })
     .setTimestamp();
@@ -59,9 +59,9 @@ function createGalleryPanelPayload(guild) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('gallery_btn_submit')
-      .setLabel('Kirim Gambar ke Galeri')
+      .setLabel('Upload Gambar ke Galeri')
       .setEmoji('📸')
-      .setStyle(ButtonStyle.Primary),
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('gallery_btn_rules')
       .setLabel('Panduan & Ketentuan')
@@ -345,18 +345,25 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('setchannel')
-        .setDescription('Atur konfigurasi 2-saluran galeri (saluran output & saluran panel)')
+        .setDescription('Atur konfigurasi 2-saluran galeri (Channel 1: Upload & Channel 2: Output)')
         .addChannelOption(opt =>
           opt
             .setName('output')
-            .setDescription('Saluran tujuan untuk memajang gambar/foto hasil kiriman bot')
+            .setDescription('Channel 2: Saluran output pameran foto (anti-chat langsung, hanya reaksi & thread)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
         .addChannelOption(opt =>
           opt
+            .setName('upload')
+            .setDescription('Channel 1: Saluran upload gambar (bebas chat, bot otomatis mendeteksi & memindahkan gambar)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+        .addChannelOption(opt =>
+          opt
             .setName('panel')
-            .setDescription('Saluran tempat panel tombol pengiriman dipasang (opsional)')
+            .setDescription('Alias untuk Channel 1 (Saluran Upload/Panel)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
@@ -469,16 +476,19 @@ module.exports = {
       }
 
       const outputChannel = interaction.options.getChannel('output') || interaction.options.getChannel('channel');
-      const panelChannel = interaction.options.getChannel('panel');
+      const uploadChannel = interaction.options.getChannel('upload') || interaction.options.getChannel('panel');
 
       if (!settings[guildId]) settings[guildId] = {};
       if (outputChannel) settings[guildId].galleryChannel = outputChannel.id;
-      if (panelChannel) settings[guildId].galleryPanelChannel = panelChannel.id;
+      if (uploadChannel) {
+        settings[guildId].galleryUploadChannel = uploadChannel.id;
+        settings[guildId].galleryPanelChannel = uploadChannel.id;
+      }
       storage.write('settings', settings);
 
-      let detailsText = `Saluran Galeri Output: <#${outputChannel?.id || settings[guildId].galleryChannel}>`;
-      if (panelChannel) {
-        detailsText += `\nSaluran Panel Pengiriman: <#${panelChannel.id}>`;
+      let detailsText = `Channel 2 (Output Galeri): <#${outputChannel?.id || settings[guildId].galleryChannel}>`;
+      if (uploadChannel) {
+        detailsText += `\nChannel 1 (Upload Gambar): <#${uploadChannel.id}>`;
       }
 
       await sendModLog(interaction.guild, client, {
@@ -491,11 +501,12 @@ module.exports = {
         .setColor(0x57F287)
         .setTitle('Konfigurasi 2-Saluran Galeri Berhasil')
         .setDescription(
-          `Pengaturan saluran galeri server telah diperbarui:\n\n` +
-          `• **Saluran Output (Galeri)**: <#${outputChannel?.id || settings[guildId].galleryChannel}>\n` +
-          `• **Saluran Panel**: ${settings[guildId].galleryPanelChannel ? `<#${settings[guildId].galleryPanelChannel}>` : '_Belum diatur (Gunakan `/gallery panel` di channel yang diinginkan)_'}\n\n` +
-          `💡 **Langkah Selanjutnya**:\n` +
-          `Pasang panel tombol di saluran panel dengan mengetik perintah \`/gallery panel\` di channel tersebut.`
+          `Pengaturan saluran galeri server telah berhasil diperbarui:\n\n` +
+          `• **Channel 1 (Upload Gambar)**: ${uploadChannel?.id || settings[guildId].galleryUploadChannel || settings[guildId].galleryPanelChannel ? `<#${uploadChannel?.id || settings[guildId].galleryUploadChannel || settings[guildId].galleryPanelChannel}>` : '_Belum diatur_'}\n` +
+          `  *(Member bebas chat di sini. Bot hanya mendeteksi gambar dan otomatis meneruskannya ke Channel 2)*\n\n` +
+          `• **Channel 2 (Output Galeri)**: <#${outputChannel?.id || settings[guildId].galleryChannel}>\n` +
+          `  *(Saluran pameran foto terkurasi. Anti-chat langsung, diskusi lewat Thread & Reaksi)*\n\n` +
+          `💡 **Tips**: Member cukup mengirimkan file foto di Channel 1, dan foto akan langsung dipajang secara otomatis di Channel 2!`
         )
         .setTimestamp();
 
@@ -515,7 +526,7 @@ module.exports = {
       }
 
       const galleryChannelId = guildSettings.galleryChannel;
-      const galleryPanelId = guildSettings.galleryPanelChannel;
+      const uploadChannelId = guildSettings.galleryUploadChannel || guildSettings.galleryPanelChannel;
       const galleryData = storage.read('gallery') || {};
       const guildGallery = galleryData[guildId] || { submissions: [], dailyUsage: {} };
 
@@ -533,14 +544,14 @@ module.exports = {
         .setTitle('Konfigurasi 2-Saluran & Statistik Galeri')
         .addFields(
           {
-            name: 'Saluran Output (Galeri)',
-            value: galleryChannelId ? `<#${galleryChannelId}>` : '_Belum dikonfigurasi (`/gallery setchannel`)_',
-            inline: true
+            name: 'Channel 1 (Upload Gambar)',
+            value: uploadChannelId ? `<#${uploadChannelId}>\n_(Bebas chat, bot mendeteksi gambar)_` : '_Belum diatur (`/gallery setchannel upload:#channel`)_',
+            inline: false
           },
           {
-            name: 'Saluran Panel Pengiriman',
-            value: galleryPanelId ? `<#${galleryPanelId}>` : '_Belum diatur (`/gallery panel`)_',
-            inline: true
+            name: 'Channel 2 (Output Galeri)',
+            value: galleryChannelId ? `<#${galleryChannelId}>\n_(Terkurasi, anti-chat, hanya reaksi & thread)_` : '_Belum dikonfigurasi (`/gallery setchannel output:#channel`)_',
+            inline: false
           },
           {
             name: 'Batas Harian / Member',

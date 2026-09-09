@@ -151,7 +151,8 @@ function buildHelpEmbed(category, client, guild = null) {
           `• \`/gacha fuse <tier>\` — Tempa 3 relik menjadi 1 relik bertier lebih tinggi.\n` +
           `• \`/gacha equip <title>\` — Pasang gelar utama ke kartu profil \`/card\`.\n` +
           `• \`/gacha inventory [user]\` — Cek tiket, stardust, tahta aktif, & koleksi relik.\n` +
-          `• \`/gacha shop\` & \`/gacha buy\` — Toko penukaran stardust.\n` +
+          `• \`/gacha shop\` & \`/gacha buy\` — Toko Stardust (Tiket, Hujan Rezeki, Perisai Tahta, Reset CD, Kotak Misteri, Buff 2x Rate, & Gelar Kustom).\n` +
+          `• \`/gacha customtitle <nama>\` — Buat & pasang gelar kustom buatanmu sendiri ke profil \`/card\`.\n` +
           `• \`/gacha gift <user> <item>\` — Hadiahkan relik koleksi ke member lain.\n` +
           `• \`/gacha leaderboard\` — Klasemen Top Collector & Dewa Keberuntungan.\n` +
           `• \`/gacha listroles\` — Cek status pemegang kursi tahta & antrean penantang.\n\n` +
@@ -161,7 +162,7 @@ function buildHelpEmbed(category, client, guild = null) {
           `• **Clash of Thrones:** Jika kursi tahta penuh, penantang bertarung dalam duel strategi **Best of 3 (12 Jam)** untuk merebut tahta!\n` +
           `• **Multi-Seat Queue:** Jika seluruh kursi sedang duel, penantang otomatis masuk antrean resmi tahta.\n\n` +
           `◈ **Perintah Pengaturan (Admin):**\n` +
-          `• \`/gacha setchannel\` — Atur channel khusus (\`pull\`, \`daily\`, \`play\`, \`result\`, \`duel\`, \`broadcast\`).\n` +
+          `• \`/gacha setchannel\` — Atur channel khusus (\`pull\`, \`daily\`, \`play\`, \`result\`, \`tactics\`, \`duel\`, \`broadcast\`).\n` +
           `• \`/gacha setrole\` — Atur role Discord untuk tahta Mythic dan Legendary.\n` +
           `• \`/gacha panel\` — Pasang panel interaktif gacha atau hadiah harian.\n` +
           `• \`/gacha award\` — Berikan bonus tiket atau stardust ke member (event/giveaway).`
