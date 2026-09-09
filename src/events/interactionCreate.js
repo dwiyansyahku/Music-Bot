@@ -403,9 +403,7 @@ module.exports = {
           await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
           return await executeGachaPull(interaction, client, 10);
         } else if (action === 'inv') {
-          const playChId = settingsData[interaction.guildId]?.gachaChannels?.play;
-          const isOutside = playChId && interaction.channelId !== playChId;
-          await interaction.deferReply({ flags: isOutside ? MessageFlags.Ephemeral : undefined });
+          await interaction.deferReply();
           return await executeGachaInventory(interaction, interaction.user, client);
         } else if (action === 'rates') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });

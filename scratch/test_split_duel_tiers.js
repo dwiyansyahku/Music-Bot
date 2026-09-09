@@ -31,8 +31,10 @@ async function runTests() {
     assert(choiceValues.includes('throne'), 'setchannel should have choice throne');
     assert(choiceValues.includes('duel_mythic'), 'setchannel should have choice duel_mythic');
     assert(choiceValues.includes('duel_legendary'), 'setchannel should have choice duel_legendary');
-    assert(choiceValues.includes('duel'), 'setchannel should retain choice duel');
-    assert(choiceValues.includes('tactics'), 'setchannel should retain choice tactics');
+    assert(choiceValues.includes('pull'), 'setchannel should have choice pull');
+    assert(choiceValues.includes('daily'), 'setchannel should have choice daily');
+    assert(!choiceValues.includes('duel'), 'setchannel should omit redundant alias duel');
+    assert(!choiceValues.includes('tactics'), 'setchannel should omit redundant alias tactics');
 
     const taktikSub = commandData.options.find(o => o.name === 'taktik');
     assert(taktikSub, 'Subcommand taktik should exist');

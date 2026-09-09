@@ -4529,52 +4529,6 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
     }
   }
 
-  // Jika channel Main Gacha Umum diatur dan interaksi dilakukan di channel lain:
-  // Kirim output inventaris secara publik ke Main Gacha Umum & panggil/summon member ke sana!
-  const isOutside = playChannelId && interaction.channelId !== playChannelId;
-  let playChannel = null;
-
-  if (isOutside) {
-    playChannel = interaction.guild?.channels?.cache?.get(playChannelId) ||
-      (client?.channels?.fetch ? await client.channels.fetch(playChannelId).catch(() => null) : null);
-  }
-
-  if (isOutside && playChannel && playChannel.isTextBased()) {
-    // 1. Kirim kartu inventaris secara publik ke channel Main Gacha Umum dan tag member agar terpanggil
-    await playChannel.send({
-      content: `📢 <@${user.id}> baru saja membuka inventaris reliknya:`,
-      embeds: [embed],
-      components: [row]
-    }).catch(err => {
-      console.error('[Post Inventory to Main Gacha Error]:', err.message);
-    });
-
-    // 2. Tampilkan pesan di channel asal dengan tombol tautan langsung menuju ke Main Gacha Umum
-    const chName = playChannel.name ? `#${playChannel.name}` : 'Saluran Main Gacha';
-    const channelUrl = `https://discord.com/channels/${guildId}/${playChannelId}`;
-
-    const redirectEmbed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setTitle('Inventaris Ditampilkan di Saluran Umum')
-      .setDescription(
-        `Kartu inventarismu telah berhasil ditampilkan secara publik di saluran <#${playChannelId}>!\n\n` +
-        `Klik tombol di bawah untuk langsung menuju ke saluran tersebut!`
-      );
-
-    const redirectRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel(`Menuju ke ${chName}`.slice(0, 80))
-        .setStyle(ButtonStyle.Link)
-        .setURL(channelUrl)
-    );
-
-    if (interaction.replied || interaction.deferred) {
-      return interaction.editReply({ embeds: [redirectEmbed], components: [redirectRow] });
-    }
-    return interaction.reply({ embeds: [redirectEmbed], components: [redirectRow], flags: MessageFlags.Ephemeral });
-  }
-
-  // Jika member sudah berada di channel Main Gacha Umum (atau playChannel belum diatur)
   if (interaction.replied || interaction.deferred) {
     return interaction.editReply({ embeds: [embed], components: [row] });
   }
@@ -5259,15 +5213,12 @@ module.exports = {
             .setDescription('Tipe channel yang ingin diatur')
             .setRequired(true)
             .addChoices(
+              { name: 'Throne Lounge (Status tahta & tempat siaran hasil akhir duel)', value: 'throne' },
+              { name: 'Arena Duel Mythic (Kartu tantangan & pasang taktik Tahta Mythic)', value: 'duel_mythic' },
+              { name: 'Arena Duel Legendary (Kartu tantangan & pasang taktik Tahta Legendary)', value: 'duel_legendary' },
               { name: 'Channel Tarik Gacha (Batasi command /gacha pull & tombol tarik)', value: 'pull' },
               { name: 'Channel Hadiah Harian (Batasi command /gacha daily & tombol klaim)', value: 'daily' },
-              { name: 'Channel Main Gacha Umum (Menu gacha & fallback jika pull/daily belum diatur)', value: 'play' },
               { name: 'Channel Hasil Tarikan (Log publik hasil pull di channel terpisah)', value: 'result' },
-              { name: 'Throne Lounge (Status tahta & tempat siaran hasil akhir duel)', value: 'throne' },
-              { name: 'Channel Duel Mythic (Kartu tantangan & pasang taktik Tahta Mythic)', value: 'duel_mythic' },
-              { name: 'Channel Duel Legendary (Kartu tantangan & pasang taktik Tahta Legendary)', value: 'duel_legendary' },
-              { name: 'Channel Pasang Taktik (Fallback taktik tahta gabungan)', value: 'tactics' },
-              { name: 'Channel Arena Duel Tahta (Alias Throne Lounge)', value: 'duel' },
               { name: 'Channel Broadcast Jackpot (Pengumuman perolehan Mythic & Legendary)', value: 'broadcast' }
             )
         )
@@ -6320,9 +6271,7 @@ module.exports = {
     // === SUBCOMMAND: INVENTORY ===
     if (sub === 'inventory') {
       const targetUser = interaction.options.getUser('user') || interaction.user;
-      const playChId = settingsData[guildId]?.gachaChannels?.play;
-      const isOutside = playChId && interaction.channelId !== playChId;
-      await interaction.deferReply({ flags: isOutside ? MessageFlags.Ephemeral : undefined });
+      await interaction.deferReply();
       return executeGachaInventory(interaction, targetUser, client);
     }
 
