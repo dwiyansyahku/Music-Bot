@@ -1656,8 +1656,8 @@ async function handleDuelExpiry(duel, client) {
   let resultDesc = '';
   let tierColor = 0xFEE75C;
 
-  if (cHasTactics && !dHasTactics) {
-    // Defender AFK > 12 Jam -> Penantang Menang Default!
+  if (!dHasTactics) {
+    // Defender (Yang Ditantang) AFK / Tidak Merespon > 12 Jam -> Penantang Menang Default!
     if (guild) {
       try {
         const defenderMember = await guild.members.fetch(duel.defenderId).catch(() => null);

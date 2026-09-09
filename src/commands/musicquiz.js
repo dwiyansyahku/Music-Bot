@@ -18,6 +18,29 @@ const pendingDuels = new Map();
 const SNIPPET_DURATION = 30; // Durasi audio berbunyi penuh 30 detik
 const ANSWER_TIME = 40;      // Waktu menjawab peserta 40 detik
 
+function awardDuelWin(guildId, winnerId, winnerName, reason = 'default') {
+  // Update Leaderboard Music Quiz
+  const quizData = storage.read('musicquiz_lb');
+  if (!quizData[guildId]) quizData[guildId] = {};
+  if (!quizData[guildId][winnerId]) {
+    quizData[guildId][winnerId] = { name: winnerName, score: 0, wins: 0, duelWins: 0 };
+  }
+  quizData[guildId][winnerId].duelWins = (quizData[guildId][winnerId].duelWins || 0) + 1;
+  quizData[guildId][winnerId].score = (quizData[guildId][winnerId].score || 0) + 50;
+  quizData[guildId][winnerId].name = winnerName;
+  storage.write('musicquiz_lb', quizData);
+
+  // Update Hadiah Gacha (1 Tiket + 25 Stardust)
+  const gachaData = storage.read('gacha_data');
+  if (!gachaData[guildId]) gachaData[guildId] = {};
+  if (!gachaData[guildId][winnerId]) {
+    gachaData[guildId][winnerId] = { tickets: 3, stardust: 50, pulls: 0, pityEpic: 0, pityLegendary: 0, lastDaily: 0, streak: 0, inventory: [], badges: [], titles: [] };
+  }
+  gachaData[guildId][winnerId].tickets = (gachaData[guildId][winnerId].tickets || 0) + 1;
+  gachaData[guildId][winnerId].stardust = (gachaData[guildId][winnerId].stardust || 0) + 25;
+  storage.write('gacha_data', gachaData);
+}
+
 function shuffleArray(arr) {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -391,17 +414,27 @@ module.exports = {
 
       duelCollector.on('end', async (collected, reason) => {
         if (reason === 'time' && (!collected || collected.filter(c => c.user.id === opponent.id).size === 0)) {
-          const timeoutEmbed = new EmbedBuilder()
-            .setColor(0x2B2D31)
+          awardDuelWin(guildId, challenger.id, interaction.member.displayName, 'wo_invite_no_response');
+
+          const winEmbed = new EmbedBuilder()
+            .setColor(0x57F287)
             .setAuthor({
-              name: `TANTANGAN KADALUARSA — ${interaction.guild.name.toUpperCase()}`,
+              name: `HASIL AKHIR DUEL 1V1 — ${interaction.guild.name.toUpperCase()}`,
               iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
             })
-            .setTitle('Duel 1v1 Dibatalkan (Waktu Habis)')
-            .setDescription(`**${opponentMember.displayName}** tidak memberikan respons dalam waktu 30 detik.\nTantangan duel otomatis dibatalkan.`)
+            .setTitle(`🏆 Pemenang Duel: ${interaction.member.displayName} (Menang W.O.)`)
+            .setDescription(
+              `**${opponentMember.displayName}** tidak memberikan respons dalam waktu 30 detik.\n\n` +
+              `Sesuai regulasi pertandingan, kemenangan mutlak (**Walkover / W.O.**) otomatis diberikan kepada inisiator tantangan **${interaction.member.displayName}**!\n\n` +
+              `• **Status:** Menang W.O. (Lawan Tidak Merespon)\n` +
+              `• **Pemenang:** <@${challenger.id}> 👑\n` +
+              `• **Lawan:** <@${opponent.id}>\n\n` +
+              `🎁 **Hadiah Pemenang:** 🎟️ **+1 Tiket Gacha** & ✨ **+25 Stardust**! (+50 Poin Leaderboard)`
+            )
+            .setFooter({ text: 'Gunakan /musicquiz duel untuk menantang member lain' })
             .setTimestamp();
 
-          await inviteMsg.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
+          await inviteMsg.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
         }
       });
 
@@ -502,6 +535,42 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
       .setColor(0x2B2D31)
       .setDescription('**Music Quiz dihentikan otomatis.** Voice channel kosong.');
     return textChannel.send({ embeds: [emptyEmbed] }).catch(() => {});
+  }
+
+  // Jika mode Duel: periksa apakah pihak yang ditantang keluar dari voice channel (No Respon / DC)
+  if (game.isDuel) {
+    const challengerInVC = currentVC.members.has(game.challengerId);
+    const opponentInVC = currentVC.members.has(game.opponentId);
+
+    if (challengerInVC && !opponentInVC) {
+      activeGames.delete(guildId);
+      try {
+        const q = client.distube.getQueue(guildId);
+        if (q) q.stop().catch(() => {});
+      } catch (_) {}
+
+      awardDuelWin(guildId, game.challengerId, game.challengerName, 'wo_opponent_left_vc');
+
+      const forfeitEmbed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setAuthor({
+          name: `DUEL 1V1 BERAKHIR — ${textChannel.guild.name.toUpperCase()}`,
+          iconURL: textChannel.guild.iconURL({ dynamic: true }) || undefined
+        })
+        .setTitle(`🏆 Pemenang Duel: ${game.challengerName} (Menang W.O.)`)
+        .setDescription(
+          `**${game.opponentName}** telah keluar dari Voice Channel di tengah pertandingan duel.\n\n` +
+          `Karena pihak yang ditantang tidak lagi berada di arena / tidak merespon, kemenangan mutlak (**Walkover / W.O.**) otomatis diberikan kepada penantang **${game.challengerName}**!\n\n` +
+          `• **Status:** Menang W.O. (Lawan Meninggalkan Arena)\n` +
+          `• **Pemenang:** <@${game.challengerId}> 👑\n` +
+          `• **Lawan:** <@${game.opponentId}>\n\n` +
+          `🎁 **Hadiah Pemenang:** 🎟️ **+1 Tiket Gacha** & ✨ **+25 Stardust**! (+50 Poin Leaderboard)`
+        )
+        .setFooter({ text: 'Gunakan /musicquiz duel untuk menantang member lain' })
+        .setTimestamp();
+
+      return textChannel.send({ embeds: [forfeitEmbed] }).catch(() => {});
+    }
   }
 
   // Cek apakah semua ronde sudah selesai
@@ -736,6 +805,46 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
 
     await textChannel.send({ embeds: [roundResultEmbed] }).catch(() => {});
 
+    // Periksa jika pihak yang ditantang tidak merespon sama sekali selama 3 ronde berturut-turut
+    if (game.isDuel) {
+      const opponentAnswered = game.answeredUsers.has(game.opponentId);
+      if (!opponentAnswered) {
+        game.opponentAfkStreak = (game.opponentAfkStreak || 0) + 1;
+      } else {
+        game.opponentAfkStreak = 0;
+      }
+
+      if (game.opponentAfkStreak >= 3) {
+        activeGames.delete(guildId);
+        try {
+          const currentQueue = client.distube.getQueue(guildId);
+          if (currentQueue) currentQueue.stop().catch(() => {});
+        } catch (_) {}
+
+        awardDuelWin(guildId, game.challengerId, game.challengerName, 'wo_opponent_afk_3_rounds');
+
+        const afkWinEmbed = new EmbedBuilder()
+          .setColor(0x57F287)
+          .setAuthor({
+            name: `DUEL 1V1 BERAKHIR (DISKUALIFIKASI) — ${textChannel.guild.name.toUpperCase()}`,
+            iconURL: textChannel.guild.iconURL({ dynamic: true }) || undefined
+          })
+          .setTitle(`🏆 Pemenang Duel: ${game.challengerName} (Menang W.O.)`)
+          .setDescription(
+            `**${game.opponentName}** tidak memberikan respon selama 3 ronde berturut-turut.\n\n` +
+            `Sesuai regulasi pertandingan, duel dihentikan lebih awal dan kemenangan mutlak (**Walkover / W.O.**) diberikan kepada penantang **${game.challengerName}**!\n\n` +
+            `• **Status:** Menang W.O. (Lawan AFK / Tidak Merespon)\n` +
+            `• **Pemenang:** <@${game.challengerId}> 👑\n` +
+            `• **Lawan:** <@${game.opponentId}>\n\n` +
+            `🎁 **Hadiah Pemenang:** 🎟️ **+1 Tiket Gacha** & ✨ **+25 Stardust**! (+50 Poin Leaderboard)`
+          )
+          .setFooter({ text: 'Gunakan /musicquiz duel untuk memulai pertarungan baru' })
+          .setTimestamp();
+
+        return textChannel.send({ embeds: [afkWinEmbed] }).catch(() => {});
+      }
+    }
+
     if (!game.active) return;
 
     // Jeda 4 detik sebelum ronde berikutnya
@@ -787,21 +896,43 @@ async function finishGame(textChannel, guildId, client) {
 
     let resultTitle = '';
     let resultDesc = '';
+    let winnerId = null;
 
     if (p1.score > p2.score) {
+      winnerId = game.challengerId;
       resultTitle = `Pemenang Duel: ${p1.name}`;
       resultDesc = `**${p1.name}** memenangkan duel atas **${p2.name}** dengan selisih **${p1.score - p2.score} Poin**!`;
     } else if (p2.score > p1.score) {
+      winnerId = game.opponentId;
       resultTitle = `Pemenang Duel: ${p2.name}`;
       resultDesc = `**${p2.name}** memenangkan duel atas **${p1.name}** dengan selisih **${p2.score - p1.score} Poin**!`;
     } else {
-      resultTitle = 'Hasil Duel: Seri (Draw)';
-      resultDesc = `Pertandingan berakhir imbang dengan skor **${p1.score} Poin** sama rata.`;
+      // Jika skor seri / lawan tidak merespon jawaban dengan benar
+      if (p2.correctCount === 0 && p1.correctCount > 0) {
+        winnerId = game.challengerId;
+        resultTitle = `Pemenang Duel: ${p1.name}`;
+        resultDesc = `**${p1.name}** memenangkan duel karena **${p2.name}** tidak memberikan jawaban yang valid!`;
+      } else if (p1.score === 0 && p2.score === 0) {
+        // Keduanya 0 poin, inisiator tantangan memenangkan duel karena lawan tidak merespon/mencetak skor
+        winnerId = game.challengerId;
+        resultTitle = `Pemenang Duel: ${p1.name} (Inisiator Duel)`;
+        resultDesc = `Kedua peserta tidak mencetak skor. Sesuai regulasi, kemenangan diberikan kepada inisiator tantangan **${p1.name}**!`;
+      } else {
+        resultTitle = 'Hasil Duel: Seri (Draw)';
+        resultDesc = `Pertandingan berakhir imbang dengan skor **${p1.score} Poin** sama rata.`;
+      }
     }
 
     let duelRewardText = '';
-    if (p1.score > p2.score || p2.score > p1.score) {
-      const winnerId = p1.score > p2.score ? game.challengerId : game.opponentId;
+    if (winnerId) {
+      // Pastikan duelWins tercatat di leaderboard
+      if (!quizData[guildId]) quizData[guildId] = {};
+      if (!quizData[guildId][winnerId]) {
+        quizData[guildId][winnerId] = { name: winnerId === game.challengerId ? p1.name : p2.name, score: 0, wins: 0, duelWins: 0 };
+      }
+      quizData[guildId][winnerId].duelWins = (quizData[guildId][winnerId].duelWins || 0) + 1;
+      storage.write('musicquiz_lb', quizData);
+
       const gachaData = storage.read('gacha_data');
       if (!gachaData[guildId]) gachaData[guildId] = {};
       if (!gachaData[guildId][winnerId]) {
