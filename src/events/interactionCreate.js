@@ -1,4 +1,13 @@
-const { MessageFlags, EmbedBuilder } = require('discord.js');
+const {
+  MessageFlags,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
+} = require('discord.js');
 const { handleCardButton, handleCardModalSubmit } = require('../utils/cardHandler');
 const { createMusicControlRows } = require('../utils/musicButtons');
 const { nowPlayingEmbed, queueEmbed } = require('../utils/embeds');
@@ -526,7 +535,6 @@ module.exports = {
 
       // 2. Klik Buka Modal (Input Link / URL)
       if (interaction.customId === 'gallery_btn_open_modal') {
-        const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
         const modal = new ModalBuilder()
           .setCustomId('gallery_modal_submit')
           .setTitle('Kirim Gambar ke Galeri');
