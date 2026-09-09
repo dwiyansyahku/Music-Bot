@@ -106,7 +106,7 @@ async function resolveAndDownloadImage(inputUrl) {
     res = await fetch(targetUrl, {
       headers: defaultHeaders,
       redirect: 'follow',
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(30000)
     });
   } catch (netErr) {
     throw new Error(`Koneksi ke situs gagal (${netErr.message || 'Timeout / Server menolak koneksi'})`);
@@ -140,7 +140,7 @@ async function resolveAndDownloadImage(inputUrl) {
         res = await fetch(resolvedUrl, {
           headers: defaultHeaders,
           redirect: 'follow',
-          signal: AbortSignal.timeout(10000)
+          signal: AbortSignal.timeout(30000)
         });
       } catch (ogErr) {
         throw new Error(`Gagal mengunduh gambar pratinjau situs (${ogErr.message})`);
@@ -259,6 +259,22 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
   let postedMsg = null;
   try {
     postedMsg = await galleryChannel.send({ embeds: [postEmbed], files: [attachment] });
+  } catch (postErr) {
+    console.warn('[Gallery Send Warning]: Pengiriman via file attachment gagal (' + postErr.message + '), mencoba fallback URL langsung...');
+    try {
+      // Fallback: kirim via direct URL jika upload buffer file timeout/abort
+      postEmbed.setImage(imageUrl);
+      postedMsg = await galleryChannel.send({ embeds: [postEmbed] });
+    } catch (fallbackErr) {
+      console.error('[Gallery Send Error]:', fallbackErr.message);
+      return {
+        success: false,
+        error: `Gagal mengirim gambar ke saluran <#${galleryChannelId}>: ${fallbackErr.message}`
+      };
+    }
+  }
+
+  if (postedMsg) {
     await postedMsg.react('❤️').catch(() => {});
     await postedMsg.react('🔥').catch(() => {});
 
@@ -269,12 +285,6 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
       name: threadName,
       autoArchiveDuration: 1440 // 24 jam
     }).catch(() => {});
-  } catch (postErr) {
-    console.error('[Gallery Send Error]:', postErr.message);
-    return {
-      success: false,
-      error: `Gagal mengirim gambar ke saluran <#${galleryChannelId}>: ${postErr.message}`
-    };
   }
 
   // Simpan ke storage

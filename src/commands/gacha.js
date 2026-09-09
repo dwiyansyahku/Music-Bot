@@ -3296,10 +3296,6 @@ function createTacticsPanelPayload(guild) {
       .setLabel('Status & Riwayat')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('gacha_btn_inv')
-      .setLabel('Cek Inventory')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
       .setCustomId('gacha_btn_duel_help')
       .setLabel('Panduan Taktik')
       .setStyle(ButtonStyle.Secondary)
@@ -5528,6 +5524,7 @@ module.exports = {
   createDailyPanelPayload,
   createPullPanelPayload,
   createDuelPanelPayload,
+  createTacticsPanelPayload,
   deployGachaPanel,
   calculateSeasonScore,
   executeSeasonReset,
