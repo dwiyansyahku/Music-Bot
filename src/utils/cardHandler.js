@@ -343,7 +343,10 @@ async function buildMemberCardEmbed(guild, member) {
     const { getUserAchievements } = require('./achievementHelper');
     const achData = getUserAchievements(guild.id, member.id, member);
     if (achData.unlocked.length > 0) {
-      const badgeList = achData.unlocked.map(a => `\`${a.tag} ${a.name}\``).join('  ');
+      let badgeList = achData.unlocked.map(a => `\`${a.tag} ${a.name}\``).join('  ');
+      if (badgeList.length > 1024) {
+        badgeList = badgeList.substring(0, 990) + ` ... *(+${achData.unlocked.length} badges)*`;
+      }
       embed.addFields({
         name: `Titles & Badges (${achData.unlocked.length})`,
         value: badgeList,

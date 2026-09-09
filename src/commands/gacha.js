@@ -3667,16 +3667,24 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
   const gachaData = storage.read('gacha_data');
   const targetData = getOrInitUserData(gachaData, guildId, user.id);
 
-  const badgesText = targetData.badges.length > 0
+  let badgesText = targetData.badges.length > 0
     ? targetData.badges.map(b => `\`${b}\``).join('  ')
     : '_Belum memiliki lencana_';
 
-  const titlesText = targetData.titles.length > 0
+  if (badgesText.length > 1000) {
+    badgesText = badgesText.substring(0, 970) + ` ... *(+${targetData.badges.length} lencana)*`;
+  }
+
+  let titlesText = targetData.titles.length > 0
     ? targetData.titles.map(t => {
       const isEq = targetData.equippedTitle === t ? ' *(Equipped)*' : '';
       return `\`"${t}"\`${isEq}`;
     }).join('  ')
     : '_Belum memiliki gelar_';
+
+  if (titlesText.length > 1000) {
+    titlesText = titlesText.substring(0, 970) + ` ... *(+${targetData.titles.length} gelar)*`;
+  }
 
   // Hitung jumlah relik per tier untuk ringkasan
   const tiersList = ['ANCIENT', 'MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
@@ -3712,9 +3720,13 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
     highTierText = highTierText.substring(0, 730) + '\n*... [Daftar dipotong]*';
   }
 
-  const itemsFieldValue = targetData.inventory.length > 0
+  let itemsFieldValue = targetData.inventory.length > 0
     ? `${tierSummaryText}\n\n**Koleksi Tier Tinggi (Epic+):**\n${highTierText}`
     : '_Belum ada relik yang dikoleksi_';
+
+  if (itemsFieldValue.length > 1024) {
+    itemsFieldValue = itemsFieldValue.substring(0, 1000) + '\n*... [Daftar relik dipotong]*';
+  }
 
   const totalPool = GACHA_ITEMS.length;
   const userCollected = targetData.inventory.length;
@@ -3775,13 +3787,18 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
         inline: false
       },
       {
-        name: 'Gelar & Lencana',
-        value: `${badgesText}\n${titlesText}`,
+        name: `Lencana Prestasi (${targetData.badges.length})`,
+        value: badgesText,
+        inline: false
+      },
+      {
+        name: `Gelar Koleksi (${targetData.titles.length})`,
+        value: titlesText,
         inline: false
       },
       {
         name: `Koleksi Relik (${userCollected}/${totalPool})`,
-        value: itemsFieldValue.length > 1024 ? itemsFieldValue.substring(0, 1020) : itemsFieldValue,
+        value: itemsFieldValue,
         inline: false
       }
     )
