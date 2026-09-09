@@ -328,12 +328,12 @@ module.exports = {
       } else if (action === 'pull_1' || action === 'pull_10') {
         requiredChannelId = gChannels.pull || gChannels.play;
         actionLabel = 'Tarik Gacha';
-      } else if (action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status') {
+      } else if (action.startsWith('challenge_prompt') || action.startsWith('duel_')) {
         requiredChannelId = gChannels.live_duel || gChannels.duel || gChannels.throne || gChannels.duel_mythic || gChannels.duel_legendary || gChannels.tactics || gChannels.play;
         actionLabel = 'Tantangan & Duel Tahta';
       }
 
-      const isDuelAction = action.startsWith('challenge_prompt') || action === 'duel_mythic' || action === 'duel_legendary' || action === 'duel_status';
+      const isDuelAction = action.startsWith('challenge_prompt') || action.startsWith('duel_');
       const allowedDuelChannels = [
         gChannels.live_duel,
         gChannels.duel,
@@ -391,6 +391,7 @@ module.exports = {
         executeGachaRates,
         executeGachaAlbum,
         executeGachaChallengePrompt,
+        executeGachaDuelStartPrompt,
         executeGachaDuelStatus,
         executeGachaDuelHelp
       } = require('../commands/gacha');
@@ -405,7 +406,8 @@ module.exports = {
           await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
           return await executeGachaPull(interaction, client, 10);
         } else if (action === 'inv') {
-          await interaction.deferReply();
+          const isCrossToUmum = gChannels.umum && interaction.channelId !== gChannels.umum;
+          await interaction.deferReply({ flags: isCrossToUmum ? MessageFlags.Ephemeral : undefined });
           return await executeGachaInventory(interaction, interaction.user, client);
         } else if (action === 'album') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -416,6 +418,9 @@ module.exports = {
         } else if (action === 'daily') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaDaily(interaction);
+        } else if (action === 'duel_start') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          return await executeGachaDuelStartPrompt(interaction, client);
         } else if (action.startsWith('challenge_prompt:')) {
           const tier = action.split(':')[1];
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });

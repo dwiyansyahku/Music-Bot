@@ -26,50 +26,7 @@ function getWIBDateString() {
   return `${wib.getFullYear()}-${String(wib.getMonth() + 1).padStart(2, '0')}-${String(wib.getDate()).padStart(2, '0')}`;
 }
 
-/**
- * Build Gallery Information Panel Payload
- */
-function createGalleryPanelPayload(guild) {
-  const settings = storage.read('settings') || {};
-  const outputId = settings[guild.id]?.galleryChannel;
-  const outputText = outputId ? `<#${outputId}>` : 'Saluran Galeri';
 
-  const embed = new EmbedBuilder()
-    .setColor(0x5865F2)
-    .setAuthor({
-      name: `KOMUNITAS GALERI & KARYA — ${guild.name.toUpperCase()}`,
-      iconURL: guild.iconURL({ dynamic: true }) || undefined
-    })
-    .setTitle('📸 Saluran Pengiriman Galeri Foto & Karya Seni')
-    .setDescription(
-      `Selamat datang di **Pusat Pengiriman Galeri**!\n\n` +
-      `Saluran ini dikhususkan bagi para member untuk membagikan foto momen seru, ilustrasi, screenshot game, dan karya seni Anda.\n\n` +
-      `**Cara Mengirim:**\n` +
-      `Cukup **unggah/kirim file gambar langsung** di saluran ini (bisa sertakan teks caption di chat), atau tekan tombol **Upload Gambar ke Galeri** di bawah. Bot akan otomatis merapikan dan memajang foto Anda secara resmi di ${outputText}.\n\n` +
-      `**Ketentuan Pengiriman:**\n` +
-      `• Format yang didukung: **PNG, JPG, JPEG, GIF, WEBP** (maksimal 8MB).\n` +
-      `• Batas kuota: **Tanpa Batas Kuota** (bebas berbagi karya kapan saja).\n` +
-      `• Member lain dapat memberikan reaksi ❤️, 🔥, dan berdiskusi di thread postingan Anda.\n` +
-      `• Dilarang keras mengirimkan konten NSFW/18+, gore, atau sara.`
-    )
-    .setFooter({ text: `${guild.name} • Galeri Bot Terkurasi` })
-    .setTimestamp();
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('gallery_btn_submit')
-      .setLabel('Upload Gambar ke Galeri')
-      .setEmoji('📸')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('gallery_btn_rules')
-      .setLabel('Panduan & Ketentuan')
-      .setEmoji('📜')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  return { embeds: [embed], components: [row] };
-}
 
 /**
  * Unduh dan verifikasi file gambar dari URL (Mendukung link direct gambar, Imgur, Pinterest, OpenGraph og:image, dll.)
@@ -275,16 +232,26 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
   }
 
   if (postedMsg) {
-    await postedMsg.react('❤️').catch(() => {});
-    await postedMsg.react('🔥').catch(() => {});
+    // Berikan 2 reaksi apresiasi acak
+    const RANDOM_EMOJIS = ['❤️', '🔥', '✨', '👏', '🎨', '⭐', '💖'];
+    const chosenEmojis = [...RANDOM_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 2);
+    for (const em of chosenEmojis) {
+      await postedMsg.react(em).catch(() => {});
+    }
 
     // Buat Discord Thread otomatis untuk komentar & diskusi di bawah foto
     const cleanCap = (caption || '').replace(/\n/g, ' ').trim();
-    const threadName = cleanCap ? `💬 ${cleanCap.slice(0, 40)}` : `💬 Karya: ${user.username}`;
-    await postedMsg.startThread({
+    const threadName = cleanCap ? cleanCap.slice(0, 40) : `Karya: ${user.username}`;
+    const thread = await postedMsg.startThread({
       name: threadName,
       autoArchiveDuration: 1440 // 24 jam
-    }).catch(() => {});
+    }).catch(() => null);
+
+    if (thread) {
+      await thread.send({
+        content: `Diskusi & apresiasi untuk karya dari <@${user.id}>. Silakan berikan komentar atau tanggapan di sini!`
+      }).catch(() => {});
+    }
   }
 
   // Simpan ke storage
@@ -324,7 +291,7 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('gallery')
-    .setDescription('Sistem Saluran Galeri Gambar Terkurasi Bot (2-Saluran: Panel & Output)')
+    .setDescription('Sistem Saluran Galeri Gambar Terkurasi Bot (2-Saluran: Upload & Output)')
     // Subcommand: submit
     .addSubcommand(sub =>
       sub
@@ -363,25 +330,12 @@ module.exports = {
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
-        .addChannelOption(opt =>
-          opt
-            .setName('panel')
-            .setDescription('Alias untuk Channel 1 (Saluran Upload/Panel)')
-            .addChannelTypes(ChannelType.GuildText)
-            .setRequired(false)
-        )
     )
     // Subcommand: config (Admin only)
     .addSubcommand(sub =>
       sub
         .setName('config')
         .setDescription('Lihat status konfigurasi 2-saluran dan statistik galeri')
-    )
-    // Subcommand: panel (Admin only)
-    .addSubcommand(sub =>
-      sub
-        .setName('panel')
-        .setDescription('Pasang panel galeri interaktif permanen di channel ini (Admin only)')
     )
     // Subcommand: delete (Admin only)
     .addSubcommand(sub =>
@@ -402,7 +356,6 @@ module.exports = {
         )
     ),
 
-  createGalleryPanelPayload,
   publishGalleryItem,
 
   async execute(interaction, client) {
@@ -583,31 +536,7 @@ module.exports = {
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
-    // ==========================================
-    // 4. SUBCOMMAND: PANEL (Admin Only)
-    // ==========================================
-    if (sub === 'panel') {
-      const isAuthorized = await isOwnerOrMod(interaction, client);
-      if (!isAuthorized && !interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-        return interaction.reply({
-          content: '❌ Perintah ini hanya dapat dijalankan oleh **Administrator** atau **Moderator**.',
-          flags: MessageFlags.Ephemeral
-        });
-      }
 
-      // Simpan channel tempat panel dipasang sebagai galleryPanelChannel
-      if (!settings[guildId]) settings[guildId] = {};
-      settings[guildId].galleryPanelChannel = interaction.channelId;
-      storage.write('settings', settings);
-
-      const payload = createGalleryPanelPayload(interaction.guild);
-      await interaction.channel.send(payload);
-
-      return interaction.reply({
-        content: `✅ Panel galeri interaktif berhasil dipasang di <#${interaction.channelId}>.\nSaluran ini sekarang resmi dicatat sebagai **Saluran Panel Pengiriman**.`,
-        flags: MessageFlags.Ephemeral
-      });
-    }
 
     // ==========================================
     // 5. SUBCOMMAND: DELETE (Admin Only)

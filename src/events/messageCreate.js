@@ -99,9 +99,7 @@ module.exports = {
       const galleryOutputId = gSettings.galleryChannel; // Channel 2: Output
       const galleryUploadId = gSettings.galleryUploadChannel || gSettings.galleryPanelChannel; // Channel 1: Upload
 
-      // 1. Channel 1: Saluran Khusus Upload Gambar
-      // Aturan: Member bebas mengirim chat atau teks apapun di sini (TIDAK terdeteksi / tidak dihapus bot).
-      // Yang dideteksi HANYA jika ada GAMBAR yang diunggah. Jika ada gambar, otomatis diposting ke Channel 2!
+      // 1. Channel 1: Saluran Khusus Upload Gambar dari Device
       if (galleryUploadId && message.channel.id === galleryUploadId) {
         if (!message.author.bot) {
           const imageAtt = message.attachments.find(att => {
@@ -110,45 +108,50 @@ module.exports = {
           });
 
           if (imageAtt) {
-            // Ada gambar terdeteksi! Ambil teks caption jika ada
             const caption = message.content?.trim() || '';
-
             const { publishGalleryItem } = require('../commands/gallery');
             const res = await publishGalleryItem(message.guild, message.author, message.member, imageAtt.url, caption, client);
 
             if (res.success) {
-              // Beri reaksi pada pesan foto member di Channel 1 sebagai konfirmasi telah dipajang di Channel 2
               await message.react('🖼️').catch(() => {});
-              await message.react('✨').catch(() => {});
             } else {
               message.reply({
-                content: `❌ Gagal memposting gambar ke galeri: ${res.error}`
+                content: `Gagal memposting gambar ke galeri: ${res.error}`
               }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
             }
           }
-          // Catatan: Jika hanya chat teks biasa tanpa gambar, bot TIDAK campur tangan sama sekali.
         }
       }
 
       // 2. Channel 2: Saluran Output Galeri
-      // Aturan: Saluran ini tidak bisa dichat sama sekali (pesan apapun langsung dihapus bot).
-      // Interaksi HANYA lewat Thread dan Reaksi di bawah masing-masing foto yang dipajang bot!
+      // Jika ada member kirim gambar langsung ke sini, bot mengubahnya jadi postingan resmi terkurasi
+      // Jika hanya chat teks biasa tanpa gambar, langsung dihapus karena dilarang chat langsung
       if (galleryOutputId && message.channel.id === galleryOutputId) {
         if (!message.author.bot) {
-          // Hapus pesan apapun yang dikirim member di feed utama Channel 2
-          await message.delete().catch(() => {});
+          const imageAtt = message.attachments.find(att => {
+            const ext = (att.name?.split('.').pop() || '').toLowerCase();
+            return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) || att.contentType?.startsWith('image/');
+          });
 
-          const warningContent = galleryUploadId
-            ? `⚠️ <@${message.author.id}>, saluran ini khusus galeri (tidak bisa dichat langsung).\n` +
-              `• **Untuk upload gambar**: Silakan kirim di <#${galleryUploadId}>.\n` +
-              `• **Untuk mengobrol/merespon**: Buka **Thread** di bawah masing-masing foto atau berikan reaksi emoji!`
-            : `⚠️ <@${message.author.id}>, saluran ini khusus galeri (tidak bisa dichat langsung).\n` +
-              `Silakan gunakan **Thread** di bawah masing-masing foto atau berikan reaksi emoji untuk merespon.`;
+          if (imageAtt) {
+            const caption = message.content?.trim() || '';
+            await message.delete().catch(() => {});
+            const { publishGalleryItem } = require('../commands/gallery');
+            await publishGalleryItem(message.guild, message.author, message.member, imageAtt.url, caption, client);
+            return;
+          } else {
+            // Hapus chat teks biasa
+            await message.delete().catch(() => {});
 
-          message.channel.send({ content: warningContent })
-            .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
-            .catch(() => {});
-          return;
+            const warningContent = galleryUploadId
+              ? `<@${message.author.id}>, saluran ini khusus galeri foto (tidak bisa chat langsung).\n• Untuk upload gambar: silakan kirim di <#${galleryUploadId}>.\n• Untuk mengobrol/merespon: silakan buka Thread di bawah masing-masing foto.`
+              : `<@${message.author.id}>, saluran ini khusus galeri foto. Silakan gunakan Thread di bawah masing-masing foto untuk berdiskusi.`;
+
+            message.channel.send({ content: warningContent })
+              .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+              .catch(() => {});
+            return;
+          }
         }
       }
     } catch (gErr) {
