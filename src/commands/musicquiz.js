@@ -18,6 +18,57 @@ const pendingDuels = new Map();
 const SNIPPET_DURATION = 30; // Durasi audio berbunyi penuh 30 detik
 const ANSWER_TIME = 40;      // Waktu menjawab peserta 40 detik
 
+const QUIZ_DAILY_TICKET_CAP = 5;
+
+function awardQuizGachaRewards(guildId, userId, userName, ticketAmount, stardustAmount) {
+  const gachaData = storage.read('gacha_data') || {};
+  if (!gachaData[guildId]) gachaData[guildId] = {};
+  if (!gachaData[guildId][userId]) {
+    gachaData[guildId][userId] = {
+      tickets: 3,
+      stardust: 50,
+      pulls: 0,
+      pityEpic: 0,
+      pityLegendary: 0,
+      lastDaily: 0,
+      streak: 0,
+      inventory: [],
+      badges: [],
+      titles: []
+    };
+  }
+
+  const userGacha = gachaData[guildId][userId];
+  const today = new Date().toISOString().slice(0, 10);
+  if (!userGacha.quizDailyTickets || userGacha.quizDailyTickets.date !== today) {
+    userGacha.quizDailyTickets = { date: today, count: 0 };
+  }
+
+  let ticketsAwarded = 0;
+  let hitCap = false;
+
+  if (ticketAmount > 0) {
+    const remainingCap = Math.max(0, QUIZ_DAILY_TICKET_CAP - userGacha.quizDailyTickets.count);
+    ticketsAwarded = Math.min(ticketAmount, remainingCap);
+    userGacha.tickets = (userGacha.tickets || 0) + ticketsAwarded;
+    userGacha.quizDailyTickets.count += ticketsAwarded;
+    if (remainingCap <= 0 || ticketsAwarded < ticketAmount) {
+      hitCap = true;
+    }
+  }
+
+  userGacha.stardust = (userGacha.stardust || 0) + stardustAmount;
+  storage.write('gacha_data', gachaData);
+
+  return {
+    ticketsAwarded,
+    stardustAwarded: stardustAmount,
+    hitCap,
+    dailyCount: userGacha.quizDailyTickets.count,
+    dailyCap: QUIZ_DAILY_TICKET_CAP
+  };
+}
+
 function awardDuelWin(guildId, winnerId, winnerName, reason = 'default') {
   // Update Leaderboard Music Quiz
   const quizData = storage.read('musicquiz_lb');
@@ -30,15 +81,12 @@ function awardDuelWin(guildId, winnerId, winnerName, reason = 'default') {
   quizData[guildId][winnerId].name = winnerName;
   storage.write('musicquiz_lb', quizData);
 
-  // Update Hadiah Gacha (1 Tiket + 25 Stardust)
-  const gachaData = storage.read('gacha_data');
-  if (!gachaData[guildId]) gachaData[guildId] = {};
-  if (!gachaData[guildId][winnerId]) {
-    gachaData[guildId][winnerId] = { tickets: 3, stardust: 50, pulls: 0, pityEpic: 0, pityLegendary: 0, lastDaily: 0, streak: 0, inventory: [], badges: [], titles: [] };
-  }
-  gachaData[guildId][winnerId].tickets = (gachaData[guildId][winnerId].tickets || 0) + 1;
-  gachaData[guildId][winnerId].stardust = (gachaData[guildId][winnerId].stardust || 0) + 25;
-  storage.write('gacha_data', gachaData);
+  // Jika menang W.O. (lawan AFK/meninggalkan arena), tiket tidak diberikan untuk mencegah farming akun tumbal
+  const isWalkover = reason.startsWith('wo_');
+  const ticketReward = isWalkover ? 0 : 1;
+  const stardustReward = 25;
+
+  return awardQuizGachaRewards(guildId, winnerId, winnerName, ticketReward, stardustReward);
 }
 
 function shuffleArray(arr) {
@@ -120,9 +168,9 @@ module.exports = {
         )
         .addIntegerOption(opt =>
           opt.setName('ronde')
-            .setDescription('Jumlah ronde pertanyaan (1-50, default: 20)')
+            .setDescription('Jumlah ronde pertanyaan (5-50, default: 10). Min. 10 ronde untuk perebutan tiket gacha')
             .setRequired(false)
-            .setMinValue(1)
+            .setMinValue(5)
             .setMaxValue(50)
         )
     )
@@ -143,9 +191,9 @@ module.exports = {
         )
         .addIntegerOption(opt =>
           opt.setName('ronde')
-            .setDescription('Jumlah ronde duel (1-50, default: 20)')
+            .setDescription('Jumlah ronde duel (5-50, default: 10). Head-to-Head')
             .setRequired(false)
-            .setMinValue(1)
+            .setMinValue(5)
             .setMaxValue(50)
         )
     )
@@ -271,7 +319,7 @@ module.exports = {
       }
 
       const category = interaction.options.getString('kategori') || 'all';
-      const totalRounds = interaction.options.getInteger('ronde') || 20;
+      const totalRounds = interaction.options.getInteger('ronde') || 10;
 
       const duelId = `duel_${guildId}_${Date.now()}`;
       const acceptBtn = new ButtonBuilder()
@@ -379,6 +427,7 @@ module.exports = {
               [opponent.id]: { name: opponentMember.displayName, score: 0, correctCount: 0 }
             },
             answeredUsers: new Set(),
+            activeParticipants: new Set(),
             isDuel: true,
             challengerId: challenger.id,
             opponentId: opponent.id,
@@ -458,6 +507,15 @@ module.exports = {
         });
       }
 
+      const memberList = voiceChannel.members ? Array.from(voiceChannel.members.values()) : [];
+      const humanMembers = memberList.filter(m => !m.user?.bot);
+      if (humanMembers.length < 2) {
+        return interaction.reply({
+          content: `⚠️ **Minimal 2 Member Dibutuhkan!**\nMusic Quiz dirancang untuk kompetisi antar member. Minimal harus ada **2 orang member** (non-bot) di dalam Voice Channel <#${voiceChannel.id}> untuk memulai kuis.\nAjak temanmu bergabung ke voice channel terlebih dahulu!`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
       const existingQueue = client.distube.getQueue(guildId);
       if (existingQueue && existingQueue.songs.length > 0) {
         return interaction.reply({
@@ -467,7 +525,7 @@ module.exports = {
       }
 
       const category = interaction.options.getString('kategori') || 'all';
-      const totalRounds = interaction.options.getInteger('ronde') || 20;
+      const totalRounds = interaction.options.getInteger('ronde') || 10;
 
       const songPool = getSongPool(category);
       const shuffledQuestions = shuffleArray(songPool).slice(0, totalRounds);
@@ -484,11 +542,13 @@ module.exports = {
         songPool,
         scores: {},
         answeredUsers: new Set(),
+        activeParticipants: new Set(),
         isDuel: false
       };
 
       activeGames.set(guildId, gameState);
 
+      const isCompetitiveMode = totalRounds >= 10;
       const startEmbed = new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({
@@ -501,10 +561,11 @@ module.exports = {
           `• **Kategori:** \`${CATEGORY_LABELS[category]}\`\n` +
           `• **Total Ronde:** \`${totalRounds} Ronde\`\n` +
           `• **Durasi Audio:** \`${SNIPPET_DURATION} Detik\`\n` +
-          `• **Waktu Menjawab:** \`${ANSWER_TIME} Detik\`\n\n` +
+          `• **Waktu Menjawab:** \`${ANSWER_TIME} Detik\`\n` +
+          `• **Mode Permainan:** ${isCompetitiveMode ? '⚔️ `Kompetitif (Perebutan Tiket Gacha & Stardust)`' : '⚡ `Quick Match (Pemanasan — Stardust & Leaderboard)`'}\n\n` +
           `*Ronde pertama dimulai dalam 4 detik...*`
         )
-        .setFooter({ text: 'Dengarkan baik-baik dan klik tombol jawaban pilihanmu!' })
+        .setFooter({ text: isCompetitiveMode ? 'Syarat Tiket: Min. 10 Ronde, Min. 2 Peserta Aktif, & Akurasi Benar ≥ 30%' : 'Mainkan minimal 10 ronde untuk memperebutkan Tiket Gacha' })
         .setTimestamp();
 
       await interaction.reply({ embeds: [startEmbed] });
@@ -525,7 +586,8 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
 
   // Cek apakah masih ada member selain bot di voice channel
   const currentVC = textChannel.guild.channels.cache.get(voiceChannel.id);
-  if (!currentVC || currentVC.members.filter(m => !m.user.bot).size === 0) {
+  const currentHumans = currentVC?.members ? Array.from(currentVC.members.values()).filter(m => !m.user?.bot) : [];
+  if (!currentVC || currentHumans.length === 0) {
     activeGames.delete(guildId);
     try {
       const q = client.distube.getQueue(guildId);
@@ -564,7 +626,8 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
           `• **Status:** Menang W.O. (Lawan Meninggalkan Arena)\n` +
           `• **Pemenang:** <@${game.challengerId}> 👑\n` +
           `• **Lawan:** <@${game.opponentId}>\n\n` +
-          `🎁 **Hadiah Pemenang:** 🎟️ **+1 Tiket Gacha** & ✨ **+25 Stardust**! (+50 Poin Leaderboard)`
+          `🎁 **Hadiah Pemenang:** ✨ **+25 Stardust** & \`+50 Poin Leaderboard\`\n` +
+          `⚠️ *Catatan: Tiket Gacha tidak diberikan pada kemenangan W.O. untuk mencegah eksploitasi AFK.*`
         )
         .setFooter({ text: 'Gunakan /musicquiz duel untuk menantang member lain' })
         .setTimestamp();
@@ -728,6 +791,9 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
       return i.reply({ content: 'Kamu sudah menjawab untuk ronde ini.', flags: MessageFlags.Ephemeral });
     }
     game.answeredUsers.add(i.user.id);
+    if (game.activeParticipants) {
+      game.activeParticipants.add(i.user.id);
+    }
 
     const isCorrect = i.customId.endsWith('correct');
 
@@ -836,7 +902,8 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
             `• **Status:** Menang W.O. (Lawan AFK / Tidak Merespon)\n` +
             `• **Pemenang:** <@${game.challengerId}> 👑\n` +
             `• **Lawan:** <@${game.opponentId}>\n\n` +
-            `🎁 **Hadiah Pemenang:** 🎟️ **+1 Tiket Gacha** & ✨ **+25 Stardust**! (+50 Poin Leaderboard)`
+            `🎁 **Hadiah Pemenang:** ✨ **+25 Stardust** & \`+50 Poin Leaderboard\`\n` +
+            `⚠️ *Catatan: Tiket Gacha tidak diberikan pada kemenangan W.O. untuk mencegah eksploitasi AFK.*`
           )
           .setFooter({ text: 'Gunakan /musicquiz duel untuk memulai pertarungan baru' })
           .setTimestamp();
@@ -933,15 +1000,25 @@ async function finishGame(textChannel, guildId, client) {
       quizData[guildId][winnerId].duelWins = (quizData[guildId][winnerId].duelWins || 0) + 1;
       storage.write('musicquiz_lb', quizData);
 
-      const gachaData = storage.read('gacha_data');
-      if (!gachaData[guildId]) gachaData[guildId] = {};
-      if (!gachaData[guildId][winnerId]) {
-        gachaData[guildId][winnerId] = { tickets: 3, stardust: 50, pulls: 0, pityEpic: 0, pityLegendary: 0, lastDaily: 0, streak: 0, inventory: [], badges: [], titles: [] };
+      // Duel kompetitif: kedua pemain harus aktif bertanding (terdaftar di activeParticipants)
+      const bothParticipated = game.activeParticipants && game.activeParticipants.has(game.challengerId) && game.activeParticipants.has(game.opponentId);
+      const isCompetitive = bothParticipated && (p1.score > 0 || p2.score > 0);
+
+      const ticketReward = isCompetitive ? 1 : 0;
+      const stardustReward = 25;
+      const winnerName = winnerId === game.challengerId ? p1.name : p2.name;
+
+      const r = awardQuizGachaRewards(guildId, winnerId, winnerName, ticketReward, stardustReward);
+
+      if (r.ticketsAwarded > 0) {
+        duelRewardText = `\n🎁 **Hadiah Pemenang:** 🎟️ **+${r.ticketsAwarded} Tiket Gacha** (Harian: ${r.dailyCount}/${r.dailyCap}) & ✨ **+${r.stardustAwarded} Stardust**!`;
+      } else if (ticketReward > 0 && r.hitCap) {
+        duelRewardText = `\n🎁 **Hadiah Pemenang:** 🎟️ *(Batas harian 5/5 tiket tercapai)* & ✨ **+${r.stardustAwarded} Stardust**!`;
+      } else if (!isCompetitive) {
+        duelRewardText = `\n🎁 **Hadiah Pemenang:** ✨ **+${r.stardustAwarded} Stardust**!\n⚠️ *Catatan: Tiket Gacha hanya diberikan jika kedua peserta aktif bertanding.*`;
+      } else {
+        duelRewardText = `\n🎁 **Hadiah Pemenang:** ✨ **+${r.stardustAwarded} Stardust**!`;
       }
-      gachaData[guildId][winnerId].tickets = (gachaData[guildId][winnerId].tickets || 0) + 1;
-      gachaData[guildId][winnerId].stardust = (gachaData[guildId][winnerId].stardust || 0) + 25;
-      storage.write('gacha_data', gachaData);
-      duelRewardText = `\n🎁 **Hadiah Pemenang:** 🎟️ **+1 Tiket Gacha** & ✨ **+25 Stardust**!`;
     }
 
     const duelFinalEmbed = new EmbedBuilder()
@@ -975,18 +1052,99 @@ async function finishGame(textChannel, guildId, client) {
   const winner = sortedScores[0][1];
   const winnerUserId = sortedScores[0][0];
 
-  // Award Gacha Rewards to Winner
-  let winnerGachaRewardText = '';
-  if (winner.score > 0) {
-    const gachaData = storage.read('gacha_data');
-    if (!gachaData[guildId]) gachaData[guildId] = {};
-    if (!gachaData[guildId][winnerUserId]) {
-      gachaData[guildId][winnerUserId] = { tickets: 3, stardust: 50, pulls: 0, pityEpic: 0, pityLegendary: 0, lastDaily: 0, streak: 0, inventory: [], badges: [], titles: [] };
+  const activeParticipantsCount = game.activeParticipants?.size || 0;
+  const rewardSummaryNotes = [];
+
+  // Syarat Tiket Gacha:
+  // 1. Minimal 10 Ronde
+  // 2. Minimal 2 Peserta Aktif yang menjawab
+  // 3. Pemenang punya akurasi minimal (>= 30% di 10-19 ronde, >= 35% di 20+ ronde)
+  const isShortMatch = game.totalRounds < 10;
+  const minRequiredAccuracy = game.totalRounds >= 20 ? 0.35 : 0.30;
+  const minCorrectRequired = Math.ceil(game.totalRounds * minRequiredAccuracy);
+  const meetsAccuracy = winner.correctCount >= minCorrectRequired;
+  const meetsParticipants = activeParticipantsCount >= 2;
+
+  let rank1Tickets = 0;
+  let rank1Stardust = 25;
+  let rank2Tickets = 0;
+  let rank2Stardust = 0;
+  let rank3Stardust = 0;
+
+  if (isShortMatch) {
+    rank1Tickets = 0;
+    rank1Stardust = 25;
+    rewardSummaryNotes.push('ℹ️ Kuis ini berdurasi di bawah 10 ronde (Quick Match). Hadiah berupa Stardust & Leaderboard.');
+  } else if (!meetsParticipants) {
+    rank1Tickets = 0;
+    rank1Stardust = 25;
+    rewardSummaryNotes.push('⚠️ Tiket Gacha tidak diberikan karena kuis hanya memiliki 1 peserta aktif (minimal 2 peserta aktif menjawab).');
+  } else if (!meetsAccuracy) {
+    rank1Tickets = 0;
+    rank1Stardust = 25;
+    rewardSummaryNotes.push(`⚠️ Tiket Gacha tidak diberikan karena akurasi pemenang di bawah ${Math.round(minRequiredAccuracy * 100)}% (hanya ${winner.correctCount}/${game.totalRounds} benar).`);
+  } else {
+    // Kuis Kompetitif Sah!
+    if (game.totalRounds >= 20) {
+      rank1Tickets = 2;
+      rank1Stardust = 100;
+      // Juara 2 (jika ada >= 3 peserta yang berpartisipasi dan akurasi juara 2 >= 25%)
+      if (sortedScores.length >= 3 && sortedScores[1][1].correctCount >= Math.ceil(game.totalRounds * 0.25)) {
+        rank2Tickets = 1;
+        rank2Stardust = 50;
+      }
+      // Juara 3 (jika ada >= 4 peserta dan akurasi juara 3 >= 2 benar)
+      if (sortedScores.length >= 4 && sortedScores[2][1].correctCount >= 2) {
+        rank3Stardust = 25;
+      }
+    } else {
+      // 10-19 Ronde
+      rank1Tickets = 1;
+      rank1Stardust = 50;
+      // Juara 2 (jika ada >= 3 peserta dan akurasi juara 2 >= 20%)
+      if (sortedScores.length >= 3 && sortedScores[1][1].correctCount >= Math.ceil(game.totalRounds * 0.20)) {
+        rank2Stardust = 25;
+      }
     }
-    gachaData[guildId][winnerUserId].tickets = (gachaData[guildId][winnerUserId].tickets || 0) + 2;
-    gachaData[guildId][winnerUserId].stardust = (gachaData[guildId][winnerUserId].stardust || 0) + 50;
-    storage.write('gacha_data', gachaData);
-    winnerGachaRewardText = `\n\n🎁 **Hadiah Juara 1:** 🎟️ **+2 Tiket Gacha** & ✨ **+50 Stardust**!`;
+  }
+
+  // Bagikan hadiah Juara 1
+  let rewardText = '';
+  if (winner.score > 0) {
+    const r1 = awardQuizGachaRewards(guildId, winnerUserId, winner.name, rank1Tickets, rank1Stardust);
+    rewardText += `\n\n🎁 **Hadiah Juara 1 (${winner.name}):** `;
+    if (r1.ticketsAwarded > 0) {
+      rewardText += `🎟️ **+${r1.ticketsAwarded} Tiket Gacha** (Harian: ${r1.dailyCount}/${r1.dailyCap}) & `;
+    } else if (rank1Tickets > 0 && r1.hitCap) {
+      rewardText += `🎟️ *(Batas harian 5/5 tiket tercapai)* & `;
+    }
+    rewardText += `✨ **+${r1.stardustAwarded} Stardust**!`;
+  }
+
+  // Bagikan hadiah Juara 2 (jika memenuhi syarat)
+  if (sortedScores.length >= 2 && (rank2Tickets > 0 || rank2Stardust > 0)) {
+    const r2User = sortedScores[1][1];
+    const r2UserId = sortedScores[1][0];
+    const r2 = awardQuizGachaRewards(guildId, r2UserId, r2User.name, rank2Tickets, rank2Stardust);
+    rewardText += `\n🎁 **Hadiah Juara 2 (${r2User.name}):** `;
+    if (r2.ticketsAwarded > 0) {
+      rewardText += `🎟️ **+${r2.ticketsAwarded} Tiket Gacha** (Harian: ${r2.dailyCount}/${r2.dailyCap}) & `;
+    } else if (rank2Tickets > 0 && r2.hitCap) {
+      rewardText += `🎟️ *(Batas harian 5/5 tiket tercapai)* & `;
+    }
+    rewardText += `✨ **+${r2.stardustAwarded} Stardust**!`;
+  }
+
+  // Bagikan hadiah Juara 3 (jika ada)
+  if (sortedScores.length >= 3 && rank3Stardust > 0) {
+    const r3User = sortedScores[2][1];
+    const r3UserId = sortedScores[2][0];
+    const r3 = awardQuizGachaRewards(guildId, r3UserId, r3User.name, 0, rank3Stardust);
+    rewardText += `\n🎁 **Hadiah Juara 3 (${r3User.name}):** ✨ **+${r3.stardustAwarded} Stardust**!`;
+  }
+
+  if (rewardSummaryNotes.length > 0) {
+    rewardText += `\n\n${rewardSummaryNotes.join('\n')}`;
   }
 
   const rankLabels = ['#01', '#02', '#03', '#04', '#05'];
@@ -1005,7 +1163,7 @@ async function finishGame(textChannel, guildId, client) {
     .setDescription(
       `Skor tertinggi **${winner.score} Poin** dengan total **${winner.correctCount} jawaban benar**.\n\n` +
       `**Papan Peringkat Akhir:**\n${scoreBoard}` +
-      winnerGachaRewardText
+      rewardText
     )
     .setFooter({ text: 'Gunakan /musicquiz leaderboard untuk melihat klasemen server' })
     .setTimestamp();
