@@ -234,25 +234,46 @@ async function playVoiceAudio(channel, text, client) {
   // 1. Unduh audio MP3 dari Google TTS
   const audioBuffer = await fetchTTSAudio(text);
 
-  // 2. Dapatkan atau buat koneksi suara ke channel ini
-  let connection = getVoiceConnection(guildId);
-  if (!connection || connection.joinConfig.channelId !== channel.id) {
-    connection = joinVoiceChannel({
-      channelId: channel.id,
-      guildId: guildId,
-      adapterCreator: guild.voiceAdapterCreator,
-      selfDeaf: false,
-      selfMute: false
-    });
+  // 2. Dapatkan koneksi suara aktif (prioritaskan DisTube VoiceConnection / group bot)
+  const disTubeVoice = client.distube?.voices?.get(guildId);
+  let connection = disTubeVoice?.connection ||
+    getVoiceConnection(guildId, client.user?.id) ||
+    getVoiceConnection(guildId);
+
+  // Jika bot belum terhubung atau ada di channel lain
+  if (!connection || connection.joinConfig?.channelId !== channel.id) {
+    if (client.distube) {
+      try {
+        const joined = await client.distube.voices.join(channel);
+        connection = joined?.connection;
+      } catch (dErr) {
+        console.warn(`[Voice Welcome] Gagal join via DisTube:`, dErr.message);
+      }
+    }
+
+    if (!connection) {
+      connection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: guildId,
+        adapterCreator: guild.voiceAdapterCreator,
+        group: client.user?.id,
+        selfDeaf: false,
+        selfMute: false
+      });
+    }
   }
 
-  // 3. Wajib tunggu sampai status koneksi READY sebelum mulai transmisi audio!
-  // Tanpa menunggu Ready, paket audio awal terbuang saat socket UDP masih proses handshake.
+  if (!connection) {
+    console.warn(`[Voice Welcome] Koneksi voice tidak ditemukan untuk guild ${guildId}`);
+    return;
+  }
+
+  // 3. Pastikan status koneksi READY sebelum mulai transmisi audio
   if (connection.state.status !== VoiceConnectionStatus.Ready) {
     try {
-      await entersState(connection, VoiceConnectionStatus.Ready, 6000);
+      await entersState(connection, VoiceConnectionStatus.Ready, 8000);
     } catch (waitErr) {
-      console.warn(`⚠️ [Voice Welcome] Koneksi voice belum siap dalam 6 detik:`, waitErr.message);
+      console.warn(`[Voice Welcome] Koneksi voice belum siap dalam 8 detik:`, waitErr.message);
       return;
     }
   }
@@ -270,7 +291,7 @@ async function playVoiceAudio(channel, text, client) {
   }
 
   resource.playStream.on('error', (streamErr) => {
-    console.error('❌ [Voice Welcome Stream Error]:', streamErr.message);
+    console.error('[Voice Welcome Stream Error]:', streamErr.message);
   });
 
   const player = createAudioPlayer();
@@ -279,7 +300,7 @@ async function playVoiceAudio(channel, text, client) {
 
   return new Promise((resolve, reject) => {
     player.on(AudioPlayerStatus.Playing, () => {
-      console.log(`🔊 [Voice Welcome AI] Sapaan suara sedang terdengar di "${channel.name}"...`);
+      console.log(`[Voice Welcome AI] Sapaan suara sedang diputar di "${channel.name}"...`);
     });
 
     player.on(AudioPlayerStatus.Idle, () => {
@@ -288,9 +309,9 @@ async function playVoiceAudio(channel, text, client) {
         if (subscription) subscription.unsubscribe();
 
         // Kembalikan subscription ke DisTube audioPlayer jika tersedia
-        const disTubeVoice = client.distube?.voices?.get(guildId);
-        if (disTubeVoice?.audioPlayer && connection && connection.state.status === VoiceConnectionStatus.Ready) {
-          connection.subscribe(disTubeVoice.audioPlayer);
+        const activeDisTubeVoice = client.distube?.voices?.get(guildId);
+        if (activeDisTubeVoice?.audioPlayer && connection && connection.state.status === VoiceConnectionStatus.Ready) {
+          connection.subscribe(activeDisTubeVoice.audioPlayer);
         }
       } catch (_) { }
       resolve();
@@ -301,12 +322,12 @@ async function playVoiceAudio(channel, text, client) {
         player.stop(true);
         if (subscription) subscription.unsubscribe();
 
-        const disTubeVoice = client.distube?.voices?.get(guildId);
-        if (disTubeVoice?.audioPlayer && connection && connection.state.status === VoiceConnectionStatus.Ready) {
-          connection.subscribe(disTubeVoice.audioPlayer);
+        const activeDisTubeVoice = client.distube?.voices?.get(guildId);
+        if (activeDisTubeVoice?.audioPlayer && connection && connection.state.status === VoiceConnectionStatus.Ready) {
+          connection.subscribe(activeDisTubeVoice.audioPlayer);
         }
       } catch (_) { }
-      console.error('❌ [Voice Welcome Player Error]:', err.message);
+      console.error('[Voice Welcome Player Error]:', err.message);
       reject(err);
     });
   });

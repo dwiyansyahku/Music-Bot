@@ -1407,14 +1407,16 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     }
   }
 
-  const connection = getVoiceConnection(guildId);
+  const connection = client.distube?.voices?.get(guildId)?.connection ||
+    getVoiceConnection(guildId, client.user?.id) ||
+    getVoiceConnection(guildId);
   if (connection && !connection.listenerAdded) {
     connection.listenerAdded = true;
-    console.log(`🔊 [Voice Connection] Found connection for guild: ${guildId}. Attaching stateChange tracker.`);
+    console.log(`[Voice Connection] Found connection for guild: ${guildId}. Attaching stateChange tracker.`);
     connection.on('stateChange', (oldVoiceState, newVoiceState) => {
-      console.log(`🔊 [Voice Connection] State changed from "${oldVoiceState.status}" to "${newVoiceState.status}"`);
+      console.log(`[Voice Connection] State changed from "${oldVoiceState.status}" to "${newVoiceState.status}"`);
       if (newVoiceState.status === 'disconnected') {
-        console.log(`❌ [Voice Connection] Disconnected.`);
+        console.log(`[Voice Connection] Disconnected.`);
       }
     });
   }
