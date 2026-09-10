@@ -152,8 +152,8 @@ module.exports = {
             await message.delete().catch(() => {});
 
             const warningContent = galleryUploadId
-              ? `<@${message.author.id}>, saluran ini khusus galeri foto (tidak bisa chat langsung).\n• Untuk upload gambar: silakan kirim di <#${galleryUploadId}>.\n• Untuk mengobrol/merespon: silakan buka Thread di bawah masing-masing foto.`
-              : `<@${message.author.id}>, saluran ini khusus galeri foto. Silakan gunakan Thread di bawah masing-masing foto untuk berdiskusi.`;
+              ? `<@${message.author.id}>, saluran ini khusus pameran galeri foto (tidak bisa chat langsung).\n• Untuk upload gambar: silakan kirim di <#${galleryUploadId}>.`
+              : `<@${message.author.id}>, saluran ini khusus pameran foto (tidak bisa chat langsung).`;
 
             message.channel.send({ content: warningContent })
               .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))

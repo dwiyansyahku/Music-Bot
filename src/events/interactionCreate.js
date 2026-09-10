@@ -605,7 +605,7 @@ module.exports = {
             `   • Anda bisa mengobrol santai atau mengetik teks caption bersamaan dengan foto (obrolan chat biasa di sana tetap normal dan tidak akan terganggu).\n\n` +
             `2. **Otomatis Masuk ke Channel 2 (${targetText})**:\n` +
             `   • Bot akan otomatis mendeteksi file gambar dan memajangnya secara rapi di galeri terkurasi.\n` +
-            `   • Lengkap dengan reaksi emoji ❤️/🔥 dan **Thread Diskusi** otomatis di bawah foto!`,
+            `   • Lengkap dengan reaksi emoji apresiasi di bawah foto!`,
           flags: MessageFlags.Ephemeral
         });
       }
@@ -614,13 +614,13 @@ module.exports = {
       if (interaction.customId === 'gallery_btn_rules') {
         const embed = new EmbedBuilder()
           .setColor(0x2B2D31)
-          .setTitle('📜 Ketentuan & Pedoman Galeri Komunitas')
+          .setTitle('Ketentuan & Pedoman Galeri Komunitas')
           .setDescription(
             `• **Konten yang Diizinkan:** Fotografi, ilustrasi, screenshot game, fan art, meme original bermutu, dan momen server.\n` +
             `• **Larangan Keras:** Dilarang konten NSFW/18+, gore, kebencian, pelecehan, atau hak cipta orang lain tanpa izin.\n` +
             `• **Format & Ukuran:** PNG, JPG, JPEG, GIF, WEBP (maksimal 8MB).\n` +
             `• **Batas Harian:** Tanpa batasan kuota (bebas berbagi karya kapan saja untuk meramaikan galeri server).\n` +
-            `• **Interaksi:** Gunakan Thread di bawah masing-masing foto untuk berdiskusi.`
+            `• **Interaksi:** Berikan apresiasi menggunakan reaksi emoji pada foto yang Anda sukai.`
           );
 
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

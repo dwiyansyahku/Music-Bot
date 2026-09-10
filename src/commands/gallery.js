@@ -238,20 +238,6 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
     for (const em of chosenEmojis) {
       await postedMsg.react(em).catch(() => {});
     }
-
-    // Buat Discord Thread otomatis untuk komentar & diskusi di bawah foto
-    const cleanCap = (caption || '').replace(/\n/g, ' ').trim();
-    const threadName = cleanCap ? cleanCap.slice(0, 40) : `Karya: ${user.username}`;
-    const thread = await postedMsg.startThread({
-      name: threadName,
-      autoArchiveDuration: 1440 // 24 jam
-    }).catch(() => null);
-
-    if (thread) {
-      await thread.send({
-        content: `Diskusi & apresiasi untuk karya dari <@${user.id}>. Silakan berikan komentar atau tanggapan di sini!`
-      }).catch(() => {});
-    }
   }
 
   // Simpan ke storage
@@ -319,7 +305,7 @@ module.exports = {
         .addChannelOption(opt =>
           opt
             .setName('output')
-            .setDescription('Channel 2: Saluran output pameran foto (anti-chat langsung, hanya reaksi & thread)')
+            .setDescription('Channel 2: Saluran output pameran foto (anti-chat langsung, hanya reaksi)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
@@ -461,7 +447,7 @@ module.exports = {
           `• **Channel 1 (Upload Gambar)**: ${uploadChannel?.id || settings[guildId].galleryUploadChannel || settings[guildId].galleryPanelChannel ? `<#${uploadChannel?.id || settings[guildId].galleryUploadChannel || settings[guildId].galleryPanelChannel}>` : '_Belum diatur_'}\n` +
           `  *(Member bebas chat di sini. Bot hanya mendeteksi gambar dan otomatis meneruskannya ke Channel 2)*\n\n` +
           `• **Channel 2 (Output Galeri)**: <#${outputChannel?.id || settings[guildId].galleryChannel}>\n` +
-          `  *(Saluran pameran foto terkurasi. Anti-chat langsung, diskusi lewat Thread & Reaksi)*\n\n` +
+          `  *(Saluran pameran foto terkurasi. Anti-chat langsung, khusus pameran foto & reaksi)*\n\n` +
           `💡 **Tips**: Member cukup mengirimkan file foto di Channel 1, dan foto akan langsung dipajang secara otomatis di Channel 2!`
         )
         .setTimestamp();
@@ -506,7 +492,7 @@ module.exports = {
           },
           {
             name: 'Channel 2 (Output Galeri)',
-            value: galleryChannelId ? `<#${galleryChannelId}>\n_(Terkurasi, anti-chat, hanya reaksi & thread)_` : '_Belum dikonfigurasi (`/gallery setchannel output:#channel`)_',
+            value: galleryChannelId ? `<#${galleryChannelId}>\n_(Terkurasi, anti-chat, hanya reaksi)_` : '_Belum dikonfigurasi (`/gallery setchannel output:#channel`)_',
             inline: false
           },
           {
