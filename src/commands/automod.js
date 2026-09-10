@@ -277,14 +277,14 @@ module.exports = {
 
       const logEmbed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle('🛡️ Saluran Mod Log & Pertahanan Server Diatur')
+        .setTitle('Saluran Mod Log & Pertahanan Server Diatur')
         .setDescription(
           `Seluruh log sistem keamanan dan audit server telah diarahkan ke <#${channel.id}>.\n\n` +
           `• **Kategori Log yang Masuk ke Channel Ini:**\n` +
-          `  - 🛡️ **Pertahanan Bot:** Anti-Move (dipindahkan dari 24/7), Auto-Reconnect, Voice Immunity (Server Mute/Deaf).\n` +
-          `  - 🎙️ **Keamanan Voice:** Disconnect paksa, Pemindahan antar-saluran, Mute & Deafen Server.\n` +
-          `  - 🛑 **Tindakan Moderasi:** Kick, Ban, Unban, Jail, Timeout, Warn.\n` +
-          `  - 🚨 **AutoMod Sentinel:** Anti-Phishing, Anti-Spam flood, Anti-Malware, Anti-Raid, Anti-Nuke, Webhook.`
+          `  - **Pertahanan Bot:** Anti-Move (dipindahkan dari 24/7), Auto-Reconnect, Voice Immunity (Server Mute/Deaf).\n` +
+          `  - **Keamanan Voice:** Disconnect paksa, Pemindahan antar-saluran, Mute & Deafen Server.\n` +
+          `  - **Tindakan Moderasi:** Kick, Ban, Unban, Jail, Timeout, Warn.\n` +
+          `  - **AutoMod Sentinel:** Anti-Phishing, Anti-Spam flood, Anti-Malware, Anti-Raid, Anti-Nuke, Webhook.`
         )
         .setFooter({ text: 'Log tidak akan lagi dikirim ke chat umum' })
         .setTimestamp();

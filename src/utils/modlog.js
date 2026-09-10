@@ -121,7 +121,7 @@ async function sendModLog(guild, client, logData) {
     if (moderator) {
       const modTag = moderator.tag || moderator.username || 'Unknown Mod';
       embed.addFields({
-        name: '👮 Moderator',
+        name: 'Moderator',
         value: `<@${moderator.id}> (${modTag})`,
         inline: true
       });
@@ -131,7 +131,7 @@ async function sendModLog(guild, client, logData) {
       const targetTag = target.user ? (target.user.tag || target.user.username) : (target.tag || target.username || 'Unknown Target');
       const targetId = target.id;
       embed.addFields({
-        name: '🎯 Target',
+        name: 'Target',
         value: `<@${targetId}> (${targetTag} • \`${targetId}\`)`,
         inline: true
       });
@@ -139,7 +139,7 @@ async function sendModLog(guild, client, logData) {
 
     if (reason) {
       embed.addFields({
-        name: '📝 Alasan',
+        name: 'Alasan',
         value: reason.length > 1024 ? reason.substring(0, 1020) + '...' : reason,
         inline: false
       });
@@ -147,7 +147,7 @@ async function sendModLog(guild, client, logData) {
 
     if (details) {
       embed.addFields({
-        name: 'ℹ️ Detail',
+        name: 'Detail',
         value: details.length > 1024 ? details.substring(0, 1020) + '...' : details,
         inline: false
       });

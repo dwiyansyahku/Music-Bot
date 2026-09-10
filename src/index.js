@@ -1116,7 +1116,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
             `• **Pelaku Disconnect:** <@${executor.id}> (\`${executor.tag}\`)\n` +
             `• **Korban Disconnect:** <@${oldState.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
             `• **Jumlah Pengguna Terkena:** ${entry.extra?.count || 1} orang` +
-            (isBotDisconnected && client.stay247?.has(guildId) ? '\n• **Tindakan Pertahanan:** 🛡️ Bot otomatis masuk kembali (Mode 24/7).' : ''),
+            (isBotDisconnected && client.stay247?.has(guildId) ? '\n• **Tindakan Pertahanan:** Bot otomatis masuk kembali (Mode 24/7).' : ''),
           color: isBotDisconnected ? 0xED4245 : 0xFEE75C
         });
       } catch (logErr) {
@@ -1209,7 +1209,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
             target: targetUser,
             reason: isMuted ? 'Server Mute di Voice Channel' : 'Server Unmute di Voice Channel',
             details: `• **Saluran Voice:** <#${newState.channelId}> (\`${channelName}\`)\n` +
-              `• **Status:** ${isMuted ? '🔇 **Di-mute Server (Tidak dapat berbicara)**' : '🔊 **Di-unmute Server (Dapat berbicara kembali)**'}\n` +
+              `• **Status:** ${isMuted ? '**Di-mute Server (Tidak dapat berbicara)**' : '**Di-unmute Server (Dapat berbicara kembali)**'}\n` +
               `• **Pelaku:** <@${executor.id}> (\`${executor.tag}\`)\n` +
               `• **Target:** <@${newState.id}> (\`${targetUser.tag || targetUser.username}\`)`,
             color: isMuted ? 0xFEE75C : 0x57F287
@@ -1226,7 +1226,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
             target: targetUser,
             reason: isDeaf ? 'Server Deafen di Voice Channel' : 'Server Undeafen di Voice Channel',
             details: `• **Saluran Voice:** <#${newState.channelId}> (\`${channelName}\`)\n` +
-              `• **Status:** ${isDeaf ? '🛑 **Di-deafen Server (Tidak dapat mendengar/berbicara)**' : '🎧 **Di-undeafen Server (Dapat mendengar kembali)**'}\n` +
+              `• **Status:** ${isDeaf ? '**Di-deafen Server (Tidak dapat mendengar/berbicara)**' : '**Di-undeafen Server (Dapat mendengar kembali)**'}\n` +
               `• **Pelaku:** <@${executor.id}> (\`${executor.tag}\`)\n` +
               `• **Target:** <@${newState.id}> (\`${targetUser.tag || targetUser.username}\`)`,
             color: isDeaf ? 0xED4245 : 0x57F287
@@ -1311,7 +1311,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
               details: `• **Saluran Asal (24/7):** <#${designatedChannelId}>\n` +
                 `• **Saluran Tujuan Pemindahan:** <#${newState.channelId}> (\`${newState.channel?.name || newState.channelId}\`)\n` +
                 `• **Pelaku Pemindahan:** ${moverId ? `<@${moverId}> (\`${moverTag}\`)` : 'Tidak teridentifikasi di Audit Log'}\n` +
-                `• **Tindakan Pertahanan:** 🔄 Bot otomatis dikembalikan ke voice channel 24/7 (<#${designatedChannelId}>).`,
+                `• **Tindakan Pertahanan:** Bot otomatis dikembalikan ke voice channel 24/7 (<#${designatedChannelId}>).`,
               color: 0xFEE75C
             });
           }

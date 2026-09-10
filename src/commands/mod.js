@@ -543,14 +543,14 @@ const mod = {
 
         const replyEmbed = new EmbedBuilder()
           .setColor(0x5865F2)
-          .setTitle('🔊 Member Berhasil Dipindahkan')
+          .setTitle('Member Berhasil Dipindahkan')
           .setDescription(`Berhasil memindahkan <@${targetUser.id}> dari <#${oldChannelId}> ke <#${targetChannel.id}>.`)
           .setFooter({ text: `Alasan: ${alasan}` })
           .setTimestamp();
 
         return interaction.editReply({ embeds: [replyEmbed] });
       } catch (err) {
-        return interaction.editReply(`❌ Gagal memindahkan member: ${err.message}`);
+        return interaction.editReply(`Gagal memindahkan member: ${err.message}`);
       }
     }
   },
