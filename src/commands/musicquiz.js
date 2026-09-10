@@ -621,7 +621,7 @@ async function runNextRound(textChannel, voiceChannel, guildId, client) {
   });
 
   // 3. Putar Potongan Musik di Voice Channel
-  const searchQuery = `${q.artist} - ${q.title} Official Audio`;
+  const searchQuery = `${q.artist} - ${q.title}`;
   let playSuccess = false;
 
   try {

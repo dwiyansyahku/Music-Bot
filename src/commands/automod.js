@@ -270,11 +270,24 @@ module.exports = {
     if (sub === 'setlog') {
       const channel = interaction.options.getChannel('channel');
       allSettings[guildId].modLogChannelId = channel.id;
+      allSettings[guildId].modLogChannel = channel.id;
+      if (!allSettings[guildId].automod) allSettings[guildId].automod = {};
+      allSettings[guildId].automod.logChannelId = channel.id;
       storage.write('settings', allSettings);
 
       const logEmbed = new EmbedBuilder()
-        .setColor(0x2B2D31)
-        .setDescription(`**Channel Log Diatur.** Seluruh log tindakan Auto-Moderation akan dikirim ke <#${channel.id}>.`);
+        .setColor(0x5865F2)
+        .setTitle('🛡️ Saluran Mod Log & Pertahanan Server Diatur')
+        .setDescription(
+          `Seluruh log sistem keamanan dan audit server telah diarahkan ke <#${channel.id}>.\n\n` +
+          `• **Kategori Log yang Masuk ke Channel Ini:**\n` +
+          `  - 🛡️ **Pertahanan Bot:** Anti-Move (dipindahkan dari 24/7), Auto-Reconnect, Voice Immunity (Server Mute/Deaf).\n` +
+          `  - 🎙️ **Keamanan Voice:** Disconnect paksa, Pemindahan antar-saluran, Mute & Deafen Server.\n` +
+          `  - 🛑 **Tindakan Moderasi:** Kick, Ban, Unban, Jail, Timeout, Warn.\n` +
+          `  - 🚨 **AutoMod Sentinel:** Anti-Phishing, Anti-Spam flood, Anti-Malware, Anti-Raid, Anti-Nuke, Webhook.`
+        )
+        .setFooter({ text: 'Log tidak akan lagi dikirim ke chat umum' })
+        .setTimestamp();
 
       return interaction.reply({ embeds: [logEmbed] });
     }

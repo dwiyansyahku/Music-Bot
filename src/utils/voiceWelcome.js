@@ -4,7 +4,9 @@ const {
   AudioPlayerStatus,
   StreamType,
   joinVoiceChannel,
-  getVoiceConnection
+  getVoiceConnection,
+  entersState,
+  VoiceConnectionStatus
 } = require('@discordjs/voice');
 const { PermissionFlagsBits } = require('discord.js');
 const { Readable } = require('stream');
@@ -223,10 +225,16 @@ async function playVoiceAudio(channel, text, client) {
   }
 
   const botCurrentVoiceChannelId = botMember.voice?.channelId;
-  const wasAlreadyInChannel = (botCurrentVoiceChannelId === channel.id);
+  if (!botCurrentVoiceChannelId || botCurrentVoiceChannelId !== channel.id) {
+    console.warn(`⚠️ [Voice Welcome] Bot tidak berada di channel "${channel.name}" (${channel.id}). Pemutaran dibatalkan agar bot tidak berpindah channel.`);
+    return;
+  }
+  const wasAlreadyInChannel = true;
 
+  // 1. Unduh audio MP3 dari Google TTS
   const audioBuffer = await fetchTTSAudio(text);
 
+  // 2. Dapatkan atau buat koneksi suara ke channel ini
   let connection = getVoiceConnection(guildId);
   if (!connection || connection.joinConfig.channelId !== channel.id) {
     connection = joinVoiceChannel({
@@ -238,35 +246,67 @@ async function playVoiceAudio(channel, text, client) {
     });
   }
 
+  // 3. Wajib tunggu sampai status koneksi READY sebelum mulai transmisi audio!
+  // Tanpa menunggu Ready, paket audio awal terbuang saat socket UDP masih proses handshake.
+  if (connection.state.status !== VoiceConnectionStatus.Ready) {
+    try {
+      await entersState(connection, VoiceConnectionStatus.Ready, 6000);
+    } catch (waitErr) {
+      console.warn(`⚠️ [Voice Welcome] Koneksi voice belum siap dalam 6 detik:`, waitErr.message);
+      return;
+    }
+  }
+
+  // Beri jeda 250ms setelah Ready agar buffer soket UDP Discord stabil menerima paket awal
+  await new Promise(r => setTimeout(r, 250));
+
+  // 4. Buat audio resource dengan volume penuh
   const resource = createAudioResource(Readable.from(audioBuffer), {
-    inputType: StreamType.Arbitrary
+    inputType: StreamType.Arbitrary,
+    inlineVolume: true
+  });
+  if (resource.volume) {
+    resource.volume.setVolume(1.0);
+  }
+
+  resource.playStream.on('error', (streamErr) => {
+    console.error('❌ [Voice Welcome Stream Error]:', streamErr.message);
   });
 
   const player = createAudioPlayer();
-  connection.subscribe(player);
+  const subscription = connection.subscribe(player);
   player.play(resource);
 
   return new Promise((resolve, reject) => {
+    player.on(AudioPlayerStatus.Playing, () => {
+      console.log(`🔊 [Voice Welcome AI] Sapaan suara sedang terdengar di "${channel.name}"...`);
+    });
+
     player.on(AudioPlayerStatus.Idle, () => {
-      setTimeout(() => {
-        try {
-          const is247 = client.stay247 && client.stay247.has(guildId);
-          if (!wasAlreadyInChannel && !is247) {
-            const currentConn = getVoiceConnection(guildId);
-            if (currentConn && currentConn.joinConfig.channelId === channel.id) {
-              currentConn.destroy();
-              console.log(`👋 [Voice Welcome AI] Audio selesai diputar. Bot keluar otomatis.`);
-            }
-          }
-        } catch (leaveErr) {
-          console.warn('[Voice Welcome Auto-Leave Error]:', leaveErr.message);
+      try {
+        player.stop(true);
+        if (subscription) subscription.unsubscribe();
+
+        // Kembalikan subscription ke DisTube audioPlayer jika tersedia
+        const disTubeVoice = client.distube?.voices?.get(guildId);
+        if (disTubeVoice?.audioPlayer && connection && connection.state.status === VoiceConnectionStatus.Ready) {
+          connection.subscribe(disTubeVoice.audioPlayer);
         }
-        resolve();
-      }, 1200);
+      } catch (_) { }
+      resolve();
     });
 
     player.on('error', (err) => {
-      console.error('[Voice Welcome Player Error]:', err.message);
+      try {
+        player.stop(true);
+        if (subscription) subscription.unsubscribe();
+
+        const disTubeVoice = client.distube?.voices?.get(guildId);
+        if (disTubeVoice?.audioPlayer && connection && connection.state.status === VoiceConnectionStatus.Ready) {
+          connection.subscribe(disTubeVoice.audioPlayer);
+        }
+      } catch (_) { }
+      console.error('❌ [Voice Welcome Player Error]:', err.message);
       reject(err);
     });
   });
@@ -367,19 +407,25 @@ async function handleVoiceWelcome(oldState, newState, client) {
     return;
   }
 
-  // ─── 5. HARMONISASI DENGAN PEMUTAR MUSIK (DisTube Guard) ───
-  // Jika bot sedang memutar musik di voice channel, JANGAN potong musik yang sedang dinikmati!
+  // ─── 5. ATURAN ANTI-PINDAH & HARMONISASI DENGAN MUSIK / QUIZ ───
   const botCurrentVoiceChannelId = guild.members.me?.voice?.channelId;
-  const queue = client.distube?.getQueue(guildId);
-  const isMusicPlaying = queue && queue.playing;
 
-  if (isMusicPlaying && botCurrentVoiceChannelId === channelId) {
-    // Lagu sedang jalan di VC ini -> jangan tiban dengan suara bicara
+  // Bot HANYA menyapa jika bot SUDAH berada di voice channel tersebut!
+  // Jika bot tidak sedang di voice channel, atau member masuk ke channel yang berbeda:
+  // ABAIKAN! Bot TIDAK BOLEH berpindah channel atau masuk sendiri ke channel lain.
+  if (!botCurrentVoiceChannelId || botCurrentVoiceChannelId !== channelId) {
     return;
   }
 
-  // Jika bot sedang terhubung di channel voice lain dan sedang memutar lagu
-  if (isMusicPlaying && botCurrentVoiceChannelId && botCurrentVoiceChannelId !== channelId) {
+  // 3. Jangan ganggu jika sedang ada Music Quiz yang berjalan di server ini
+  if (client.activeQuiz?.has(guildId)) {
+    return;
+  }
+
+  // 4. Harmonisasi dengan DisTube Musik:
+  // Jika bot sedang memutar musik atau ada antrean lagu aktif, JANGAN tiban dengan suara bicara!
+  const queue = client.distube?.getQueue(guildId);
+  if (queue && (queue.playing || queue.isQuiz || (queue.songs && queue.songs.length > 0))) {
     return;
   }
 
@@ -528,6 +574,14 @@ async function enforceBotVoiceImmunity(guild, client) {
       await me.voice.setMute(false, 'Auto-Recovery: Bot wajib dapat bersuara').catch(err => {
         console.warn(`⚠️ [Voice Immunity] Gagal melepas server mute di ${guild.name}:`, err.message);
       });
+      await sendModLog(guild, client, {
+        action: 'BOT_DEFENSE_IMMUNITY',
+        moderator: { id: client.user.id, username: 'Voice Guardian', tag: client.user.tag },
+        target: { id: client.user.id, username: client.user.username, tag: client.user.tag },
+        reason: 'Pelepasan Server Mute pada bot saat persiapan Voice Reminder/Welcome',
+        details: `• **Saluran Voice:** <#${me.voice.channelId}>\n• **Tindakan Pertahanan:** Server Mute dilepaskan otomatis.`,
+        color: 0x5865F2
+      }).catch(() => {});
     }
 
     // 2. Melepaskan Server Deafen jika aktif pada bot
@@ -536,6 +590,14 @@ async function enforceBotVoiceImmunity(guild, client) {
       await me.voice.setDeaf(false, 'Auto-Recovery: Bot wajib dapat beroperasi normal').catch(err => {
         console.warn(`⚠️ [Voice Immunity] Gagal melepas server deafen di ${guild.name}:`, err.message);
       });
+      await sendModLog(guild, client, {
+        action: 'BOT_DEFENSE_IMMUNITY',
+        moderator: { id: client.user.id, username: 'Voice Guardian', tag: client.user.tag },
+        target: { id: client.user.id, username: client.user.username, tag: client.user.tag },
+        reason: 'Pelepasan Server Deafen pada bot saat persiapan Voice Reminder/Welcome',
+        details: `• **Saluran Voice:** <#${me.voice.channelId}>\n• **Tindakan Pertahanan:** Server Deafen dilepaskan otomatis.`,
+        color: 0x5865F2
+      }).catch(() => {});
     }
 
     // 3. Melepaskan Self-Mute jika bot ter-self mute

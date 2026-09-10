@@ -340,7 +340,23 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     // Jangan buang waktu 30 detik mencoba 8 client YouTube yang sama-sama terblokir di IP datacenter.
     if (url.startsWith('ytsearch') || url.startsWith('ytsearch1:')) {
       const rawQuery = url.replace(/^ytsearch[0-9]*:/, '').trim();
-      const scUrl = `scsearch5:${rawQuery}`;
+
+      // Bersihkan kata-kata seperti "Official Audio", "Official Music Video", "(Official ...)" agar SoundCloud akurat
+      const cleanScQuery = rawQuery
+        .replace(/\(Official.*?\)/gi, '')
+        .replace(/\[Official.*?\]/gi, '')
+        .replace(/Official\s+Audio/gi, '')
+        .replace(/Official\s+Music\s+Video/gi, '')
+        .replace(/Official\s+Video/gi, '')
+        .replace(/Music\s+Video/gi, '')
+        .replace(/\(Audio\)/gi, '')
+        .replace(/\[Audio\]/gi, '')
+        .replace(/\(Lyric.*?\)/gi, '')
+        .replace(/\[Lyric.*?\]/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const scUrl = `scsearch5:${cleanScQuery || rawQuery}`;
       console.log(`🌐 [Instant Smart Fallback] YouTube search terblokir/gagal. Langsung mengalihkan pencarian ke SoundCloud: "${scUrl}"...`);
       try {
         const scFlags = { ...flags };
@@ -351,7 +367,7 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
         const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 8000));
 
         if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
-          const queryWords = new Set(rawQuery.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 1));
+          const queryWords = new Set((cleanScQuery || rawQuery).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 1));
 
           let bestEntry = null;
           let bestScore = -1;
@@ -371,12 +387,13 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
             }
           }
 
-          // Minimal 20% similarity atau single result
-          if (bestEntry && (bestScore >= 0.20 || scResult.entries.length === 1)) {
+          // Minimal 15% similarity atau single result
+          if (bestEntry && (bestScore >= 0.15 || scResult.entries.length === 1)) {
             console.log(`✅ [Instant Smart Fallback] Match relevan ditemukan di SoundCloud: "${bestEntry.title}" (Score: ${(bestScore * 100).toFixed(0)}%)`);
             return bestEntry;
-          } else {
-            console.warn(`⚠️ [Instant Smart Fallback] Hasil SoundCloud tidak relevan dengan "${rawQuery}" (Best match: "${bestEntry?.title}", Score: ${(bestScore * 100).toFixed(0)}%).`);
+          } else if (scResult.entries[0]) {
+            console.log(`✅ [Instant Smart Fallback] Menggunakan entri teratas SoundCloud: "${scResult.entries[0].title}"`);
+            return scResult.entries[0];
           }
         } else if (scResult && !Array.isArray(scResult.entries)) {
           return scResult;
@@ -384,11 +401,38 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       } catch (scErr) {
         console.warn('⚠️ [Instant Smart Fallback] SoundCloud fallback gagal:', scErr.message);
       }
+
+      // Percobaan kedua SoundCloud: gunakan hanya kata kunci dasar (artis + judul ringkas tanpa simbol klan/grup)
+      const basicKeywords = (cleanScQuery || rawQuery)
+        .replace(/&/g, ' ')
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 1)
+        .slice(0, 4)
+        .join(' ');
+
+      if (basicKeywords && basicKeywords !== cleanScQuery) {
+        try {
+          const scUrl2 = `scsearch5:${basicKeywords}`;
+          console.log(`🌐 [Instant Smart Fallback] Mencoba pencarian kata kunci ringkas SoundCloud: "${scUrl2}"...`);
+          const scFlags2 = { ...flags, noPluginDirs: true };
+          delete scFlags2.cookies;
+          delete scFlags2.extractorArgs;
+          delete scFlags2.jsRuntimes;
+          const scResult2 = await executeYtdlpRaw(scUrl2, scFlags2, Math.min(timeoutMs, 6000));
+          if (scResult2?.entries?.[0]) {
+            console.log(`✅ [Instant Smart Fallback] Match ditemukan di SoundCloud (Ringkas): "${scResult2.entries[0].title}"`);
+            return scResult2.entries[0];
+          }
+        } catch (_) {}
+      }
     }
 
-    // 2. MULTI-CLIENT FALLBACK UNTUK DIRECT VIDEO URL (e.g. https://www.youtube.com/watch?v=...):
-    if (errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') ||
-      errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')) {
+    // 2. MULTI-CLIENT FALLBACK UNTUK DIRECT VIDEO URL (HANYA UNTUK DIRECT URL, BUKAN YTSEARCH):
+    if (!url.startsWith('ytsearch') && (
+      errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') ||
+      errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')
+    )) {
       console.warn('🔄 [Cookies Fallback] YouTube bot-check terdeteksi pada video URL. Mencoba multi-client fallback...');
 
       const fallbackClients = [
@@ -938,6 +982,15 @@ client.on('voiceStateUpdate', (oldState, newState) => {
             newState.disconnect('Bukan narapidana atau moderator/admin!').catch(err => {
               console.error(`[Jail Enforcer] Gagal menendang user non-jail dari VC penjara:`, err.message);
             });
+            const { sendModLog } = require('./utils/modlog');
+            sendModLog(guild, client, {
+              action: 'VOICE_DISCONNECT',
+              moderator: { id: client.user.id, username: 'Jail Guardian', tag: client.user.tag },
+              target: newState.member?.user || { id: newState.id, tag: `User (${newState.id})` },
+              reason: 'Masuk ke Voice Channel Penjara tanpa izin (Bukan narapidana/moderator)',
+              details: `• **Saluran Penjara:** <#${jailConfig.voiceChannelId}>\n• **Tindakan:** Dikeluarkan (disconnect) paksa dari voice channel penjara.`,
+              color: 0xED4245
+            }).catch(() => {});
           }
         }
       }
@@ -1050,10 +1103,10 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
         console.log(`🚨 [Voice Disconnect Tracker] ${targetUser.tag || targetUser.username} didisconnect paksa dari "${channelName}" oleh ${executor.tag} (${executor.id})`);
 
-        // Kirim log ke Mod Log channel
+        // Kirim log ke Mod Log channel (/automod setlog)
         const { sendModLog } = require('./utils/modlog');
         await sendModLog(guild, client, {
-          action: 'VOICE_DISCONNECT',
+          action: isBotDisconnected ? 'BOT_DEFENSE_DISCONNECT' : 'VOICE_DISCONNECT',
           moderator: executor,
           target: targetUser,
           reason: isBotDisconnected
@@ -1062,30 +1115,10 @@ client.on('voiceStateUpdate', (oldState, newState) => {
           details: `• **Saluran Voice:** <#${oldState.channelId}> (\`${channelName}\`)\n` +
             `• **Pelaku Disconnect:** <@${executor.id}> (\`${executor.tag}\`)\n` +
             `• **Korban Disconnect:** <@${oldState.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
-            `• **Jumlah Pengguna Terkena:** ${entry.extra?.count || 1} orang`,
-          color: 0xFEE75C
+            `• **Jumlah Pengguna Terkena:** ${entry.extra?.count || 1} orang` +
+            (isBotDisconnected && client.stay247?.has(guildId) ? '\n• **Tindakan Pertahanan:** 🛡️ Bot otomatis masuk kembali (Mode 24/7).' : ''),
+          color: isBotDisconnected ? 0xED4245 : 0xFEE75C
         });
-
-        // Jika yang didisconnect adalah bot: notifikasi text channel & reconnect jika 24/7
-        if (isBotDisconnected) {
-          const is247 = client.stay247 && client.stay247.has(guildId);
-          const alertEmbed = new EmbedBuilder()
-            .setColor(0xED4245)
-            .setTitle('🚨 Terdeteksi Disconnect Paksa pada Bot!')
-            .setDescription(`**<@${executor.id}>** (\`${executor.tag}\`) baru saja memutuskan sambungan (disconnect) bot dari voice channel <#${oldState.channelId}>!${is247 ? '\n\n🛡️ *Bot akan otomatis bergabung kembali dalam beberapa detik (Mode 24/7).*' : ''}`)
-            .setFooter({ text: 'Sistem Keamanan Voice' })
-            .setTimestamp();
-
-          let targetTextChannel = oldState.channel;
-          if (!targetTextChannel || typeof targetTextChannel.send !== 'function') {
-            const queue = client.distube.getQueue(guildId);
-            targetTextChannel = queue?.textChannel || guild.systemChannel;
-          }
-
-          if (targetTextChannel && typeof targetTextChannel.send === 'function') {
-            targetTextChannel.send({ embeds: [alertEmbed] }).catch(() => { });
-          }
-        }
       } catch (logErr) {
         console.warn('⚠️ [Voice Disconnect Tracker] Gagal membaca audit log disconnect:', logErr.message);
       }
@@ -1094,17 +1127,34 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
   // ─── 1.5. BOT VOICE IMMUNITY (AUTO-UNMUTE & UNDEAFEN GUARDIAN) ───
   if (newState.id === client.user.id && newState.channelId) {
+    const { sendModLog } = require('./utils/modlog');
     if (newState.serverMute) {
       console.log(`🔊 [Voice Immunity] Bot di-Server Mute di "${newState.guild.name}". Melepaskan mute otomatis...`);
       newState.setMute(false, 'Auto-Recovery: Bot wajib dapat bersuara').catch(err => {
         console.warn('⚠️ [Voice Immunity] Gagal melepaskan server mute:', err.message);
       });
+      sendModLog(newState.guild, client, {
+        action: 'BOT_DEFENSE_IMMUNITY',
+        moderator: { id: client.user.id, username: 'Voice Guardian', tag: client.user.tag },
+        target: { id: client.user.id, username: client.user.username, tag: client.user.tag },
+        reason: 'Percobaan Server Mute terhadap bot (Ditolak oleh sistem pertahanan)',
+        details: `• **Saluran Voice:** <#${newState.channelId}>\n• **Tindakan Pertahanan:** Server Mute dilepaskan otomatis agar bot dapat bersuara.`,
+        color: 0x5865F2
+      }).catch(() => {});
     }
     if (newState.serverDeaf) {
       console.log(`🎧 [Voice Immunity] Bot di-Server Deafen di "${newState.guild.name}". Melepaskan deafen otomatis...`);
       newState.setDeaf(false, 'Auto-Recovery: Bot wajib dapat beroperasi normal').catch(err => {
         console.warn('⚠️ [Voice Immunity] Gagal melepaskan server deafen:', err.message);
       });
+      sendModLog(newState.guild, client, {
+        action: 'BOT_DEFENSE_IMMUNITY',
+        moderator: { id: client.user.id, username: 'Voice Guardian', tag: client.user.tag },
+        target: { id: client.user.id, username: client.user.username, tag: client.user.tag },
+        reason: 'Percobaan Server Deafen terhadap bot (Ditolak oleh sistem pertahanan)',
+        details: `• **Saluran Voice:** <#${newState.channelId}>\n• **Tindakan Pertahanan:** Server Deafen dilepaskan otomatis agar bot dapat beroperasi normal.`,
+        color: 0x5865F2
+      }).catch(() => {});
     }
     if (newState.selfMute) {
       newState.guild.members.me?.voice?.setMute(false).catch(() => { });
@@ -1211,28 +1261,35 @@ client.on('voiceStateUpdate', (oldState, newState) => {
               moverObj = entry.executor;
               moverId = entry.executor.id;
               moverTag = entry.executor.tag;
-
-              if (!client.processedMoveAudits) client.processedMoveAudits = new Set();
-              const dedupeKey = `${entry.id}_${newState.id}_${newState.channelId}`;
-              if (!client.processedMoveAudits.has(dedupeKey)) {
-                client.processedMoveAudits.add(dedupeKey);
-                setTimeout(() => client.processedMoveAudits?.delete(dedupeKey), 60000);
-
-                const targetUser = newState.member?.user || { id: newState.id, tag: `User (${newState.id})` };
-                const { sendModLog } = require('./utils/modlog');
-                await sendModLog(guild, client, {
-                  action: 'VOICE_MOVE',
-                  moderator: moverObj,
-                  target: targetUser,
-                  reason: 'Memindahkan pengguna antar saluran voice',
-                  details: `• **Dari Saluran:** <#${oldState.channelId}> (\`${oldState.channel?.name || oldState.channelId}\`)\n` +
-                    `• **Ke Saluran:** <#${newState.channelId}> (\`${newState.channel?.name || newState.channelId}\`)\n` +
-                    `• **Pelaku Pemindahan:** <@${moverId}> (\`${moverTag}\`)\n` +
-                    `• **Pengguna Dipindahkan:** <@${newState.id}> (\`${targetUser.tag || targetUser.username}\`)`,
-                  color: 0x5865F2
-                });
-              }
             }
+          }
+        }
+
+        // Deduplikasi agar tidak mencatat log ganda per pemindahan
+        if (!client.processedMoveAudits) client.processedMoveAudits = new Set();
+        const dedupeKey = `${newState.id}_${oldState.channelId}_${newState.channelId}`;
+        if (!client.processedMoveAudits.has(dedupeKey)) {
+          client.processedMoveAudits.add(dedupeKey);
+          setTimeout(() => client.processedMoveAudits?.delete(dedupeKey), 8000);
+
+          // Catat HANYA jika member dipindahkan oleh orang lain yang berizin (permission Move Members / moderator):
+          // Perpindahan mandiri oleh member biasa diabaikan agar tidak menimbulkan spam di mod log.
+          if (newState.id !== client.user.id && moverObj) {
+            const targetUser = newState.member?.user || { id: newState.id, tag: `User (${newState.id})` };
+            const { sendModLog } = require('./utils/modlog');
+
+            await sendModLog(guild, client, {
+              action: 'VOICE_MOVE',
+              moderator: moverObj,
+              target: targetUser,
+              reason: 'Member dipindahkan oleh pengguna dengan izin Move Members',
+              details: `• **Dari Saluran:** <#${oldState.channelId}> (\`${oldState.channel?.name || oldState.channelId}\`)\n` +
+                `• **Ke Saluran:** <#${newState.channelId}> (\`${newState.channel?.name || newState.channelId}\`)\n` +
+                `• **Pelaku Pemindahan:** <@${moverId}> (\`${moverTag}\`)\n` +
+                `• **Member Dipindahkan:** <@${newState.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
+                `• **Wewenang:** Izin Move Members terdeteksi di Audit Log`,
+              color: 0x5865F2
+            });
           }
         }
 
@@ -1242,24 +1299,21 @@ client.on('voiceStateUpdate', (oldState, newState) => {
           if (designatedChannelId && newState.channelId !== designatedChannelId) {
             console.log(`🚨 [Anti-Move] Bot dipindahkan dari channel 24/7 ke ${newState.channelId} oleh ${moverTag || 'Unknown'}. Mengembalikan ke channel asal...`);
 
-            const alertEmbed = new EmbedBuilder()
-              .setColor(0xFEE75C)
-              .setTitle('⚠️ Bot Dipindahkan dari Channel 24/7')
-              .setDescription(
-                moverId
-                  ? `**<@${moverId}>** (\`${moverTag}\`) memindahkan bot ke <#${newState.channelId}>.\n\n🔄 *Bot otomatis kembali ke voice channel 24/7 (<#${designatedChannelId}>).*`
-                  : `Bot dipindahkan ke <#${newState.channelId}>.\n\n🔄 *Bot otomatis kembali ke voice channel 24/7 (<#${designatedChannelId}>).*`
-              )
-              .setFooter({ text: 'Sistem Keamanan Voice 24/7' })
-              .setTimestamp();
-
             await newState.member?.voice?.setChannel(designatedChannelId).catch(() => { });
 
-            const queue = client.distube.getQueue(guildId);
-            let notifCh = queue?.textChannel || newState.channel || guild.systemChannel;
-            if (notifCh && typeof notifCh.send === 'function') {
-              notifCh.send({ embeds: [alertEmbed] }).catch(() => { });
-            }
+            // Kirim HANYA ke Mod Log channel (/automod setlog), TIDAK ke chat umum!
+            const { sendModLog } = require('./utils/modlog');
+            await sendModLog(guild, client, {
+              action: 'BOT_DEFENSE_MOVE',
+              moderator: moverObj || { id: moverId || client.user.id, username: moverTag || 'Audit Log' },
+              target: { id: client.user.id, username: client.user.username, tag: client.user.tag },
+              reason: 'Bot dipindahkan dari saluran voice 24/7 yang semestinya',
+              details: `• **Saluran Asal (24/7):** <#${designatedChannelId}>\n` +
+                `• **Saluran Tujuan Pemindahan:** <#${newState.channelId}> (\`${newState.channel?.name || newState.channelId}\`)\n` +
+                `• **Pelaku Pemindahan:** ${moverId ? `<@${moverId}> (\`${moverTag}\`)` : 'Tidak teridentifikasi di Audit Log'}\n` +
+                `• **Tindakan Pertahanan:** 🔄 Bot otomatis dikembalikan ke voice channel 24/7 (<#${designatedChannelId}>).`,
+              color: 0xFEE75C
+            });
           }
         }
       } catch (mErr) {
@@ -1283,11 +1337,17 @@ client.on('voiceStateUpdate', (oldState, newState) => {
         client.stay247Settings?.delete(guildId);
         storage.saveGuildSetting(guildId, 'stay247', { enabled: false, channelId: null });
         client._enforcerRetries.delete(guildId);
-        // Kirim notif ke text channel jika ada queue
-        const queueForNotif = client.distube.getQueue(guildId);
-        if (queueForNotif?.textChannel) {
-          queueForNotif.textChannel.send('⚠️ **24/7 dinonaktifkan otomatis** karena bot gagal reconnect 3x berturut-turut. Gunakan `/q247` untuk mengaktifkan kembali.').catch(() => { });
-        }
+
+        // Kirim notifikasi ke Mod Log (/automod setlog)
+        const { sendModLog } = require('./utils/modlog');
+        sendModLog(oldState.guild, client, {
+          action: 'BOT_DEFENSE_DISCONNECT',
+          moderator: { id: client.user.id, username: '24/7 Enforcer', tag: client.user.tag },
+          target: { id: client.user.id, username: client.user.username, tag: client.user.tag },
+          reason: 'Bot gagal reconnect 24/7 sebanyak 3x berturut-turut',
+          details: '• **Tindakan Pertahanan:** Fitur 24/7 dinonaktifkan sementara untuk mencegah API spam.\n• **Solusi:** Gunakan `/q247` untuk mengaktifkan kembali jika voice channel sudah siap.',
+          color: 0xED4245
+        }).catch(() => {});
         return;
       }
 
@@ -1572,7 +1632,9 @@ client.distube
     console.log(`🤖 [Autoplay] Antrean diinisialisasi untuk server: ${queue.textChannel?.guild?.name}. Autoplay: ${persistentAutoplay}`);
   })
   .on('finish', async (queue) => {
-    stopLiveProgressUpdater(queue);
+    if (typeof stopLiveProgressUpdater === 'function') {
+      stopLiveProgressUpdater(queue);
+    }
     // Jika sedang dalam sesi Music Quiz, abaikan notifikasi antrean selesai
     if (queue.isQuiz) return;
 

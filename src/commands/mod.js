@@ -1,5 +1,5 @@
 const {
-  SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags,
+  SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags, ChannelType,
 } = require('discord.js');
 const storage = require('../utils/storage');
 const { isOwnerOrMod, isBotOwner, replyNoAccessMod } = require('../utils/helpers');
@@ -76,6 +76,20 @@ const mod = {
             .setDescription('Hapus pesan N hari terakhir (0-7)')
             .setRequired(false).setMinValue(0).setMaxValue(7)
         )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('move')
+        .setDescription('Pindahkan member ke voice channel lain')
+        .addUserOption(opt => opt.setName('user').setDescription('Member yang mau dipindahkan').setRequired(true))
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Voice Channel tujuan')
+            .addChannelTypes(ChannelType.GuildVoice, ChannelType.GuildStageVoice)
+            .setRequired(true)
+        )
+        .addStringOption(opt => opt.setName('alasan').setDescription('Alasan pemindahan').setRequired(false).setMaxLength(500))
     ),
 
   async execute(interaction, client) {
@@ -122,6 +136,9 @@ const mod = {
       if (!settings[guildId]) settings[guildId] = {};
 
       settings[guildId].modLogChannel = targetChannel.id;
+      settings[guildId].modLogChannelId = targetChannel.id;
+      if (!settings[guildId].automod) settings[guildId].automod = {};
+      settings[guildId].automod.logChannelId = targetChannel.id;
       storage.write('settings', settings);
 
       await sendModLog(interaction.guild, client, {
@@ -130,7 +147,7 @@ const mod = {
         details: `Channel mod log server telah diarahkan ke <#${targetChannel.id}>`
       });
 
-      return interaction.editReply(`✅ Channel Mod Log berhasil diatur ke <#${targetChannel.id}>.`);
+      return interaction.editReply(`✅ Channel Mod Log & Pertahanan berhasil diatur ke <#${targetChannel.id}>.`);
     }
 
     // ============================
@@ -467,6 +484,74 @@ const mod = {
             ).setTimestamp(),
         ],
       });
+    }
+
+    // ============================
+    // MOVE (VOICE MOVE)
+    // ============================
+    if (sub === 'move') {
+      const targetUser = interaction.options.getUser('user');
+      const targetChannel = interaction.options.getChannel('channel');
+      const alasan = interaction.options.getString('alasan') || 'Dipindahkan oleh moderator';
+
+      const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+      if (!targetMember) return interaction.editReply('❌ Member tidak ditemukan di server ini!');
+
+      if (!interaction.member.permissions.has(PermissionFlagsBits.MoveMembers) &&
+          !interaction.member.permissions.has(PermissionFlagsBits.Administrator) &&
+          !isCallerOwner) {
+        return interaction.editReply('❌ Kamu harus memiliki role dengan izin (permission) `Move Members` atau Administrator untuk memindahkan member!');
+      }
+
+      const hierarchyError = canModerate(targetMember);
+      if (hierarchyError) return interaction.editReply(hierarchyError);
+
+      const botError = botCanModerate(targetMember);
+      if (botError) return interaction.editReply(botError);
+
+      if (!targetMember.voice.channelId) {
+        return interaction.editReply(`❌ <@${targetUser.id}> sedang tidak berada di Voice Channel mana pun!`);
+      }
+
+      if (targetMember.voice.channelId === targetChannel.id) {
+        return interaction.editReply(`❌ <@${targetUser.id}> sudah berada di saluran <#${targetChannel.id}>!`);
+      }
+
+      const botMember = interaction.guild.members.me;
+      if (!botMember.permissions.has(PermissionFlagsBits.MoveMembers)) {
+        return interaction.editReply('❌ Bot tidak memiliki izin `Move Members` di server ini!');
+      }
+
+      const oldChannelId = targetMember.voice.channelId;
+      const oldChannelName = targetMember.voice.channel?.name || oldChannelId;
+
+      try {
+        await targetMember.voice.setChannel(targetChannel.id, alasan);
+
+        await sendModLog(interaction.guild, client, {
+          action: 'VOICE_MOVE',
+          moderator: interaction.user,
+          target: targetUser,
+          reason: alasan,
+          details: `• **Dari Saluran:** <#${oldChannelId}> (\`${oldChannelName}\`)\n` +
+            `• **Ke Saluran:** <#${targetChannel.id}> (\`${targetChannel.name}\`)\n` +
+            `• **Pelaku Pemindahan:** <@${interaction.user.id}> (\`${interaction.user.tag}\`)\n` +
+            `• **Pengguna Dipindahkan:** <@${targetUser.id}> (\`${targetUser.tag}\`)\n` +
+            `• **Alasan:** ${alasan}`,
+          color: 0x5865F2
+        });
+
+        const replyEmbed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle('🔊 Member Berhasil Dipindahkan')
+          .setDescription(`Berhasil memindahkan <@${targetUser.id}> dari <#${oldChannelId}> ke <#${targetChannel.id}>.`)
+          .setFooter({ text: `Alasan: ${alasan}` })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [replyEmbed] });
+      } catch (err) {
+        return interaction.editReply(`❌ Gagal memindahkan member: ${err.message}`);
+      }
     }
   },
 };

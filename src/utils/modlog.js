@@ -24,6 +24,9 @@ const ACTION_COLORS = {
   VOICE_SERVER_DEAF: 0xED4245,
   GHOST_PING: 0xFEE75C,    // Yellow
   NEW_MEMBER_MEDIA: 0xFEE75C, // Yellow
+  BOT_DEFENSE_MOVE: 0xFEE75C, // Yellow (Bot anti-move defense)
+  BOT_DEFENSE_DISCONNECT: 0xED4245, // Red (Bot forced disconnect defense)
+  BOT_DEFENSE_IMMUNITY: 0x5865F2, // Blurple (Bot mute/deafen immunity)
 
   UNMUTE: 0x57F287,        // Green
   UNJAIL: 0x57F287,        // Green
@@ -40,6 +43,24 @@ const ACTION_COLORS = {
   GACHA_AWARDVOICE: 0x9B59B6,
   GACHA_RESETSEASON: 0x9B59B6,
 };
+
+/**
+ * Mendapatkan ID channel log yang diatur via /automod setlog atau /mod setlogchannel
+ * @param {string} guildId
+ * @returns {string|null}
+ */
+function getModLogChannelId(guildId) {
+  if (!guildId) return null;
+  const settings = storage.read('settings') || {};
+  const guildSettings = settings[guildId] || {};
+  return (
+    guildSettings.modLogChannel ||
+    guildSettings.modLogChannelId ||
+    guildSettings.automod?.logChannelId ||
+    guildSettings.automodLogChannel ||
+    null
+  );
+}
 
 /**
  * Send structured moderation/admin audit log to configured log channel
@@ -59,11 +80,7 @@ async function sendModLog(guild, client, logData) {
   if (!guild) return null;
 
   try {
-    const settings = storage.read('settings') || {};
-    const guildSettings = settings[guild.id] || {};
-
-    // Check modLogChannel first, fall back to automod.logChannelId
-    const logChannelId = guildSettings.modLogChannel || guildSettings.automod?.logChannelId;
+    const logChannelId = getModLogChannelId(guild.id);
     if (!logChannelId) return null;
 
     let logChannel = guild.channels.cache.get(logChannelId);
@@ -161,5 +178,6 @@ async function sendModLog(guild, client, logData) {
 
 module.exports = {
   sendModLog,
+  getModLogChannelId,
   ACTION_COLORS
 };
