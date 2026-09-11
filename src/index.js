@@ -186,7 +186,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,   // Required for guildMemberAdd event (welcome feature)
     GatewayIntentBits.GuildPresences, // Required for online status in /userinfo
   ],
-  rest: { timeout: 30_000 }, // 30s timeout to prevent AbortError on image uploads
+  rest: { timeout: 60_000 }, // 60s timeout to prevent AbortError on image uploads
 });
 
 // Set higher listener limit to avoid WebSocketShard leak warning on voice reconnection

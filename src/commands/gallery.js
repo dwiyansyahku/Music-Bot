@@ -12,6 +12,7 @@ const {
 const storage = require('../utils/storage');
 const { isOwnerOrMod } = require('../utils/helpers');
 const { sendModLog } = require('../utils/modlog');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
@@ -140,10 +141,49 @@ async function resolveAndDownloadImage(inputUrl) {
 }
 
 /**
- * Core function to publish an image item to the Output Gallery Channel
- * Used by Slash Command (/gallery submit), Modal Submit, File Collector, and Message Auto-redirect
+ * Kompresi dan optimasi ukuran buffer gambar sebelum di-upload ke Discord API
+ * Mencegah timeout, socket hangup, atau error "This operation was aborted" / "other side closed"
  */
-async function publishGalleryItem(guild, user, member, imageUrl, caption, client) {
+async function optimizeImageBuffer(buffer, originalExt) {
+  if (originalExt === 'gif' || buffer.length <= 1.5 * 1024 * 1024) {
+    return { buffer, ext: originalExt };
+  }
+
+  try {
+    const img = await loadImage(buffer);
+    const maxDim = 1920;
+    let width = img.width;
+    let height = img.height;
+
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+    }
+
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const optimizedBuffer = canvas.toBuffer('image/jpeg', 85);
+    if (optimizedBuffer.length < buffer.length) {
+      return { buffer: optimizedBuffer, ext: 'jpg' };
+    }
+  } catch (optErr) {
+    console.warn('[Gallery] Image optimization fallback to original:', optErr.message);
+  }
+
+  return { buffer, ext: originalExt };
+}
+
+/**
+ * Fungsi utama untuk mempublikasikan 1 atau banyak gambar ke Saluran Output Galeri sebagai satu postingan terpadu (Collage Grid)
+ */
+async function publishGalleryPost(guild, user, member, inputUrls, caption, client) {
   const guildId = guild.id;
   const settings = storage.read('settings') || {};
   const guildSettings = settings[guildId] || {};
@@ -167,7 +207,113 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
     };
   }
 
-  // Pencatatan Statistik Harian (Tanpa batasan kuota / Unlimited)
+  const urlList = (Array.isArray(inputUrls) ? inputUrls : [inputUrls]).filter(u => typeof u === 'string' && u.trim().length > 0);
+  if (urlList.length === 0) {
+    return {
+      success: false,
+      error: 'Tidak ada gambar yang valid untuk diposting ke galeri.'
+    };
+  }
+
+  // Batasi maksimal 10 foto per pesan (Batas maksimal native Discord attachment)
+  const targetUrls = urlList.slice(0, 10);
+
+  // Generate Submission ID
+  const submissionId = 'GAL_' + Date.now().toString(36).toUpperCase();
+
+  // Unduh dan optimalkan semua gambar
+  const downloadedFiles = [];
+  for (let idx = 0; idx < targetUrls.length; idx++) {
+    const rawUrl = targetUrls[idx];
+    try {
+      const dl = await resolveAndDownloadImage(rawUrl);
+      const opt = await optimizeImageBuffer(dl.buffer, dl.ext);
+      const fileName = `gallery_${submissionId}_${idx + 1}.${opt.ext}`;
+      const attachment = new AttachmentBuilder(opt.buffer, { name: fileName });
+      downloadedFiles.push({
+        attachment,
+        fileName,
+        opt
+      });
+    } catch (dlErr) {
+      console.warn(`[Gallery] Gagal mengunduh gambar #${idx + 1} (${rawUrl}):`, dlErr.message);
+      if (targetUrls.length === 1) {
+        return {
+          success: false,
+          error: `Gambar gagal diproses: ${dlErr.message}`
+        };
+      }
+    }
+  }
+
+  if (downloadedFiles.length === 0) {
+    return {
+      success: false,
+      error: 'Semua file gambar gagal diunduh atau diproses.'
+    };
+  }
+
+  // Buat Embed Galeri
+  const photoCountText = downloadedFiles.length > 1 ? ` • ${downloadedFiles.length} Foto` : '';
+  const postEmbed = new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: member?.displayName || user.username,
+      iconURL: user.displayAvatarURL({ dynamic: true })
+    })
+    .setFooter({
+      text: `Galeri Server • Submission ID: ${submissionId}${photoCountText}`
+    })
+    .setTimestamp();
+
+  if (caption) {
+    postEmbed.setDescription(caption);
+  }
+
+  // Jika tepat 1 foto, tautkan ke embed image
+  if (downloadedFiles.length === 1) {
+    postEmbed.setImage(`attachment://${downloadedFiles[0].fileName}`);
+  }
+  // Jika > 1 foto, Discord secara native menyusun lampiran files menjadi layout photo collage/grid rapi
+
+  const attachments = downloadedFiles.map(df => df.attachment);
+
+  let postedMsg = null;
+  let sendError = null;
+
+  // Coba kirim dengan mekanisme retry 1x jika ada kendala socket/jaringan sementara
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      postedMsg = await galleryChannel.send({
+        embeds: [postEmbed],
+        files: attachments
+      });
+      break;
+    } catch (err) {
+      sendError = err;
+      console.warn(`[Gallery Send Warning] Percobaan #${attempt} gagal (${err.message})...`);
+      if (attempt < 2) {
+        await new Promise(res => setTimeout(res, 1500));
+      }
+    }
+  }
+
+  if (!postedMsg) {
+    console.error('[Gallery Send Error]:', sendError?.message);
+    return {
+      success: false,
+      error: `Gagal mengirim gambar ke saluran <#${galleryChannelId}>: ${sendError?.message || 'Network Timeout'}`
+    };
+  }
+
+  // Berikan 2 reaksi apresiasi acak
+  const RANDOM_EMOJIS = ['❤️', '🔥', '✨', '👏', '🎨', '⭐', '💖'];
+  const chosenEmojis = [...RANDOM_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 2);
+  for (const em of chosenEmojis) {
+    await postedMsg.react(em).catch(() => {});
+  }
+
+  // Pencatatan Statistik Harian & Simpan ke Storage
   const galleryData = storage.read('gallery') || {};
   if (!galleryData[guildId]) {
     galleryData[guildId] = {
@@ -179,76 +325,20 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
   const todayStr = getWIBDateString();
   const userDayKey = `${user.id}_${todayStr}`;
   const userTodayCount = galleryData[guildId].dailyUsage?.[userDayKey] || 0;
+  galleryData[guildId].dailyUsage[userDayKey] = userTodayCount + downloadedFiles.length;
 
-  // Unduh dan validasi buffer gambar untuk menjamin gambar tampil 100% di Discord CDN
-  let downloadedImage = null;
-  try {
-    downloadedImage = await resolveAndDownloadImage(imageUrl);
-  } catch (dlErr) {
-    return {
-      success: false,
-      error: `Tautan gambar gagal diproses: ${dlErr.message}`
-    };
-  }
+  const finalAttachments = postedMsg.attachments ? Array.from(postedMsg.attachments.values()) : [];
+  const primaryImageUrl = finalAttachments[0]?.url || targetUrls[0];
+  const allImageUrls = finalAttachments.map(a => a.url);
 
-  // Generate Submission ID
-  const submissionId = 'GAL_' + Date.now().toString(36).toUpperCase();
-  const fileName = `gallery_${submissionId}.${downloadedImage.ext}`;
-  const attachment = new AttachmentBuilder(downloadedImage.buffer, { name: fileName });
-
-  // Buat Embed Galeri Rapi
-  const postEmbed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setAuthor({
-      name: member?.displayName || user.username,
-      iconURL: user.displayAvatarURL({ dynamic: true })
-    })
-    .setImage(`attachment://${fileName}`)
-    .setFooter({
-      text: `Galeri Server • Submission ID: ${submissionId}`
-    })
-    .setTimestamp();
-
-  if (caption) {
-    postEmbed.setDescription(caption);
-  }
-
-  let postedMsg = null;
-  try {
-    postedMsg = await galleryChannel.send({ embeds: [postEmbed], files: [attachment] });
-  } catch (postErr) {
-    console.warn('[Gallery Send Warning]: Pengiriman via file attachment gagal (' + postErr.message + '), mencoba fallback URL langsung...');
-    try {
-      // Fallback: kirim via direct URL jika upload buffer file timeout/abort
-      postEmbed.setImage(imageUrl);
-      postedMsg = await galleryChannel.send({ embeds: [postEmbed] });
-    } catch (fallbackErr) {
-      console.error('[Gallery Send Error]:', fallbackErr.message);
-      return {
-        success: false,
-        error: `Gagal mengirim gambar ke saluran <#${galleryChannelId}>: ${fallbackErr.message}`
-      };
-    }
-  }
-
-  if (postedMsg) {
-    // Berikan 2 reaksi apresiasi acak
-    const RANDOM_EMOJIS = ['❤️', '🔥', '✨', '👏', '🎨', '⭐', '💖'];
-    const chosenEmojis = [...RANDOM_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 2);
-    for (const em of chosenEmojis) {
-      await postedMsg.react(em).catch(() => {});
-    }
-  }
-
-  // Simpan ke storage
-  const finalImageUrl = postedMsg.attachments.first()?.url || imageUrl;
-  galleryData[guildId].dailyUsage[userDayKey] = userTodayCount + 1;
   galleryData[guildId].submissions.push({
     id: submissionId,
     messageId: postedMsg.id,
     channelId: galleryChannel.id,
     userId: user.id,
-    imageUrl: finalImageUrl,
+    imageUrl: primaryImageUrl,
+    imageUrls: allImageUrls.length > 0 ? allImageUrls : [primaryImageUrl],
+    imageCount: downloadedFiles.length,
     caption: caption || null,
     createdAt: Date.now()
   });
@@ -258,9 +348,9 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
   await sendModLog(guild, client, {
     action: 'GALLERY_POST',
     moderator: user,
-    details: `Gambar berhasil diposting ke <#${galleryChannel.id}>.\n` +
+    details: `Gambar (${downloadedFiles.length} foto) berhasil diposting ke <#${galleryChannel.id}>.\n` +
       `• ID Pesan: \`${postedMsg.id}\`\n` +
-      `• Total Kiriman Hari Ini: **${userTodayCount + 1} Gambar**\n` +
+      `• Total Kiriman Hari Ini: **${userTodayCount + downloadedFiles.length} Foto**\n` +
       (caption ? `• Caption: *${caption}*` : '')
   });
 
@@ -270,8 +360,14 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
     messageId: postedMsg.id,
     channelId: galleryChannel.id,
     jumpUrl,
+    photoCount: downloadedFiles.length,
     remaining: null
   };
+}
+
+// Wrapper untuk kompatibilitas ke belakang
+async function publishGalleryItem(guild, user, member, imageUrl, caption, client) {
+  return publishGalleryPost(guild, user, member, imageUrl, caption, client);
 }
 
 module.exports = {
@@ -342,6 +438,7 @@ module.exports = {
         )
     ),
 
+  publishGalleryPost,
   publishGalleryItem,
 
   async execute(interaction, client) {

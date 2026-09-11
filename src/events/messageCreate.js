@@ -109,20 +109,15 @@ module.exports = {
 
           if (imageAttachments.size > 0) {
             const caption = message.content?.trim() || '';
-            const { publishGalleryItem } = require('../commands/gallery');
-            let successCount = 0;
-            let lastErr = null;
-            for (const [, att] of imageAttachments) {
-              const res = await publishGalleryItem(message.guild, message.author, message.member, att.url, caption, client);
-              if (res.success) successCount++;
-              else lastErr = res.error;
-            }
+            const { publishGalleryPost } = require('../commands/gallery');
+            const urls = Array.from(imageAttachments.values()).map(att => att.url);
+            const res = await publishGalleryPost(message.guild, message.author, message.member, urls, caption, client);
 
-            if (successCount > 0) {
+            if (res.success) {
               await message.react('🖼️').catch(() => {});
-            } else if (lastErr) {
+            } else if (res.error) {
               message.reply({
-                content: `Gagal memposting gambar ke galeri: ${lastErr}`
+                content: `Gagal memposting gambar ke galeri: ${res.error}`
               }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
             }
           }
@@ -141,11 +136,11 @@ module.exports = {
 
           if (imageAttachments.size > 0) {
             const caption = message.content?.trim() || '';
+            const { publishGalleryPost } = require('../commands/gallery');
+            const urls = Array.from(imageAttachments.values()).map(att => att.url);
+            await publishGalleryPost(message.guild, message.author, message.member, urls, caption, client);
+            // Hapus pesan asli user HANYA setelah postingan bot berhasil diproses
             await message.delete().catch(() => {});
-            const { publishGalleryItem } = require('../commands/gallery');
-            for (const [, att] of imageAttachments) {
-              await publishGalleryItem(message.guild, message.author, message.member, att.url, caption, client);
-            }
             return;
           } else {
             // Hapus chat teks biasa
