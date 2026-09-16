@@ -6,8 +6,15 @@ const storage = require('./storage');
 const processedDonationIds = new Set();
 const MAX_PROCESSED_CACHE = 1000;
 
-// URL Logo Saweria PNG yang valid (Discord tidak mendukung .ico)
-const SAWERIA_ICON_URL = 'https://saweria.co/apple-touch-icon.png';
+/**
+ * URL icon Saweria yang sudah diverifikasi mengembalikan PNG valid.
+ * Menggunakan GitHub avatar akun Saweria org (u/74685538) karena:
+ * - saweria.co/apple-touch-icon.png → 200 tapi content-type text/html (bukan image)
+ * - cdn.jsdelivr.net/walkxcode/saweria.png → 404
+ * - avatars.githubusercontent.com → ✅ image/png valid, ukuran 1570 bytes
+ */
+const SAWERIA_ICON_URL =
+  'https://avatars.githubusercontent.com/u/74685538?s=128';
 
 let webhookServer = null;
 
@@ -35,16 +42,32 @@ function sanitizeText(text) {
 }
 
 /**
- * Normalisasi payload Saweria dari berbagai kemungkinan variasi struktur
+ * Cek apakah suatu nilai dianggap "kosong" / tidak informatif.
+ * Saweria kadang mengirimkan "-" atau string kosong sebagai nilai.
+ * @param {any} val
+ * @returns {boolean}
+ */
+function isEmpty(val) {
+  if (val === null || val === undefined) return true;
+  if (typeof val === 'string') {
+    const t = val.trim();
+    return t === '' || t === '-' || t.toLowerCase() === 'null' || t.toLowerCase() === 'undefined' || t === 'N/A';
+  }
+  return false;
+}
+
+/**
+ * Normalisasi payload Saweria dari berbagai kemungkinan variasi struktur.
+ * Mengembalikan `message: null` jika pesan tidak ada/kosong/"-".
  * @param {object} raw
- * @returns {{ donator_name: string, amount_raw: number, message: string, id: string|null, created_at: string, is_test: boolean }}
+ * @returns {{ donator_name: string, amount_raw: number, message: string|null, id: string|null, created_at: string, is_test: boolean }}
  */
 function normalizeSaweriaPayload(raw) {
   if (!raw || typeof raw !== 'object') {
     return {
       donator_name: 'Anonim',
       amount_raw: 0,
-      message: '*(Tanpa pesan)*',
+      message: null,
       id: `sw_${Date.now()}`,
       created_at: new Date().toISOString(),
       is_test: false
@@ -70,7 +93,7 @@ function normalizeSaweriaPayload(raw) {
     raw.name ||
     raw.donator;
 
-  // 2. Ekstrak Nominal Donasi
+  // 2. Ekstrak Nominal Donasi — gunakan ?? agar nilai 0 tetap terdeteksi
   let rawAmount =
     data.amount_raw ??
     data.amount ??
@@ -142,7 +165,7 @@ function normalizeSaweriaPayload(raw) {
     const cleanDigits = rawAmount.replace(/[^\d]/g, '');
     numericAmount = parseInt(cleanDigits, 10) || 0;
   } else if (typeof rawAmount === 'number') {
-    numericAmount = rawAmount;
+    numericAmount = Math.floor(rawAmount);
   }
 
   const isTest = !!(
@@ -153,10 +176,18 @@ function normalizeSaweriaPayload(raw) {
     (transactionId && transactionId.toString().startsWith('test_'))
   );
 
+  // Normalisasi nama: jika kosong atau "-" tampilkan 'Anonim'
+  const cleanName = sanitizeText(donatorName);
+  const finalName = isEmpty(cleanName) ? 'Anonim' : cleanName;
+
+  // Normalisasi pesan: jika kosong atau "-" simpan sebagai null (bukan string)
+  const cleanMessage = sanitizeText(rawMessage);
+  const finalMessage = isEmpty(cleanMessage) ? null : cleanMessage;
+
   return {
-    donator_name: sanitizeText(donatorName) || 'Anonim',
+    donator_name: finalName,
     amount_raw: numericAmount,
-    message: sanitizeText(rawMessage) || '*(Tanpa pesan)*',
+    message: finalMessage,
     id: transactionId ? transactionId.toString().trim() : null,
     created_at: raw.created_at || data.created_at || new Date().toISOString(),
     is_test: isTest
@@ -164,47 +195,80 @@ function normalizeSaweriaPayload(raw) {
 }
 
 /**
- * Buat Embed minimalis untuk notifikasi donasi Saweria
- * @param {object} rawDonation
+ * Buat Embed premium & elegan untuk notifikasi donasi Saweria.
+ * Menangani donatur anonim, pesan kosong, dan mode test secara kontekstual.
+ * @param {object} rawDonation - raw payload dari Saweria (atau sudah dinormalisasi)
  * @returns {EmbedBuilder}
  */
 function buildSaweriaEmbed(rawDonation) {
   const donation = normalizeSaweriaPayload(rawDonation);
-  const amountFormatted = formatRupiah(donation.amount_raw || 0);
+  const amountFormatted = formatRupiah(donation.amount_raw);
   const isTest = donation.is_test;
+  const isAnon = donation.donator_name === 'Anonim';
+  const hasMessage = donation.message !== null;
+
+  // Warna: biru/ungu untuk test, amber emas khas Saweria untuk donasi nyata
+  const embedColor = isTest ? 0x5865F2 : 0xFAAE2B;
+
+  // Tentukan teks deskripsi berdasarkan konteks
+  let description;
+  if (isTest) {
+    description = '> 🧪 **Ini adalah donasi simulasi** — semua data di bawah adalah contoh uji coba.';
+  } else if (isAnon) {
+    description = '> 🎁 Seseorang memilih untuk berdonasi secara anonim.\n> Terima kasih banyak atas dukungannya! 🙏';
+  } else {
+    description = `> 💛 **${donation.donator_name}** telah berdonasi!\n> Terima kasih atas dukungan yang luar biasa! 🙏`;
+  }
+
+  // Tentukan teks field pesan
+  let messageValue;
+  if (hasMessage) {
+    const msg = donation.message.length > 1000
+      ? donation.message.substring(0, 997) + '...'
+      : donation.message;
+    messageValue = `> ${msg}`;
+  } else {
+    messageValue = '*Tidak ada pesan*';
+  }
+
+  // Bangun footer ringkas
+  const footerParts = [];
+  if (isTest) footerParts.push('[ SIMULASI ]');
+  if (donation.id) footerParts.push(`ID: ${donation.id.length > 16 ? donation.id.substring(0, 16) + '...' : donation.id}`);
+  footerParts.push('saweria.co');
 
   return new EmbedBuilder()
-    .setColor(0xFAAE2B) // Saweria Amber Gold
+    .setColor(embedColor)
     .setAuthor({
-      name: isTest ? 'Uji Coba Donasi Saweria' : 'Donasi Saweria',
+      name: isTest ? '[ TEST ] Simulasi Donasi' : '✨ Donasi Saweria Diterima!',
       iconURL: SAWERIA_ICON_URL,
       url: 'https://saweria.co'
     })
-    .setTitle(isTest ? 'Simulasi Donasi Berhasil Diterima' : `Donasi Baru dari ${donation.donator_name}`)
-    .setDescription('Terima kasih banyak atas dukungan yang telah diberikan.')
+    .setDescription(description)
     .addFields(
       {
-        name: 'Donatur',
-        value: donation.donator_name,
+        name: '👤 Donatur',
+        value: isAnon ? '*Anonim*' : `**${donation.donator_name}**`,
         inline: true
       },
       {
-        name: 'Nominal',
+        name: '💰 Nominal',
         value: `**${amountFormatted}**`,
         inline: true
       },
       {
-        name: 'Pesan',
-        value: donation.message.length > 1000 ? donation.message.substring(0, 997) + '...' : donation.message,
+        name: '💬 Pesan',
+        value: messageValue,
         inline: false
       }
     )
     .setFooter({
-      text: `ID: ${donation.id || 'N/A'}${isTest ? ' (Simulasi)' : ''} • Saweria`,
+      text: footerParts.join(' • '),
       iconURL: SAWERIA_ICON_URL
     })
     .setTimestamp(donation.created_at ? new Date(donation.created_at) : new Date());
 }
+
 
 /**
  * Kirim notifikasi donasi ke channel Discord
@@ -215,7 +279,7 @@ function buildSaweriaEmbed(rawDonation) {
  */
 async function sendSaweriaNotification(client, rawDonation, targetGuildId = null) {
   const donation = normalizeSaweriaPayload(rawDonation);
-  const embed = buildSaweriaEmbed(donation);
+  const embed = buildSaweriaEmbed(rawDonation); // Pass raw payload; buildSaweriaEmbed normalizes internally
   const settings = storage.read('settings');
   const amount = donation.amount_raw || 0;
 
@@ -260,7 +324,7 @@ async function sendSaweriaNotification(client, rawDonation, targetGuildId = null
           const saweriaUrl = process.env.SAWERIA_URL || 'https://saweria.co/qumpruy';
           const linkButtonRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-              .setLabel('Dukung di Saweria')
+              .setLabel('💛 Dukung di Saweria')
               .setStyle(ButtonStyle.Link)
               .setURL(saweriaUrl)
           );
@@ -365,10 +429,10 @@ function startSaweriaWebhookServer(client) {
             }
           }
 
-          console.log(`[Saweria] Donasi diterima: ${normalized.donator_name} (${formatRupiah(normalized.amount_raw)}) - "${normalized.message}" (ID: ${normalized.id || 'N/A'})`);
+          console.log(`[Saweria] Donasi diterima: ${normalized.donator_name} (${formatRupiah(normalized.amount_raw)}) - "${normalized.message ?? '(tanpa pesan)'}" (ID: ${normalized.id || 'N/A'})`);
 
           const queryGuild = parsedUrl.searchParams.get('guild') || null;
-          const result = await sendSaweriaNotification(client, normalized, queryGuild);
+          const result = await sendSaweriaNotification(client, rawPayload, queryGuild);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({
