@@ -12,41 +12,17 @@ const { sendSaweriaNotification, formatRupiah } = require('../utils/saweriaWebho
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('qsaweria')
-    .setDescription('Pengaturan integrasi notifikasi donasi Saweria ke Discord (Admin Only)')
+    .setDescription('Pengaturan notifikasi donasi Saweria ke channel Discord (Admin Only)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(sub =>
       sub
         .setName('setchannel')
-        .setDescription('Atur text channel tempat notifikasi donasi Saweria dikirim')
+        .setDescription('Atur channel tempat notifikasi donasi Saweria dikirim')
         .addChannelOption(opt =>
           opt
             .setName('channel')
             .setDescription('Text channel tujuan notifikasi')
             .addChannelTypes(ChannelType.GuildText)
-            .setRequired(true)
-        )
-        .addIntegerOption(opt =>
-          opt
-            .setName('min_nominal')
-            .setDescription('Minimal nominal rupiah agar notifikasi dikirim (misal: 10000)')
-            .setMinValue(0)
-            .setRequired(false)
-        )
-        .addRoleOption(opt =>
-          opt
-            .setName('mention_role')
-            .setDescription('Role yang di-mention saat ada donasi baru masuk')
-            .setRequired(false)
-        )
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('setwebhook')
-        .setDescription('Atur Discord Webhook URL langsung untuk notifikasi donasi')
-        .addStringOption(opt =>
-          opt
-            .setName('url')
-            .setDescription('URL Discord Webhook (https://discord.com/api/webhooks/...)')
             .setRequired(true)
         )
         .addIntegerOption(opt =>
@@ -65,23 +41,13 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
-        .setName('enable')
-        .setDescription('Aktifkan pengiriman notifikasi donasi Saweria')
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('disable')
-        .setDescription('Nonaktifkan pengiriman notifikasi donasi Saweria')
-    )
-    .addSubcommand(sub =>
-      sub
         .setName('status')
-        .setDescription('Lihat status konfigurasi Saweria dan URL Webhook untuk Dashboard Saweria')
+        .setDescription('Lihat status konfigurasi dan URL Webhook untuk Dashboard Saweria')
     )
     .addSubcommand(sub =>
       sub
         .setName('test')
-        .setDescription('Kirim simulasi tes notifikasi donasi untuk mengecek channel/webhook')
+        .setDescription('Kirim simulasi tes notifikasi donasi ke channel')
         .addIntegerOption(opt =>
           opt
             .setName('nominal')
@@ -92,7 +58,7 @@ module.exports = {
         .addStringOption(opt =>
           opt
             .setName('donatur')
-            .setDescription('Nama donatur tes (default: Sultan Dermawan)')
+            .setDescription('Nama donatur tes (default: Donatur Uji Coba)')
             .setRequired(false)
         )
         .addStringOption(opt =>
@@ -104,12 +70,11 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
-        .setName('guide')
-        .setDescription('Panduan lengkap cara menghubungkan akun Saweria ke bot Discord ini')
+        .setName('disable')
+        .setDescription('Nonaktifkan notifikasi donasi Saweria')
     ),
 
   async execute(interaction, client) {
-    // 1. Keamanan Ketat: Hanya Administrator / Server Owner / Bot Owner
     const isAuthorized = await isOwnerOrAdmin(interaction, client);
     if (!isAuthorized) {
       return replyNoAccessAdmin(interaction);
@@ -121,7 +86,6 @@ module.exports = {
     const config = settings[guildId]?.saweria || {
       enabled: false,
       channelId: null,
-      webhookUrl: null,
       minAmount: 0,
       roleId: null
     };
@@ -138,11 +102,10 @@ module.exports = {
       const minNominal = interaction.options.getInteger('min_nominal') ?? config.minAmount ?? 0;
       const mentionRole = interaction.options.getRole('mention_role');
 
-      // Cek izin bot di channel tujuan
       const botPerms = channel.permissionsFor(interaction.guild.members.me);
       if (!botPerms.has(PermissionFlagsBits.SendMessages) || !botPerms.has(PermissionFlagsBits.EmbedLinks)) {
         return interaction.reply({
-          content: `Bot tidak memiliki izin **Send Messages** atau **Embed Links** di channel <#${channel.id}>. Harap periksa izin bot.`,
+          content: `Bot tidak memiliki izin Send Messages atau Embed Links di channel <#${channel.id}>. Harap periksa izin bot.`,
           flags: MessageFlags.Ephemeral
         });
       }
@@ -157,9 +120,7 @@ module.exports = {
       const embed = new EmbedBuilder()
         .setColor(0x57F287)
         .setTitle('Channel Notifikasi Saweria Diatur')
-        .setDescription(
-          `Notifikasi donasi Saweria akan dikirimkan ke channel <#${channel.id}>.`
-        )
+        .setDescription(`Notifikasi donasi Saweria akan dikirimkan ke <#${channel.id}>.`)
         .addFields(
           { name: 'Channel Target', value: `<#${channel.id}>`, inline: true },
           { name: 'Minimal Donasi', value: formatRupiah(minNominal), inline: true },
@@ -170,92 +131,10 @@ module.exports = {
             inline: false
           }
         )
-        .setFooter({ text: 'Gunakan /qsaweria test untuk mencoba pengiriman notifikasi.' })
+        .setFooter({ text: 'Salin URL di atas ke saweria.co > Integrasi > Webhook' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });
-    }
-
-    // =============================================
-    // SUBCOMMAND: SETWEBHOOK
-    // =============================================
-    if (sub === 'setwebhook') {
-      const webhookUrl = interaction.options.getString('url').trim();
-      const minNominal = interaction.options.getInteger('min_nominal') ?? config.minAmount ?? 0;
-      const mentionRole = interaction.options.getRole('mention_role');
-
-      if (!webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
-        return interaction.reply({
-          content: 'URL tidak valid. Format Discord Webhook harus diawali dengan `https://discord.com/api/webhooks/...`',
-          flags: MessageFlags.Ephemeral
-        });
-      }
-
-      config.webhookUrl = webhookUrl;
-      config.enabled = true;
-      config.minAmount = minNominal;
-      if (mentionRole) config.roleId = mentionRole.id;
-
-      saveGuildSetting(guildId, 'saweria', config);
-
-      const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('Discord Webhook Disimpan')
-        .setDescription('Notifikasi donasi akan dikirimkan melalui Discord Webhook URL tersebut.')
-        .addFields(
-          { name: 'Minimal Donasi', value: formatRupiah(minNominal), inline: true },
-          { name: 'Mention Role', value: config.roleId ? `<@&${config.roleId}>` : '*(Tidak ada)*', inline: true },
-          {
-            name: 'URL Webhook Saweria',
-            value: `\`\`\`${webhookEndpoint}\`\`\``,
-            inline: false
-          }
-        )
-        .setFooter({ text: 'Gunakan /qsaweria test untuk menguji pengiriman.' })
-        .setTimestamp();
-
-      return interaction.reply({ embeds: [embed] });
-    }
-
-    // =============================================
-    // SUBCOMMAND: ENABLE
-    // =============================================
-    if (sub === 'enable') {
-      if (!config.channelId && !config.webhookUrl) {
-        return interaction.reply({
-          content: 'Silakan atur channel terlebih dahulu dengan `/qsaweria setchannel` atau webhook dengan `/qsaweria setwebhook`.',
-          flags: MessageFlags.Ephemeral
-        });
-      }
-
-      config.enabled = true;
-      saveGuildSetting(guildId, 'saweria', config);
-
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x57F287)
-            .setTitle('Notifikasi Saweria Diaktifkan')
-            .setDescription(`Notifikasi donasi akan dikirim ke ${config.channelId ? `<#${config.channelId}>` : 'Discord Webhook'}.`)
-        ]
-      });
-    }
-
-    // =============================================
-    // SUBCOMMAND: DISABLE
-    // =============================================
-    if (sub === 'disable') {
-      config.enabled = false;
-      saveGuildSetting(guildId, 'saweria', config);
-
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xED4245)
-            .setTitle('Notifikasi Saweria Dinonaktifkan')
-            .setDescription('Notifikasi donasi Saweria untuk server ini telah dinonaktifkan sementara.')
-        ]
-      });
     }
 
     // =============================================
@@ -264,11 +143,7 @@ module.exports = {
     if (sub === 'status') {
       const port = process.env.SAWERIA_PORT || 3000;
       const statusText = config.enabled ? '**Aktif**' : '**Nonaktif**';
-      const targetText = config.channelId
-        ? `<#${config.channelId}>`
-        : config.webhookUrl
-        ? '`Discord Webhook URL`'
-        : '*(Belum diatur)*';
+      const targetText = config.channelId ? `<#${config.channelId}>` : '*(Belum diatur)*';
 
       const embed = new EmbedBuilder()
         .setColor(0xFAAE2B)
@@ -276,11 +151,11 @@ module.exports = {
         .setDescription('Pengaturan penerimaan notifikasi donasi Saweria untuk server ini.')
         .addFields(
           { name: 'Status Fitur', value: statusText, inline: true },
-          { name: 'Target Notifikasi', value: targetText, inline: true },
+          { name: 'Target Channel', value: targetText, inline: true },
           { name: 'Minimal Nominal', value: formatRupiah(config.minAmount || 0), inline: true },
           { name: 'Mention Role', value: config.roleId ? `<@&${config.roleId}>` : '*(Tidak ada)*', inline: true },
           { name: 'Port Listener', value: `\`Port ${port}\``, inline: true },
-          { name: 'Proteksi Token Secret', value: secret ? '`Aktif (Protected)`' : '`Nonaktif`', inline: true },
+          { name: 'Proteksi Token', value: secret ? '`Aktif`' : '`Nonaktif`', inline: true },
           {
             name: 'URL Webhook untuk Dashboard Saweria:',
             value: `\`\`\`${webhookEndpoint}\`\`\``,
@@ -297,9 +172,9 @@ module.exports = {
     // SUBCOMMAND: TEST
     // =============================================
     if (sub === 'test') {
-      if (!config.channelId && !config.webhookUrl) {
+      if (!config.channelId) {
         return interaction.reply({
-          content: 'Kamu belum mengatur channel atau webhook. Jalankan `/qsaweria setchannel` terlebih dahulu.',
+          content: 'Kamu belum mengatur channel tujuan. Jalankan `/qsaweria setchannel` terlebih dahulu.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -324,7 +199,7 @@ module.exports = {
 
       if (result.sentCount > 0) {
         return interaction.editReply({
-          content: `Simulasi tes berhasil dikirimkan ke ${config.channelId ? `<#${config.channelId}>` : 'Discord Webhook'}. Silakan periksa channel tujuan.`
+          content: `Simulasi tes berhasil dikirimkan ke <#${config.channelId}>.`
         });
       } else {
         return interaction.editReply({
@@ -334,44 +209,20 @@ module.exports = {
     }
 
     // =============================================
-    // SUBCOMMAND: GUIDE
+    // SUBCOMMAND: DISABLE
     // =============================================
-    if (sub === 'guide') {
-      const embed = new EmbedBuilder()
-        .setColor(0xFAAE2B)
-        .setAuthor({ name: 'Panduan Integrasi Saweria ke Discord', iconURL: 'https://saweria.co/favicon.ico' })
-        .setTitle('Cara Menghubungkan Donasi Saweria ke Server Ini')
-        .setDescription(
-          'Ikuti langkah-langkah berikut untuk mengaktifkan notifikasi donasi otomatis setiap kali ada yang menyumbang di Saweria kamu:'
-        )
-        .addFields(
-          {
-            name: '1. Atur Channel di Server',
-            value: 'Tentukan channel tempat bot mengirim notifikasi:\n`/qsaweria setchannel channel:#donasi`'
-          },
-          {
-            name: '2. Salin URL Webhook Bot',
-            value: `Salin URL webhook server bot berikut:\n\`\`\`${webhookEndpoint}\`\`\``
-          },
-          {
-            name: '3. Masukkan ke Dashboard Saweria',
-            value: [
-              '• Buka dan login ke [saweria.co](https://saweria.co)',
-              '• Masuk ke menu **Integrasi** (atau **Webhook** di pengaturan)',
-              '• Tempelkan (Paste) URL webhook di atas ke kolom Webhook URL Saweria',
-              '• Klik **Simpan**'
-            ].join('\n')
-          },
-          {
-            name: '4. Alternatif: Webhook Langsung Bawaan Discord',
-            value: [
-              'Jika bot tidak di-hosting di server publik (VPS), kamu bisa langsung menyalin URL Webhook bawaan Discord (Channel Settings > Integrations > Webhooks) dan menempelkannya ke Saweria.'
-            ].join('\n')
-          }
-        )
-        .setFooter({ text: 'Gunakan /qsaweria test untuk mencoba simulasi notifikasi.' });
+    if (sub === 'disable') {
+      config.enabled = false;
+      saveGuildSetting(guildId, 'saweria', config);
 
-      return interaction.reply({ embeds: [embed] });
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xED4245)
+            .setTitle('Notifikasi Saweria Dinonaktifkan')
+            .setDescription('Notifikasi donasi Saweria untuk server ini telah dinonaktifkan sementara.')
+        ]
+      });
     }
   }
 };

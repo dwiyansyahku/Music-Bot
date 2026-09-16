@@ -1,15 +1,15 @@
 const http = require('http');
-const { EmbedBuilder, WebhookClient, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const storage = require('./storage');
 
-// Memory cache untuk deduplikasi ID transaksi (mencegah replay / double send)
+// Memory cache untuk deduplikasi ID transaksi (mencegah double send)
 const processedDonationIds = new Set();
 const MAX_PROCESSED_CACHE = 1000;
 
 let webhookServer = null;
 
 /**
- * Format angka ke format mata uang Rupiah (contoh: 50000 -> Rp 50.000)
+ * Format angka ke mata uang Rupiah
  * @param {number|string} amount
  * @returns {string}
  */
@@ -20,7 +20,7 @@ function formatRupiah(amount) {
 }
 
 /**
- * Bersihkan teks dari mention berbahaya (@everyone, @here)
+ * Bersihkan teks dari mention massal
  * @param {string} text
  * @returns {string}
  */
@@ -32,7 +32,7 @@ function sanitizeText(text) {
 }
 
 /**
- * Buat Embed estetik minimalis untuk notifikasi donasi Saweria
+ * Buat Embed minimalis untuk notifikasi donasi Saweria
  * @param {object} donation
  * @returns {EmbedBuilder}
  */
@@ -42,8 +42,8 @@ function buildSaweriaEmbed(donation) {
   const message = sanitizeText(donation.message) || '*(Tanpa pesan)*';
   const isTest = donation.is_test || donation.type === 'test';
 
-  const embed = new EmbedBuilder()
-    .setColor(0xFAAE2B) // Saweria Amber
+  return new EmbedBuilder()
+    .setColor(0xFAAE2B) // Saweria Amber Gold
     .setAuthor({
       name: isTest ? 'Uji Coba Donasi Saweria' : 'Donasi Saweria',
       iconURL: 'https://saweria.co/favicon.ico',
@@ -73,43 +73,10 @@ function buildSaweriaEmbed(donation) {
       iconURL: 'https://saweria.co/favicon.ico'
     })
     .setTimestamp(donation.created_at ? new Date(donation.created_at) : new Date());
-
-  return embed;
 }
 
 /**
- * Simpan donasi ke riwayat data/saweria_donations.json
- * @param {object} donation
- * @param {string} [guildId]
- */
-function recordDonationHistory(donation, guildId = 'GLOBAL') {
-  try {
-    const history = storage.read('saweria_donations');
-    const list = Array.isArray(history.donations) ? history.donations : [];
-
-    list.unshift({
-      id: donation.id || `gen_${Date.now()}`,
-      donator_name: donation.donator_name || 'Anonim',
-      amount_raw: donation.amount_raw || 0,
-      message: donation.message || '',
-      created_at: donation.created_at || new Date().toISOString(),
-      guild_id: guildId,
-      is_test: !!donation.is_test
-    });
-
-    // Simpan maksimal 200 riwayat transaksi terakhir
-    if (list.length > 200) {
-      list.length = 200;
-    }
-
-    storage.write('saweria_donations', { donations: list, lastUpdated: new Date().toISOString() });
-  } catch (err) {
-    console.error('⚠️ [Saweria] Gagal mencatat riwayat donasi:', err.message);
-  }
-}
-
-/**
- * Kirim notifikasi donasi ke Discord (Text Channel atau Webhook)
+ * Kirim notifikasi donasi ke channel Discord
  * @param {import('discord.js').Client} client
  * @param {object} donationData
  * @param {string|null} [targetGuildId]
@@ -123,7 +90,6 @@ async function sendSaweriaNotification(client, donationData, targetGuildId = nul
   let sentCount = 0;
   const errors = [];
 
-  // 1. Identifikasi daftar guild target
   const targetGuildConfigs = [];
 
   if (targetGuildId) {
@@ -132,154 +98,96 @@ async function sendSaweriaNotification(client, donationData, targetGuildId = nul
       targetGuildConfigs.push({ guildId: targetGuildId, ...gConfig });
     }
   } else {
-    // Periksa semua guild yang mengaktifkan Saweria
     for (const [guildId, data] of Object.entries(settings)) {
-      if (data.saweria && data.saweria.enabled) {
+      if (data.saweria && data.saweria.enabled && data.saweria.channelId) {
         targetGuildConfigs.push({ guildId, ...data.saweria });
       }
     }
   }
 
-  // 2. Fallback jika tidak ada konfigurasi per guild, cek .env global
-  if (targetGuildConfigs.length === 0) {
-    const envChannelId = process.env.SAWERIA_DEFAULT_CHANNEL_ID;
-    const envWebhookUrl = process.env.SAWERIA_DISCORD_WEBHOOK_URL;
-
-    if (envChannelId || envWebhookUrl) {
-      targetGuildConfigs.push({
-        guildId: 'ENV_CONFIG',
-        enabled: true,
-        channelId: envChannelId,
-        webhookUrl: envWebhookUrl,
-        minAmount: 0
-      });
-    }
-  }
-
-  // 3. Eksekusi pengiriman untuk setiap target
   for (const config of targetGuildConfigs) {
     if (!config.enabled && !donationData.is_test) continue;
 
-    // Cek filter minimal donasi
+    // Filter nominal minimum jika ada
     const minAmount = config.minAmount || 0;
     if (amount < minAmount && !donationData.is_test) {
-      console.log(`ℹ️ [Saweria] Donasi (${amount}) di bawah batas minimum (${minAmount}) untuk target: ${config.guildId}`);
       continue;
     }
 
-    let payloadContent = null;
-    if (config.roleId) {
-      payloadContent = `<@&${config.roleId}> Ada donasi baru di Saweria.`;
-    }
+    if (!config.channelId || !client) continue;
 
-    let sent = false;
+    try {
+      const channel = client.channels.cache.get(config.channelId) ||
+        await client.channels.fetch(config.channelId).catch(() => null);
 
-    // A. Pengiriman via Discord Webhook URL jika dikonfigurasi
-    if (config.webhookUrl && config.webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
-      try {
-        const webhookClient = new WebhookClient({ url: config.webhookUrl });
-        await webhookClient.send({
-          username: 'Saweria Alert',
-          avatarURL: 'https://saweria.co/favicon.ico',
-          content: payloadContent || undefined,
-          embeds: [embed]
-        });
-        sent = true;
-        sentCount++;
-      } catch (whErr) {
-        console.error(`⚠️ [Saweria] Gagal kirim via Webhook URL (${config.guildId}):`, whErr.message);
-        errors.push(`Webhook Error: ${whErr.message}`);
-      }
-    }
-
-    // B. Pengiriman via Bot Text Channel
-    if (!sent && config.channelId && client) {
-      try {
-        const channel = client.channels.cache.get(config.channelId) ||
-          await client.channels.fetch(config.channelId).catch(() => null);
-
-        if (channel && channel.isTextBased()) {
-          const perms = channel.permissionsFor(channel.guild?.members.me);
-          if (perms && (!perms.has(PermissionFlagsBits.SendMessages) || !perms.has(PermissionFlagsBits.EmbedLinks))) {
-            errors.push(`Bot kekurangan izin kirim pesan/embed di channel <#${config.channelId}>`);
-          } else {
-            await channel.send({
-              content: payloadContent || undefined,
-              embeds: [embed]
-            });
-            sent = true;
-            sentCount++;
-          }
+      if (channel && channel.isTextBased()) {
+        const perms = channel.permissionsFor(channel.guild?.members.me);
+        if (perms && (!perms.has(PermissionFlagsBits.SendMessages) || !perms.has(PermissionFlagsBits.EmbedLinks))) {
+          errors.push(`Bot kekurangan izin kirim pesan/embed di channel <#${config.channelId}>`);
         } else {
-          errors.push(`Channel ${config.channelId} tidak ditemukan.`);
+          const payloadContent = config.roleId ? `<@&${config.roleId}> Ada donasi baru di Saweria.` : undefined;
+          await channel.send({
+            content: payloadContent,
+            embeds: [embed]
+          });
+          sentCount++;
         }
-      } catch (chErr) {
-        console.error(`⚠️ [Saweria] Gagal kirim ke Channel (${config.channelId}):`, chErr.message);
-        errors.push(`Channel Error: ${chErr.message}`);
+      } else {
+        errors.push(`Channel ${config.channelId} tidak ditemukan.`);
       }
+    } catch (chErr) {
+      console.error(`[Saweria] Gagal kirim ke channel ${config.channelId}:`, chErr.message);
+      errors.push(`Channel Error: ${chErr.message}`);
     }
   }
-
-  // Catat riwayat
-  recordDonationHistory(donationData, targetGuildId || 'BROADCAST');
 
   return { sentCount, errors };
 }
 
 /**
- * Jalankan HTTP Webhook listener server untuk Saweria
+ * Jalankan server Webhook listener untuk Saweria
  * @param {import('discord.js').Client} client
  */
 function startSaweriaWebhookServer(client) {
   const port = parseInt(process.env.SAWERIA_PORT, 10) || 3000;
   const configuredSecret = (process.env.SAWERIA_SECRET || '').trim();
 
-  if (webhookServer) {
-    console.log(`ℹ️ [Saweria Webhook] Server sudah berjalan di port ${port}`);
-    return webhookServer;
-  }
+  if (webhookServer) return webhookServer;
 
   webhookServer = http.createServer(async (req, res) => {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const pathname = parsedUrl.pathname.replace(/\/+$/, ''); // normalkan trailing slash
+    const pathname = parsedUrl.pathname.replace(/\/+$/, '');
 
-    // Endpoint Health Check (GET /webhook/saweria atau GET /saweria)
+    // Health Check
     if (req.method === 'GET' && (pathname === '/webhook/saweria' || pathname === '/saweria' || pathname === '')) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({
         status: 'online',
-        service: 'Qumpruy Bot - Saweria Webhook Service',
+        service: 'Qumpruy Bot - Saweria Webhook',
         endpoint: '/webhook/saweria',
-        message: 'Endpoint siap menerima POST request dari Saweria.',
         uptime_seconds: Math.floor(process.uptime())
       }));
     }
 
-    // Endpoint Menerima Webhook Donasi (POST /webhook/saweria atau POST /saweria)
+    // Menerima Payload Donasi dari Saweria
     if (req.method === 'POST' && (pathname === '/webhook/saweria' || pathname === '/saweria')) {
-      // 1. Validasi Keamanan Token Rahasia (Optional Secret)
+      // 1. Verifikasi Secret Token jika diatur
       if (configuredSecret) {
         const queryToken = parsedUrl.searchParams.get('token') || parsedUrl.searchParams.get('secret');
         const headerSecret = req.headers['x-saweria-secret'] || req.headers['authorization'];
-        const authHeaderMatch = headerSecret && headerSecret.startsWith('Bearer ') ? headerSecret.slice(7) : headerSecret;
+        const authMatch = headerSecret && headerSecret.startsWith('Bearer ') ? headerSecret.slice(7) : headerSecret;
 
-        const isAuthorized = (queryToken && queryToken === configuredSecret) ||
-                             (authHeaderMatch && authHeaderMatch === configuredSecret);
-
-        if (!isAuthorized) {
-          console.warn(`🔒 [Saweria Webhook] Upaya akses tidak sah (Invalid Secret Token) dari IP: ${req.socket.remoteAddress}`);
+        if (queryToken !== configuredSecret && authMatch !== configuredSecret) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: 'Unauthorized: Invalid secret token' }));
         }
       }
 
-      // 2. Baca Body Request dengan batas aman ukuran payload (Max 64KB)
+      // 2. Baca Body Request
       let bodyData = '';
-      const MAX_BODY_SIZE = 64 * 1024;
-
       req.on('data', chunk => {
         bodyData += chunk;
-        if (bodyData.length > MAX_BODY_SIZE) {
+        if (bodyData.length > 65536) {
           res.writeHead(413, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Payload too large' }));
           req.destroy();
@@ -296,22 +204,18 @@ function startSaweriaWebhookServer(client) {
           let payload;
           try {
             payload = JSON.parse(bodyData);
-          } catch (pErr) {
+          } catch {
             res.writeHead(400, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ error: 'Invalid JSON format' }));
+            return res.end(JSON.stringify({ error: 'Invalid JSON' }));
           }
 
-          // 3. Cek Deduplikasi Transaksi ID
-          const transactionId = payload.id;
-          if (transactionId) {
-            if (processedDonationIds.has(transactionId)) {
-              console.log(`ℹ️ [Saweria Webhook] Transaksi duplikat diabaikan: ${transactionId}`);
+          // 3. Deduplikasi ID Transaksi
+          if (payload.id) {
+            if (processedDonationIds.has(payload.id)) {
               res.writeHead(200, { 'Content-Type': 'application/json' });
-              return res.end(JSON.stringify({ status: 'duplicate_ignored', id: transactionId }));
+              return res.end(JSON.stringify({ status: 'duplicate_ignored' }));
             }
-
-            // Tambahkan ke cache
-            processedDonationIds.add(transactionId);
+            processedDonationIds.add(payload.id);
             if (processedDonationIds.size > MAX_PROCESSED_CACHE) {
               const firstVal = processedDonationIds.values().next().value;
               processedDonationIds.delete(firstVal);
@@ -320,21 +224,17 @@ function startSaweriaWebhookServer(client) {
 
           console.log(`[Saweria] Donasi diterima: ${payload.donator_name || 'Anonim'} (${formatRupiah(payload.amount_raw || 0)}) - "${payload.message || '-'}"`);
 
-          // Target guild spesifik jika disediakan di query parameter (?guild=GUILD_ID)
           const queryGuild = parsedUrl.searchParams.get('guild') || null;
-
-          // 4. Kirim notifikasi ke Discord
           const result = await sendSaweriaNotification(client, payload, queryGuild);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({
             success: true,
-            received: true,
             sent_count: result.sentCount,
             errors: result.errors.length > 0 ? result.errors : undefined
           }));
         } catch (err) {
-          console.error('❌ [Saweria Webhook] Error saat memproses request:', err);
+          console.error('[Saweria Webhook Error]:', err.message);
           res.writeHead(500, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: 'Internal server error' }));
         }
@@ -343,21 +243,20 @@ function startSaweriaWebhookServer(client) {
       return;
     }
 
-    // Endpoint 404 Not Found
     res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not Found. Gunakan POST /webhook/saweria' }));
+    res.end(JSON.stringify({ error: 'Not Found' }));
   });
 
   webhookServer.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.warn(`⚠️ [Saweria Webhook] Port ${port} sudah digunakan aplikasi lain! Atur SAWERIA_PORT di .env jika ingin mengubah port.`);
+      console.warn(`[Saweria Webhook] Port ${port} sudah digunakan aplikasi lain.`);
     } else {
-      console.error('❌ [Saweria Webhook] Server error:', err.message);
+      console.error('[Saweria Webhook] Server error:', err.message);
     }
   });
 
   webhookServer.listen(port, '0.0.0.0', () => {
-    console.log(`🔌 [Saweria Webhook] Server aktif & mendengarkan di http://0.0.0.0:${port}/webhook/saweria`);
+    console.log(`[Saweria Webhook] Server aktif di http://0.0.0.0:${port}/webhook/saweria`);
   });
 
   return webhookServer;
