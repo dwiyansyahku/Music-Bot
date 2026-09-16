@@ -19,14 +19,31 @@ const SAWERIA_ICON_URL =
 let webhookServer = null;
 
 /**
- * Format angka ke mata uang Rupiah
+ * Format nominal donasi sesuai currency yang diterima Saweria.
+ * Saweria mendukung IDR (Indonesia) dan PHP (Filipina).
+ * @param {number|string} amount
+ * @param {'IDR'|'PHP'|string} [currency='IDR']
+ * @returns {string}
+ */
+function formatAmount(amount, currency = 'IDR') {
+  const num = parseInt(amount, 10);
+  if (isNaN(num)) {
+    return currency === 'PHP' ? '₱0' : 'Rp 0';
+  }
+  if (currency === 'PHP') {
+    return '₱' + num.toLocaleString('en-PH');
+  }
+  // Default: IDR
+  return 'Rp ' + num.toLocaleString('id-ID');
+}
+
+/**
+ * Alias untuk kompatibilitas — format IDR
  * @param {number|string} amount
  * @returns {string}
  */
 function formatRupiah(amount) {
-  const num = parseInt(amount, 10);
-  if (isNaN(num)) return 'Rp 0';
-  return 'Rp ' + num.toLocaleString('id-ID');
+  return formatAmount(amount, 'IDR');
 }
 
 /**
@@ -184,9 +201,27 @@ function normalizeSaweriaPayload(raw) {
   const cleanMessage = sanitizeText(rawMessage);
   const finalMessage = isEmpty(cleanMessage) ? null : cleanMessage;
 
+  // Ekstrak currency — Saweria support IDR (Indonesia) dan PHP (Filipina)
+  let currency =
+    data.currency ||
+    data.currency_code ||
+    raw.currency ||
+    raw.currency_code ||
+    null;
+
+  // Normalisasi currency code
+  if (currency) {
+    currency = currency.toString().toUpperCase().trim();
+    // Hanya akui currency yang dikenal Saweria
+    if (currency !== 'IDR' && currency !== 'PHP') currency = 'IDR';
+  } else {
+    currency = 'IDR'; // default Saweria Indonesia
+  }
+
   return {
     donator_name: finalName,
     amount_raw: numericAmount,
+    currency,
     message: finalMessage,
     id: transactionId ? transactionId.toString().trim() : null,
     created_at: raw.created_at || data.created_at || new Date().toISOString(),
@@ -202,7 +237,7 @@ function normalizeSaweriaPayload(raw) {
  */
 function buildSaweriaEmbed(rawDonation) {
   const donation = normalizeSaweriaPayload(rawDonation);
-  const amountFormatted = formatRupiah(donation.amount_raw);
+  const amountFormatted = formatAmount(donation.amount_raw, donation.currency);
   const isTest = donation.is_test;
   const isAnon = donation.donator_name === 'Anonim';
   const hasMessage = donation.message !== null;
@@ -472,6 +507,7 @@ function startSaweriaWebhookServer(client) {
 module.exports = {
   startSaweriaWebhookServer,
   sendSaweriaNotification,
+  formatAmount,
   formatRupiah,
   buildSaweriaEmbed,
   normalizeSaweriaPayload
