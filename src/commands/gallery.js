@@ -189,7 +189,16 @@ async function optimizeImageBuffer(buffer, originalExt, isMulti = false) {
 }
 
 /**
- * Fungsi utama untuk mempublikasikan 1 atau banyak gambar ke Saluran Output Galeri sebagai satu postingan terpadu (Collage Grid)
+ * Cek apakah URL berasal dari Discord CDN (attachment yang sudah ada di server Discord)
+ */
+function isDiscordCdnUrl(url) {
+  return /^https?:\/\/(cdn\.discordapp\.com|media\.discordapp\.net)\//i.test(url);
+}
+
+/**
+ * Fungsi utama untuk mempublikasikan 1 atau banyak gambar ke Saluran Output Galeri.
+ * STRATEGI: Menggunakan URL langsung di embed setImage() untuk menghindari error "other side closed".
+ * Tidak perlu download+reupload jika URL sudah dari Discord CDN atau URL publik valid.
  */
 async function publishGalleryPost(guild, user, member, inputUrls, caption, client) {
   const guildId = guild.id;
@@ -223,171 +232,134 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
     };
   }
 
-  // Batasi maksimal 10 foto per pesan (Batas maksimal native Discord attachment)
+  // Batasi maksimal 10 foto per pesan
   const targetUrls = urlList.slice(0, 10);
 
   // Generate Submission ID
   const submissionId = 'GAL_' + Date.now().toString(36).toUpperCase();
-
-  // Unduh dan optimalkan semua gambar (kompresi lebih agresif untuk multi-image)
-  const isMultiUpload = targetUrls.length > 1;
-  const downloadedFiles = [];
-  for (let idx = 0; idx < targetUrls.length; idx++) {
-    const rawUrl = targetUrls[idx];
-    try {
-      const dl = await resolveAndDownloadImage(rawUrl);
-      const opt = await optimizeImageBuffer(dl.buffer, dl.ext, isMultiUpload);
-      const fileName = `gallery_${submissionId}_${idx + 1}.${opt.ext}`;
-      const attachment = new AttachmentBuilder(opt.buffer, { name: fileName });
-      downloadedFiles.push({
-        attachment,
-        fileName,
-        opt
-      });
-    } catch (dlErr) {
-      console.warn(`[Gallery] Gagal mengunduh gambar #${idx + 1} (${rawUrl}):`, dlErr.message);
-      if (targetUrls.length === 1) {
-        return {
-          success: false,
-          error: `Gambar gagal diproses: ${dlErr.message}`
-        };
-      }
-    }
-  }
-
-  if (downloadedFiles.length === 0) {
-    return {
-      success: false,
-      error: 'Semua file gambar gagal diunduh atau diproses.'
-    };
-  }
-
-  // Buat Embed Info Galeri
-  const photoCountText = downloadedFiles.length > 1 ? ` • ${downloadedFiles.length} Foto` : '';
-  const postEmbed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setAuthor({
-      name: member?.displayName || user.username,
-      iconURL: user.displayAvatarURL({ dynamic: true })
-    })
-    .setFooter({
-      text: `Galeri Server • Submission ID: ${submissionId}${photoCountText}`
-    })
-    .setTimestamp();
-
-  if (caption) {
-    postEmbed.setDescription(caption);
-  }
-
-  const attachments = downloadedFiles.map(df => df.attachment);
+  const displayName = member?.displayName || user.username;
+  const avatarUrl = user.displayAvatarURL({ dynamic: true });
+  const imageCount = targetUrls.length;
 
   let postedMsg = null;
   let sendError = null;
 
-  // === STRATEGI PENGIRIMAN ===
-  const displayName = member?.displayName || user.username;
+  // ============================================================
+  // STRATEGI UTAMA: URL-based embeds (tanpa download/reupload)
+  // Discord embed setImage(url) akan menampilkan gambar langsung
+  // tanpa perlu upload file — 0% resiko "other side closed"
+  // ============================================================
 
-  if (downloadedFiles.length === 1) {
-    // === SINGLE IMAGE: Embed + Image langsung ===
-    postEmbed.setImage(`attachment://${downloadedFiles[0].fileName}`);
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        postedMsg = await galleryChannel.send({
-          embeds: [postEmbed],
-          files: attachments
-        });
-        break;
-      } catch (err) {
-        sendError = err;
-        console.warn(`[Gallery Send Warning] Single image percobaan #${attempt} gagal (${err.message})...`);
-        if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
-      }
-    }
-  } else {
-    // === MULTI IMAGE: Coba batch dulu, fallback kirim satu-satu ===
-    const headerText = caption
-      ? `📸 **${displayName}** membagikan ${downloadedFiles.length} foto\n> ${caption}`
-      : `📸 **${displayName}** membagikan ${downloadedFiles.length} foto`;
-
-    // Percobaan 1: Kirim semua gambar sekaligus (batch)
-    try {
-      postedMsg = await galleryChannel.send({
-        content: headerText,
-        files: attachments
-      });
-      console.log(`[Gallery] Batch upload ${downloadedFiles.length} gambar berhasil.`);
-    } catch (batchErr) {
-      console.warn(`[Gallery] Batch upload gagal (${batchErr.message}), fallback kirim satu-satu...`);
-      sendError = batchErr;
-      postedMsg = null;
-    }
-
-    // Fallback: Jika batch gagal (socket error), kirim gambar satu per satu
-    if (!postedMsg) {
-      try {
-        // Kirim header text dulu
-        postedMsg = await galleryChannel.send({ content: headerText });
-
-        // Kirim setiap gambar sebagai pesan terpisah (lebih ringan per-request)
-        for (let i = 0; i < downloadedFiles.length; i++) {
-          const file = downloadedFiles[i];
-          const singleEmbed = new EmbedBuilder()
-            .setColor(0x2B2D31)
-            .setImage(`attachment://${file.fileName}`);
-
-          // Hanya embed pertama yang ada info author
-          if (i === 0) {
-            singleEmbed.setAuthor({
-              name: displayName,
-              iconURL: user.displayAvatarURL({ dynamic: true })
-            });
-          }
-
-          // Embed terakhir ditandai footer
-          if (i === downloadedFiles.length - 1) {
-            singleEmbed.setFooter({
-              text: `Galeri Server • ${submissionId} • Foto ${i + 1}/${downloadedFiles.length}`
-            }).setTimestamp();
-          } else {
-            singleEmbed.setFooter({
-              text: `Foto ${i + 1}/${downloadedFiles.length}`
-            });
-          }
-
-          await galleryChannel.send({
-            embeds: [singleEmbed],
-            files: [file.attachment]
-          });
-
-          // Delay kecil antar gambar agar tidak kena rate limit
-          if (i < downloadedFiles.length - 1) {
-            await new Promise(r => setTimeout(r, 800));
-          }
-        }
-
-        sendError = null; // Reset error karena fallback berhasil
-        console.log(`[Gallery] Fallback satu-satu berhasil (${downloadedFiles.length} gambar).`);
-      } catch (fallbackErr) {
-        console.error('[Gallery] Fallback satu-satu juga gagal:', fallbackErr.message);
-        sendError = fallbackErr;
-        postedMsg = null;
-      }
-    }
-
-    // Kirim embed info metadata di bawahnya (jika berhasil)
-    if (postedMsg) {
-      const infoEmbed = new EmbedBuilder()
+  try {
+    if (imageCount === 1) {
+      // === SINGLE IMAGE: Satu embed dengan setImage(url) ===
+      const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
-        .setAuthor({
-          name: displayName,
-          iconURL: user.displayAvatarURL({ dynamic: true })
-        })
-        .setFooter({
-          text: `Galeri Server • Submission ID: ${submissionId} • ${downloadedFiles.length} Foto`
-        })
+        .setAuthor({ name: displayName, iconURL: avatarUrl })
+        .setImage(targetUrls[0])
+        .setFooter({ text: `Galeri Server • ${submissionId}` })
         .setTimestamp();
 
-      await galleryChannel.send({ embeds: [infoEmbed] }).catch(() => {});
+      if (caption) embed.setDescription(caption);
+
+      postedMsg = await galleryChannel.send({ embeds: [embed] });
+
+    } else {
+      // === MULTI IMAGE: Kirim beberapa embed, masing-masing punya setImage(url) ===
+      // Discord menampilkan multiple embeds sebagai image grid jika semuanya punya image
+      const embeds = [];
+
+      for (let i = 0; i < imageCount; i++) {
+        const embed = new EmbedBuilder()
+          .setColor(0x2B2D31)
+          .setImage(targetUrls[i]);
+
+        // Embed pertama: author + caption
+        if (i === 0) {
+          embed.setAuthor({ name: displayName, iconURL: avatarUrl });
+          if (caption) embed.setDescription(caption);
+        }
+
+        // Embed terakhir: footer + timestamp
+        if (i === imageCount - 1) {
+          embed.setFooter({
+            text: `Galeri Server • ${submissionId} • ${imageCount} Foto`
+          }).setTimestamp();
+        }
+
+        embeds.push(embed);
+      }
+
+      // Discord mendukung hingga 10 embeds per pesan
+      postedMsg = await galleryChannel.send({ embeds });
+    }
+
+    console.log(`[Gallery] URL-based posting berhasil (${imageCount} gambar).`);
+
+  } catch (urlErr) {
+    console.warn(`[Gallery] URL-based gagal (${urlErr.message}), mencoba file upload...`);
+    sendError = urlErr;
+    postedMsg = null;
+  }
+
+  // ============================================================
+  // FALLBACK: Download + Upload (hanya jika URL-based gagal)
+  // ============================================================
+  if (!postedMsg) {
+    try {
+      const downloadedFiles = [];
+      const isMultiUpload = targetUrls.length > 1;
+
+      for (let idx = 0; idx < targetUrls.length; idx++) {
+        try {
+          const dl = await resolveAndDownloadImage(targetUrls[idx]);
+          const opt = await optimizeImageBuffer(dl.buffer, dl.ext, isMultiUpload);
+          const fileName = `gallery_${submissionId}_${idx + 1}.${opt.ext}`;
+          downloadedFiles.push({
+            attachment: new AttachmentBuilder(opt.buffer, { name: fileName }),
+            fileName
+          });
+        } catch (dlErr) {
+          console.warn(`[Gallery] Gagal download gambar #${idx + 1}:`, dlErr.message);
+        }
+      }
+
+      if (downloadedFiles.length > 0) {
+        // Coba kirim satu per satu (lebih ringan)
+        const headerEmbed = new EmbedBuilder()
+          .setColor(0x2B2D31)
+          .setAuthor({ name: displayName, iconURL: avatarUrl })
+          .setDescription(caption || `📸 ${imageCount} foto`)
+          .setImage(`attachment://${downloadedFiles[0].fileName}`)
+          .setFooter({ text: `Galeri Server • ${submissionId}` })
+          .setTimestamp();
+
+        postedMsg = await galleryChannel.send({
+          embeds: [headerEmbed],
+          files: [downloadedFiles[0].attachment]
+        });
+
+        // Kirim sisanya satu per satu
+        for (let i = 1; i < downloadedFiles.length; i++) {
+          const extraEmbed = new EmbedBuilder()
+            .setColor(0x2B2D31)
+            .setImage(`attachment://${downloadedFiles[i].fileName}`)
+            .setFooter({ text: `Foto ${i + 1}/${downloadedFiles.length}` });
+
+          await galleryChannel.send({
+            embeds: [extraEmbed],
+            files: [downloadedFiles[i].attachment]
+          });
+          await new Promise(r => setTimeout(r, 800));
+        }
+
+        sendError = null;
+        console.log(`[Gallery] File upload fallback berhasil (${downloadedFiles.length} gambar).`);
+      }
+    } catch (uploadErr) {
+      console.error('[Gallery] File upload fallback juga gagal:', uploadErr.message);
+      sendError = uploadErr;
+      postedMsg = null;
     }
   }
 
@@ -418,11 +390,11 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
   const todayStr = getWIBDateString();
   const userDayKey = `${user.id}_${todayStr}`;
   const userTodayCount = galleryData[guildId].dailyUsage?.[userDayKey] || 0;
-  galleryData[guildId].dailyUsage[userDayKey] = userTodayCount + downloadedFiles.length;
+  galleryData[guildId].dailyUsage[userDayKey] = userTodayCount + imageCount;
 
   const finalAttachments = postedMsg.attachments ? Array.from(postedMsg.attachments.values()) : [];
   const primaryImageUrl = finalAttachments[0]?.url || targetUrls[0];
-  const allImageUrls = finalAttachments.map(a => a.url);
+  const allImageUrls = finalAttachments.length > 0 ? finalAttachments.map(a => a.url) : targetUrls;
 
   galleryData[guildId].submissions.push({
     id: submissionId,
@@ -430,8 +402,8 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
     channelId: galleryChannel.id,
     userId: user.id,
     imageUrl: primaryImageUrl,
-    imageUrls: allImageUrls.length > 0 ? allImageUrls : [primaryImageUrl],
-    imageCount: downloadedFiles.length,
+    imageUrls: allImageUrls,
+    imageCount: imageCount,
     caption: caption || null,
     createdAt: Date.now()
   });
@@ -441,9 +413,9 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
   await sendModLog(guild, client, {
     action: 'GALLERY_POST',
     moderator: user,
-    details: `Gambar (${downloadedFiles.length} foto) berhasil diposting ke <#${galleryChannel.id}>.\n` +
+    details: `Gambar (${imageCount} foto) berhasil diposting ke <#${galleryChannel.id}>.\n` +
       `• ID Pesan: \`${postedMsg.id}\`\n` +
-      `• Total Kiriman Hari Ini: **${userTodayCount + downloadedFiles.length} Foto**\n` +
+      `• Total Kiriman Hari Ini: **${userTodayCount + imageCount} Foto**\n` +
       (caption ? `• Caption: *${caption}*` : '')
   });
 
@@ -453,7 +425,7 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
     messageId: postedMsg.id,
     channelId: galleryChannel.id,
     jumpUrl,
-    photoCount: downloadedFiles.length,
+    photoCount: imageCount,
     remaining: null
   };
 }

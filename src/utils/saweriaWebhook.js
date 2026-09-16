@@ -149,7 +149,18 @@ function normalizeSaweriaPayload(raw) {
     if (Array.isArray(raw.embeds) && raw.embeds.length > 0) {
       const em = raw.embeds[0];
       if (!donatorName && em.author?.name) donatorName = em.author.name;
-      if (!donatorName && em.title) donatorName = em.title;
+
+      // Parse title format Saweria: "Yay kamu dapet {amount} dari {name}"
+      if (em.title && typeof em.title === 'string') {
+        const titleMatch = em.title.match(/dapet\s+([\d.,]+)\s+dari\s+(.+)/i);
+        if (titleMatch) {
+          if (!rawAmount) rawAmount = titleMatch[1]; // "1.000"
+          if (!donatorName) donatorName = titleMatch[2].trim(); // "akbar"
+        }
+        // Fallback: jika tidak match format Saweria, gunakan title sebagai nama
+        if (!donatorName && !titleMatch) donatorName = em.title;
+      }
+
       if (!rawMessage && em.description) rawMessage = em.description;
       if (Array.isArray(em.fields)) {
         for (const f of em.fields) {
@@ -172,6 +183,14 @@ function normalizeSaweriaPayload(raw) {
       const amountMatch = raw.content.match(/(?:Rp\.?\s*|IDR\s*)([\d.,]+)/i);
       if (amountMatch && !rawAmount) {
         rawAmount = amountMatch[1];
+      }
+      // Juga coba parse format "dapet X dari Y" dari content
+      if (!rawAmount || !donatorName) {
+        const contentTitleMatch = raw.content.match(/dapet\s+([\d.,]+)\s+dari\s+(.+)/i);
+        if (contentTitleMatch) {
+          if (!rawAmount) rawAmount = contentTitleMatch[1];
+          if (!donatorName) donatorName = contentTitleMatch[2].trim();
+        }
       }
     }
   }
@@ -245,57 +264,47 @@ function buildSaweriaEmbed(rawDonation) {
   // Warna: biru/ungu untuk test, amber emas khas Saweria untuk donasi nyata
   const embedColor = isTest ? 0x5865F2 : 0xFAAE2B;
 
-  // Tentukan teks deskripsi berdasarkan konteks
-  let description;
-  if (isTest) {
-    description = '> **Ini adalah donasi simulasi** — semua data di bawah adalah contoh uji coba.';
-  } else if (isAnon) {
-    description = '> Seseorang memilih untuk berdonasi secara anonim. Terima kasih atas dukungannya!';
-  } else {
-    description = `> **${donation.donator_name}** telah berdonasi. Terima kasih atas dukungannya!`;
-  }
+  // Tentukan emoji nominal berdasarkan jumlah
+  let amountEmoji = '💰';
+  if (donation.amount_raw >= 100000) amountEmoji = '💎';
+  else if (donation.amount_raw >= 50000) amountEmoji = '🌟';
+  else if (donation.amount_raw >= 10000) amountEmoji = '✨';
+  else if (donation.amount_raw >= 1000) amountEmoji = '💖';
 
-  // Tentukan teks field pesan
-  let messageValue;
+  // Build deskripsi elegan dengan visual hierarchy yang jelas
+  const donatorDisplay = isAnon ? '👤 *Anonim*' : `**${donation.donator_name}**`;
+
+  let description = isTest
+    ? '> ⚙️ **Ini adalah donasi simulasi (test)**\n\n'
+    : '';
+
+  // Section 1: Donatur & Nominal (visual utama)
+  description += `${amountEmoji} ${donatorDisplay} mengirimkan\n`;
+  description += `# ${amountFormatted}\n`;
+
+  // Section 2: Pesan donatur (dipisahkan dengan divider visual)
   if (hasMessage) {
-    const msg = donation.message.length > 1000
-      ? donation.message.substring(0, 997) + '...'
+    const msg = donation.message.length > 800
+      ? donation.message.substring(0, 797) + '...'
       : donation.message;
-    messageValue = `> ${msg}`;
+    description += `\n💬 **Pesan:**\n> *"${msg}"*`;
   } else {
-    messageValue = '*Tidak ada pesan*';
+    description += `\n> 💬 *Tanpa pesan*`;
   }
 
   // Bangun footer ringkas
   const footerParts = [];
-  if (isTest) footerParts.push('[ SIMULASI ]');
+  if (isTest) footerParts.push('SIMULASI');
   if (donation.id) footerParts.push(`ID: ${donation.id.length > 16 ? donation.id.substring(0, 16) + '...' : donation.id}`);
   footerParts.push('saweria.co');
 
   return new EmbedBuilder()
     .setColor(embedColor)
     .setAuthor({
-      name: isTest ? '[ TEST ] Simulasi Donasi' : 'Donasi Saweria',
+      name: isTest ? '🧪 Simulasi Donasi Saweria' : '🎉 Donasi Diterima!',
       url: 'https://saweria.co'
     })
     .setDescription(description)
-    .addFields(
-      {
-        name: 'Donatur',
-        value: isAnon ? '*Anonim*' : `**${donation.donator_name}**`,
-        inline: true
-      },
-      {
-        name: 'Nominal',
-        value: `**${amountFormatted}**`,
-        inline: true
-      },
-      {
-        name: 'Pesan',
-        value: messageValue,
-        inline: false
-      }
-    )
     .setFooter({
       text: footerParts.join(' • ')
     })
