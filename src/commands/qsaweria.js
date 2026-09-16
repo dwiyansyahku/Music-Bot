@@ -32,12 +32,6 @@ module.exports = {
             .setMinValue(0)
             .setRequired(false)
         )
-        .addRoleOption(opt =>
-          opt
-            .setName('mention_role')
-            .setDescription('Role yang di-mention saat ada donasi baru')
-            .setRequired(false)
-        )
     )
     .addSubcommand(sub =>
       sub
@@ -86,13 +80,13 @@ module.exports = {
     const config = settings[guildId]?.saweria || {
       enabled: false,
       channelId: null,
-      minAmount: 0,
-      roleId: null
+      minAmount: 0
     };
 
     const publicUrl = (process.env.SAWERIA_PUBLIC_URL || `http://localhost:${process.env.SAWERIA_PORT || 3000}`).replace(/\/+$/, '');
     const secret = (process.env.SAWERIA_SECRET || '').trim();
     const webhookEndpoint = `${publicUrl}/webhook/saweria${secret ? `?token=${encodeURIComponent(secret)}` : ''}`;
+    const saweriaLink = process.env.SAWERIA_URL || 'https://saweria.co/qumpruy';
 
     // =============================================
     // SUBCOMMAND: SETCHANNEL
@@ -100,7 +94,6 @@ module.exports = {
     if (sub === 'setchannel') {
       const channel = interaction.options.getChannel('channel');
       const minNominal = interaction.options.getInteger('min_nominal') ?? config.minAmount ?? 0;
-      const mentionRole = interaction.options.getRole('mention_role');
 
       const botPerms = channel.permissionsFor(interaction.guild.members.me);
       if (!botPerms.has(PermissionFlagsBits.SendMessages) || !botPerms.has(PermissionFlagsBits.EmbedLinks)) {
@@ -113,7 +106,6 @@ module.exports = {
       config.channelId = channel.id;
       config.enabled = true;
       config.minAmount = minNominal;
-      if (mentionRole) config.roleId = mentionRole.id;
 
       saveGuildSetting(guildId, 'saweria', config);
 
@@ -124,14 +116,14 @@ module.exports = {
         .addFields(
           { name: 'Channel Target', value: `<#${channel.id}>`, inline: true },
           { name: 'Minimal Donasi', value: formatRupiah(minNominal), inline: true },
-          { name: 'Mention Role', value: config.roleId ? `<@&${config.roleId}>` : '*(Tidak ada)*', inline: true },
+          { name: 'Link Saweria', value: saweriaLink, inline: false },
           {
             name: 'URL Webhook Saweria',
             value: `\`\`\`${webhookEndpoint}\`\`\``,
             inline: false
           }
         )
-        .setFooter({ text: 'Salin URL di atas ke saweria.co > Integrasi > Webhook' })
+        .setFooter({ text: 'Salin URL Webhook di atas ke saweria.co > Integrasi > Webhook' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });
@@ -153,9 +145,8 @@ module.exports = {
           { name: 'Status Fitur', value: statusText, inline: true },
           { name: 'Target Channel', value: targetText, inline: true },
           { name: 'Minimal Nominal', value: formatRupiah(config.minAmount || 0), inline: true },
-          { name: 'Mention Role', value: config.roleId ? `<@&${config.roleId}>` : '*(Tidak ada)*', inline: true },
           { name: 'Port Listener', value: `\`Port ${port}\``, inline: true },
-          { name: 'Proteksi Token', value: secret ? '`Aktif`' : '`Nonaktif`', inline: true },
+          { name: 'Link Saweria', value: saweriaLink, inline: false },
           {
             name: 'URL Webhook untuk Dashboard Saweria:',
             value: `\`\`\`${webhookEndpoint}\`\`\``,

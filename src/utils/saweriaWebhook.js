@@ -1,5 +1,5 @@
 const http = require('http');
-const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const storage = require('./storage');
 
 // Memory cache untuk deduplikasi ID transaksi (mencegah double send)
@@ -125,10 +125,17 @@ async function sendSaweriaNotification(client, donationData, targetGuildId = nul
         if (perms && (!perms.has(PermissionFlagsBits.SendMessages) || !perms.has(PermissionFlagsBits.EmbedLinks))) {
           errors.push(`Bot kekurangan izin kirim pesan/embed di channel <#${config.channelId}>`);
         } else {
-          const payloadContent = config.roleId ? `<@&${config.roleId}> Ada donasi baru di Saweria.` : undefined;
+          const saweriaUrl = process.env.SAWERIA_URL || 'https://saweria.co/qumpruy';
+          const linkButtonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('Dukung di Saweria')
+              .setStyle(ButtonStyle.Link)
+              .setURL(saweriaUrl)
+          );
+
           await channel.send({
-            content: payloadContent,
-            embeds: [embed]
+            embeds: [embed],
+            components: [linkButtonRow]
           });
           sentCount++;
         }
