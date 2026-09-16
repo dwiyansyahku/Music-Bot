@@ -147,18 +147,30 @@ async function resolveAndDownloadImage(inputUrl) {
  * @param {string} originalExt - Ekstensi asli (png, jpg, webp, gif)
  * @param {boolean} isMulti - True jika gambar ini bagian dari upload multi-image (kompresi lebih agresif)
  */
+/**
+ * Kompresi dan optimasi ukuran buffer gambar sebelum di-upload ke Discord API
+ * Mencegah timeout, socket hangup, atau error "other side closed"
+ * @param {Buffer} buffer - Buffer gambar asli
+ * @param {string} originalExt - Ekstensi asli (png, jpg, webp, gif)
+ * @param {boolean} isMulti - True jika gambar ini bagian dari upload multi-image (kompresi agresif)
+ */
 async function optimizeImageBuffer(buffer, originalExt, isMulti = false) {
-  // GIF tidak dikompresi (animasi rusak). Untuk single image, skip jika < 1.5MB
-  // Untuk multi-image, selalu kompresi jika > 500KB untuk menghindari socket error
-  const sizeThreshold = isMulti ? 500 * 1024 : 1.5 * 1024 * 1024;
-  if (originalExt === 'gif' || buffer.length <= sizeThreshold) {
+  // GIF tidak dikompresi (animasi rusak)
+  if (originalExt === 'gif') {
+    return { buffer, ext: originalExt };
+  }
+
+  // Multi-image: kompresi jika > 150KB agar total payload 3-4 foto sangat kecil (< 400KB)
+  // Single image: kompresi jika > 1MB
+  const sizeThreshold = isMulti ? 150 * 1024 : 1024 * 1024;
+  if (buffer.length <= sizeThreshold) {
     return { buffer, ext: originalExt };
   }
 
   try {
     const img = await loadImage(buffer);
-    const maxDim = isMulti ? 1280 : 1920; // Multi-image: lebih kecil agar total payload ringan
-    const quality = isMulti ? 70 : 85;     // Multi-image: quality lebih rendah
+    const maxDim = isMulti ? 1200 : 1920; // 1200px sangat tajam untuk preview grid & fullscreen
+    const quality = isMulti ? 75 : 85;     // 75% JPEG sangat ringan (~70-120KB per foto)
     let width = img.width;
     let height = img.height;
 
@@ -178,7 +190,7 @@ async function optimizeImageBuffer(buffer, originalExt, isMulti = false) {
 
     const optimizedBuffer = canvas.toBuffer('image/jpeg', quality);
     if (optimizedBuffer.length < buffer.length) {
-      console.log(`[Gallery] Optimized image: ${(buffer.length / 1024).toFixed(0)}KB → ${(optimizedBuffer.length / 1024).toFixed(0)}KB (multi=${isMulti})`);
+      console.log(`[Gallery] Optimized image: ${(buffer.length / 1024).toFixed(0)}KB → ${(optimizedBuffer.length / 1024).toFixed(0)}KB`);
       return { buffer: optimizedBuffer, ext: 'jpg' };
     }
   } catch (optErr) {
@@ -197,8 +209,11 @@ function isDiscordCdnUrl(url) {
 
 /**
  * Fungsi utama untuk mempublikasikan 1 atau banyak gambar ke Saluran Output Galeri.
- * STRATEGI: Menggunakan URL langsung di embed setImage() untuk menghindari error "other side closed".
- * Tidak perlu download+reupload jika URL sudah dari Discord CDN atau URL publik valid.
+ * TAMPILAN:
+ * - 1 Foto: Dikirim sebagai Embed elegan dengan author, caption & footer.
+ * - Multi Foto (>= 2): Dikirim sebagai file lampiran langsung (Native Discord Mosaic Grid).
+ *   Discord otomatis merender kolase mosaic (1 besar + 2 kecil, atau 2x2) seperti di Gambar 2,
+ *   dan saat diklik oleh user bisa dilihat & di-slide satu per satu full screen!
  */
 async function publishGalleryPost(guild, user, member, inputUrls, caption, client) {
   const guildId = guild.id;
@@ -245,120 +260,127 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
   let sendError = null;
 
   // ============================================================
-  // STRATEGI UTAMA: URL-based embeds (tanpa download/reupload)
-  // Discord embed setImage(url) akan menampilkan gambar langsung
-  // tanpa perlu upload file — 0% resiko "other side closed"
+  // LANGKAH 1: Download dan Kompresi Ringan
   // ============================================================
+  const downloadedFiles = [];
+  const isMultiUpload = imageCount > 1;
 
-  try {
-    if (imageCount === 1) {
-      // === SINGLE IMAGE: Satu embed dengan setImage(url) ===
+  for (let idx = 0; idx < imageCount; idx++) {
+    try {
+      const dl = await resolveAndDownloadImage(targetUrls[idx]);
+      const opt = await optimizeImageBuffer(dl.buffer, dl.ext, isMultiUpload);
+      const fileName = `gallery_${submissionId}_${idx + 1}.${opt.ext}`;
+      downloadedFiles.push({
+        attachment: new AttachmentBuilder(opt.buffer, { name: fileName }),
+        fileName
+      });
+    } catch (dlErr) {
+      console.warn(`[Gallery] Gagal download/proses gambar #${idx + 1}:`, dlErr.message);
+    }
+  }
+
+  // ============================================================
+  // LANGKAH 2: Pengiriman Gambar ke Saluran Galeri
+  // ============================================================
+  if (downloadedFiles.length > 0) {
+    const attachments = downloadedFiles.map(df => df.attachment);
+
+    if (downloadedFiles.length === 1) {
+      // === SINGLE IMAGE: Satu embed elegan dengan author, caption & footer ===
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({ name: displayName, iconURL: avatarUrl })
-        .setImage(targetUrls[0])
+        .setImage(`attachment://${downloadedFiles[0].fileName}`)
         .setFooter({ text: `Galeri Server • ${submissionId}` })
         .setTimestamp();
 
       if (caption) embed.setDescription(caption);
 
-      postedMsg = await galleryChannel.send({ embeds: [embed] });
-
-    } else {
-      // === MULTI IMAGE: Kirim beberapa embed, masing-masing punya setImage(url) ===
-      // Discord menampilkan multiple embeds sebagai image grid jika semuanya punya image
-      const embeds = [];
-
-      for (let i = 0; i < imageCount; i++) {
-        const embed = new EmbedBuilder()
-          .setColor(0x2B2D31)
-          .setImage(targetUrls[i]);
-
-        // Embed pertama: author + caption
-        if (i === 0) {
-          embed.setAuthor({ name: displayName, iconURL: avatarUrl });
-          if (caption) embed.setDescription(caption);
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          postedMsg = await galleryChannel.send({
+            embeds: [embed],
+            files: attachments
+          });
+          break;
+        } catch (singleErr) {
+          sendError = singleErr;
+          console.warn(`[Gallery] Single image send attempt #${attempt} gagal:`, singleErr.message);
+          if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
         }
-
-        // Embed terakhir: footer + timestamp
-        if (i === imageCount - 1) {
-          embed.setFooter({
-            text: `Galeri Server • ${submissionId} • ${imageCount} Foto`
-          }).setTimestamp();
-        }
-
-        embeds.push(embed);
       }
 
-      // Discord mendukung hingga 10 embeds per pesan
-      postedMsg = await galleryChannel.send({ embeds });
+    } else {
+      // === MULTI IMAGE (>= 2 Foto): Native Mosaic Grid persis seperti Gambar 2 ===
+      // Discord otomatis merender files menjadi collage/mosaic grid.
+      // Saat diklik, user bisa melihat dan menggeser (swipe/carousel) satu per satu secara fullscreen!
+      const contentText = caption
+        ? `📸 **${displayName}** membagikan ${downloadedFiles.length} foto:\n> ${caption}\n*ID: \`${submissionId}\`*`
+        : `📸 **${displayName}** membagikan ${downloadedFiles.length} foto ke galeri • *ID: \`${submissionId}\`*`;
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          postedMsg = await galleryChannel.send({
+            content: contentText,
+            files: attachments
+          });
+          console.log(`[Gallery] Native mosaic grid upload berhasil (${downloadedFiles.length} foto).`);
+          break;
+        } catch (multiErr) {
+          sendError = multiErr;
+          console.warn(`[Gallery] Multi-image batch attempt #${attempt} gagal:`, multiErr.message);
+          if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+        }
+      }
     }
-
-    console.log(`[Gallery] URL-based posting berhasil (${imageCount} gambar).`);
-
-  } catch (urlErr) {
-    console.warn(`[Gallery] URL-based gagal (${urlErr.message}), mencoba file upload...`);
-    sendError = urlErr;
-    postedMsg = null;
   }
 
   // ============================================================
-  // FALLBACK: Download + Upload (hanya jika URL-based gagal)
+  // LANGKAH 3: Fallback ke Embed Mosaic jika upload file gagal
   // ============================================================
   if (!postedMsg) {
+    console.warn(`[Gallery] Mencoba fallback Embed Mosaic (Same URL) untuk ${imageCount} gambar...`);
     try {
-      const downloadedFiles = [];
-      const isMultiUpload = targetUrls.length > 1;
-
-      for (let idx = 0; idx < targetUrls.length; idx++) {
-        try {
-          const dl = await resolveAndDownloadImage(targetUrls[idx]);
-          const opt = await optimizeImageBuffer(dl.buffer, dl.ext, isMultiUpload);
-          const fileName = `gallery_${submissionId}_${idx + 1}.${opt.ext}`;
-          downloadedFiles.push({
-            attachment: new AttachmentBuilder(opt.buffer, { name: fileName }),
-            fileName
-          });
-        } catch (dlErr) {
-          console.warn(`[Gallery] Gagal download gambar #${idx + 1}:`, dlErr.message);
-        }
-      }
-
-      if (downloadedFiles.length > 0) {
-        // Coba kirim satu per satu (lebih ringan)
-        const headerEmbed = new EmbedBuilder()
+      if (imageCount === 1) {
+        const embed = new EmbedBuilder()
           .setColor(0x2B2D31)
           .setAuthor({ name: displayName, iconURL: avatarUrl })
-          .setDescription(caption || `📸 ${imageCount} foto`)
-          .setImage(`attachment://${downloadedFiles[0].fileName}`)
+          .setImage(targetUrls[0])
           .setFooter({ text: `Galeri Server • ${submissionId}` })
           .setTimestamp();
 
-        postedMsg = await galleryChannel.send({
-          embeds: [headerEmbed],
-          files: [downloadedFiles[0].attachment]
-        });
+        if (caption) embed.setDescription(caption);
+        postedMsg = await galleryChannel.send({ embeds: [embed] });
 
-        // Kirim sisanya satu per satu
-        for (let i = 1; i < downloadedFiles.length; i++) {
-          const extraEmbed = new EmbedBuilder()
-            .setColor(0x2B2D31)
-            .setImage(`attachment://${downloadedFiles[i].fileName}`)
-            .setFooter({ text: `Foto ${i + 1}/${downloadedFiles.length}` });
+      } else {
+        // Embed Mosaic: Gunakan url pengait yang sama di semua embed agar Discord menggabungkannya
+        const sharedUrl = targetUrls[0];
+        const mosaicUrls = targetUrls.slice(0, 4); // Discord embed mosaic grouping mendukung hingga 4
+        const embeds = [];
 
-          await galleryChannel.send({
-            embeds: [extraEmbed],
-            files: [downloadedFiles[i].attachment]
-          });
-          await new Promise(r => setTimeout(r, 800));
+        for (let i = 0; i < mosaicUrls.length; i++) {
+          const embed = new EmbedBuilder()
+            .setURL(sharedUrl)
+            .setImage(mosaicUrls[i]);
+
+          if (i === 0) {
+            embed.setColor(0x2B2D31)
+              .setAuthor({ name: displayName, iconURL: avatarUrl })
+              .setFooter({ text: `Galeri Server • ${submissionId} • ${imageCount} Foto` })
+              .setTimestamp();
+            if (caption) embed.setDescription(caption);
+          }
+
+          embeds.push(embed);
         }
 
+        postedMsg = await galleryChannel.send({ embeds });
+        console.log(`[Gallery] Fallback Embed Mosaic berhasil diposting (${mosaicUrls.length} embed).`);
         sendError = null;
-        console.log(`[Gallery] File upload fallback berhasil (${downloadedFiles.length} gambar).`);
       }
-    } catch (uploadErr) {
-      console.error('[Gallery] File upload fallback juga gagal:', uploadErr.message);
-      sendError = uploadErr;
+    } catch (fallbackErr) {
+      console.error('[Gallery] Fallback Embed Mosaic juga gagal:', fallbackErr.message);
+      sendError = fallbackErr;
       postedMsg = null;
     }
   }
