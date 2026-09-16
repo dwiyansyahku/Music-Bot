@@ -248,11 +248,11 @@ function buildSaweriaEmbed(rawDonation) {
   // Tentukan teks deskripsi berdasarkan konteks
   let description;
   if (isTest) {
-    description = '> 🧪 **Ini adalah donasi simulasi** — semua data di bawah adalah contoh uji coba.';
+    description = '> **Ini adalah donasi simulasi** — semua data di bawah adalah contoh uji coba.';
   } else if (isAnon) {
-    description = '> 🎁 Seseorang memilih untuk berdonasi secara anonim.\n> Terima kasih banyak atas dukungannya! 🙏';
+    description = '> Seseorang memilih untuk berdonasi secara anonim. Terima kasih atas dukungannya!';
   } else {
-    description = `> 💛 **${donation.donator_name}** telah berdonasi!\n> Terima kasih atas dukungan yang luar biasa! 🙏`;
+    description = `> **${donation.donator_name}** telah berdonasi. Terima kasih atas dukungannya!`;
   }
 
   // Tentukan teks field pesan
@@ -275,31 +275,29 @@ function buildSaweriaEmbed(rawDonation) {
   return new EmbedBuilder()
     .setColor(embedColor)
     .setAuthor({
-      name: isTest ? '[ TEST ] Simulasi Donasi' : '✨ Donasi Saweria Diterima!',
-      iconURL: SAWERIA_ICON_URL,
+      name: isTest ? '[ TEST ] Simulasi Donasi' : 'Donasi Saweria',
       url: 'https://saweria.co'
     })
     .setDescription(description)
     .addFields(
       {
-        name: '👤 Donatur',
+        name: 'Donatur',
         value: isAnon ? '*Anonim*' : `**${donation.donator_name}**`,
         inline: true
       },
       {
-        name: '💰 Nominal',
+        name: 'Nominal',
         value: `**${amountFormatted}**`,
         inline: true
       },
       {
-        name: '💬 Pesan',
+        name: 'Pesan',
         value: messageValue,
         inline: false
       }
     )
     .setFooter({
-      text: footerParts.join(' • '),
-      iconURL: SAWERIA_ICON_URL
+      text: footerParts.join(' • ')
     })
     .setTimestamp(donation.created_at ? new Date(donation.created_at) : new Date());
 }
@@ -359,7 +357,7 @@ async function sendSaweriaNotification(client, rawDonation, targetGuildId = null
           const saweriaUrl = process.env.SAWERIA_URL || 'https://saweria.co/qumpruy';
           const linkButtonRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-              .setLabel('💛 Dukung di Saweria')
+              .setLabel('Dukung di Saweria')
               .setStyle(ButtonStyle.Link)
               .setURL(saweriaUrl)
           );
