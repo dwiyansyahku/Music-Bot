@@ -43,7 +43,8 @@ function buildHelpEmbed(category, client, guild = null) {
               '• **Kapsul Waktu** — Pesan rahasia terjadwal untuk masa depan',
               '• **Jadwal & Ulang Tahun** — Perayaan otomatis & event server',
               '• **Voice, Sapaan AI & Pengingat Malam** — Tracking voice, sapaan AI, pengingat 22:00 WIB, & lencana',
-              '• **Moderasi & Penjara** — Sistem warn, mute, jail, dan clear chat'
+              '• **Moderasi & Penjara** — Sistem warn, mute, jail, dan clear chat',
+              '• **Donasi Saweria** — Integrasi webhook donasi Saweria otomatis ke channel Discord'
             ].join('\n'),
             inline: false
           }
@@ -303,7 +304,7 @@ function buildHelpEmbed(category, client, guild = null) {
           },
           {
             name: '✦ Moderasi, Penjara & Utilitas',
-            value: '`/automod`, `/mod`, `/mod setlogchannel`, `/clear`, `/qclear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/qwelcome`, `/backup`, `/ping`',
+            value: '`/automod`, `/mod`, `/mod setlogchannel`, `/clear`, `/qclear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/qwelcome`, `/qsaweria`, `/backup`, `/ping`',
             inline: false
           }
         )

@@ -23,6 +23,16 @@ module.exports = {
     initVoiceTracker(client);
 
     // =============================================
+    // SAWERIA WEBHOOK SERVER INITIALIZATION
+    // =============================================
+    try {
+      const { startSaweriaWebhookServer } = require('../utils/saweriaWebhook');
+      startSaweriaWebhookServer(client);
+    } catch (swErr) {
+      console.error('⚠️ [Saweria Startup] Gagal menyalakan webhook server:', swErr.message);
+    }
+
+    // =============================================
     // AUTO-RECONNECT 24/7 VOICE CHANNELS
     // =============================================
     try {

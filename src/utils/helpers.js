@@ -149,6 +149,39 @@ async function replyNoAccessMod(interaction) {
 }
 
 /**
+ * Cek apakah user adalah Owner Bot, Server Owner, atau Administrator server.
+ * @param {import('discord.js').CommandInteraction} interaction
+ * @param {import('discord.js').Client} client
+ * @returns {Promise<boolean>}
+ */
+async function isOwnerOrAdmin(interaction, client) {
+  const owner = await isBotOwner(interaction, client);
+  if (owner) return true;
+  if (interaction.guild?.ownerId === interaction.user?.id) return true;
+
+  const { PermissionFlagsBits } = require('discord.js');
+  return !!(
+    interaction.member?.permissions?.has(PermissionFlagsBits.Administrator) ||
+    interaction.member?.permissions?.has(PermissionFlagsBits.ManageGuild)
+  );
+}
+
+/**
+ * Reply "Akses Ditolak" — khusus untuk command admin/owner server
+ * @param {import('discord.js').CommandInteraction} interaction
+ */
+async function replyNoAccessAdmin(interaction) {
+  const { EmbedBuilder, MessageFlags } = require('discord.js');
+  const embed = new EmbedBuilder()
+    .setColor(0xED4245)
+    .setTitle('🚫 Akses Ditolak')
+    .setDescription('Perintah konfigurasi ini hanya bisa digunakan oleh **Administrator** atau **Server Owner** demi keamanan data keuangan server.')
+    .setFooter({ text: 'Izin Administrator atau Manage Server diperlukan.' });
+
+  return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+}
+
+/**
  * Update visibilitas channel penjara (text & voice) berdasarkan keberadaan tahanan.
  * Jika ada tahanan -> channel ditampilkan ke @everyone.
  * Jika tidak ada tahanan -> channel disembunyikan dari @everyone.
@@ -250,8 +283,10 @@ module.exports = {
   checkQueue,
   isBotOwner,
   isOwnerOrMod,
+  isOwnerOrAdmin,
   replyNoAccess,
   replyNoAccessMod,
+  replyNoAccessAdmin,
   updateJailVisibility,
   cleanMusicQuery
 };
