@@ -260,127 +260,100 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
   let sendError = null;
 
   // ============================================================
-  // LANGKAH 1: Download dan Kompresi Ringan
+  // STRATEGI UTAMA: URL-based Embed Mosaic (Same URL trick)
+  // - 0% transfer file (0 bytes upload), 0% timeout, anti 'other side closed'
+  // - Discord otomatis menggabungkan embeds dengan URL sama jadi 1 layout MOSAIC GRID
+  // - Saat diklik oleh user, modal viewer/carousel Discord terbuka dan bisa di-slide satu per satu
   // ============================================================
-  const downloadedFiles = [];
-  const isMultiUpload = imageCount > 1;
-
-  for (let idx = 0; idx < imageCount; idx++) {
-    try {
-      const dl = await resolveAndDownloadImage(targetUrls[idx]);
-      const opt = await optimizeImageBuffer(dl.buffer, dl.ext, isMultiUpload);
-      const fileName = `gallery_${submissionId}_${idx + 1}.${opt.ext}`;
-      downloadedFiles.push({
-        attachment: new AttachmentBuilder(opt.buffer, { name: fileName }),
-        fileName
-      });
-    } catch (dlErr) {
-      console.warn(`[Gallery] Gagal download/proses gambar #${idx + 1}:`, dlErr.message);
-    }
-  }
-
-  // ============================================================
-  // LANGKAH 2: Pengiriman Gambar ke Saluran Galeri
-  // ============================================================
-  if (downloadedFiles.length > 0) {
-    const attachments = downloadedFiles.map(df => df.attachment);
-
-    if (downloadedFiles.length === 1) {
-      // === SINGLE IMAGE: Satu embed elegan dengan author, caption & footer ===
+  try {
+    if (imageCount === 1) {
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({ name: displayName, iconURL: avatarUrl })
-        .setImage(`attachment://${downloadedFiles[0].fileName}`)
+        .setImage(targetUrls[0])
         .setFooter({ text: `Galeri Server • ${submissionId}` })
         .setTimestamp();
 
       if (caption) embed.setDescription(caption);
 
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          postedMsg = await galleryChannel.send({
-            embeds: [embed],
-            files: attachments
-          });
-          break;
-        } catch (singleErr) {
-          sendError = singleErr;
-          console.warn(`[Gallery] Single image send attempt #${attempt} gagal:`, singleErr.message);
-          if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
-        }
-      }
+      postedMsg = await galleryChannel.send({ embeds: [embed] });
 
     } else {
-      // === MULTI IMAGE (>= 2 Foto): Native Mosaic Grid persis seperti Gambar 2 ===
-      // Discord otomatis merender files menjadi collage/mosaic grid.
-      // Saat diklik, user bisa melihat dan menggeser (swipe/carousel) satu per satu secara fullscreen!
-      const contentText = caption
-        ? `📸 **${displayName}** membagikan ${downloadedFiles.length} foto:\n> ${caption}\n*ID: \`${submissionId}\`*`
-        : `📸 **${displayName}** membagikan ${downloadedFiles.length} foto ke galeri • *ID: \`${submissionId}\`*`;
+      // Multi-image: Gunakan URL pengait bersama yang sama di semua embed (Same URL trick)
+      // Ini memberitahu Discord untuk merender gambar-gambar tersebut ke dalam 1 kotak Mosaic Grid!
+      const embeds = [];
 
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          postedMsg = await galleryChannel.send({
-            content: contentText,
-            files: attachments
-          });
-          console.log(`[Gallery] Native mosaic grid upload berhasil (${downloadedFiles.length} foto).`);
-          break;
-        } catch (multiErr) {
-          sendError = multiErr;
-          console.warn(`[Gallery] Multi-image batch attempt #${attempt} gagal:`, multiErr.message);
-          if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+      // Discord menggabungkan per grup 4 embed dengan shared URL yang sama
+      for (let i = 0; i < targetUrls.length; i++) {
+        // Kelompokkan per 4 gambar: grup 0 (indeks 0-3), grup 1 (indeks 4-7)
+        const groupIndex = Math.floor(i / 4);
+        const sharedGroupUrl = targetUrls[groupIndex * 4];
+
+        const embed = new EmbedBuilder()
+          .setURL(sharedGroupUrl)
+          .setImage(targetUrls[i]);
+
+        // HANYA embed pertama yang memiliki metadata (author, deskripsi, footer, warna)
+        // Embed berikutnya HANYA berisi URL dan Gambar agar Discord menggabungkannya
+        if (i === 0) {
+          embed.setColor(0x2B2D31)
+            .setAuthor({ name: displayName, iconURL: avatarUrl })
+            .setFooter({ text: `Galeri Server • ${submissionId} • ${imageCount} Foto` })
+            .setTimestamp();
+
+          if (caption) embed.setDescription(caption);
         }
+
+        embeds.push(embed);
       }
+
+      postedMsg = await galleryChannel.send({ embeds });
     }
+
+    console.log(`[Gallery] URL-based Embed Mosaic berhasil diposting (${imageCount} foto).`);
+
+  } catch (urlErr) {
+    console.warn(`[Gallery] URL-based gagal (${urlErr.message}), mencoba fallback upload file...`);
+    sendError = urlErr;
+    postedMsg = null;
   }
 
   // ============================================================
-  // LANGKAH 3: Fallback ke Embed Mosaic jika upload file gagal
+  // FALLBACK: Download + Upload (hanya jika URL embed gagal)
   // ============================================================
   if (!postedMsg) {
-    console.warn(`[Gallery] Mencoba fallback Embed Mosaic (Same URL) untuk ${imageCount} gambar...`);
     try {
-      if (imageCount === 1) {
-        const embed = new EmbedBuilder()
-          .setColor(0x2B2D31)
-          .setAuthor({ name: displayName, iconURL: avatarUrl })
-          .setImage(targetUrls[0])
-          .setFooter({ text: `Galeri Server • ${submissionId}` })
-          .setTimestamp();
-
-        if (caption) embed.setDescription(caption);
-        postedMsg = await galleryChannel.send({ embeds: [embed] });
-
-      } else {
-        // Embed Mosaic: Gunakan url pengait yang sama di semua embed agar Discord menggabungkannya
-        const sharedUrl = targetUrls[0];
-        const mosaicUrls = targetUrls.slice(0, 4); // Discord embed mosaic grouping mendukung hingga 4
-        const embeds = [];
-
-        for (let i = 0; i < mosaicUrls.length; i++) {
-          const embed = new EmbedBuilder()
-            .setURL(sharedUrl)
-            .setImage(mosaicUrls[i]);
-
-          if (i === 0) {
-            embed.setColor(0x2B2D31)
-              .setAuthor({ name: displayName, iconURL: avatarUrl })
-              .setFooter({ text: `Galeri Server • ${submissionId} • ${imageCount} Foto` })
-              .setTimestamp();
-            if (caption) embed.setDescription(caption);
-          }
-
-          embeds.push(embed);
+      const downloadedFiles = [];
+      for (let idx = 0; idx < Math.min(imageCount, 4); idx++) {
+        try {
+          const dl = await resolveAndDownloadImage(targetUrls[idx]);
+          const opt = await optimizeImageBuffer(dl.buffer, dl.ext, true);
+          const fileName = `gallery_${submissionId}_${idx + 1}.${opt.ext}`;
+          downloadedFiles.push({
+            attachment: new AttachmentBuilder(opt.buffer, { name: fileName }),
+            fileName
+          });
+        } catch (dlErr) {
+          console.warn(`[Gallery] Gagal fallback download #${idx + 1}:`, dlErr.message);
         }
-
-        postedMsg = await galleryChannel.send({ embeds });
-        console.log(`[Gallery] Fallback Embed Mosaic berhasil diposting (${mosaicUrls.length} embed).`);
-        sendError = null;
       }
-    } catch (fallbackErr) {
-      console.error('[Gallery] Fallback Embed Mosaic juga gagal:', fallbackErr.message);
-      sendError = fallbackErr;
+
+      if (downloadedFiles.length > 0) {
+        const attachments = downloadedFiles.map(df => df.attachment);
+        const contentText = caption
+          ? `📸 **${displayName}** membagikan ${downloadedFiles.length} foto:\n> ${caption}\n*ID: \`${submissionId}\`*`
+          : `📸 **${displayName}** membagikan ${downloadedFiles.length} foto ke galeri • *ID: \`${submissionId}\`*`;
+
+        postedMsg = await galleryChannel.send({
+          content: contentText,
+          files: attachments
+        });
+        sendError = null;
+        console.log(`[Gallery] File upload fallback berhasil (${downloadedFiles.length} foto).`);
+      }
+    } catch (uploadErr) {
+      console.error('[Gallery] File upload fallback juga gagal:', uploadErr.message);
+      sendError = uploadErr;
       postedMsg = null;
     }
   }
