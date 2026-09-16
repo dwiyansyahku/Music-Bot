@@ -6,6 +6,9 @@ const storage = require('./storage');
 const processedDonationIds = new Set();
 const MAX_PROCESSED_CACHE = 1000;
 
+// URL Logo Saweria PNG yang valid (Discord tidak mendukung .ico)
+const SAWERIA_ICON_URL = 'https://saweria.co/apple-touch-icon.png';
+
 let webhookServer = null;
 
 /**
@@ -32,29 +35,157 @@ function sanitizeText(text) {
 }
 
 /**
+ * Normalisasi payload Saweria dari berbagai kemungkinan variasi struktur
+ * @param {object} raw
+ * @returns {{ donator_name: string, amount_raw: number, message: string, id: string|null, created_at: string, is_test: boolean }}
+ */
+function normalizeSaweriaPayload(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      donator_name: 'Anonim',
+      amount_raw: 0,
+      message: '*(Tanpa pesan)*',
+      id: `sw_${Date.now()}`,
+      created_at: new Date().toISOString(),
+      is_test: false
+    };
+  }
+
+  // Cek jika data dibungkus di dalam objek 'data', 'donation', 'body', dll.
+  const data = (raw.data && typeof raw.data === 'object') ? raw.data :
+               (raw.donation && typeof raw.donation === 'object') ? raw.donation :
+               (raw.body && typeof raw.body === 'object') ? raw.body : raw;
+
+  // 1. Ekstrak Nama Donatur
+  let donatorName =
+    data.donator_name ||
+    data.name ||
+    data.donator ||
+    data.donor_name ||
+    data.sender ||
+    data.from ||
+    data.username ||
+    data.customer_name ||
+    raw.donator_name ||
+    raw.name ||
+    raw.donator;
+
+  // 2. Ekstrak Nominal Donasi
+  let rawAmount =
+    data.amount_raw ??
+    data.amount ??
+    data.nominal ??
+    data.total ??
+    data.amount_to_display ??
+    (data.etc && data.etc.amount_to_display) ??
+    raw.amount_raw ??
+    raw.amount ??
+    raw.nominal;
+
+  // 3. Ekstrak Pesan Donasi
+  let rawMessage =
+    data.message ||
+    data.msg ||
+    data.pesan ||
+    data.comment ||
+    data.notes ||
+    raw.message ||
+    raw.msg ||
+    raw.pesan;
+
+  // 4. Ekstrak ID Transaksi
+  let transactionId =
+    data.id ||
+    data.transaction_id ||
+    data.order_id ||
+    data.bill_id ||
+    data.id_transaksi ||
+    raw.id ||
+    raw.transaction_id;
+
+  // 5. Dukungan jika Saweria mengirim payload format Webhook Discord
+  // Contoh: { content: "...", embeds: [...] }
+  if ((!rawAmount || !donatorName) && (raw.content || raw.embeds)) {
+    if (Array.isArray(raw.embeds) && raw.embeds.length > 0) {
+      const em = raw.embeds[0];
+      if (!donatorName && em.author?.name) donatorName = em.author.name;
+      if (!donatorName && em.title) donatorName = em.title;
+      if (!rawMessage && em.description) rawMessage = em.description;
+      if (Array.isArray(em.fields)) {
+        for (const f of em.fields) {
+          const fn = (f.name || '').toLowerCase();
+          if (!donatorName && (fn.includes('donat') || fn.includes('nama') || fn.includes('user') || fn.includes('pengirim'))) {
+            donatorName = f.value;
+          }
+          if (!rawAmount && (fn.includes('nominal') || fn.includes('jumlah') || fn.includes('amount') || fn.includes('rp'))) {
+            rawAmount = f.value;
+          }
+          if (!rawMessage && (fn.includes('pesan') || fn.includes('message') || fn.includes('catatan'))) {
+            rawMessage = f.value;
+          }
+        }
+      }
+    }
+
+    if (typeof raw.content === 'string' && raw.content.trim()) {
+      if (!rawMessage) rawMessage = raw.content;
+      const amountMatch = raw.content.match(/(?:Rp\.?\s*|IDR\s*)([\d.,]+)/i);
+      if (amountMatch && !rawAmount) {
+        rawAmount = amountMatch[1];
+      }
+    }
+  }
+
+  // Konversi amount ke integer murni
+  let numericAmount = 0;
+  if (typeof rawAmount === 'string') {
+    const cleanDigits = rawAmount.replace(/[^\d]/g, '');
+    numericAmount = parseInt(cleanDigits, 10) || 0;
+  } else if (typeof rawAmount === 'number') {
+    numericAmount = rawAmount;
+  }
+
+  const isTest = !!(
+    raw.is_test ||
+    raw.type === 'test' ||
+    data.is_test ||
+    data.type === 'test' ||
+    (transactionId && transactionId.toString().startsWith('test_'))
+  );
+
+  return {
+    donator_name: sanitizeText(donatorName) || 'Anonim',
+    amount_raw: numericAmount,
+    message: sanitizeText(rawMessage) || '*(Tanpa pesan)*',
+    id: transactionId ? transactionId.toString().trim() : null,
+    created_at: raw.created_at || data.created_at || new Date().toISOString(),
+    is_test: isTest
+  };
+}
+
+/**
  * Buat Embed minimalis untuk notifikasi donasi Saweria
- * @param {object} donation
+ * @param {object} rawDonation
  * @returns {EmbedBuilder}
  */
-function buildSaweriaEmbed(donation) {
-  const donatorName = sanitizeText(donation.donator_name) || 'Anonim';
+function buildSaweriaEmbed(rawDonation) {
+  const donation = normalizeSaweriaPayload(rawDonation);
   const amountFormatted = formatRupiah(donation.amount_raw || 0);
-  const message = sanitizeText(donation.message) || '*(Tanpa pesan)*';
-  const isTest = donation.is_test || donation.type === 'test';
+  const isTest = donation.is_test;
 
   return new EmbedBuilder()
     .setColor(0xFAAE2B) // Saweria Amber Gold
     .setAuthor({
       name: isTest ? 'Uji Coba Donasi Saweria' : 'Donasi Saweria',
-      iconURL: 'https://saweria.co/favicon.ico',
+      iconURL: SAWERIA_ICON_URL,
       url: 'https://saweria.co'
     })
-    .setTitle(isTest ? 'Simulasi Donasi Berhasil Diterima' : `Donasi Baru dari ${donatorName}`)
+    .setTitle(isTest ? 'Simulasi Donasi Berhasil Diterima' : `Donasi Baru dari ${donation.donator_name}`)
     .setDescription('Terima kasih banyak atas dukungan yang telah diberikan.')
     .addFields(
       {
         name: 'Donatur',
-        value: donatorName,
+        value: donation.donator_name,
         inline: true
       },
       {
@@ -64,13 +195,13 @@ function buildSaweriaEmbed(donation) {
       },
       {
         name: 'Pesan',
-        value: message.length > 1000 ? message.substring(0, 997) + '...' : message,
+        value: donation.message.length > 1000 ? donation.message.substring(0, 997) + '...' : donation.message,
         inline: false
       }
     )
     .setFooter({
       text: `ID: ${donation.id || 'N/A'}${isTest ? ' (Simulasi)' : ''} • Saweria`,
-      iconURL: 'https://saweria.co/favicon.ico'
+      iconURL: SAWERIA_ICON_URL
     })
     .setTimestamp(donation.created_at ? new Date(donation.created_at) : new Date());
 }
@@ -78,14 +209,15 @@ function buildSaweriaEmbed(donation) {
 /**
  * Kirim notifikasi donasi ke channel Discord
  * @param {import('discord.js').Client} client
- * @param {object} donationData
+ * @param {object} rawDonation
  * @param {string|null} [targetGuildId]
  * @returns {Promise<{ sentCount: number, errors: string[] }>}
  */
-async function sendSaweriaNotification(client, donationData, targetGuildId = null) {
-  const embed = buildSaweriaEmbed(donationData);
+async function sendSaweriaNotification(client, rawDonation, targetGuildId = null) {
+  const donation = normalizeSaweriaPayload(rawDonation);
+  const embed = buildSaweriaEmbed(donation);
   const settings = storage.read('settings');
-  const amount = parseInt(donationData.amount_raw, 10) || 0;
+  const amount = donation.amount_raw || 0;
 
   let sentCount = 0;
   const errors = [];
@@ -106,11 +238,11 @@ async function sendSaweriaNotification(client, donationData, targetGuildId = nul
   }
 
   for (const config of targetGuildConfigs) {
-    if (!config.enabled && !donationData.is_test) continue;
+    if (!config.enabled && !donation.is_test) continue;
 
     // Filter nominal minimum jika ada
     const minAmount = config.minAmount || 0;
-    if (amount < minAmount && !donationData.is_test) {
+    if (amount < minAmount && !donation.is_test) {
       continue;
     }
 
@@ -208,31 +340,35 @@ function startSaweriaWebhookServer(client) {
             return res.end(JSON.stringify({ error: 'Empty payload' }));
           }
 
-          let payload;
+          let rawPayload;
           try {
-            payload = JSON.parse(bodyData);
+            rawPayload = JSON.parse(bodyData);
           } catch {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ error: 'Invalid JSON' }));
           }
 
+          console.log('[Saweria Raw Payload]:', JSON.stringify(rawPayload));
+
+          const normalized = normalizeSaweriaPayload(rawPayload);
+
           // 3. Deduplikasi ID Transaksi
-          if (payload.id) {
-            if (processedDonationIds.has(payload.id)) {
+          if (normalized.id) {
+            if (processedDonationIds.has(normalized.id)) {
               res.writeHead(200, { 'Content-Type': 'application/json' });
               return res.end(JSON.stringify({ status: 'duplicate_ignored' }));
             }
-            processedDonationIds.add(payload.id);
+            processedDonationIds.add(normalized.id);
             if (processedDonationIds.size > MAX_PROCESSED_CACHE) {
               const firstVal = processedDonationIds.values().next().value;
               processedDonationIds.delete(firstVal);
             }
           }
 
-          console.log(`[Saweria] Donasi diterima: ${payload.donator_name || 'Anonim'} (${formatRupiah(payload.amount_raw || 0)}) - "${payload.message || '-'}"`);
+          console.log(`[Saweria] Donasi diterima: ${normalized.donator_name} (${formatRupiah(normalized.amount_raw)}) - "${normalized.message}" (ID: ${normalized.id || 'N/A'})`);
 
           const queryGuild = parsedUrl.searchParams.get('guild') || null;
-          const result = await sendSaweriaNotification(client, payload, queryGuild);
+          const result = await sendSaweriaNotification(client, normalized, queryGuild);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({
@@ -273,5 +409,6 @@ module.exports = {
   startSaweriaWebhookServer,
   sendSaweriaNotification,
   formatRupiah,
-  buildSaweriaEmbed
+  buildSaweriaEmbed,
+  normalizeSaweriaPayload
 };
