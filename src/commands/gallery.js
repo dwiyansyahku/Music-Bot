@@ -253,7 +253,7 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
     };
   }
 
-  // Buat Embed Galeri
+  // Buat Embed Info Galeri
   const photoCountText = downloadedFiles.length > 1 ? ` • ${downloadedFiles.length} Foto` : '';
   const postEmbed = new EmbedBuilder()
     .setColor(0x2B2D31)
@@ -270,12 +270,6 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
     postEmbed.setDescription(caption);
   }
 
-  // Jika tepat 1 foto, tautkan ke embed image
-  if (downloadedFiles.length === 1) {
-    postEmbed.setImage(`attachment://${downloadedFiles[0].fileName}`);
-  }
-  // Jika > 1 foto, Discord secara native menyusun lampiran files menjadi layout photo collage/grid rapi
-
   const attachments = downloadedFiles.map(df => df.attachment);
 
   let postedMsg = null;
@@ -284,10 +278,41 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
   // Coba kirim dengan mekanisme retry 1x jika ada kendala socket/jaringan sementara
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      postedMsg = await galleryChannel.send({
-        embeds: [postEmbed],
-        files: attachments
-      });
+      if (downloadedFiles.length === 1) {
+        // === SINGLE IMAGE: Embed + Image langsung ===
+        postEmbed.setImage(`attachment://${downloadedFiles[0].fileName}`);
+        postedMsg = await galleryChannel.send({
+          embeds: [postEmbed],
+          files: attachments
+        });
+      } else {
+        // === MULTI IMAGE: Kirim gambar terpisah (tanpa embed) agar Discord buat photo grid/collage ===
+        // Lalu kirim embed info di bawahnya
+        const displayName = member?.displayName || user.username;
+        const headerText = caption
+          ? `📸 **${displayName}** membagikan ${downloadedFiles.length} foto\n> ${caption}`
+          : `📸 **${displayName}** membagikan ${downloadedFiles.length} foto`;
+
+        // 1. Kirim gambar-gambar sebagai plain attachments (Discord otomatis buat photo grid)
+        postedMsg = await galleryChannel.send({
+          content: headerText,
+          files: attachments
+        });
+
+        // 2. Kirim embed info kecil di bawahnya (tanpa gambar, hanya metadata)
+        const infoEmbed = new EmbedBuilder()
+          .setColor(0x2B2D31)
+          .setAuthor({
+            name: displayName,
+            iconURL: user.displayAvatarURL({ dynamic: true })
+          })
+          .setFooter({
+            text: `Galeri Server • Submission ID: ${submissionId} • ${downloadedFiles.length} Foto`
+          })
+          .setTimestamp();
+
+        await galleryChannel.send({ embeds: [infoEmbed] }).catch(() => {});
+      }
       break;
     } catch (err) {
       sendError = err;
