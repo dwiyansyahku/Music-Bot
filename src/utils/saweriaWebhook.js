@@ -156,7 +156,7 @@ async function sendSaweriaNotification(client, donationData, targetGuildId = nul
  * @param {import('discord.js').Client} client
  */
 function startSaweriaWebhookServer(client) {
-  const port = parseInt(process.env.SAWERIA_PORT, 10) || 3000;
+  const port = parseInt(process.env.PORT, 10) || parseInt(process.env.SAWERIA_PORT, 10) || 3000;
   const configuredSecret = (process.env.SAWERIA_SECRET || '').trim();
 
   if (webhookServer) return webhookServer;

@@ -83,7 +83,13 @@ module.exports = {
       minAmount: 0
     };
 
-    const publicUrl = (process.env.SAWERIA_PUBLIC_URL || `http://localhost:${process.env.SAWERIA_PORT || 3000}`).replace(/\/+$/, '');
+    const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : process.env.RAILWAY_STATIC_URL
+      ? `https://${process.env.RAILWAY_STATIC_URL}`
+      : null;
+    const port = process.env.PORT || process.env.SAWERIA_PORT || 3000;
+    const publicUrl = (railwayDomain || process.env.SAWERIA_PUBLIC_URL || `http://localhost:${port}`).replace(/\/+$/, '');
     const secret = (process.env.SAWERIA_SECRET || '').trim();
     const webhookEndpoint = `${publicUrl}/webhook/saweria${secret ? `?token=${encodeURIComponent(secret)}` : ''}`;
     const saweriaLink = process.env.SAWERIA_URL || 'https://saweria.co/qumpruy';
