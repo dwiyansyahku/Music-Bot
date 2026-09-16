@@ -32,47 +32,44 @@ function sanitizeText(text) {
 }
 
 /**
- * Buat Embed estetik untuk notifikasi donasi Saweria
+ * Buat Embed estetik minimalis untuk notifikasi donasi Saweria
  * @param {object} donation
  * @returns {EmbedBuilder}
  */
 function buildSaweriaEmbed(donation) {
-  const donatorName = sanitizeText(donation.donator_name) || 'Orang Baik (Anonim)';
+  const donatorName = sanitizeText(donation.donator_name) || 'Anonim';
   const amountFormatted = formatRupiah(donation.amount_raw || 0);
-  const message = sanitizeText(donation.message) || '*(Tidak menyertakan pesan)*';
+  const message = sanitizeText(donation.message) || '*(Tanpa pesan)*';
   const isTest = donation.is_test || donation.type === 'test';
 
   const embed = new EmbedBuilder()
-    .setColor(0xFAAE2B) // Warna oranye keemasan khas Saweria
+    .setColor(0xFAAE2B) // Saweria Amber
     .setAuthor({
-      name: isTest ? '🧪 SIMULASI TES DONASI SAWERIA' : '✨ NOTIFIKASI DONASI SAWERIA',
+      name: isTest ? 'Uji Coba Donasi Saweria' : 'Donasi Saweria',
       iconURL: 'https://saweria.co/favicon.ico',
       url: 'https://saweria.co'
     })
-    .setTitle(isTest ? '🎉 Tes Donasi Berhasil Diterima!' : `🎉 Donasi Baru dari ${donatorName}!`)
-    .setDescription(
-      `Terima kasih banyak atas dukungan yang diberikan! Setiap dukungan sangat berarti bagi perkembangan server ini. ❤️`
-    )
+    .setTitle(isTest ? 'Simulasi Donasi Berhasil Diterima' : `Donasi Baru dari ${donatorName}`)
+    .setDescription('Terima kasih banyak atas dukungan yang telah diberikan.')
     .addFields(
       {
-        name: '👤 Donatur',
-        value: `**${donatorName}**`,
+        name: 'Donatur',
+        value: donatorName,
         inline: true
       },
       {
-        name: '💰 Nominal',
+        name: 'Nominal',
         value: `**${amountFormatted}**`,
         inline: true
       },
       {
-        name: '💬 Pesan Donatur',
+        name: 'Pesan',
         value: message.length > 1000 ? message.substring(0, 997) + '...' : message,
         inline: false
       }
     )
-    .setThumbnail('https://cdn.discordapp.com/emojis/1054708705007939634.webp?size=96&quality=lossless')
     .setFooter({
-      text: `ID: ${donation.id || 'N/A'}${isTest ? ' • Uji Coba' : ''} • Saweria Integration`,
+      text: `ID: ${donation.id || 'N/A'}${isTest ? ' (Simulasi)' : ''} • Saweria`,
       iconURL: 'https://saweria.co/favicon.ico'
     })
     .setTimestamp(donation.created_at ? new Date(donation.created_at) : new Date());
@@ -172,7 +169,7 @@ async function sendSaweriaNotification(client, donationData, targetGuildId = nul
 
     let payloadContent = null;
     if (config.roleId) {
-      payloadContent = `<@&${config.roleId}> 🎁 Ada donasi baru di Saweria!`;
+      payloadContent = `<@&${config.roleId}> Ada donasi baru di Saweria.`;
     }
 
     let sent = false;
@@ -321,12 +318,7 @@ function startSaweriaWebhookServer(client) {
             }
           }
 
-          console.log(`\n💖 ==========================================`);
-          console.log(`🎉 [Saweria Webhook] Donasi Diterima!`);
-          console.log(`👤 Dari: ${payload.donator_name || 'Anonim'}`);
-          console.log(`💰 Nominal: ${formatRupiah(payload.amount_raw || 0)}`);
-          console.log(`💬 Pesan: "${payload.message || '-'}"`);
-          console.log(`💖 ==========================================\n`);
+          console.log(`[Saweria] Donasi diterima: ${payload.donator_name || 'Anonim'} (${formatRupiah(payload.amount_raw || 0)}) - "${payload.message || '-'}"`);
 
           // Target guild spesifik jika disediakan di query parameter (?guild=GUILD_ID)
           const queryGuild = parsedUrl.searchParams.get('guild') || null;
