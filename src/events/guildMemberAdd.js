@@ -107,8 +107,23 @@ module.exports = {
     }
 
     // ─── 3. WELCOME SYSTEM ───
-    const config = client.welcomeSettings?.get(member.guild.id);
-    if (!config || !config.channelId || !config.enabled) return;
+    let config = client.welcomeSettings?.get(member.guild.id);
+    if (!config || !config.channelId || !config.enabled) {
+      try {
+        const storage = require('../utils/storage');
+        const guildSettings = storage.read('settings');
+        const savedWelcome = guildSettings[member.guild.id]?.welcome;
+        if (savedWelcome && savedWelcome.channelId && savedWelcome.enabled) {
+          config = savedWelcome;
+          if (!client.welcomeSettings) client.welcomeSettings = new Map();
+          client.welcomeSettings.set(member.guild.id, config);
+        } else {
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+    }
 
     // Coba fetch channel — handle kalau channel sudah dihapus
     const channel = await member.guild.channels.fetch(config.channelId).catch(() => null);
