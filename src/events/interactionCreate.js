@@ -539,6 +539,7 @@ module.exports = {
 
       try {
         const guild = interaction.guild;
+        await guild.members.fetch().catch(() => null);
         const data = getMemberMapData(guild);
 
         if (interaction.customId === 'mmap_open_panel') {

@@ -1276,38 +1276,18 @@ for (const [key, val] of Object.entries(GLOBAL_REGIONS)) {
   }
 }
 
-// Tambahkan Pulau & Kepulauan Besar Indonesia
-for (const [key, islandName] of Object.entries(INDONESIA_ISLANDS)) {
-  if (!ALL_CITIES_AND_REGIONS[key]) {
-    ALL_CITIES_AND_REGIONS[key] = {
-      city: islandName.replace(/^(Pulau|Kepulauan|Wilayah)\s+/, ''),
-      province: islandName,
-      country: 'Indonesia',
-      flag: '🇮🇩'
-    };
-  }
-}
-
-// Tambahkan 38 Provinsi Indonesia ke dalam Indeks Terpadu agar longest-match berjalan serempak
-for (const [key, provName] of Object.entries(INDONESIA_PROVINCES)) {
-  if (!ALL_CITIES_AND_REGIONS[key]) {
-    ALL_CITIES_AND_REGIONS[key] = {
-      city: provName,
-      province: provName,
-      country: 'Indonesia',
-      flag: '🇮🇩'
-    };
-  }
-}
-
 // Set cepat untuk deteksi Provinsi & Kepulauan Indonesia
 const INDONESIA_PROVINCE_NAMES = new Set(Object.values(INDONESIA_PROVINCES));
 const INDONESIA_ISLAND_NAMES = new Set(Object.values(INDONESIA_ISLANDS).map(n => n.replace(/^(Pulau|Kepulauan|Wilayah)\s+/, '')));
 
-// Urutkan key dari yang TERPANJANG agar pencocokan spesifik (misal: "Labuan Bajo" 11 huruf)
-// selalu diuji SEBELUM kata yang lebih pendek (misal: "Labuan" 6 huruf)
+// Urutkan key dari yang TERPANJANG agar pencocokan spesifik
+// 1. Kota, Kabupaten, Kecamatan, dan Satelit (Domestik + Global)
 const sortedAllCityKeys = Object.keys(ALL_CITIES_AND_REGIONS).sort((a, b) => b.length - a.length);
+// 2. 38 Provinsi Indonesia
 const sortedIndoProvKeys = Object.keys(INDONESIA_PROVINCES).sort((a, b) => b.length - a.length);
+// 3. Kepulauan & Pulau Besar Indonesia
+const sortedIslandKeys = Object.keys(INDONESIA_ISLANDS).sort((a, b) => b.length - a.length);
+// 4. Negara Global
 const sortedGlobalCountryKeys = Object.keys(GLOBAL_COUNTRIES).sort((a, b) => b.length - a.length);
 
 /**
@@ -1395,7 +1375,23 @@ function parseLocation(raw) {
     }
   }
 
-  // 5. Cek Negara Global dalam kalimat / kombinasi bebas (misal: "Oulu, Finland" atau "Munich, Germany")
+  // 5. Cek Kepulauan / Pulau Besar Indonesia (Pulau Sumatera, Jawa, Kalimantan, Sulawesi, dll.)
+  if (!detectedCity) {
+    for (const key of sortedIslandKeys) {
+      const regex = new RegExp(`\\b${escapeRegex(key)}\\b`, 'i');
+      if (regex.test(clean)) {
+        const islandName = INDONESIA_ISLANDS[key];
+        const shortName = islandName.replace(/^(Pulau|Kepulauan|Wilayah)\s+/, '');
+        detectedCity = shortName;
+        detectedProvince = islandName;
+        detectedCountry = 'Indonesia';
+        detectedFlag = '🇮🇩';
+        break;
+      }
+    }
+  }
+
+  // 6. Cek Negara Global dalam kalimat / kombinasi bebas (misal: "Oulu, Finland" atau "Munich, Germany")
   if (!detectedCity) {
     for (const key of sortedGlobalCountryKeys) {
       // Abaikan singkatan sangat pendek yang rawan false-positive jika bukan exact match

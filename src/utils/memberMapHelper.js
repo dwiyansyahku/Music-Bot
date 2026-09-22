@@ -30,11 +30,17 @@ function getMemberMapData(guildOrId) {
   const locMembers = {}; // cityKey -> [ { userId, card } ]
   let totalValidLocations = 0;
   let totalCardsCount = 0;
+  let cardsDataDirty = false;
 
   for (const [userId, card] of Object.entries(guildCards)) {
-    // Pastikan user masih berada di dalam server
-    if (guild && !guild.members.cache.has(userId)) {
-      continue;
+    // Pastikan user masih berada di dalam server jika cache sudah terisi
+    if (guild && guild.members?.cache?.size > 1) {
+      if (!guild.members.cache.has(userId)) {
+        // Member sudah keluar dari server: bersihkan agar tidak meninggalkan ghost data / <@ID>
+        delete guildCards[userId];
+        cardsDataDirty = true;
+        continue;
+      }
     }
 
     totalCardsCount++;
@@ -96,6 +102,10 @@ function getMemberMapData(guildOrId) {
     }
     locMembers[cityKey].push({ userId, card });
     totalValidLocations++;
+  }
+
+  if (cardsDataDirty) {
+    storage.write('cards', cardsData);
   }
 
   // 3. SORTING TINGKAT 1: Urutkan Provinsi dari yang membernya paling banyak
@@ -383,6 +393,7 @@ async function updateMemberMapPanel(guild, client) {
     const message = await channel.messages.fetch(panelConfig.messageId).catch(() => null);
     if (!message) return;
 
+    await guild.members.fetch().catch(() => null);
     const payload = createMemberMapPanelPayload(guild);
     await message.edit(payload).catch(() => {});
   } catch (err) {

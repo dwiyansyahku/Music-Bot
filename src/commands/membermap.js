@@ -41,6 +41,7 @@ module.exports = {
       }
 
       const targetChannel = interaction.options.getChannel('channel');
+      await guild.members.fetch().catch(() => null);
       const payload = createMemberMapPanelPayload(guild);
 
       const sentMsg = await targetChannel.send(payload);
@@ -62,6 +63,7 @@ module.exports = {
     }
 
     // === 2. SUBCOMMAND: VIEW (Default) ===
+    await guild.members.fetch().catch(() => null);
     const data = getMemberMapData(guild);
     const embed = buildMemberMapEmbed(guild, 0);
     const components = buildMemberMapComponents(0, data.totalPages, guild);
