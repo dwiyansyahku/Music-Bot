@@ -119,7 +119,20 @@ const idTests = [
   // Uji kasus khusus yang dilaporkan user
   { in: 'Kembangan', expC: 'Indonesia', expP: 'DKI Jakarta' },
   { in: 'DKI Jakarta', expC: 'Indonesia', expP: 'DKI Jakarta' },
+  { in: 'DKI', expC: 'Indonesia', expP: 'DKI Jakarta' },
   { in: 'Jakarta', expC: 'Indonesia', expP: 'DKI Jakarta' },
+  { in: 'Jakarta Pusat', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Pusat' },
+  { in: 'Jakpus', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Pusat' },
+  { in: 'Jakarta Barat', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Barat' },
+  { in: 'Jakbar', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Barat' },
+  { in: 'Jakarta Selatan', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Selatan' },
+  { in: 'Jaksel', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Selatan' },
+  { in: 'Jak-Sel', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Selatan' },
+  { in: 'Jakarta Timur', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Timur' },
+  { in: 'Jaktim', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Timur' },
+  { in: 'Jakarta Utara', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Utara' },
+  { in: 'Jakut', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Jakarta Utara' },
+  { in: 'Kepulauan Seribu', expC: 'Indonesia', expP: 'DKI Jakarta', expCity: 'Kepulauan Seribu' },
   { in: 'Aceh', expC: 'Indonesia', expP: 'Aceh' },
   { in: 'Jambi', expC: 'Indonesia', expP: 'Jambi' },
   { in: 'Bengkulu', expC: 'Indonesia', expP: 'Bengkulu' },
@@ -128,7 +141,7 @@ const idTests = [
 ];
 for (const t of idTests) {
   const r = parseLocation(t.in);
-  assert(r && r.country === t.expC && (!t.expP || r.stateOrProvince === t.expP), `Indonesia: "${t.in}" -> ${r?.display}`);
+  assert(r && r.country === t.expC && (!t.expP || r.stateOrProvince === t.expP) && (!t.expCity || r.city === t.expCity), `Indonesia: "${t.in}" -> ${r?.display}`);
 }
 
 // F. Lokasi Fiksi / Meme

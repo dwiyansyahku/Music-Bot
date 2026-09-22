@@ -567,6 +567,7 @@ const INDONESIA_PROVINCES = {
 
   // Pulau Jawa
   'dki jakarta': 'DKI Jakarta',
+  'dki': 'DKI Jakarta',
   'jawa barat': 'Jawa Barat',
   'jabar': 'Jawa Barat',
   'jawa tengah': 'Jawa Tengah',
@@ -644,8 +645,14 @@ const INDONESIA_CITIES = {
   // ==================== DKI JAKARTA ====================
   'jakarta': { city: 'Jakarta', province: 'DKI Jakarta' },
   'dki jakarta': { city: 'DKI Jakarta', province: 'DKI Jakarta' },
+  'dki': { city: 'DKI Jakarta', province: 'DKI Jakarta' },
+
+  // 1. Jakarta Barat & Wilayahnya
   'jakarta barat': { city: 'Jakarta Barat', province: 'DKI Jakarta' },
   'jakbar': { city: 'Jakarta Barat', province: 'DKI Jakarta' },
+  'jak bar': { city: 'Jakarta Barat', province: 'DKI Jakarta' },
+  'jak barat': { city: 'Jakarta Barat', province: 'DKI Jakarta' },
+  'jakbarat': { city: 'Jakarta Barat', province: 'DKI Jakarta' },
   'kembangan': { city: 'Kembangan', province: 'DKI Jakarta' },
   'kebon jeruk': { city: 'Kebon Jeruk', province: 'DKI Jakarta' },
   'palmerah': { city: 'Palmerah', province: 'DKI Jakarta' },
@@ -665,9 +672,20 @@ const INDONESIA_CITIES = {
   'tanjung duren': { city: 'Tanjung Duren', province: 'DKI Jakarta' },
   'jelambar': { city: 'Jelambar', province: 'DKI Jakarta' },
   'duri kepa': { city: 'Duri Kepa', province: 'DKI Jakarta' },
+  'duri kosambi': { city: 'Duri Kosambi', province: 'DKI Jakarta' },
+  'rawa buaya': { city: 'Rawa Buaya', province: 'DKI Jakarta' },
+  'kapuk': { city: 'Kapuk', province: 'DKI Jakarta' },
+  'semanan': { city: 'Semanan', province: 'DKI Jakarta' },
+  'pegadungan': { city: 'Pegadungan', province: 'DKI Jakarta' },
 
+  // 2. Jakarta Selatan & Wilayahnya
   'jakarta selatan': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
   'jaksel': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
+  'jak sel': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
+  'jak selatan': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
+  'jakselatan': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
+  'jak selata': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
+  'jakarta selata': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
   'kebayoran': { city: 'Kebayoran', province: 'DKI Jakarta' },
   'kebayoran baru': { city: 'Kebayoran Baru', province: 'DKI Jakarta' },
   'kebayoran lama': { city: 'Kebayoran Lama', province: 'DKI Jakarta' },
@@ -693,9 +711,19 @@ const INDONESIA_CITIES = {
   'lebak bulus': { city: 'Lebak Bulus', province: 'DKI Jakarta' },
   'gandaria': { city: 'Gandaria', province: 'DKI Jakarta' },
   'cipete': { city: 'Cipete', province: 'DKI Jakarta' },
+  'manggarai jakarta': { city: 'Tebet', province: 'DKI Jakarta' },
+  'kalibata': { city: 'Kalibata', province: 'DKI Jakarta' },
+  'lenteng agung': { city: 'Lenteng Agung', province: 'DKI Jakarta' },
+  'ciganjur': { city: 'Ciganjur', province: 'DKI Jakarta' },
+  'bukit duri': { city: 'Bukit Duri', province: 'DKI Jakarta' },
+  'petukangan': { city: 'Petukangan', province: 'DKI Jakarta' },
 
+  // 3. Jakarta Pusat & Wilayahnya
   'jakarta pusat': { city: 'Jakarta Pusat', province: 'DKI Jakarta' },
   'jakpus': { city: 'Jakarta Pusat', province: 'DKI Jakarta' },
+  'jak pus': { city: 'Jakarta Pusat', province: 'DKI Jakarta' },
+  'jak pusat': { city: 'Jakarta Pusat', province: 'DKI Jakarta' },
+  'jakpusat': { city: 'Jakarta Pusat', province: 'DKI Jakarta' },
   'menteng': { city: 'Menteng', province: 'DKI Jakarta' },
   'gambir': { city: 'Gambir', province: 'DKI Jakarta' },
   'tanah abang': { city: 'Tanah Abang', province: 'DKI Jakarta' },
@@ -709,9 +737,15 @@ const INDONESIA_CITIES = {
   'benhil': { city: 'Bendungan Hilir', province: 'DKI Jakarta' },
   'bendungan hilir': { city: 'Bendungan Hilir', province: 'DKI Jakarta' },
   'thamrin': { city: 'Thamrin', province: 'DKI Jakarta' },
+  'petojo': { city: 'Petojo', province: 'DKI Jakarta' },
+  'gondangdia': { city: 'Gondangdia', province: 'DKI Jakarta' },
 
+  // 4. Jakarta Timur & Wilayahnya
   'jakarta timur': { city: 'Jakarta Timur', province: 'DKI Jakarta' },
   'jaktim': { city: 'Jakarta Timur', province: 'DKI Jakarta' },
+  'jak tim': { city: 'Jakarta Timur', province: 'DKI Jakarta' },
+  'jak timur': { city: 'Jakarta Timur', province: 'DKI Jakarta' },
+  'jaktimur': { city: 'Jakarta Timur', province: 'DKI Jakarta' },
   'matraman': { city: 'Matraman', province: 'DKI Jakarta' },
   'pulo gadung': { city: 'Pulo Gadung', province: 'DKI Jakarta' },
   'pulogadung': { city: 'Pulo Gadung', province: 'DKI Jakarta' },
@@ -728,9 +762,17 @@ const INDONESIA_CITIES = {
   'klender': { city: 'Klender', province: 'DKI Jakarta' },
   'condet': { city: 'Condet', province: 'DKI Jakarta' },
   'cijantung': { city: 'Cijantung', province: 'DKI Jakarta' },
+  'cipinang': { city: 'Cipinang', province: 'DKI Jakarta' },
+  'pondok kelapa': { city: 'Pondok Kelapa', province: 'DKI Jakarta' },
+  'pondok bambu': { city: 'Pondok Bambu', province: 'DKI Jakarta' },
+  'cililitan': { city: 'Cililitan', province: 'DKI Jakarta' },
 
+  // 5. Jakarta Utara & Wilayahnya
   'jakarta utara': { city: 'Jakarta Utara', province: 'DKI Jakarta' },
   'jakut': { city: 'Jakarta Utara', province: 'DKI Jakarta' },
+  'jak ut': { city: 'Jakarta Utara', province: 'DKI Jakarta' },
+  'jak utara': { city: 'Jakarta Utara', province: 'DKI Jakarta' },
+  'jakutara': { city: 'Jakarta Utara', province: 'DKI Jakarta' },
   'tanjung priok': { city: 'Tanjung Priok', province: 'DKI Jakarta' },
   'koja': { city: 'Koja', province: 'DKI Jakarta' },
   'cilincing': { city: 'Cilincing', province: 'DKI Jakarta' },
@@ -746,7 +788,14 @@ const INDONESIA_CITIES = {
   'pantai indah kapuk': { city: 'Pantai Indah Kapuk', province: 'DKI Jakarta' },
   'kelapa gading': { city: 'Kelapa Gading', province: 'DKI Jakarta' },
 
+  // 6. Kabupaten Administrasi Kepulauan Seribu
   'kepulauan seribu': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
+  'pulau seribu': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
+  'kep seribu': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
+  'p seribu': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
+  'pulau tidung': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
+  'pulau pramuka': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
+  'pulau pari': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
   'cibubur': { city: 'Cibubur', province: 'DKI Jakarta' },
 
   // ==================== JAWA BARAT ====================
