@@ -38,7 +38,7 @@ function getMemberMapData(guildOrId) {
     }
 
     totalCardsCount++;
-    const rawAsal = card.asal || card.location?.display || '';
+    const rawAsal = card.asalRaw || card.asal || card.location?.display || '';
     if (!rawAsal || rawAsal.trim() === '') continue;
 
     const locObj = parseLocation(rawAsal);
@@ -47,7 +47,7 @@ function getMemberMapData(guildOrId) {
     }
 
     const cityKey = locObj.city;
-    const flag = locObj.flag || '🇮🇩';
+    const flag = locObj.flag || (locObj.country === 'Malaysia' ? '🇲🇾' : '🇮🇩');
     const province = locObj.stateOrProvince || (locObj.country !== 'Indonesia' ? locObj.country : 'Lainnya');
 
     // 1. Grouping per Provinsi / Region
@@ -74,7 +74,8 @@ function getMemberMapData(guildOrId) {
     // 2. Metadata umum
     locCounts[cityKey] = (locCounts[cityKey] || 0) + 1;
     if (!locMetadata[cityKey]) {
-      locMetadata[cityKey] = { flag, region: province !== cityKey ? province : '' };
+      const showRegion = province && province !== cityKey && province !== 'Lainnya';
+      locMetadata[cityKey] = { flag, region: showRegion ? province : '' };
     }
     if (!locMembers[cityKey]) {
       locMembers[cityKey] = [];
@@ -149,7 +150,7 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
   }).join('\n\n');
 
   const topRegionInfo = data.topRegion
-    ? `**${data.topRegion.name}** (${data.topRegion.totalCount} Member)`
+    ? `**${data.topRegion.name}** ${data.topRegion.flag || ''} (${data.topRegion.totalCount} Member)`
     : '-';
 
   return new EmbedBuilder()
@@ -194,7 +195,7 @@ function buildMemberMapComponents(pageIndex, totalPages, guild) {
       .addOptions(
         pageItems.map(([loc, count]) => {
           const meta = data.locMetadata[loc];
-          const desc = meta?.region ? `Provinsi: ${meta.region} • ${count} Member` : `Total ${count} member terdaftar`;
+          const desc = meta?.region ? `Wilayah: ${meta.region} • ${count} Member` : `Total ${count} member terdaftar`;
           return {
             label: `${loc} (${count} Member)`,
             description: desc.substring(0, 100),

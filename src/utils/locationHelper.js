@@ -1,16 +1,70 @@
 /**
  * Smart Global Location Normalizer & Parser
- * Mendukung seluruh Kota/Kabupaten di Indonesia + Kota-Kota Metropolitan Dunia + Seluruh Negara Global
+ * Mendukung seluruh Kota/Kabupaten di Indonesia + Malaysia + Kota-Kota Metropolitan Dunia + Seluruh Negara Global
  */
 
-// Blacklist Kata Anomali / Bukan Nama Lokasi Riil
+// Blacklist Kata Anomali / Lokasi Fiksi / Meme (Bukan Nama Lokasi Riil di Dunia)
 const ANOMALY_LOCATIONS = new Set([
   'home', 'rumah', 'kamar', 'surga', 'bumi', 'earth', 'mars', 'galaxy',
   'discord', 'server', 'secret', 'rahasia', 'unknown', 'lainnya', 'other',
   'none', '-', 'null', 'undefined', 'barat', 'timur', 'tengah', 'utara', 'selatan', 'pusat',
   'indonesia', 'indo', 'id', 'wib', 'wita', 'wit', 'here', 'dimana', 'ntah', 'gatau',
-  'somewhere', 'anywhere', 'nowhere', 'heart', 'hati', 'planet', 'universe'
+  'somewhere', 'anywhere', 'nowhere', 'heart', 'hati', 'planet', 'universe',
+  // Lokasi Fiksi / Pop Culture / Meme
+  'isekai', 'konoha', 'wakanda', 'bikini bottom', 'namek', 'hogwarts', 'atlantis', 'gotham', 'metropolis',
+  'heaven', 'hell', 'neraka', 'kayangan', 'alam gaib', 'alam barzah', 'akhirat', 'alam lain',
+  'bulan', 'moon', 'sun', 'matahari', 'pluto', 'jupiter', 'saturnus', 'venus', 'merkurius', 'neptunus', 'uranus',
+  'jauh', 'antah berantah', 'dimana mana', 'mana aja', 'hati kamu', 'hatimu', 'lubuk hati', 'pikiran', 'mimpi',
+  'anime', 'wibu', 'otaku', '2d', 'dunia 2d', 'genshin', 'teyvat', 'honkai', 'roblox', 'minecraft'
 ]);
+
+// Kamus Negara Bagian & Kota di Malaysia (🇲🇾)
+const MALAYSIA_REGIONS = {
+  // 13 Negara Bagian & 3 Wilayah Persekutuan
+  'sarawak': { city: 'Sarawak', state: 'Sarawak', country: 'Malaysia', flag: '🇲🇾' },
+  'sabah': { city: 'Sabah', state: 'Sabah', country: 'Malaysia', flag: '🇲🇾' },
+  'johor': { city: 'Johor', state: 'Johor', country: 'Malaysia', flag: '🇲🇾' },
+  'selangor': { city: 'Selangor', state: 'Selangor', country: 'Malaysia', flag: '🇲🇾' },
+  'perak': { city: 'Perak', state: 'Perak', country: 'Malaysia', flag: '🇲🇾' },
+  'kedah': { city: 'Kedah', state: 'Kedah', country: 'Malaysia', flag: '🇲🇾' },
+  'kelantan': { city: 'Kelantan', state: 'Kelantan', country: 'Malaysia', flag: '🇲🇾' },
+  'terengganu': { city: 'Terengganu', state: 'Terengganu', country: 'Malaysia', flag: '🇲🇾' },
+  'pahang': { city: 'Pahang', state: 'Pahang', country: 'Malaysia', flag: '🇲🇾' },
+  'melaka': { city: 'Melaka', state: 'Melaka', country: 'Malaysia', flag: '🇲🇾' },
+  'malacca': { city: 'Melaka', state: 'Melaka', country: 'Malaysia', flag: '🇲🇾' },
+  'negeri sembilan': { city: 'Negeri Sembilan', state: 'Negeri Sembilan', country: 'Malaysia', flag: '🇲🇾' },
+  'perlis': { city: 'Perlis', state: 'Perlis', country: 'Malaysia', flag: '🇲🇾' },
+  'pulau pinang': { city: 'Penang', state: 'Penang', country: 'Malaysia', flag: '🇲🇾' },
+  'penang': { city: 'Penang', state: 'Penang', country: 'Malaysia', flag: '🇲🇾' },
+  'kuala lumpur': { city: 'Kuala Lumpur', state: 'Wilayah Persekutuan', country: 'Malaysia', flag: '🇲🇾' },
+  'kl': { city: 'Kuala Lumpur', state: 'Wilayah Persekutuan', country: 'Malaysia', flag: '🇲🇾' },
+  'putrajaya': { city: 'Putrajaya', state: 'Wilayah Persekutuan', country: 'Malaysia', flag: '🇲🇾' },
+  'labuan': { city: 'Labuan', state: 'Wilayah Persekutuan', country: 'Malaysia', flag: '🇲🇾' },
+
+  // Kota-Kota Populer di Malaysia
+  'kuching': { city: 'Kuching', state: 'Sarawak', country: 'Malaysia', flag: '🇲🇾' },
+  'miri': { city: 'Miri', state: 'Sarawak', country: 'Malaysia', flag: '🇲🇾' },
+  'sibu': { city: 'Sibu', state: 'Sarawak', country: 'Malaysia', flag: '🇲🇾' },
+  'bintulu': { city: 'Bintulu', state: 'Sarawak', country: 'Malaysia', flag: '🇲🇾' },
+  'kota kinabalu': { city: 'Kota Kinabalu', state: 'Sabah', country: 'Malaysia', flag: '🇲🇾' },
+  'sandakan': { city: 'Sandakan', state: 'Sabah', country: 'Malaysia', flag: '🇲🇾' },
+  'tawau': { city: 'Tawau', state: 'Sabah', country: 'Malaysia', flag: '🇲🇾' },
+  'johor bahru': { city: 'Johor Bahru', state: 'Johor', country: 'Malaysia', flag: '🇲🇾' },
+  'jb': { city: 'Johor Bahru', state: 'Johor', country: 'Malaysia', flag: '🇲🇾' },
+  'george town': { city: 'George Town', state: 'Penang', country: 'Malaysia', flag: '🇲🇾' },
+  'georgetown': { city: 'George Town', state: 'Penang', country: 'Malaysia', flag: '🇲🇾' },
+  'ipoh': { city: 'Ipoh', state: 'Perak', country: 'Malaysia', flag: '🇲🇾' },
+  'shah alam': { city: 'Shah Alam', state: 'Selangor', country: 'Malaysia', flag: '🇲🇾' },
+  'petaling jaya': { city: 'Petaling Jaya', state: 'Selangor', country: 'Malaysia', flag: '🇲🇾' },
+  'pj': { city: 'Petaling Jaya', state: 'Selangor', country: 'Malaysia', flag: '🇲🇾' },
+  'subang jaya': { city: 'Subang Jaya', state: 'Selangor', country: 'Malaysia', flag: '🇲🇾' },
+  'klang': { city: 'Klang', state: 'Selangor', country: 'Malaysia', flag: '🇲🇾' },
+  'alor setar': { city: 'Alor Setar', state: 'Kedah', country: 'Malaysia', flag: '🇲🇾' },
+  'kuantan': { city: 'Kuantan', state: 'Pahang', country: 'Malaysia', flag: '🇲🇾' },
+  'seremban': { city: 'Seremban', state: 'Negeri Sembilan', country: 'Malaysia', flag: '🇲🇾' },
+  'kota bharu': { city: 'Kota Bharu', state: 'Kelantan', country: 'Malaysia', flag: '🇲🇾' },
+  'kuala terengganu': { city: 'Kuala Terengganu', state: 'Terengganu', country: 'Malaysia', flag: '🇲🇾' }
+};
 
 // Kamus Negara Global & Emoji Bendera
 const GLOBAL_COUNTRIES = {
@@ -65,8 +119,6 @@ const GLOBAL_CITIES = {
   'kyoto': { city: 'Kyoto', country: 'Jepang', flag: '🇯🇵' },
   'seoul': { city: 'Seoul', country: 'Korea Selatan', flag: '🇰🇷' },
   'busan': { city: 'Busan', country: 'Korea Selatan', flag: '🇰🇷' },
-  'kuala lumpur': { city: 'Kuala Lumpur', country: 'Malaysia', flag: '🇲🇾' },
-  'penang': { city: 'Penang', country: 'Malaysia', flag: '🇲🇾' },
   'bangkok': { city: 'Bangkok', country: 'Thailand', flag: '🇹🇭' },
   'manila': { city: 'Manila', country: 'Filipina', flag: '🇵🇭' },
   'taipei': { city: 'Taipei', country: 'Taiwan', flag: '🇹🇼' },
@@ -239,7 +291,11 @@ const INDONESIA_CITIES = {
   'denpasar': { city: 'Denpasar', province: 'Bali' },
   'badung': { city: 'Badung', province: 'Bali' },
   'gianyar': { city: 'Gianyar', province: 'Bali' },
+  'tabanan': { city: 'Tabanan', province: 'Bali' },
+  'buleleng': { city: 'Buleleng', province: 'Bali' },
   'singaraja': { city: 'Buleleng', province: 'Bali' },
+  'klungkung': { city: 'Klungkung', province: 'Bali' },
+  'karangasem': { city: 'Karangasem', province: 'Bali' },
   'mataram': { city: 'Mataram', province: 'Nusa Tenggara Barat' },
   'lombok': { city: 'Lombok', province: 'Nusa Tenggara Barat' },
   'kupang': { city: 'Kupang', province: 'Nusa Tenggara Timur' },
@@ -250,6 +306,11 @@ const INDONESIA_CITIES = {
   'banjarmasin': { city: 'Banjarmasin', province: 'Kalimantan Selatan' },
   'banjarbaru': { city: 'Banjarbaru', province: 'Kalimantan Selatan' },
   'palangkaraya': { city: 'Palangka Raya', province: 'Kalimantan Tengah' },
+  'palangka raya': { city: 'Palangka Raya', province: 'Kalimantan Tengah' },
+  'sampit': { city: 'Sampit', province: 'Kalimantan Tengah' },
+  'kotawaringin': { city: 'Kotawaringin', province: 'Kalimantan Tengah' },
+  'kapuas': { city: 'Kapuas', province: 'Kalimantan Tengah' },
+  'pangkalan bun': { city: 'Pangkalan Bun', province: 'Kalimantan Tengah' },
   'samarinda': { city: 'Samarinda', province: 'Kalimantan Timur' },
   'balikpapan': { city: 'Balikpapan', province: 'Kalimantan Timur' },
   'bontang': { city: 'Bontang', province: 'Kalimantan Timur' },
@@ -259,20 +320,59 @@ const INDONESIA_CITIES = {
   'medan': { city: 'Medan', province: 'Sumatera Utara' },
   'padang': { city: 'Padang', province: 'Sumatera Barat' },
   'pekanbaru': { city: 'Pekanbaru', province: 'Riau' },
+  'dumai': { city: 'Dumai', province: 'Riau' },
+  'duri': { city: 'Duri', province: 'Riau' },
   'batam': { city: 'Batam', province: 'Kepulauan Riau' },
   'tanjungpinang': { city: 'Tanjungpinang', province: 'Kepulauan Riau' },
   'palembang': { city: 'Palembang', province: 'Sumatera Selatan' },
+  'pagaralam': { city: 'Pagar Alam', province: 'Sumatera Selatan' },
+  'pagar alam': { city: 'Pagar Alam', province: 'Sumatera Selatan' },
+  'prabumulih': { city: 'Prabumulih', province: 'Sumatera Selatan' },
+  'lubuklinggau': { city: 'Lubuklinggau', province: 'Sumatera Selatan' },
+  'lubuk linggau': { city: 'Lubuklinggau', province: 'Sumatera Selatan' },
+  'muara enim': { city: 'Muara Enim', province: 'Sumatera Selatan' },
+  'lahat': { city: 'Lahat', province: 'Sumatera Selatan' },
+  'banyuasin': { city: 'Banyuasin', province: 'Sumatera Selatan' },
+  'ogan ilir': { city: 'Ogan Ilir', province: 'Sumatera Selatan' },
   'bandar lampung': { city: 'Bandar Lampung', province: 'Lampung' },
   'pangkalpinang': { city: 'Pangkalpinang', province: 'Kepulauan Bangka Belitung' },
+  'bangka': { city: 'Bangka', province: 'Kepulauan Bangka Belitung' },
+  'belitung': { city: 'Belitung', province: 'Kepulauan Bangka Belitung' },
   'banda aceh': { city: 'Banda Aceh', province: 'Aceh' },
+  'bengkulu': { city: 'Bengkulu', province: 'Bengkulu' },
+  'rejang lebong': { city: 'Rejang Lebong', province: 'Bengkulu' },
+  'mukomuko': { city: 'Mukomuko', province: 'Bengkulu' },
+  'jambi': { city: 'Jambi', province: 'Jambi' },
+  'sungai penuh': { city: 'Sungai Penuh', province: 'Jambi' },
+  'muaro jambi': { city: 'Muaro Jambi', province: 'Jambi' },
+  'bungo': { city: 'Bungo', province: 'Jambi' },
+  'merangin': { city: 'Merangin', province: 'Jambi' },
 
   // Sulawesi & Maluku & Papua
   'makassar': { city: 'Makassar', province: 'Sulawesi Selatan' },
+  'sidenreng rappang': { city: 'Sidenreng Rappang', province: 'Sulawesi Selatan' },
+  'sidrap': { city: 'Sidenreng Rappang', province: 'Sulawesi Selatan' },
+  'gowa': { city: 'Gowa', province: 'Sulawesi Selatan' },
+  'maros': { city: 'Maros', province: 'Sulawesi Selatan' },
+  'bone': { city: 'Bone', province: 'Sulawesi Selatan' },
+  'wajo': { city: 'Wajo', province: 'Sulawesi Selatan' },
+  'soppeng': { city: 'Soppeng', province: 'Sulawesi Selatan' },
+  'pinrang': { city: 'Pinrang', province: 'Sulawesi Selatan' },
+  'parepare': { city: 'Parepare', province: 'Sulawesi Selatan' },
+  'pare pare': { city: 'Parepare', province: 'Sulawesi Selatan' },
+  'palopo': { city: 'Palopo', province: 'Sulawesi Selatan' },
+  'toraja': { city: 'Tana Toraja', province: 'Sulawesi Selatan' },
+  'bulukumba': { city: 'Bulukumba', province: 'Sulawesi Selatan' },
   'manado': { city: 'Manado', province: 'Sulawesi Utara' },
   'palu': { city: 'Palu', province: 'Sulawesi Tengah' },
   'kendari': { city: 'Kendari', province: 'Sulawesi Tenggara' },
   'ambon': { city: 'Ambon', province: 'Maluku' },
-  'jayapura': { city: 'Jayapura', province: 'Papua' }
+  'tual': { city: 'Tual', province: 'Maluku' },
+  'ternate': { city: 'Ternate', province: 'Maluku Utara' },
+  'jayapura': { city: 'Jayapura', province: 'Papua' },
+  'sorong': { city: 'Sorong', province: 'Papua Barat Daya' },
+  'merauke': { city: 'Merauke', province: 'Papua Selatan' },
+  'timika': { city: 'Timika', province: 'Papua Tengah' }
 };
 
 /**
@@ -282,7 +382,15 @@ function parseLocation(raw) {
   if (!raw || typeof raw !== 'string') return null;
 
   const original = raw.trim();
-  let clean = original
+
+  // 0. Bersihkan semua emoji dan regional indicator flag agar tidak terjadi duplikasi bendera
+  const cleanWithoutEmojis = original
+    .replace(/[\uD83C-\uDBFF\uDC00-\uDFFF]+/g, '') // Surrogate pairs (emoji umum & flags)
+    .replace(/[\u2600-\u27BF]/g, '')               // Misc symbols
+    .replace(/[\uFE00-\uFE0F]/g, '')               // Variation selectors
+    .trim();
+
+  let clean = cleanWithoutEmojis
     .toLowerCase()
     .replace(/[,\.\-\/\\_]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -290,9 +398,18 @@ function parseLocation(raw) {
 
   if (!clean || clean.length < 2) return null;
 
-  // Cek kata-kata anomali langsung
+  // 1. Cek kata-kata anomali / lokasi fiksi langsung (isekai, konoha, surga, dll)
   if (ANOMALY_LOCATIONS.has(clean)) {
-    return { isAnomaly: true, city: original, country: 'Unknown', display: original };
+    const cap = clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return {
+      isAnomaly: true,
+      city: cap,
+      stateOrProvince: 'Fiksi / Lainnya',
+      country: 'Non-Duniawi',
+      flag: '🌌',
+      display: `${cap} 🌌`,
+      searchKey: cap
+    };
   }
 
   let detectedCountry = null;
@@ -300,29 +417,50 @@ function parseLocation(raw) {
   let detectedProvince = null;
   let detectedCity = null;
 
-  // 1. Cek Negara Global (kecuali Indonesia)
-  for (const [key, countryInfo] of Object.entries(GLOBAL_COUNTRIES)) {
-    if (key === 'indonesia' || key === 'id' || key === 'indo') continue;
+  // 2. Cek Daerah Malaysia (Sarawak, Sabah, KL, dll) — PRIORITAS sebelum default ke Indonesia!
+  const sortedMyKeys = Object.keys(MALAYSIA_REGIONS).sort((a, b) => b.length - a.length);
+  for (const key of sortedMyKeys) {
+    const reg = MALAYSIA_REGIONS[key];
     const regex = new RegExp(`\\b${key}\\b`, 'i');
     if (regex.test(clean)) {
-      detectedCountry = countryInfo.name;
-      detectedFlag = countryInfo.flag;
+      detectedCity = reg.city;
+      detectedProvince = reg.state;
+      detectedCountry = reg.country;
+      detectedFlag = reg.flag;
       break;
     }
   }
 
-  // 2. Cek Kota Global
-  for (const [key, cityInfo] of Object.entries(GLOBAL_CITIES)) {
-    const regex = new RegExp(`\\b${key}\\b`, 'i');
-    if (regex.test(clean)) {
-      detectedCity = cityInfo.city;
-      detectedCountry = cityInfo.country;
-      detectedFlag = cityInfo.flag;
-      break;
+  // 3. Cek Kota Global Lainnya (Tokyo, Seoul, dll)
+  if (!detectedCity) {
+    for (const [key, cityInfo] of Object.entries(GLOBAL_CITIES)) {
+      const regex = new RegExp(`\\b${key}\\b`, 'i');
+      if (regex.test(clean)) {
+        detectedCity = cityInfo.city;
+        detectedProvince = cityInfo.country;
+        detectedCountry = cityInfo.country;
+        detectedFlag = cityInfo.flag;
+        break;
+      }
     }
   }
 
-  // 3. Cek Kota/Kabupaten Indonesia (Urutkan dari nama terpanjang)
+  // 4. Cek Negara Global (kecuali Indonesia)
+  if (!detectedCity) {
+    for (const [key, countryInfo] of Object.entries(GLOBAL_COUNTRIES)) {
+      if (key === 'indonesia' || key === 'id' || key === 'indo') continue;
+      const regex = new RegExp(`\\b${key}\\b`, 'i');
+      if (regex.test(clean)) {
+        detectedCity = countryInfo.name;
+        detectedProvince = countryInfo.name;
+        detectedCountry = countryInfo.name;
+        detectedFlag = countryInfo.flag;
+        break;
+      }
+    }
+  }
+
+  // 5. Cek Kota/Kabupaten Indonesia (Urutkan dari nama terpanjang)
   if (!detectedCity) {
     const sortedCityKeys = Object.keys(INDONESIA_CITIES).sort((a, b) => b.length - a.length);
     for (const key of sortedCityKeys) {
@@ -338,14 +476,15 @@ function parseLocation(raw) {
     }
   }
 
-  // 4. Cek Provinsi Indonesia (jika belum ada kota spesifik)
+  // 6. Cek Provinsi Indonesia (jika belum ada kota spesifik)
   if (!detectedCity) {
     const sortedProvKeys = Object.keys(INDONESIA_PROVINCES).sort((a, b) => b.length - a.length);
     for (const key of sortedProvKeys) {
       const provName = INDONESIA_PROVINCES[key];
       const regex = new RegExp(`\\b${key}\\b`, 'i');
       if (regex.test(clean)) {
-        detectedCity = provName; // Jadikan nama provinsi sebagai judul
+        detectedCity = provName;
+        detectedProvince = provName; // Set provinsi juga agar tidak masuk ke (Lainnya)!
         detectedCountry = 'Indonesia';
         detectedFlag = '🇮🇩';
         break;
@@ -353,28 +492,36 @@ function parseLocation(raw) {
     }
   }
 
-  // 5. Cek jika masih clean adalah anomali setelah stripping
+  // 7. Cek jika mengandung kata anomali di dalam kalimat (misal: "isekai realm")
   if (detectedCity && ANOMALY_LOCATIONS.has(detectedCity.toLowerCase())) {
-    return { isAnomaly: true, city: detectedCity, country: 'Unknown', display: original };
+    return { isAnomaly: true, city: detectedCity, country: 'Non-Duniawi', flag: '🌌', display: `${detectedCity} 🌌` };
   }
 
-  // 6. Fallback jika tidak terdaftar di kamus
+  // 8. Fallback jika tidak terdaftar di kamus
   if (!detectedCity) {
-    // Jika mengandung kata anomali, flag as anomaly
+    // Jika mengandung kata anomali, tandai anomaly
     for (const anom of ANOMALY_LOCATIONS) {
       if (clean === anom || clean.startsWith(anom + ' ') || clean.endsWith(' ' + anom)) {
-        return { isAnomaly: true, city: original, country: 'Unknown', display: original };
+        const cap = clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        return { isAnomaly: true, city: cap, country: 'Non-Duniawi', flag: '🌌', display: `${cap} 🌌` };
       }
     }
 
     detectedCity = clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    detectedProvince = 'Lainnya';
+    detectedCountry = 'Indonesia';
+    detectedFlag = '🇮🇩';
   }
 
   // Format string display
   let displayParts = [];
   if (detectedCity) displayParts.push(detectedCity);
-  if (detectedProvince && detectedCity !== detectedProvince) displayParts.push(detectedProvince);
-  if (detectedCountry && detectedCountry !== 'Indonesia' && detectedCity !== detectedCountry) displayParts.push(detectedCountry);
+  if (detectedProvince && detectedCity !== detectedProvince && detectedProvince !== 'Lainnya') {
+    displayParts.push(detectedProvince);
+  }
+  if (detectedCountry && detectedCountry !== 'Indonesia' && detectedCity !== detectedCountry) {
+    displayParts.push(detectedCountry);
+  }
 
   let display = displayParts.join(', ');
   if (detectedFlag) {
@@ -395,8 +542,10 @@ function parseLocation(raw) {
 module.exports = {
   parseLocation,
   ANOMALY_LOCATIONS,
+  MALAYSIA_REGIONS,
   GLOBAL_COUNTRIES,
   GLOBAL_CITIES,
   INDONESIA_PROVINCES,
   INDONESIA_CITIES
 };
+
