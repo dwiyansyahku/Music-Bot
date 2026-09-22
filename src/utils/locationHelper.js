@@ -567,7 +567,6 @@ const INDONESIA_PROVINCES = {
 
   // Pulau Jawa
   'dki jakarta': 'DKI Jakarta',
-  'jakarta': 'DKI Jakarta',
   'jawa barat': 'Jawa Barat',
   'jabar': 'Jawa Barat',
   'jawa tengah': 'Jawa Tengah',
@@ -627,116 +626,128 @@ const INDONESIA_PROVINCES = {
   'papua barat daya': 'Papua Barat Daya'
 };
 
+// 5.1 Kepulauan / Pulau Besar Indonesia
+const INDONESIA_ISLANDS = {
+  'sumatera': 'Pulau Sumatera',
+  'sumatra': 'Pulau Sumatera',
+  'jawa': 'Pulau Jawa',
+  'java': 'Pulau Jawa',
+  'kalimantan': 'Pulau Kalimantan',
+  'borneo': 'Pulau Kalimantan',
+  'sulawesi': 'Pulau Sulawesi',
+  'celebes': 'Pulau Sulawesi',
+  'nusa tenggara': 'Kepulauan Nusa Tenggara'
+};
+
 // 6. Kamus Lengkap 514 Kabupaten dan Kota di Indonesia + Kawasan Satelit Populer
 const INDONESIA_CITIES = {
-  // ==================== DKI JAKARTA (Semua Kecamatan & Daerah Terkenal) ====================
+  // ==================== DKI JAKARTA ====================
+  'jakarta': { city: 'Jakarta', province: 'DKI Jakarta' },
+  'dki jakarta': { city: 'DKI Jakarta', province: 'DKI Jakarta' },
   'jakarta barat': { city: 'Jakarta Barat', province: 'DKI Jakarta' },
   'jakbar': { city: 'Jakarta Barat', province: 'DKI Jakarta' },
   'kembangan': { city: 'Kembangan', province: 'DKI Jakarta' },
   'kebon jeruk': { city: 'Kebon Jeruk', province: 'DKI Jakarta' },
-  'cengkareng': { city: 'Cengkareng', province: 'DKI Jakarta' },
+  'palmerah': { city: 'Palmerah', province: 'DKI Jakarta' },
   'grogol': { city: 'Grogol', province: 'DKI Jakarta' },
   'grogol petamburan': { city: 'Grogol Petamburan', province: 'DKI Jakarta' },
-  'petamburan': { city: 'Petamburan', province: 'DKI Jakarta' },
+  'cengkareng': { city: 'Cengkareng', province: 'DKI Jakarta' },
   'kalideres': { city: 'Kalideres', province: 'DKI Jakarta' },
-  'palmerah': { city: 'Palmerah', province: 'DKI Jakarta' },
-  'slipi': { city: 'Slipi', province: 'DKI Jakarta' },
-  'taman sari': { city: 'Taman Sari', province: 'DKI Jakarta' },
   'tambora': { city: 'Tambora', province: 'DKI Jakarta' },
+  'taman sari': { city: 'Taman Sari', province: 'DKI Jakarta' },
+  'tamansari': { city: 'Taman Sari', province: 'DKI Jakarta' },
+  'slipi': { city: 'Slipi', province: 'DKI Jakarta' },
+  'tomang': { city: 'Tomang', province: 'DKI Jakarta' },
+  'puri': { city: 'Puri Indah', province: 'DKI Jakarta' },
+  'puri indah': { city: 'Puri Indah', province: 'DKI Jakarta' },
   'meruya': { city: 'Meruya', province: 'DKI Jakarta' },
   'kedoya': { city: 'Kedoya', province: 'DKI Jakarta' },
   'tanjung duren': { city: 'Tanjung Duren', province: 'DKI Jakarta' },
-  'tomang': { city: 'Tomang', province: 'DKI Jakarta' },
-  'srengseng': { city: 'Srengseng', province: 'DKI Jakarta' },
-  'joglo': { city: 'Joglo', province: 'DKI Jakarta' },
+  'jelambar': { city: 'Jelambar', province: 'DKI Jakarta' },
   'duri kepa': { city: 'Duri Kepa', province: 'DKI Jakarta' },
-  'kota tua': { city: 'Kota Tua', province: 'DKI Jakarta' },
 
   'jakarta selatan': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
   'jaksel': { city: 'Jakarta Selatan', province: 'DKI Jakarta' },
-  'kemang': { city: 'Kemang', province: 'DKI Jakarta' },
-  'senopati': { city: 'Senopati', province: 'DKI Jakarta' },
-  'scbd': { city: 'SCBD', province: 'DKI Jakarta' },
-  'tebet': { city: 'Tebet', province: 'DKI Jakarta' },
+  'kebayoran': { city: 'Kebayoran', province: 'DKI Jakarta' },
   'kebayoran baru': { city: 'Kebayoran Baru', province: 'DKI Jakarta' },
   'kebayoran lama': { city: 'Kebayoran Lama', province: 'DKI Jakarta' },
-  'kebayoran': { city: 'Kebayoran', province: 'DKI Jakarta' },
   'cilandak': { city: 'Cilandak', province: 'DKI Jakarta' },
   'pasar minggu': { city: 'Pasar Minggu', province: 'DKI Jakarta' },
   'jagakarsa': { city: 'Jagakarsa', province: 'DKI Jakarta' },
-  'lenteng agung': { city: 'Lenteng Agung', province: 'DKI Jakarta' },
   'mampang': { city: 'Mampang', province: 'DKI Jakarta' },
   'mampang prapatan': { city: 'Mampang Prapatan', province: 'DKI Jakarta' },
   'pancoran': { city: 'Pancoran', province: 'DKI Jakarta' },
+  'tebet': { city: 'Tebet', province: 'DKI Jakarta' },
   'setiabudi': { city: 'Setiabudi', province: 'DKI Jakarta' },
   'pesanggrahan': { city: 'Pesanggrahan', province: 'DKI Jakarta' },
-  'petukangan': { city: 'Petukangan', province: 'DKI Jakarta' },
+  'kemang': { city: 'Kemang', province: 'DKI Jakarta' },
+  'senopati': { city: 'Senopati', province: 'DKI Jakarta' },
   'pondok indah': { city: 'Pondok Indah', province: 'DKI Jakarta' },
-  'blok m': { city: 'Blok M', province: 'DKI Jakarta' },
-  'gandaria': { city: 'Gandaria', province: 'DKI Jakarta' },
   'fatmawati': { city: 'Fatmawati', province: 'DKI Jakarta' },
+  'blok m': { city: 'Blok M', province: 'DKI Jakarta' },
+  'senayan': { city: 'Senayan', province: 'DKI Jakarta' },
+  'scbd': { city: 'SCBD', province: 'DKI Jakarta' },
+  'sudirman': { city: 'Sudirman', province: 'DKI Jakarta' },
+  'ragunan': { city: 'Ragunan', province: 'DKI Jakarta' },
+  'pejaten': { city: 'Pejaten', province: 'DKI Jakarta' },
   'lebak bulus': { city: 'Lebak Bulus', province: 'DKI Jakarta' },
+  'gandaria': { city: 'Gandaria', province: 'DKI Jakarta' },
+  'cipete': { city: 'Cipete', province: 'DKI Jakarta' },
 
   'jakarta pusat': { city: 'Jakarta Pusat', province: 'DKI Jakarta' },
   'jakpus': { city: 'Jakarta Pusat', province: 'DKI Jakarta' },
   'menteng': { city: 'Menteng', province: 'DKI Jakarta' },
-  'tanah abang': { city: 'Tanah Abang', province: 'DKI Jakarta' },
   'gambir': { city: 'Gambir', province: 'DKI Jakarta' },
+  'tanah abang': { city: 'Tanah Abang', province: 'DKI Jakarta' },
   'senen': { city: 'Senen', province: 'DKI Jakarta' },
   'cempaka putih': { city: 'Cempaka Putih', province: 'DKI Jakarta' },
   'johar baru': { city: 'Johar Baru', province: 'DKI Jakarta' },
   'kemayoran': { city: 'Kemayoran', province: 'DKI Jakarta' },
   'sawah besar': { city: 'Sawah Besar', province: 'DKI Jakarta' },
+  'harmoni': { city: 'Harmoni', province: 'DKI Jakarta' },
   'salemba': { city: 'Salemba', province: 'DKI Jakarta' },
-  'cikini': { city: 'Cikini', province: 'DKI Jakarta' },
+  'benhil': { city: 'Bendungan Hilir', province: 'DKI Jakarta' },
+  'bendungan hilir': { city: 'Bendungan Hilir', province: 'DKI Jakarta' },
   'thamrin': { city: 'Thamrin', province: 'DKI Jakarta' },
-  'sudirman': { city: 'Sudirman', province: 'DKI Jakarta' },
-  'monas': { city: 'Monas', province: 'DKI Jakarta' },
 
   'jakarta timur': { city: 'Jakarta Timur', province: 'DKI Jakarta' },
   'jaktim': { city: 'Jakarta Timur', province: 'DKI Jakarta' },
+  'matraman': { city: 'Matraman', province: 'DKI Jakarta' },
+  'pulo gadung': { city: 'Pulo Gadung', province: 'DKI Jakarta' },
+  'pulogadung': { city: 'Pulo Gadung', province: 'DKI Jakarta' },
   'jatinegara': { city: 'Jatinegara', province: 'DKI Jakarta' },
   'duren sawit': { city: 'Duren Sawit', province: 'DKI Jakarta' },
-  'pulogadung': { city: 'Pulogadung', province: 'DKI Jakarta' },
-  'pulo gadung': { city: 'Pulogadung', province: 'DKI Jakarta' },
-  'rawamangun': { city: 'Rawamangun', province: 'DKI Jakarta' },
-  'matraman': { city: 'Matraman', province: 'DKI Jakarta' },
   'kramat jati': { city: 'Kramat Jati', province: 'DKI Jakarta' },
-  'makasar': { city: 'Makasar', province: 'DKI Jakarta' },
   'pasar rebo': { city: 'Pasar Rebo', province: 'DKI Jakarta' },
   'ciracas': { city: 'Ciracas', province: 'DKI Jakarta' },
   'cipayung': { city: 'Cipayung', province: 'DKI Jakarta' },
   'cakung': { city: 'Cakung', province: 'DKI Jakarta' },
-  'cibubur': { city: 'Cibubur', province: 'DKI Jakarta' },
-  'cililitan': { city: 'Cililitan', province: 'DKI Jakarta' },
-  'kampung rambutan': { city: 'Kampung Rambutan', province: 'DKI Jakarta' },
-  'buaran': { city: 'Buaran', province: 'DKI Jakarta' },
+  'rawamangun': { city: 'Rawamangun', province: 'DKI Jakarta' },
+  'kampung melayu': { city: 'Kampung Melayu', province: 'DKI Jakarta' },
+  'halim': { city: 'Halim Perdanakusuma', province: 'DKI Jakarta' },
   'klender': { city: 'Klender', province: 'DKI Jakarta' },
-  'pondok kopi': { city: 'Pondok Kopi', province: 'DKI Jakarta' },
-  'pondok kelapa': { city: 'Pondok Kelapa', province: 'DKI Jakarta' },
-  'cawang': { city: 'Cawang', province: 'DKI Jakarta' },
-  'halim': { city: 'Halim', province: 'DKI Jakarta' },
+  'condet': { city: 'Condet', province: 'DKI Jakarta' },
+  'cijantung': { city: 'Cijantung', province: 'DKI Jakarta' },
 
   'jakarta utara': { city: 'Jakarta Utara', province: 'DKI Jakarta' },
   'jakut': { city: 'Jakarta Utara', province: 'DKI Jakarta' },
-  'kelapa gading': { city: 'Kelapa Gading', province: 'DKI Jakarta' },
   'tanjung priok': { city: 'Tanjung Priok', province: 'DKI Jakarta' },
   'koja': { city: 'Koja', province: 'DKI Jakarta' },
   'cilincing': { city: 'Cilincing', province: 'DKI Jakarta' },
   'pademangan': { city: 'Pademangan', province: 'DKI Jakarta' },
   'penjaringan': { city: 'Penjaringan', province: 'DKI Jakarta' },
   'pluit': { city: 'Pluit', province: 'DKI Jakarta' },
-  'sunter': { city: 'Sunter', province: 'DKI Jakarta' },
   'ancol': { city: 'Ancol', province: 'DKI Jakarta' },
+  'sunter': { city: 'Sunter', province: 'DKI Jakarta' },
+  'marunda': { city: 'Marunda', province: 'DKI Jakarta' },
+  'muara karang': { city: 'Muara Karang', province: 'DKI Jakarta' },
+  'muara angke': { city: 'Muara Angke', province: 'DKI Jakarta' },
   'pik': { city: 'PIK', province: 'DKI Jakarta' },
   'pantai indah kapuk': { city: 'Pantai Indah Kapuk', province: 'DKI Jakarta' },
-  'muara karang': { city: 'Muara Karang', province: 'DKI Jakarta' },
+  'kelapa gading': { city: 'Kelapa Gading', province: 'DKI Jakarta' },
 
   'kepulauan seribu': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
-  'pulau seribu': { city: 'Kepulauan Seribu', province: 'DKI Jakarta' },
-  'pulau tidung': { city: 'Pulau Tidung', province: 'DKI Jakarta' },
-  'pulau pramuka': { city: 'Pulau Pramuka', province: 'DKI Jakarta' },
-  'pulau pari': { city: 'Pulau Pari', province: 'DKI Jakarta' },
+  'cibubur': { city: 'Cibubur', province: 'DKI Jakarta' },
 
   // ==================== JAWA BARAT ====================
   'bandung': { city: 'Bandung', province: 'Jawa Barat' },
@@ -747,30 +758,13 @@ const INDONESIA_CITIES = {
   'kota bekasi': { city: 'Bekasi', province: 'Jawa Barat' },
   'bekasea': { city: 'Bekasi', province: 'Jawa Barat' },
   'cikarang': { city: 'Cikarang', province: 'Jawa Barat' },
-  'tambun': { city: 'Tambun', province: 'Jawa Barat' },
-  'cibitung': { city: 'Cibitung', province: 'Jawa Barat' },
-  'pondok gede': { city: 'Pondok Gede', province: 'Jawa Barat' },
-  'jatiasih': { city: 'Jatiasih', province: 'Jawa Barat' },
-  'harapan indah': { city: 'Harapan Indah', province: 'Jawa Barat' },
-  'kranji': { city: 'Kranji', province: 'Jawa Barat' },
   'bogor': { city: 'Bogor', province: 'Jawa Barat' },
   'kota bogor': { city: 'Bogor', province: 'Jawa Barat' },
   'cibinong': { city: 'Cibinong', province: 'Jawa Barat' },
   'sentul': { city: 'Sentul', province: 'Jawa Barat' },
   'cileungsi': { city: 'Cileungsi', province: 'Jawa Barat' },
-  'gunung putri': { city: 'Gunung Putri', province: 'Jawa Barat' },
-  'bojonggede': { city: 'Bojonggede', province: 'Jawa Barat' },
-  'bojong gede': { city: 'Bojonggede', province: 'Jawa Barat' },
-  'parung': { city: 'Parung', province: 'Jawa Barat' },
-  'puncak': { city: 'Puncak', province: 'Jawa Barat' },
-  'cisarua': { city: 'Cisarua', province: 'Jawa Barat' },
   'depok': { city: 'Depok', province: 'Jawa Barat' },
   'margonda': { city: 'Margonda', province: 'Jawa Barat' },
-  'cimanggis': { city: 'Cimanggis', province: 'Jawa Barat' },
-  'sawangan': { city: 'Sawangan', province: 'Jawa Barat' },
-  'cinere': { city: 'Cinere', province: 'Jawa Barat' },
-  'beji': { city: 'Beji', province: 'Jawa Barat' },
-  'sukmajaya': { city: 'Sukmajaya', province: 'Jawa Barat' },
   'sukabumi': { city: 'Sukabumi', province: 'Jawa Barat' },
   'cianjur': { city: 'Cianjur', province: 'Jawa Barat' },
   'karawang': { city: 'Karawang', province: 'Jawa Barat' },
@@ -789,12 +783,7 @@ const INDONESIA_CITIES = {
   'pangandaran': { city: 'Pangandaran', province: 'Jawa Barat' },
   'dago': { city: 'Dago', province: 'Jawa Barat' },
   'lembang': { city: 'Lembang', province: 'Jawa Barat' },
-  'buahbatu': { city: 'Buahbatu', province: 'Jawa Barat' },
-  'antapani': { city: 'Antapani', province: 'Jawa Barat' },
-  'cibiru': { city: 'Cibiru', province: 'Jawa Barat' },
-  'soreang': { city: 'Soreang', province: 'Jawa Barat' },
-  'rancaekek': { city: 'Rancaekek', province: 'Jawa Barat' },
-  'padalarang': { city: 'Padalarang', province: 'Jawa Barat' },
+  'cibubur': { city: 'Cibubur', province: 'DKI Jakarta' },
 
   // ==================== BANTEN ====================
   'tangerang': { city: 'Tangerang', province: 'Banten' },
@@ -811,29 +800,11 @@ const INDONESIA_CITIES = {
   'alam sutera': { city: 'Alam Sutera', province: 'Banten' },
   'karawaci': { city: 'Karawaci', province: 'Banten' },
   'lippo karawaci': { city: 'Lippo Karawaci', province: 'Banten' },
-  'ciledug': { city: 'Ciledug', province: 'Banten' },
-  'pondok aren': { city: 'Pondok Aren', province: 'Banten' },
-  'cipondoh': { city: 'Cipondoh', province: 'Banten' },
-  'balaraja': { city: 'Balaraja', province: 'Banten' },
-  'cikupa': { city: 'Cikupa', province: 'Banten' },
-  'curug': { city: 'Curug', province: 'Banten' },
-  'tigaraksa': { city: 'Tigaraksa', province: 'Banten' },
-  'kelapa dua': { city: 'Kelapa Dua', province: 'Banten' },
   'serang': { city: 'Serang', province: 'Banten' },
   'cilegon': { city: 'Cilegon', province: 'Banten' },
   'pandeglang': { city: 'Pandeglang', province: 'Banten' },
   'lebak': { city: 'Lebak', province: 'Banten' },
   'rangkasbitung': { city: 'Rangkasbitung', province: 'Banten' },
-
-  // ==================== PULAU / KEPULAUAN INDONESIA ====================
-  'sumatera': { city: 'Sumatera', province: 'Pulau Sumatera', isIsland: true },
-  'sumatra': { city: 'Sumatera', province: 'Pulau Sumatera', isIsland: true },
-  'jawa': { city: 'Jawa', province: 'Pulau Jawa', isIsland: true },
-  'kalimantan': { city: 'Kalimantan', province: 'Pulau Kalimantan', isIsland: true },
-  'sulawesi': { city: 'Sulawesi', province: 'Pulau Sulawesi', isIsland: true },
-  'papua': { city: 'Papua', province: 'Pulau Papua', isIsland: true },
-  'maluku': { city: 'Maluku', province: 'Kepulauan Maluku', isIsland: true },
-  'nusa tenggara': { city: 'Nusa Tenggara', province: 'Kepulauan Nusa Tenggara', isIsland: true },
 
   // ==================== JAWA TENGAH ====================
   'semarang': { city: 'Semarang', province: 'Jawa Tengah' },
@@ -1074,14 +1045,16 @@ const INDONESIA_CITIES = {
   'aceh tengah': { city: 'Aceh Tengah', province: 'Aceh' },
   'takengon': { city: 'Takengon', province: 'Aceh' },
 
-  'bengkulu': { city: 'Bengkulu', province: 'Bengkulu' },
+  'bengkulu': { city: 'Kota Bengkulu', province: 'Bengkulu' },
+  'kota bengkulu': { city: 'Kota Bengkulu', province: 'Bengkulu' },
   'rejang lebong': { city: 'Rejang Lebong', province: 'Bengkulu' },
   'curup': { city: 'Curup', province: 'Bengkulu' },
   'mukomuko': { city: 'Mukomuko', province: 'Bengkulu' },
   'bengkulu utara': { city: 'Bengkulu Utara', province: 'Bengkulu' },
   'bengkulu selatan': { city: 'Bengkulu Selatan', province: 'Bengkulu' },
 
-  'jambi': { city: 'Jambi', province: 'Jambi' },
+  'jambi': { city: 'Kota Jambi', province: 'Jambi' },
+  'kota jambi': { city: 'Kota Jambi', province: 'Jambi' },
   'sungai penuh': { city: 'Sungai Penuh', province: 'Jambi' },
   'muaro jambi': { city: 'Muaro Jambi', province: 'Jambi' },
   'bungo': { city: 'Bungo', province: 'Jambi' },
@@ -1217,7 +1190,8 @@ const INDONESIA_CITIES = {
   'mamasa': { city: 'Mamasa', province: 'Sulawesi Barat' },
   'pasangkayu': { city: 'Pasangkayu', province: 'Sulawesi Barat' },
 
-  'gorontalo': { city: 'Gorontalo', province: 'Gorontalo' },
+  'gorontalo': { city: 'Kota Gorontalo', province: 'Gorontalo' },
+  'kota gorontalo': { city: 'Kota Gorontalo', province: 'Gorontalo' },
   'boalemo': { city: 'Boalemo', province: 'Gorontalo' },
   'bone bolango': { city: 'Bone Bolango', province: 'Gorontalo' },
   'pohuwato': { city: 'Pohuwato', province: 'Gorontalo' },
@@ -1273,8 +1247,7 @@ for (const [key, val] of Object.entries(INDONESIA_CITIES)) {
     city: val.city,
     province: val.province,
     country: 'Indonesia',
-    flag: '🇮🇩',
-    isIsland: val.isIsland || false
+    flag: '🇮🇩'
   };
 }
 
@@ -1291,19 +1264,6 @@ for (const [key, val] of Object.entries(GLOBAL_CITIES)) {
   }
 }
 
-// Tambahkan Provinsi Indonesia ke dalam Indeks Terpadu
-for (const [key, provName] of Object.entries(INDONESIA_PROVINCES)) {
-  if (!ALL_CITIES_AND_REGIONS[key]) {
-    ALL_CITIES_AND_REGIONS[key] = {
-      city: provName,
-      province: provName,
-      country: 'Indonesia',
-      flag: '🇮🇩',
-      isProvince: true
-    };
-  }
-}
-
 // Tambahkan Region / Negara Bagian Global
 for (const [key, val] of Object.entries(GLOBAL_REGIONS)) {
   if (!ALL_CITIES_AND_REGIONS[key]) {
@@ -1315,6 +1275,34 @@ for (const [key, val] of Object.entries(GLOBAL_REGIONS)) {
     };
   }
 }
+
+// Tambahkan Pulau & Kepulauan Besar Indonesia
+for (const [key, islandName] of Object.entries(INDONESIA_ISLANDS)) {
+  if (!ALL_CITIES_AND_REGIONS[key]) {
+    ALL_CITIES_AND_REGIONS[key] = {
+      city: islandName.replace(/^(Pulau|Kepulauan|Wilayah)\s+/, ''),
+      province: islandName,
+      country: 'Indonesia',
+      flag: '🇮🇩'
+    };
+  }
+}
+
+// Tambahkan 38 Provinsi Indonesia ke dalam Indeks Terpadu agar longest-match berjalan serempak
+for (const [key, provName] of Object.entries(INDONESIA_PROVINCES)) {
+  if (!ALL_CITIES_AND_REGIONS[key]) {
+    ALL_CITIES_AND_REGIONS[key] = {
+      city: provName,
+      province: provName,
+      country: 'Indonesia',
+      flag: '🇮🇩'
+    };
+  }
+}
+
+// Set cepat untuk deteksi Provinsi & Kepulauan Indonesia
+const INDONESIA_PROVINCE_NAMES = new Set(Object.values(INDONESIA_PROVINCES));
+const INDONESIA_ISLAND_NAMES = new Set(Object.values(INDONESIA_ISLANDS).map(n => n.replace(/^(Pulau|Kepulauan|Wilayah)\s+/, '')));
 
 // Urutkan key dari yang TERPANJANG agar pencocokan spesifik (misal: "Labuan Bajo" 11 huruf)
 // selalu diuji SEBELUM kata yang lebih pendek (misal: "Labuan" 6 huruf)
@@ -1365,7 +1353,6 @@ function parseLocation(raw) {
     const countryObj = GLOBAL_COUNTRIES[clean];
     return {
       isAnomaly: false,
-      isCountry: true,
       city: countryObj.name,
       stateOrProvince: countryObj.name,
       country: countryObj.name,
@@ -1379,8 +1366,6 @@ function parseLocation(raw) {
   let detectedFlag = null;
   let detectedProvince = null;
   let detectedCity = null;
-  let isProvince = false;
-  let isIsland = false;
 
   // 3. Cek Kota & Region (Domestik + Global) berdasarkan Longest Match First
   for (const key of sortedAllCityKeys) {
@@ -1391,8 +1376,6 @@ function parseLocation(raw) {
       detectedProvince = match.province;
       detectedCountry = match.country;
       detectedFlag = match.flag;
-      isIsland = match.isIsland || false;
-      isProvince = match.isProvince || false;
       break;
     }
   }
@@ -1407,7 +1390,6 @@ function parseLocation(raw) {
         detectedProvince = provName;
         detectedCountry = 'Indonesia';
         detectedFlag = '🇮🇩';
-        isProvince = true;
         break;
       }
     }
@@ -1457,7 +1439,7 @@ function parseLocation(raw) {
   // Format string display
   let displayParts = [];
   if (detectedCity) displayParts.push(detectedCity);
-  if (detectedProvince && detectedCity !== detectedProvince && detectedProvince !== 'Lainnya' && !isIsland) {
+  if (detectedProvince && detectedCity !== detectedProvince && detectedProvince !== 'Lainnya' && detectedProvince !== `Pulau ${detectedCity}` && detectedProvince !== `Kepulauan ${detectedCity}`) {
     displayParts.push(detectedProvince);
   }
   if (detectedCountry && detectedCountry !== 'Indonesia' && detectedCity !== detectedCountry && detectedProvince !== detectedCountry) {
@@ -1471,8 +1453,6 @@ function parseLocation(raw) {
 
   return {
     isAnomaly: false,
-    isProvince,
-    isIsland,
     city: detectedCity,
     stateOrProvince: detectedProvince,
     country: detectedCountry || 'Indonesia',
@@ -1489,5 +1469,8 @@ module.exports = {
   GLOBAL_REGIONS,
   GLOBAL_CITIES,
   INDONESIA_PROVINCES,
+  INDONESIA_ISLANDS,
+  INDONESIA_PROVINCE_NAMES,
+  INDONESIA_ISLAND_NAMES,
   INDONESIA_CITIES
 };

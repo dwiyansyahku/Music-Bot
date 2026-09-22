@@ -3,9 +3,7 @@ const {
   StringSelectMenuBuilder
 } = require('discord.js');
 const storage = require('./storage');
-const { parseLocation, INDONESIA_PROVINCES } = require('./locationHelper');
-
-const INDONESIA_PROVINCE_NAMES = new Set(Object.values(INDONESIA_PROVINCES || {}));
+const { parseLocation, INDONESIA_PROVINCE_NAMES, INDONESIA_ISLAND_NAMES } = require('./locationHelper');
 
 const ITEMS_PER_PAGE = 6;
 
@@ -80,15 +78,15 @@ function getMemberMapData(guildOrId) {
     locCounts[cityKey] = (locCounts[cityKey] || 0) + 1;
     if (!locMetadata[cityKey]) {
       let showRegion = '';
-      if (locObj.stateOrProvince && locObj.stateOrProvince !== cityKey && locObj.stateOrProvince !== 'Lainnya') {
+      if (locObj.stateOrProvince && locObj.stateOrProvince !== cityKey && locObj.stateOrProvince !== 'Lainnya' && locObj.stateOrProvince !== `Pulau ${cityKey}` && locObj.stateOrProvince !== `Kepulauan ${cityKey}`) {
         showRegion = locObj.stateOrProvince;
-      } else if (locObj.isProvince || INDONESIA_PROVINCE_NAMES.has(cityKey)) {
-        showRegion = 'Provinsi';
-      } else if (locObj.isIsland || ['Sumatera', 'Jawa', 'Kalimantan', 'Sulawesi', 'Papua', 'Maluku', 'Nusa Tenggara'].includes(cityKey)) {
-        showRegion = 'Pulau';
-      } else if (locObj.country && locObj.country !== 'Indonesia' && locObj.country !== cityKey) {
+      } else if (locObj.country && locObj.country !== cityKey && locObj.country !== 'Indonesia') {
         showRegion = locObj.country;
-      } else if (locObj.country && locObj.country !== 'Indonesia' && locObj.country === cityKey) {
+      } else if (INDONESIA_PROVINCE_NAMES && INDONESIA_PROVINCE_NAMES.has(cityKey)) {
+        showRegion = 'Provinsi';
+      } else if ((INDONESIA_ISLAND_NAMES && INDONESIA_ISLAND_NAMES.has(cityKey)) || locObj.stateOrProvince?.startsWith('Pulau') || locObj.stateOrProvince?.startsWith('Kepulauan')) {
+        showRegion = 'Pulau';
+      } else if (locObj.country === cityKey && locObj.country !== 'Indonesia') {
         showRegion = 'Negara';
       }
       locMetadata[cityKey] = { flag, region: showRegion };
@@ -162,7 +160,7 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
       memberMentions += ` *(+${members.length - 4} lainnya)*`;
     }
 
-    return `${rankLabel} **${loc}**${flagText}${regionText} — \`${count} Member\` (${pct}%)\n   \`${bar}\`\n   └ ${memberMentions}`;
+    return `${rankLabel} **${loc}**${regionText}${flagText} — \`${count} Member\` (${pct}%)\n   \`${bar}\`\n   └ ${memberMentions}`;
   }).join('\n\n');
 
   const topRegionInfo = data.topRegion
