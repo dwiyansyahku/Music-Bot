@@ -20,6 +20,14 @@ module.exports = {
     const guild = member.guild;
     const now = Date.now();
 
+    // ─── 0. TRACK INVITE LINK & PENGUNDANG ───
+    try {
+      const { handleMemberJoin } = require('../utils/inviteTracker');
+      await handleMemberJoin(member, client);
+    } catch (inviteErr) {
+      console.warn('[InviteTracker Join Error]:', inviteErr.message);
+    }
+
     // ─── 1. ANTI-RAID: PEMERIKSAAN UMUR AKUN MINIMAL (MIN 3 HARI / 72 JAM) ───
     const accountAgeMs = now - member.user.createdTimestamp;
     const minAgeMs = 3 * 24 * 60 * 60 * 1000; // 3 hari

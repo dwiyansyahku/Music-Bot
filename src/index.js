@@ -324,6 +324,7 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,   // Required for guildMemberAdd event (welcome feature)
     GatewayIntentBits.GuildPresences, // Required for online status in /userinfo
+    GatewayIntentBits.GuildInvites,   // Required for invite tracking (inviteCreate, inviteDelete, guildMemberAdd tracking)
   ],
   rest: { timeout: 60_000 }, // 60s timeout to prevent AbortError on image uploads
 });

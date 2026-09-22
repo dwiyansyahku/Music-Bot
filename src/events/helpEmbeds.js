@@ -304,7 +304,7 @@ function buildHelpEmbed(category, client, guild = null) {
           },
           {
             name: '✦ Moderasi, Penjara & Utilitas',
-            value: '`/automod`, `/mod`, `/mod setlogchannel`, `/clear`, `/qclear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/qwelcome`, `/qsaweria`, `/backup`, `/ping`',
+            value: '`/automod`, `/mod`, `/mod setlogchannel`, `/clear`, `/qclear`, `/fun jail`, `/fun bail`, `/fun jailsetup`, `/announce`, `/qmorning`, `/qnight`, `/qwelcome`, `/qinvite`, `/invites`, `/qsaweria`, `/backup`, `/ping`',
             inline: false
           }
         )

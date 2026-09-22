@@ -29,6 +29,14 @@ module.exports = {
       console.warn('[guildMemberRemove AntiNuke Kick Error]:', nukeErr.message);
     }
 
+    // ─── INVITE TRACKER: UPDATE LEAVE COUNT ───
+    try {
+      const { handleMemberLeave } = require('../utils/inviteTracker');
+      await handleMemberLeave(member, client);
+    } catch (inviteErr) {
+      console.warn('[guildMemberRemove InviteTracker Error]:', inviteErr.message);
+    }
+
     try {
       const cardsData = storage.read('cards');
       const guildCards = cardsData[guildId];

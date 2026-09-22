@@ -5,6 +5,7 @@ const { buildMorningMessage } = require('../utils/morningMessage');
 const { buildNightMessage } = require('../utils/nightMessage');
 const { loadAllSettings } = require('../utils/storage');
 const { initVoiceTracker } = require('../utils/voiceTracker');
+const { initInviteTracker } = require('../utils/inviteTracker');
 const storage = require('../utils/storage');
 
 module.exports = {
@@ -17,10 +18,13 @@ module.exports = {
     console.log(`🎵 ================================\n`);
 
     // =============================================
-    // LOAD SETTINGS & INIT VOICE TRACKER
+    // LOAD SETTINGS & INIT VOICE TRACKER & INVITE TRACKER
     // =============================================
     loadAllSettings(client);
     initVoiceTracker(client);
+    initInviteTracker(client).catch(err => {
+      console.warn('[ready] Gagal inisialisasi invite tracker:', err.message);
+    });
 
     // =============================================
     // SAWERIA WEBHOOK SERVER INITIALIZATION
