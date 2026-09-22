@@ -1,7 +1,11 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } = require('discord.js');
+const {
+  SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags,
+  AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
+} = require('discord.js');
 const { isOwnerOrMod, replyNoAccessMod } = require('../utils/helpers');
 const { saveGuildSetting } = require('../utils/storage');
 const storage = require('../utils/storage');
+const { renderWelcomeBanner } = require('../utils/welcomeCardGenerator');
 
 const WELCOME_MESSAGES = [
   (name, server) => `Selamat datang **${name}** di **${server}**!\nSenang kamu bergabung, selamat menikmati obrolan di server.`,
@@ -176,66 +180,95 @@ const qwelcome = {
 
     // === TEST (Preview) ===
     if (sub === 'test') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
       if (!config.channelId) {
-        return interaction.reply({
-          content: '❌ Belum ada channel yang diatur! Gunakan `/qwelcome setchannel` dulu.',
-          flags: MessageFlags.Ephemeral,
+        return interaction.editReply({
+          content: '❌ Belum ada channel yang diatur! Gunakan `/qwelcome setchannel` dulu.'
         });
       }
 
-      const channel = interaction.guild.channels.cache.get(config.channelId);
+      const channel = interaction.guild.channels.cache.get(config.channelId)
+        || await client.channels.fetch(config.channelId).catch(() => null);
+
       if (!channel) {
-        return interaction.reply({
-          content: '❌ Channel sambutan tidak ditemukan! Mungkin sudah dihapus. Atur ulang dengan `/qwelcome setchannel`.',
-          flags: MessageFlags.Ephemeral,
+        return interaction.editReply({
+          content: '❌ Channel sambutan tidak ditemukan! Mungkin sudah dihapus. Atur ulang dengan `/qwelcome setchannel`.'
         });
       }
 
       const member = interaction.member;
       const guild = interaction.guild;
       const memberCount = guild.memberCount;
-      const avatarURL = member.user.displayAvatarURL({ dynamic: true, size: 256 });
 
-      const randomMsg = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)];
-      const colors = [0x5865F2, 0xFF6B6B, 0xFFD93D, 0x6BCB77, 0x4D96FF];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      const guildSettings = storage.read('settings');
+      const rulesChannelId = guildSettings[guild.id]?.rulesChannelId || guild.rulesChannelId || guild.channels.cache.find(c => c.name.includes('rules'))?.id;
+      const rolesChannelId = guildSettings[guild.id]?.rolesChannelId || guild.channels.cache.find(c => c.name.includes('roles'))?.id;
 
-      const embed = new EmbedBuilder()
-        .setColor(randomColor)
-        .setAuthor({
-          name: `👤 NEW MEMBER`,
-          iconURL: avatarURL,
-        })
-        .setTitle(`👋 Welcome, ${member.user.username}!`)
-        .setDescription(`${randomMsg(member.user.username, guild.name)}\n\n📌 Silakan baca info & peraturan di <#1489575354778648586>!`)
-        .setThumbnail(avatarURL)
-        .addFields(
-          {
-            name: '🪪 Member Ke',
-            value: `**#${memberCount}**`,
-            inline: true,
-          },
-          {
-            name: '📅 Akun Dibuat',
-            value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
-            inline: true,
-          }
-        )
-        .setFooter({
-          text: `${guild.name} • Glad you're here! 🙌`,
-          iconURL: guild.iconURL({ dynamic: true }) || undefined,
-        })
-        .setTimestamp();
+      // Buat tombol Peraturan Server dan Ambil Roles
+      const rulesUrl = guildSettings[guild.id]?.rulesUrl
+        || (rulesChannelId ? `https://discord.com/channels/${guild.id}/${rulesChannelId}` : null);
+      const rolesUrl = guildSettings[guild.id]?.rolesUrl
+        || (rolesChannelId ? `https://discord.com/channels/${guild.id}/${rolesChannelId}` : null);
 
-      await channel.send({
-        content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server. *(ini preview test)*`,
-        embeds: [embed],
-      });
+      const components = [];
+      const buttons = [];
+      if (rulesUrl) {
+        buttons.push(
+          new ButtonBuilder()
+            .setLabel('READ RULES')
+            .setEmoji('📜')
+            .setStyle(ButtonStyle.Link)
+            .setURL(rulesUrl)
+        );
+      }
+      if (rolesUrl) {
+        buttons.push(
+          new ButtonBuilder()
+            .setLabel('AMBIL ROLES')
+            .setEmoji('🎭')
+            .setStyle(ButtonStyle.Link)
+            .setURL(rolesUrl)
+        );
+      }
+      if (buttons.length > 0) {
+        components.push(new ActionRowBuilder().addComponents(buttons));
+      }
 
-      return interaction.reply({
-        content: `✅ Preview sambutan berhasil dikirim ke <#${channel.id}>!`,
-        flags: MessageFlags.Ephemeral,
-      });
+      try {
+        const bannerBuffer = await renderWelcomeBanner({
+          member,
+          inviter: interaction.user,
+          inviteType: 'regular',
+          memberCount
+        });
+
+        const attachment = new AttachmentBuilder(bannerBuffer, { name: 'qumpruy-welcome.png' });
+
+        const embed = new EmbedBuilder()
+          .setColor(0x0c0a14)
+          .setImage('attachment://qumpruy-welcome.png')
+          .setFooter({
+            text: `${guild.name} • Glad you're here! 🙌`,
+            iconURL: guild.iconURL({ dynamic: true }) || undefined,
+          })
+          .setTimestamp();
+
+        await channel.send({
+          content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server. *(ini preview test)*`,
+          embeds: [embed],
+          files: [attachment],
+          components
+        });
+
+        return interaction.editReply({
+          content: `✅ Preview sambutan berhasil dikirim ke <#${channel.id}>!`
+        });
+      } catch (err) {
+        return interaction.editReply({
+          content: `❌ Gagal mengirim preview sambutan: ${err.message}`
+        });
+      }
     }
   },
 };

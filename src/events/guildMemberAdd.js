@@ -1,4 +1,5 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { renderWelcomeBanner } = require('../utils/welcomeCardGenerator');
 
 // Kumpulan kalimat sambutan gaul (random tiap ada member baru)
 const WELCOME_MESSAGES = [
@@ -131,48 +132,119 @@ module.exports = {
     const colors = [0x5865F2, 0xFF6B6B, 0xFFD93D, 0x6BCB77, 0x4D96FF];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
-    // Cek apakah ada channel rules yang dikonfigurasi di storage
+    // Cek channel rules & roles yang dikonfigurasi di storage
     const storage = require('../utils/storage');
     const guildSettings = storage.read('settings');
-    const rulesChannelId = guildSettings[guild.id]?.rulesChannelId ?? null;
-    const rulesText = rulesChannelId
-      ? `📌 Silakan baca info & peraturan di <#${rulesChannelId}>!`
-      : `📌 Jangan lupa baca peraturan server ya!`;
+    const rulesChannelId = guildSettings[guild.id]?.rulesChannelId || guild.rulesChannelId || guild.channels.cache.find(c => c.name.includes('rules'))?.id;
+    const rolesChannelId = guildSettings[guild.id]?.rolesChannelId || guild.channels.cache.find(c => c.name.includes('roles'))?.id;
 
-    const embed = new EmbedBuilder()
-      .setColor(randomColor)
-      .setAuthor({
-        name: `👤 NEW MEMBER`,
-        iconURL: avatarURL,
-      })
-      .setTitle(`👋 Welcome, ${member.user.username}!`)
-      .setDescription(`${randomMsg(member.user.username, guild.name)}\n\n${rulesText}`)
-      .setThumbnail(avatarURL)
-      .addFields(
-        {
-          name: '🪪 Member Ke',
-          value: `**#${memberCount}**`,
-          inline: true,
-        },
-        {
-          name: '📅 Akun Dibuat',
-          value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
-          inline: true,
-        }
-      )
-      .setFooter({
-        text: `${guild.name} • Glad you're here! 🙌`,
-        iconURL: guild.iconURL({ dynamic: true }) || undefined,
-      })
-      .setTimestamp();
+    // Cek siapa pengundang member dari database invite
+    const invitesData = storage.read('invites');
+    const memberInviteRecord = invitesData[guild.id]?.members?.[member.id] || null;
+    let inviterUser = null;
+    let inviteType = memberInviteRecord?.inviteType || 'unknown';
+    if (memberInviteRecord && memberInviteRecord.inviterId) {
+      inviterUser = client.users.cache.get(memberInviteRecord.inviterId)
+        || await client.users.fetch(memberInviteRecord.inviterId).catch(() => null);
+    }
+
+    // Buat ActionRow tombol Rules dan Roles
+    const rulesUrl = guildSettings[guild.id]?.rulesUrl
+      || (rulesChannelId ? `https://discord.com/channels/${guild.id}/${rulesChannelId}` : null);
+    const rolesUrl = guildSettings[guild.id]?.rolesUrl
+      || (rolesChannelId ? `https://discord.com/channels/${guild.id}/${rolesChannelId}` : null);
+
+    const components = [];
+    const buttons = [];
+    if (rulesUrl) {
+      buttons.push(
+        new ButtonBuilder()
+          .setLabel('READ RULES')
+          .setEmoji('📜')
+          .setStyle(ButtonStyle.Link)
+          .setURL(rulesUrl)
+      );
+    }
+    if (rolesUrl) {
+      buttons.push(
+        new ButtonBuilder()
+          .setLabel('AMBIL ROLES')
+          .setEmoji('🎭')
+          .setStyle(ButtonStyle.Link)
+          .setURL(rolesUrl)
+      );
+    }
+    if (buttons.length > 0) {
+      components.push(new ActionRowBuilder().addComponents(buttons));
+    }
 
     try {
+      // Render banner kanvas selamat datang
+      const bannerBuffer = await renderWelcomeBanner({
+        member,
+        inviter: inviterUser,
+        inviteType,
+        memberCount
+      });
+
+      const attachment = new AttachmentBuilder(bannerBuffer, { name: 'qumpruy-welcome.png' });
+
+      const embed = new EmbedBuilder()
+        .setColor(0x0c0a14)
+        .setImage('attachment://qumpruy-welcome.png')
+        .setFooter({
+          text: `${guild.name} • Glad you're here! 🙌`,
+          iconURL: guild.iconURL({ dynamic: true }) || undefined,
+        })
+        .setTimestamp();
+
       await channel.send({
         content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server.`,
         embeds: [embed],
+        files: [attachment],
+        components
       });
-    } catch (err) {
-      console.error(`[Welcome] Gagal kirim pesan welcome di guild ${guild.name}:`, err.message);
+    } catch (bannerErr) {
+      console.warn(`[Welcome] Gagal render canvas banner, fallback ke embed biasa:`, bannerErr.message);
+
+      const rulesText = rulesChannelId
+        ? `📌 Silakan baca info & peraturan di <#${rulesChannelId}>!`
+        : `📌 Jangan lupa baca peraturan server ya!`;
+
+      const embed = new EmbedBuilder()
+        .setColor(randomColor)
+        .setAuthor({
+          name: `👤 NEW MEMBER`,
+          iconURL: avatarURL,
+        })
+        .setTitle(`👋 Welcome, ${member.user.username}!`)
+        .setDescription(`${randomMsg(member.user.username, guild.name)}\n\n${rulesText}`)
+        .setThumbnail(avatarURL)
+        .addFields(
+          {
+            name: '🪪 Member Ke',
+            value: `**#${memberCount}**`,
+            inline: true,
+          },
+          {
+            name: '📅 Akun Dibuat',
+            value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
+            inline: true,
+          }
+        )
+        .setFooter({
+          text: `${guild.name} • Glad you're here! 🙌`,
+          iconURL: guild.iconURL({ dynamic: true }) || undefined,
+        })
+        .setTimestamp();
+
+      await channel.send({
+        content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server.`,
+        embeds: [embed],
+        components
+      }).catch(err => {
+        console.error(`[Welcome] Gagal kirim pesan welcome di guild ${guild.name}:`, err.message);
+      });
     }
   },
 };
