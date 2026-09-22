@@ -254,7 +254,7 @@ async function buildMemberCardEmbed(guild, member) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  const embedColor = member.roles.color?.hexColor || '#8B5CF6';
+  const embedColor = member?.roles?.color?.hexColor || '#8B5CF6';
 
   // Ambil Gelar Utama (Equipped Title) dari sistem Gacha
   const gachaData = storage.read('gacha_data');
