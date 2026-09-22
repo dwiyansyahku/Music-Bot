@@ -115,7 +115,15 @@ const idTests = [
   { in: 'Bekasea', expC: 'Indonesia', expP: 'Jawa Barat' },
   { in: 'Solo', expC: 'Indonesia', expP: 'Jawa Tengah' },
   { in: 'Jawa Barat', expC: 'Indonesia', expP: 'Jawa Barat' },
-  { in: 'Sulsel', expC: 'Indonesia', expP: 'Sulawesi Selatan' }
+  { in: 'Sulsel', expC: 'Indonesia', expP: 'Sulawesi Selatan' },
+  { in: 'Kembangan', expC: 'Indonesia', expP: 'DKI Jakarta' },
+  { in: 'Kebon Jeruk', expC: 'Indonesia', expP: 'DKI Jakarta' },
+  { in: 'Menteng', expC: 'Indonesia', expP: 'DKI Jakarta' },
+  { in: 'Tebet', expC: 'Indonesia', expP: 'DKI Jakarta' },
+  { in: 'DKI Jakarta', expC: 'Indonesia', expP: 'DKI Jakarta' },
+  { in: 'Aceh', expC: 'Indonesia', expP: 'Aceh' },
+  { in: 'Jambi', expC: 'Indonesia', expP: 'Jambi' },
+  { in: 'Sumatra', expC: 'Indonesia', expP: 'Pulau Sumatera' }
 ];
 for (const t of idTests) {
   const r = parseLocation(t.in);
@@ -153,7 +161,11 @@ const mockCards = {
   // Member Indonesia
   u_id1: { asal: 'Bandung', location: parseLocation('Bandung') },
   u_id2: { asal: 'Boyolali', location: parseLocation('Boyolali') },
-  u_id3: { asal: 'Surabaya', location: parseLocation('Surabaya') }
+  u_id3: { asal: 'Surabaya', location: parseLocation('Surabaya') },
+  u_id4: { asal: 'Kembangan', location: parseLocation('Kembangan') },
+  u_id5: { asal: 'DKI Jakarta', location: parseLocation('DKI Jakarta') },
+  u_id6: { asal: 'Aceh', location: parseLocation('Aceh') },
+  u_id7: { asal: 'Sumatra', location: parseLocation('Sumatra') }
 };
 
 storage.read = (key) => {
@@ -172,7 +184,7 @@ const mockGuild = {
 };
 
 const mapResult = getMemberMapData(mockGuild);
-assert(mapResult.totalValidLocations === 9, `Total valid locations: ${mapResult.totalValidLocations} / 9`);
+assert(mapResult.totalValidLocations === 13, `Total valid locations: ${mapResult.totalValidLocations} / 13`);
 
 const regionNames = mapResult.sortedRegions.map(r => r.name);
 assert(regionNames.includes('Filipina'), 'Hierarki Region mencakup negara Filipina 🇵🇭');
@@ -181,6 +193,11 @@ assert(regionNames.includes('Brunei'), 'Hierarki Region mencakup negara Brunei �
 assert(regionNames.includes('Kamboja'), 'Hierarki Region mencakup negara Kamboja 🇰🇭');
 assert(regionNames.includes('Jawa Barat'), 'Hierarki Region mencakup provinsi Jawa Barat 🇮🇩');
 assert(regionNames.includes('Jawa Tengah'), 'Hierarki Region mencakup provinsi Jawa Tengah 🇮🇩');
+assert(regionNames.includes('DKI Jakarta'), 'Hierarki Region mencakup DKI Jakarta (termasuk Kembangan) 🇮🇩');
+assert(mapResult.locMetadata['Kembangan']?.region === 'DKI Jakarta', 'Kembangan terdeteksi wilayah DKI Jakarta');
+assert(mapResult.locMetadata['DKI Jakarta']?.region === 'Provinsi', 'DKI Jakarta terdeteksi wilayah Provinsi');
+assert(mapResult.locMetadata['Aceh']?.region === 'Provinsi', 'Aceh terdeteksi wilayah Provinsi');
+assert(mapResult.locMetadata['Sumatera']?.region === 'Pulau Sumatera', 'Sumatra terdeteksi wilayah Pulau Sumatera');
 
 // Uji payload panel publik
 const panelPayload = createMemberMapPanelPayload(mockGuild);

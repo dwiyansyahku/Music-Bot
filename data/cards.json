@@ -344,8 +344,9 @@
       "publishedMessageId": "1543156818321084477",
       "location": {
         "isAnomaly": false,
+        "isIsland": true,
         "city": "Sumatera",
-        "stateOrProvince": "Sumatera",
+        "stateOrProvince": "Pulau Sumatera",
         "country": "Indonesia",
         "flag": "🇮🇩",
         "display": "Sumatera 🇮🇩",

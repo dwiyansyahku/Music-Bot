@@ -3,7 +3,9 @@ const {
   StringSelectMenuBuilder
 } = require('discord.js');
 const storage = require('./storage');
-const { parseLocation } = require('./locationHelper');
+const { parseLocation, INDONESIA_PROVINCES } = require('./locationHelper');
+
+const INDONESIA_PROVINCE_NAMES = new Set(Object.values(INDONESIA_PROVINCES || {}));
 
 const ITEMS_PER_PAGE = 6;
 
@@ -77,9 +79,18 @@ function getMemberMapData(guildOrId) {
     // 2. Metadata umum
     locCounts[cityKey] = (locCounts[cityKey] || 0) + 1;
     if (!locMetadata[cityKey]) {
-      const showRegion = locObj.stateOrProvince && locObj.stateOrProvince !== cityKey && locObj.stateOrProvince !== 'Lainnya'
-        ? locObj.stateOrProvince
-        : (locObj.country && locObj.country !== cityKey && locObj.country !== 'Indonesia' ? locObj.country : '');
+      let showRegion = '';
+      if (locObj.stateOrProvince && locObj.stateOrProvince !== cityKey && locObj.stateOrProvince !== 'Lainnya') {
+        showRegion = locObj.stateOrProvince;
+      } else if (locObj.isProvince || INDONESIA_PROVINCE_NAMES.has(cityKey)) {
+        showRegion = 'Provinsi';
+      } else if (locObj.isIsland || ['Sumatera', 'Jawa', 'Kalimantan', 'Sulawesi', 'Papua', 'Maluku', 'Nusa Tenggara'].includes(cityKey)) {
+        showRegion = 'Pulau';
+      } else if (locObj.country && locObj.country !== 'Indonesia' && locObj.country !== cityKey) {
+        showRegion = locObj.country;
+      } else if (locObj.country && locObj.country !== 'Indonesia' && locObj.country === cityKey) {
+        showRegion = 'Negara';
+      }
       locMetadata[cityKey] = { flag, region: showRegion };
     }
     if (!locMembers[cityKey]) {
@@ -151,7 +162,7 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
       memberMentions += ` *(+${members.length - 4} lainnya)*`;
     }
 
-    return `${rankLabel} **${loc}**${regionText}${flagText} — \`${count} Member\` (${pct}%)\n   \`${bar}\`\n   └ ${memberMentions}`;
+    return `${rankLabel} **${loc}**${flagText}${regionText} — \`${count} Member\` (${pct}%)\n   \`${bar}\`\n   └ ${memberMentions}`;
   }).join('\n\n');
 
   const topRegionInfo = data.topRegion
