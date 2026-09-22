@@ -327,11 +327,23 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     const errText = err.message || '';
     const errLower = errText.toLowerCase();
 
-    // Retry on rate limit (429) with a short delay
+    // Laporkan kegagalan proxy yang digunakan agar bisa di-rotasi/cooldown
+    const usedProxy = flags.proxy;
+    if (usedProxy) {
+      proxyRotator.recordFailure(usedProxy, errText);
+    }
+
+    // Retry on rate limit (429) with a short delay + PROXY BARU
     if (errLower.includes('429') || errLower.includes('too many requests')) {
-      console.warn('⚠️ [Rate Limit] YouTube 429 terdeteksi. Tunggu 3 detik lalu retry...');
+      console.warn('⚠️ [Rate Limit] YouTube 429 terdeteksi. Tunggu 3 detik lalu retry dengan proxy berbeda...');
       await new Promise(r => setTimeout(r, 3000));
-      return await executeYtdlpRaw(url, flags, timeoutMs);
+      const retryFlags = { ...flags };
+      const newProxy = proxyRotator.getProxy();
+      if (newProxy) {
+        retryFlags.proxy = newProxy;
+        console.log(`🔄 [Rate Limit] Retry dengan proxy baru: "${proxyRotator._maskProxy(newProxy)}"`);
+      }
+      return await executeYtdlpRaw(url, retryFlags, timeoutMs);
     }
 
     // Tangani error jika terjadi ketidakcocokan versi plugin yt-dlp (bgutil-ytdlp-pot-provider mismatch)
@@ -375,8 +387,9 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
         delete scFlags.cookies;
         delete scFlags.extractorArgs;
         delete scFlags.jsRuntimes;
+        delete scFlags.proxy; // SoundCloud tidak perlu proxy — malah bikin timeout!
         scFlags.noPluginDirs = true;
-        const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 8000));
+        const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 15000));
 
         if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
           const queryWords = new Set((cleanScQuery || rawQuery).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 1));
@@ -431,7 +444,8 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
           delete scFlags2.cookies;
           delete scFlags2.extractorArgs;
           delete scFlags2.jsRuntimes;
-          const scResult2 = await executeYtdlpRaw(scUrl2, scFlags2, Math.min(timeoutMs, 6000));
+          delete scFlags2.proxy; // SoundCloud tidak perlu proxy
+          const scResult2 = await executeYtdlpRaw(scUrl2, scFlags2, Math.min(timeoutMs, 10000));
           if (scResult2?.entries?.[0]) {
             console.log(`✅ [Instant Smart Fallback] Match ditemukan di SoundCloud (Ringkas): "${scResult2.entries[0].title}"`);
             return scResult2.entries[0];
@@ -441,11 +455,12 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     }
 
     // 2. MULTI-CLIENT FALLBACK UNTUK DIRECT VIDEO URL (HANYA UNTUK DIRECT URL, BUKAN YTSEARCH):
+    // Setiap percobaan menggunakan PROXY BERBEDA agar tidak terblokir di IP yang sama!
     if (!url.startsWith('ytsearch') && (
       errLower.includes('rotated in the browser') || errLower.includes('cookies are no longer valid') ||
       errLower.includes('sign in') || errLower.includes('confirm you\'re not a bot') || errLower.includes('login_required')
     )) {
-      console.warn('🔄 [Cookies Fallback] YouTube bot-check terdeteksi pada video URL. Mencoba multi-client fallback...');
+      console.warn('🔄 [Cookies Fallback] YouTube bot-check terdeteksi pada video URL. Mencoba multi-client fallback dengan rotasi proxy...');
 
       const fallbackClients = [
         'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
@@ -455,15 +470,28 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       ];
 
       for (const clientArgs of fallbackClients) {
-        // Coba TANPA cookies (karena cookies kemungkinan sudah di-rotate/invalid oleh Google)
+        // Coba TANPA cookies + PROXY BARU setiap percobaan
         const fallbackFlagsNoCookies = { ...flags };
         delete fallbackFlagsNoCookies.cookies;
         fallbackFlagsNoCookies.extractorArgs = clientArgs;
+
+        // Rotasi proxy untuk setiap percobaan!
+        const fallbackProxy = proxyRotator.getProxy();
+        if (fallbackProxy) {
+          fallbackFlagsNoCookies.proxy = fallbackProxy;
+          console.log(`🔄 [Cookies Fallback] Mencoba client "${clientArgs}" dengan proxy: "${proxyRotator._maskProxy(fallbackProxy)}"...`);
+        } else {
+          delete fallbackFlagsNoCookies.proxy;
+          console.log(`🔄 [Cookies Fallback] Mencoba client "${clientArgs}" tanpa proxy (semua di-cooldown)...`);
+        }
+
         try {
-          console.log(`🔄 [Cookies Fallback] Mencoba fallback tanpa cookies & extractorArgs: "${clientArgs}"...`);
-          return await executeYtdlpRaw(url, fallbackFlagsNoCookies, Math.min(timeoutMs, 5000));
+          const result = await executeYtdlpRaw(url, fallbackFlagsNoCookies, Math.min(timeoutMs, 8000));
+          if (fallbackProxy) proxyRotator.recordSuccess(fallbackProxy);
+          return result;
         } catch (fErr) {
-          console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" tanpa cookies gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
+          if (fallbackProxy) proxyRotator.recordFailure(fallbackProxy, fErr.message || '');
+          console.warn(`⚠️ [Cookies Fallback] Client "${clientArgs}" gagal:`, fErr.message?.split('\n')?.[0] || fErr.message);
         }
       }
     }
@@ -507,11 +535,12 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
             delete scFlags.cookies;
             delete scFlags.extractorArgs;
             delete scFlags.jsRuntimes;
+            delete scFlags.proxy; // SoundCloud tidak perlu proxy — menghindari timeout!
             scFlags.noPluginDirs = true;
             delete scFlags.verbose;
             scFlags.noPlaylist = false;
 
-            const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 8000));
+            const scResult = await executeYtdlpRaw(scUrl, scFlags, Math.min(timeoutMs, 15000));
             if (scResult && Array.isArray(scResult.entries) && scResult.entries.length > 0) {
               const best = scResult.entries[0];
               if (best) {
@@ -531,11 +560,6 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
     if (errLower.includes('sign in') || errLower.includes('login_required') ||
       errLower.includes('confirm you\'re not a bot')) {
       console.warn(`⚠️ [Auth Error] YouTube meminta login. Menggunakan mode unauthenticated android/SoundCloud fallback.`);
-    }
-
-    // Laporkan kegagalan proxy agar bisa di-rotasi/cooldown
-    if (flags.proxy) {
-      proxyRotator.recordFailure(flags.proxy, errText);
     }
 
     throw err;
