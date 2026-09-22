@@ -2086,7 +2086,7 @@ async function processChallengerQueue(guildId, itemTier, client) {
     return processChallengerQueue(guildId, itemTier, client);
   }
 
-  // Cari defender yang sedang tidak dalam duel aktif
+  // Cari defender yang sedang tidak dalam duel aktif DAN tidak memiliki perisai tahta aktif
   const busyDefenderIds = new Set(
     Object.values(throneGuild.activeDuels || {})
       .filter(d => d.itemTier === itemTier && d.status === 'WAITING_TACTICS')
@@ -2097,10 +2097,17 @@ async function processChallengerQueue(guildId, itemTier, client) {
   const nextQPeek = throneGuild.queues[itemTier][0];
   let targetDefender = null;
   if (nextQPeek && nextQPeek.targetDefenderId) {
-    targetDefender = activeHolders.find(h => h.userId === nextQPeek.targetDefenderId && !busyDefenderIds.has(h.userId));
+    targetDefender = activeHolders.find(h =>
+      h.userId === nextQPeek.targetDefenderId &&
+      !busyDefenderIds.has(h.userId) &&
+      !(h.userData?.throneProtectedUntil > now) // Cek shield aktif!
+    );
   }
   if (!targetDefender) {
-    targetDefender = activeHolders.find(h => !busyDefenderIds.has(h.userId));
+    targetDefender = activeHolders.find(h =>
+      !busyDefenderIds.has(h.userId) &&
+      !(h.userData?.throneProtectedUntil > now) // Cek shield aktif!
+    );
   }
 
   if (!targetDefender) {

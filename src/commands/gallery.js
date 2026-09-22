@@ -142,13 +142,6 @@ async function resolveAndDownloadImage(inputUrl) {
 
 /**
  * Kompresi dan optimasi ukuran buffer gambar sebelum di-upload ke Discord API
- * Mencegah timeout, socket hangup, atau error "This operation was aborted" / "other side closed"
- * @param {Buffer} buffer - Buffer gambar asli
- * @param {string} originalExt - Ekstensi asli (png, jpg, webp, gif)
- * @param {boolean} isMulti - True jika gambar ini bagian dari upload multi-image (kompresi lebih agresif)
- */
-/**
- * Kompresi dan optimasi ukuran buffer gambar sebelum di-upload ke Discord API
  * Mencegah timeout, socket hangup, atau error "other side closed"
  * @param {Buffer} buffer - Buffer gambar asli
  * @param {string} originalExt - Ekstensi asli (png, jpg, webp, gif)
