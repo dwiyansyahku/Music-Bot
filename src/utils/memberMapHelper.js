@@ -47,8 +47,11 @@ function getMemberMapData(guildOrId) {
     }
 
     const cityKey = locObj.city;
-    const flag = locObj.flag || (locObj.country === 'Malaysia' ? '🇲🇾' : '🇮🇩');
-    const province = locObj.stateOrProvince || (locObj.country !== 'Indonesia' ? locObj.country : 'Lainnya');
+    const flag = locObj.flag || (locObj.country === 'Indonesia' ? '🇮🇩' : '🌐');
+    // Pengelompokan: Member Indonesia per Provinsi, Member Luar Negeri per Negara
+    const province = locObj.country !== 'Indonesia'
+      ? (locObj.country || 'Luar Negeri')
+      : (locObj.stateOrProvince || 'Lainnya');
 
     // 1. Grouping per Provinsi / Region
     if (!regions[province]) {
@@ -74,8 +77,10 @@ function getMemberMapData(guildOrId) {
     // 2. Metadata umum
     locCounts[cityKey] = (locCounts[cityKey] || 0) + 1;
     if (!locMetadata[cityKey]) {
-      const showRegion = province && province !== cityKey && province !== 'Lainnya';
-      locMetadata[cityKey] = { flag, region: showRegion ? province : '' };
+      const showRegion = locObj.stateOrProvince && locObj.stateOrProvince !== cityKey && locObj.stateOrProvince !== 'Lainnya'
+        ? locObj.stateOrProvince
+        : (locObj.country && locObj.country !== cityKey && locObj.country !== 'Indonesia' ? locObj.country : '');
+      locMetadata[cityKey] = { flag, region: showRegion };
     }
     if (!locMembers[cityKey]) {
       locMembers[cityKey] = [];
@@ -166,7 +171,7 @@ function buildMemberMapEmbed(guild, pageIndex = 0) {
       formattedList
     )
     .addFields(
-      { name: 'Provinsi Terbanyak', value: topRegionInfo, inline: true },
+      { name: 'Wilayah Terbanyak', value: topRegionInfo, inline: true },
       { name: 'Member Terdata', value: `**${data.totalValidLocations}** / ${data.totalCards} profil`, inline: true },
       { name: 'Halaman', value: `**${safePage + 1}** dari **${data.totalPages}**`, inline: true }
     )
@@ -309,7 +314,7 @@ function createMemberMapPanelPayload(guild) {
       `Klik tombol **Buka Peta Wilayah** di bawah untuk membuka sesi navigasi interaktif pribadimu.`
     )
     .addFields(
-      { name: 'Provinsi Terbanyak', value: topRegionInfo, inline: true },
+      { name: 'Wilayah Terbanyak', value: topRegionInfo, inline: true },
       { name: 'Member Terdata', value: `**${data.totalValidLocations} Member**`, inline: true },
       { name: 'Total Wilayah', value: `**${data.sorted.length} Daerah/Kota**`, inline: true }
     )

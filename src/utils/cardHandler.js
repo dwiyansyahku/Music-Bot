@@ -297,8 +297,10 @@ async function buildMemberCardEmbed(guild, member) {
   const voiceStats = getVoiceStats(guild.id, targetUser.id, guild);
   embed.addFields({ name: 'Voice Time', value: voiceStats.formattedTime, inline: true });
 
-  // Location display (Smart normalized)
-  const locDisplay = userCard.location?.display || userCard.asal || '-';
+  // Location display (Smart normalized secara dinamis dari raw input atau data lama)
+  const rawLoc = userCard.asalRaw || userCard.asal || userCard.location?.display || '';
+  const parsedLoc = rawLoc ? parseLocation(rawLoc) : null;
+  const locDisplay = parsedLoc?.display || userCard.location?.display || userCard.asal || '-';
   embed.addFields({ name: 'Location', value: locDisplay, inline: true });
 
   // Zodiac / MBTI (Zodiak dihitung otomatis dari tanggal lahir yang tersimpan di sistem)

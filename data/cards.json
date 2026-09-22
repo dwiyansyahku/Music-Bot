@@ -2,7 +2,7 @@
   "1396245234693963878": {
     "438949811408863243": {
       "bio": "Terkadang semua butuh bernafas dengan tenang",
-      "asal": "Indramayu, Jawa Barat",
+      "asal": "Indramayu, Jawa Barat 🇮🇩",
       "likes": [
         "438949811408863243",
         "154827904793051136"
@@ -24,11 +24,21 @@
       "linkTitle": "YouTube",
       "linkUrl": "https://www.youtube.com/watch?v=C2AFd1PLsF8&list=RDrfTgO9rpqck&index=2",
       "bannerUrl": "https://cdn.discordapp.com/attachments/1533811675629748356/1537780360157466736/From_Klickpin.com-_94_Date_Night_Outfit_Ideas_That_Feel_Fresh_and_New-pin-id-856176579194237810.gif?ex=6a804910&is=6a7ef790&hm=6a121db294ab30d3da3b0ef47b415f3e8952a1f06e14",
-      "publishedMessageId": "1537810666650341407"
+      "publishedMessageId": "1537810666650341407",
+      "location": {
+        "isAnomaly": false,
+        "city": "Indramayu",
+        "stateOrProvince": "Jawa Barat",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Indramayu, Jawa Barat 🇮🇩",
+        "searchKey": "Indramayu"
+      },
+      "asalRaw": "Indramayu, Jawa Barat"
     },
     "658347149582532623": {
       "bio": "Music Enthusiast \nTech Enthusiast",
-      "asal": "Samarinda. Indonesia",
+      "asal": "Samarinda, Kalimantan Timur 🇮🇩",
       "mbti": "ENTJ",
       "linkTitle": "TikTok",
       "linkUrl": "https://www.tiktok.com/@akueclipse?is_from_webapp=1&sender_device=pc",
@@ -36,39 +46,79 @@
       "publishedMessageId": "1537826770206855290",
       "likes": [
         "154827904793051136"
-      ]
+      ],
+      "location": {
+        "isAnomaly": false,
+        "city": "Samarinda",
+        "stateOrProvince": "Kalimantan Timur",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Samarinda, Kalimantan Timur 🇮🇩",
+        "searchKey": "Samarinda"
+      },
+      "asalRaw": "Samarinda. Indonesia"
     },
     "1396474476413325393": {
       "bio": "Akulah sang princess yang baik hati, cantik, imut, lucu, ramah dan cinta semua makhluk hidup",
-      "asal": "Bali",
+      "asal": "Bali 🇮🇩",
       "publishedMessageId": "1537826887898890251",
       "linkTitle": "Instagram",
       "linkUrl": "https://www.instagram.com/sweeto.piaa?igsh=MWprcHIwZjgyZ3BrbQ==",
       "bannerUrl": "https://klipy.com/gifs/pink-cutecore",
       "likes": [
         "154827904793051136"
-      ]
+      ],
+      "location": {
+        "isAnomaly": false,
+        "city": "Bali",
+        "stateOrProvince": "Bali",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Bali 🇮🇩",
+        "searchKey": "Bali"
+      },
+      "asalRaw": "Bali"
     },
     "630744301328138240": {
       "bio": "EVEN IF I DIE\nYOU KEEP LIVING\nSenDexler",
-      "asal": "HOME",
+      "asal": "Home 🌌",
       "mbti": "INFP",
       "publishedMessageId": "1537829736649326733",
       "likes": [
         "630744301328138240",
         "1363187094973055116"
-      ]
+      ],
+      "location": {
+        "isAnomaly": true,
+        "city": "Home",
+        "stateOrProvince": "Fiksi / Lainnya",
+        "country": "Non-Duniawi",
+        "flag": "🌌",
+        "display": "Home 🌌",
+        "searchKey": "Home"
+      },
+      "asalRaw": "HOME"
     },
     "568034632176500736": {
       "bio": "Be kind to yourself. \nPerfection isn't the goal, growth",
-      "asal": "Indramayu, Jawa Barat",
+      "asal": "Indramayu, Jawa Barat 🇮🇩",
       "mbti": "INFJ",
       "bannerUrl": "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3ZDFuNWpobXFxenQ0MGpvbnA0MGVuYXZuajJ4dnRhaDczZnFvMW1jdiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/rQm6ZtTwfmYEiJqBU5/giphy.gif",
-      "publishedMessageId": "1537836365633290315"
+      "publishedMessageId": "1537836365633290315",
+      "location": {
+        "isAnomaly": false,
+        "city": "Indramayu",
+        "stateOrProvince": "Jawa Barat",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Indramayu, Jawa Barat 🇮🇩",
+        "searchKey": "Indramayu"
+      },
+      "asalRaw": "Indramayu, Jawa Barat"
     },
     "1473440118470873118": {
       "bio": "selamat datang🌷\n\n- endless fun",
-      "asal": "jakarta barat, indonesia",
+      "asal": "Jakarta Barat, DKI Jakarta 🇮🇩",
       "mbti": "ISFP",
       "linkTitle": "Instagram",
       "linkUrl": "https://www.instagram.com/akusukamatchaa_____?igsh=ODFidXZoNzk0Ymg4&utm_source=qr",
@@ -76,11 +126,21 @@
       "likes": [
         "705082046992613436",
         "1473440118470873118"
-      ]
+      ],
+      "location": {
+        "isAnomaly": false,
+        "city": "Jakarta Barat",
+        "stateOrProvince": "DKI Jakarta",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Jakarta Barat, DKI Jakarta 🇮🇩",
+        "searchKey": "Jakarta Barat"
+      },
+      "asalRaw": "jakarta barat, indonesia"
     },
     "1490439248124444823": {
       "bio": "Eiii… mari bergoyangg",
-      "asal": "Bali",
+      "asal": "Bali 🇮🇩",
       "mbti": "INTJ",
       "linkTitle": "Instagram",
       "linkUrl": "https://www.instagram.com/mchalxa?igsh=MTd2NWZ3bTQ1MjJneg==",
@@ -88,43 +148,93 @@
       "publishedMessageId": "1537976337518825495",
       "likes": [
         "705082046992613436"
-      ]
+      ],
+      "location": {
+        "isAnomaly": false,
+        "city": "Bali",
+        "stateOrProvince": "Bali",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Bali 🇮🇩",
+        "searchKey": "Bali"
+      },
+      "asalRaw": "Bali"
     },
     "694389440923041905": {
       "bio": "what episode do i f*cking die?!",
-      "asal": "Singkawang, Kalimantan Barat",
+      "asal": "Singkawang, Kalimantan Barat 🇮🇩",
       "mbti": "INTJ",
       "linkTitle": "Instagram",
       "linkUrl": "https://www.instagram.com/w.nprayitno?igsh=ZjJiY3p0M3pqYTY3",
       "publishedMessageId": "1538010988387762258",
       "likes": [
         "694389440923041905"
-      ]
+      ],
+      "location": {
+        "isAnomaly": false,
+        "city": "Singkawang",
+        "stateOrProvince": "Kalimantan Barat",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Singkawang, Kalimantan Barat 🇮🇩",
+        "searchKey": "Singkawang"
+      },
+      "asalRaw": "Singkawang, Kalimantan Barat"
     },
     "804172254246076426": {
-      "asal": "Bengkulu, Indonesia",
+      "asal": "Bengkulu 🇮🇩",
       "mbti": "INTJ",
       "linkTitle": "Instagram",
       "linkUrl": "https://www.instagram.com/rainprstka_?igsh=eDVkM3N4bzZ0bHY2",
-      "publishedMessageId": "1538053423256182815"
+      "publishedMessageId": "1538053423256182815",
+      "location": {
+        "isAnomaly": false,
+        "city": "Bengkulu",
+        "stateOrProvince": "Bengkulu",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Bengkulu 🇮🇩",
+        "searchKey": "Bengkulu"
+      },
+      "asalRaw": "Bengkulu, Indonesia"
     },
     "705082046992613436": {
       "bio": "𐙚 ˚🍰 ⋆｡˚ ᡣ𐭩 live the life i love 𓍢ִ໋🌷͙֒ ᰔᩚ",
-      "asal": "Solo",
+      "asal": "Solo, Jawa Tengah 🇮🇩",
       "mbti": "INFJ",
-      "publishedMessageId": "1538212390552993883"
+      "publishedMessageId": "1538212390552993883",
+      "location": {
+        "isAnomaly": false,
+        "city": "Solo",
+        "stateOrProvince": "Jawa Tengah",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Solo, Jawa Tengah 🇮🇩",
+        "searchKey": "Solo"
+      },
+      "asalRaw": "Solo"
     },
     "1368585823750197308": {
       "bio": "i am not perfect, but i always try to be a better person",
-      "asal": "Jateng tengah",
+      "asal": "Jawa Tengah 🇮🇩",
       "mbti": "ISFP",
       "linkTitle": "Instagram",
       "linkUrl": "https://www.instagram.com/zhuannxd?igsh=cG82NmcxY3czdGVj&igsi=cG82NmcxY3czdGVj",
-      "publishedMessageId": "1538813635302916229"
+      "publishedMessageId": "1538813635302916229",
+      "location": {
+        "isAnomaly": false,
+        "city": "Jawa Tengah",
+        "stateOrProvince": "Jawa Tengah",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Jawa Tengah 🇮🇩",
+        "searchKey": "Jawa Tengah"
+      },
+      "asalRaw": "Jateng tengah"
     },
     "432838455827890186": {
       "bio": "Livaii Terlalu Tampan",
-      "asal": "Bandung",
+      "asal": "Bandung, Jawa Barat 🇮🇩",
       "linkTitle": "Instagram",
       "linkUrl": "https://instagram.com/zuriifhl_",
       "publishedMessageId": "1539701033566081045",
@@ -136,53 +246,133 @@
         "432838455827890186",
         "1174989540096741467",
         "1110547271365447861"
-      ]
+      ],
+      "location": {
+        "isAnomaly": false,
+        "city": "Bandung",
+        "stateOrProvince": "Jawa Barat",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Bandung, Jawa Barat 🇮🇩",
+        "searchKey": "Bandung"
+      },
+      "asalRaw": "Bandung"
     },
     "567344718682259458": {
       "bio": "i was good, i was really good^^",
-      "asal": "Sidoarjo",
+      "asal": "Sidoarjo, Jawa Timur 🇮🇩",
       "mbti": "ENFP",
       "linkTitle": "Instagram",
       "linkUrl": "https://www.instagram.com/ratukiswa?igsh=MTYzMnhyeTVsZG5uNQ%3D%3D&igsi=MTYzMnhyeTVsZG5uNQ%3D%3D&utm_source=qr",
-      "publishedMessageId": "1539848214528794676"
+      "publishedMessageId": "1539848214528794676",
+      "location": {
+        "isAnomaly": false,
+        "city": "Sidoarjo",
+        "stateOrProvince": "Jawa Timur",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Sidoarjo, Jawa Timur 🇮🇩",
+        "searchKey": "Sidoarjo"
+      },
+      "asalRaw": "Sidoarjo"
     },
     "1110547271365447861": {
-      "asal": "Bekasea",
-      "publishedMessageId": "1539969364617596939"
+      "asal": "Bekasi, Jawa Barat 🇮🇩",
+      "publishedMessageId": "1539969364617596939",
+      "location": {
+        "isAnomaly": false,
+        "city": "Bekasi",
+        "stateOrProvince": "Jawa Barat",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Bekasi, Jawa Barat 🇮🇩",
+        "searchKey": "Bekasi"
+      },
+      "asalRaw": "Bekasea"
     },
     "1174989540096741467": {
       "bio": "hi im luci, i like playing game",
-      "asal": "bogor",
-      "publishedMessageId": "1540138448998891603"
+      "asal": "Bogor, Jawa Barat 🇮🇩",
+      "publishedMessageId": "1540138448998891603",
+      "location": {
+        "isAnomaly": false,
+        "city": "Bogor",
+        "stateOrProvince": "Jawa Barat",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Bogor, Jawa Barat 🇮🇩",
+        "searchKey": "Bogor"
+      },
+      "asalRaw": "bogor"
     },
     "1527889898164453499": {
-      "asal": "Jombang",
-      "publishedMessageId": "1542018703183454290"
+      "asal": "Jombang, Jawa Timur 🇮🇩",
+      "publishedMessageId": "1542018703183454290",
+      "location": {
+        "isAnomaly": false,
+        "city": "Jombang",
+        "stateOrProvince": "Jawa Timur",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Jombang, Jawa Timur 🇮🇩",
+        "searchKey": "Jombang"
+      },
+      "asalRaw": "Jombang"
     },
     "1470018136655921326": {
       "bio": "-1 Lovers",
-      "asal": "Bangka Belitung",
+      "asal": "Bangka Belitung, Kepulauan Bangka Belitung 🇮🇩",
       "mbti": "ENFP",
       "linkTitle": "Instagram",
       "linkUrl": "https://www.instagram.com/_frtaa1?igsi=MThub3ppMGUwOWZ6Zg==",
       "bannerUrl": "https://discord.com/channels/@me/1537869799374331935/1542811375791771688",
-      "publishedMessageId": "1542829316172423239"
+      "publishedMessageId": "1542829316172423239",
+      "location": {
+        "isAnomaly": false,
+        "city": "Bangka Belitung",
+        "stateOrProvince": "Kepulauan Bangka Belitung",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Bangka Belitung, Kepulauan Bangka Belitung 🇮🇩",
+        "searchKey": "Bangka Belitung"
+      },
+      "asalRaw": "Bangka Belitung"
     },
     "1416810521931284540": {
       "bio": "I am a student",
-      "asal": "Sumatra",
-      "publishedMessageId": "1543156818321084477"
+      "asal": "Sumatera 🇮🇩",
+      "publishedMessageId": "1543156818321084477",
+      "location": {
+        "isAnomaly": false,
+        "city": "Sumatera",
+        "stateOrProvince": "Sumatera",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Sumatera 🇮🇩",
+        "searchKey": "Sumatera"
+      },
+      "asalRaw": "Sumatra"
     },
     "467848871234764800": {
       "bio": "Game is part of my life",
-      "asal": "Jambi",
+      "asal": "Jambi 🇮🇩",
       "mbti": "ISFP",
       "bannerUrl": "https://cdn.discordapp.com/attachments/1483122626695008488/1543161744313024573/03913dde48b43304c40cbba389742cf9.jpg?ex=6a93dcde&is=6a928b5e&hm=d80cf805d3dd2781e940fd7ff794d3410e847bc09562f929f2dacb8bb31b0a71&",
-      "publishedMessageId": "1543162062316904492"
+      "publishedMessageId": "1543162062316904492",
+      "location": {
+        "isAnomaly": false,
+        "city": "Jambi",
+        "stateOrProvince": "Jambi",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Jambi 🇮🇩",
+        "searchKey": "Jambi"
+      },
+      "asalRaw": "Jambi"
     },
     "1331570397019246614": {
       "bio": "Ordinary Random Shit Guy",
-      "asal": "Batam Riau Island",
+      "asal": "Batam, Kepulauan Riau 🇮🇩",
       "mbti": "ISTJ",
       "linkTitle": "Instagram",
       "linkUrl": "https://instagram.com/akbarfalepii",
@@ -193,7 +383,17 @@
       ],
       "respects": [
         "1331570397019246614"
-      ]
+      ],
+      "location": {
+        "isAnomaly": false,
+        "city": "Batam",
+        "stateOrProvince": "Kepulauan Riau",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Batam, Kepulauan Riau 🇮🇩",
+        "searchKey": "Batam"
+      },
+      "asalRaw": "Batam Riau Island"
     }
   }
 }
