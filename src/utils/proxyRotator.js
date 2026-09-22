@@ -13,7 +13,7 @@
  */
 
 const PROXY_COOLDOWN_MS = 3 * 60 * 1000; // Cooldown 3 menit untuk proxy yang gagal
-const MAX_FAILURES_BEFORE_COOLDOWN = 3;   // Maksimal gagal sebelum cooldown
+const MAX_FAILURES_BEFORE_COOLDOWN = 2;   // Maksimal gagal sebelum cooldown
 
 class ProxyRotator {
   constructor() {
@@ -127,7 +127,7 @@ class ProxyRotator {
 
   /**
    * Laporkan bahwa request dengan proxy tertentu gagal.
-   * Jika gagal terlalu banyak, proxy akan di-cooldown.
+   * Jika gagal terlalu banyak atau bot-check terdeteksi, proxy akan di-cooldown.
    * @param {string} proxyUrl
    * @param {string} [errorMessage] - pesan error untuk logging
    */
@@ -138,9 +138,13 @@ class ProxyRotator {
       health.failures++;
       health.totalRequests++;
 
-      if (health.failures >= MAX_FAILURES_BEFORE_COOLDOWN) {
+      const errLower = (errorMessage || '').toLowerCase();
+      const isBotCheck = errLower.includes('bot') || errLower.includes('sign in') || errLower.includes('429') || errLower.includes('too many requests');
+
+      if (isBotCheck || health.failures >= MAX_FAILURES_BEFORE_COOLDOWN) {
         health.cooldownUntil = Date.now() + PROXY_COOLDOWN_MS;
-        console.warn(`🚫 [ProxyRotator] Proxy ${this._maskProxy(proxyUrl)} di-cooldown ${PROXY_COOLDOWN_MS / 1000}s setelah ${health.failures}x gagal. Error: ${errorMessage.slice(0, 100)}`);
+        const reason = isBotCheck ? 'bot-check / rate-limit' : `${health.failures}x gagal`;
+        console.warn(`🚫 [ProxyRotator] Proxy ${this._maskProxy(proxyUrl)} langsung di-cooldown ${PROXY_COOLDOWN_MS / 1000}s (${reason}). Error: ${errorMessage.slice(0, 100)}`);
         health.failures = 0; // Reset setelah cooldown diset
       }
     }

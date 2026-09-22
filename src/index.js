@@ -80,7 +80,7 @@ proxyRotator.init();
 let proxyServerPort = 0;
 
 function startProxyServer() {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
     if (parsedUrl.pathname === '/stream') {
       const videoUrl = parsedUrl.searchParams.get('url');
@@ -89,83 +89,218 @@ function startProxyServer() {
         return res.end('Missing url parameter');
       }
 
-      console.log(`🔌 [Proxy Server] Streaming: "${videoUrl}"`);
+      const songTitle = parsedUrl.searchParams.get('title') || '';
+      const preferredProxy = parsedUrl.searchParams.get('proxy') || '';
       const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(videoUrl);
 
-      const flags = {
-        format: "bestaudio/best",
-        userAgent: USER_AGENT,
-        retries: 3,
-        fragmentRetries: 3,
-        socketTimeout: 15,
-        output: '-'
-      };
+      console.log(`🔌 [Proxy Server] Streaming: "${videoUrl}" ${songTitle ? `("${songTitle}")` : ''}`);
 
-      if (isYouTube) {
-        flags.jsRuntimes = 'node';
-        flags.extractorArgs = 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck';
-        if (process.env.USE_YOUTUBE_COOKIES === 'true') {
-          const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-          if (fs.existsSync(cookiesTxtPath)) {
-            flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
-            console.log(`🍪 [Proxy Server] Passing cookies file: "${flags.cookies}"`);
-          }
+      let headersSent = false;
+      let activeProcess = null;
+      let isClientClosed = false;
+
+      req.on('close', () => {
+        isClientClosed = true;
+        console.log(`🔌 [Proxy Server] Connection closed for: "${videoUrl}"`);
+        if (activeProcess && !activeProcess.killed) {
+          activeProcess.kill('SIGKILL');
         }
-      } else {
-        flags.noPluginDirs = true;
-      }
-
-      const proxyUrl = proxyRotator.getProxy() || process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
-      if (proxyUrl) {
-        flags.proxy = proxyUrl;
-        console.log(`🌐 [Proxy Server] Using proxy: "${proxyRotator._maskProxy(proxyUrl)}"`);
-      }
-
-      const args = formatFlags(flags);
-      args.push(videoUrl);
-
-      res.writeHead(200, {
-        'Content-Type': 'audio/webm',
-        'Transfer-Encoding': 'chunked'
       });
 
       const ytdlpPath = process.platform === 'win32'
         ? path.join(process.cwd(), 'bin', 'yt-dlp.exe')
         : 'yt-dlp';
 
-      const ytdlpProcess = spawn(ytdlpPath, args);
+      const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+      const cookiesExist = fs.existsSync(cookiesTxtPath) && fs.statSync(cookiesTxtPath).size > 10;
+      const cookiesEnabled = cookiesExist && (process.env.USE_YOUTUBE_COOKIES !== 'false');
+      const cookiesArg = cookiesEnabled ? cookiesTxtPath.replace(/\\/g, '/') : null;
 
-      ytdlpProcess.stdout.pipe(res);
+      // Buat daftar strategi percobaan streaming
+      const attempts = [];
 
-      let errBuffer = '';
-      ytdlpProcess.stderr.on('data', (data) => {
-        const msg = data.toString();
-        errBuffer += msg;
-        if (msg.includes('ERROR:')) {
-          console.error(`❌ [Proxy Server] yt-dlp error: ${msg.trim()}`);
+      if (isYouTube) {
+        // Attempt 0: Preferred proxy yang terbukti sukses saat resolve (jika ada) + cookies
+        if (preferredProxy) {
+          attempts.push({
+            label: 'Preferred proxy from resolve + cookies',
+            proxy: preferredProxy,
+            cookies: cookiesArg,
+            extractorArgs: 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
+            noPluginDirs: false,
+            targetUrl: videoUrl,
+          });
         }
-      });
 
-      ytdlpProcess.on('error', (err) => {
-        console.error(`❌ [Proxy Server] yt-dlp spawn error:`, err.message);
-        if (!res.headersSent) {
-          res.writeHead(500);
-        }
-        res.end();
-      });
+        // Attempt 1: Proxy dari rotator + cookies + Android client
+        attempts.push({
+          label: 'Rotated proxy + cookies + Android client',
+          proxy: proxyRotator.getProxy() || preferredProxy || null,
+          cookies: cookiesArg,
+          extractorArgs: 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
+          noPluginDirs: false,
+          targetUrl: videoUrl,
+        });
 
-      ytdlpProcess.on('close', (code) => {
-        if (code !== 0 && code !== null) {
-          console.error(`❌ [Proxy Server] yt-dlp stream exited with code ${code}. Stderr: ${errBuffer.trim()}`);
-        }
-      });
+        // Attempt 2: Rotated proxy TANPA cookies (antisipasi jika cookie terblokir)
+        attempts.push({
+          label: 'Rotated proxy without cookies + Android client',
+          proxy: proxyRotator.getProxy(),
+          cookies: null,
+          extractorArgs: 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
+          noPluginDirs: false,
+          targetUrl: videoUrl,
+        });
 
-      req.on('close', () => {
-        console.log(`🔌 [Proxy Server] Connection closed for: "${videoUrl}"`);
-        if (ytdlpProcess && !ytdlpProcess.killed) {
-          ytdlpProcess.kill();
+        // Attempt 3: Rotated proxy + iOS client
+        attempts.push({
+          label: 'Rotated proxy + iOS client',
+          proxy: proxyRotator.getProxy(),
+          cookies: null,
+          extractorArgs: 'youtube:player_client=ios;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck',
+          noPluginDirs: false,
+          targetUrl: videoUrl,
+        });
+
+        // Attempt 4: Ultimate Fallback - Stream dari SoundCloud jika YouTube memblokir semua proxy
+        if (songTitle) {
+          const cleanScQuery = songTitle
+            .replace(/\(Official.*?\)/gi, '')
+            .replace(/\[Official.*?\]/gi, '')
+            .replace(/Official\s+Audio/gi, '')
+            .replace(/Official\s+Music\s+Video/gi, '')
+            .replace(/Official\s+Video/gi, '')
+            .replace(/Music\s+Video/gi, '')
+            .replace(/\(Audio\)/gi, '')
+            .replace(/\[Audio\]/gi, '')
+            .replace(/\(Lyric.*?\)/gi, '')
+            .replace(/\[Lyric.*?\]/gi, '')
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          const scQuery = cleanScQuery || songTitle;
+          attempts.push({
+            label: `SoundCloud fallback stream: "scsearch1:${scQuery}"`,
+            proxy: null, // SoundCloud tidak butuh proxy
+            cookies: null,
+            extractorArgs: null,
+            noPluginDirs: true,
+            targetUrl: `scsearch1:${scQuery}`,
+          });
         }
-      });
+      } else {
+        // Non-YouTube (SoundCloud / Direct Link)
+        attempts.push({
+          label: 'Direct non-YouTube stream',
+          proxy: null,
+          cookies: null,
+          extractorArgs: null,
+          noPluginDirs: true,
+          targetUrl: videoUrl,
+        });
+      }
+
+      // Eksekusi percobaan satu per satu hingga berhasil mengeluarkan audio data
+      for (let i = 0; i < attempts.length; i++) {
+        if (isClientClosed) break;
+
+        const attempt = attempts[i];
+        console.log(`⚡ [Proxy Server] Mencoba stream [${i + 1}/${attempts.length}]: ${attempt.label}${attempt.proxy ? ` (Proxy: ${proxyRotator._maskProxy(attempt.proxy)})` : ''}`);
+
+        const flags = {
+          format: "bestaudio/best",
+          userAgent: USER_AGENT,
+          retries: 2,
+          fragmentRetries: 2,
+          socketTimeout: 10,
+          output: '-'
+        };
+
+        if (attempt.proxy) {
+          flags.proxy = attempt.proxy;
+        }
+        if (attempt.cookies) {
+          flags.cookies = attempt.cookies;
+        }
+        if (attempt.extractorArgs) {
+          flags.extractorArgs = attempt.extractorArgs;
+          flags.jsRuntimes = 'node';
+        }
+        if (attempt.noPluginDirs) {
+          flags.noPluginDirs = true;
+        }
+
+        const args = formatFlags(flags);
+        args.push(attempt.targetUrl);
+
+        const success = await new Promise((resolveAttempt) => {
+          let hasReceivedData = false;
+          let errBuffer = '';
+
+          const proc = spawn(ytdlpPath, args);
+          activeProcess = proc;
+
+          proc.stdout.once('data', (chunk) => {
+            if (isClientClosed) {
+              proc.kill('SIGKILL');
+              return resolveAttempt(false);
+            }
+
+            hasReceivedData = true;
+            headersSent = true;
+            if (attempt.proxy) proxyRotator.recordSuccess(attempt.proxy);
+            console.log(`✅ [Proxy Server] Audio stream dimulai dengan sukses (${attempt.label})!`);
+
+            res.writeHead(200, {
+              'Content-Type': 'audio/webm',
+              'Transfer-Encoding': 'chunked'
+            });
+
+            res.write(chunk);
+            proc.stdout.pipe(res);
+          });
+
+          proc.stderr.on('data', (data) => {
+            const msg = data.toString();
+            errBuffer += msg;
+            if (msg.includes('ERROR:')) {
+              console.warn(`⚠️ [Proxy Server Attempt ${i + 1}] yt-dlp error: ${msg.trim().split('\n')[0]}`);
+            }
+          });
+
+          proc.on('error', (err) => {
+            console.error(`❌ [Proxy Server Attempt ${i + 1}] spawn error:`, err.message);
+            resolveAttempt(false);
+          });
+
+          proc.on('close', (code) => {
+            if (hasReceivedData) {
+              // Stream sudah jalan dan selesai secara normal
+              if (!res.writableEnded) res.end();
+              resolveAttempt(true);
+            } else {
+              // Gagal sebelum mengirim data apapun
+              if (attempt.proxy) {
+                proxyRotator.recordFailure(attempt.proxy, errBuffer);
+              }
+              console.warn(`⚠️ [Proxy Server Attempt ${i + 1}] Exit code ${code} tanpa output audio.`);
+              resolveAttempt(false);
+            }
+          });
+        });
+
+        if (success || headersSent) {
+          return;
+        }
+      }
+
+      // Jika semua percobaan gagal dan belum ada data terkirim
+      if (!headersSent && !isClientClosed) {
+        console.error(`❌ [Proxy Server] Semua ${attempts.length} percobaan stream gagal untuk: "${videoUrl}"`);
+        res.writeHead(500);
+        res.end('All streaming attempts failed');
+      }
     } else {
       res.writeHead(404);
       res.end('Not found');
@@ -322,7 +457,9 @@ function executeYtdlpRaw(url, flags, timeoutMs = 120000) {
 
 async function customYtdlpJson(url, flags, timeoutMs = 120000) {
   try {
-    return await executeYtdlpRaw(url, flags, timeoutMs);
+    const res = await executeYtdlpRaw(url, flags, timeoutMs);
+    if (res && typeof res === 'object') res._workingProxy = flags.proxy || null;
+    return res;
   } catch (err) {
     const errText = err.message || '';
     const errLower = errText.toLowerCase();
@@ -343,7 +480,9 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
         retryFlags.proxy = newProxy;
         console.log(`🔄 [Rate Limit] Retry dengan proxy baru: "${proxyRotator._maskProxy(newProxy)}"`);
       }
-      return await executeYtdlpRaw(url, retryFlags, timeoutMs);
+      const res = await executeYtdlpRaw(url, retryFlags, timeoutMs);
+      if (res && typeof res === 'object') res._workingProxy = retryFlags.proxy || null;
+      return res;
     }
 
     // Tangani error jika terjadi ketidakcocokan versi plugin yt-dlp (bgutil-ytdlp-pot-provider mismatch)
@@ -353,7 +492,9 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       delete noPluginFlags.jsRuntimes;
       noPluginFlags.noPluginDirs = true;
       try {
-        return await executeYtdlpRaw(url, noPluginFlags, timeoutMs);
+        const res = await executeYtdlpRaw(url, noPluginFlags, timeoutMs);
+        if (res && typeof res === 'object') res._workingProxy = noPluginFlags.proxy || null;
+        return res;
       } catch (npErr) {
         console.warn('⚠️ [yt-dlp Plugin] Retry tanpa plugin gagal, melanjutkan ke fallback:', npErr.message?.split('\n')?.[0]);
       }
@@ -488,6 +629,7 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
         try {
           const result = await executeYtdlpRaw(url, fallbackFlagsNoCookies, Math.min(timeoutMs, 8000));
           if (fallbackProxy) proxyRotator.recordSuccess(fallbackProxy);
+          if (result && typeof result === 'object') result._workingProxy = fallbackProxy || null;
           return result;
         } catch (fErr) {
           if (fallbackProxy) proxyRotator.recordFailure(fallbackProxy, fErr.message || '');
@@ -569,7 +711,7 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
 
 // Helper to convert yt-dlp info to DisTube Song
 function createYtDlpSong(plugin, info, options) {
-  return new Song({
+  const song = new Song({
     plugin,
     source: info.extractor || 'youtube',
     playFromSource: true,
@@ -589,6 +731,8 @@ function createYtDlpSong(plugin, info, options) {
     reposts: info.repost_count,
     ageRestricted: Boolean(info.age_limit) && info.age_limit >= 18
   }, options);
+  song.workingProxy = info._workingProxy || null;
+  return song;
 }
 
 // Override ytdlpPlugin.resolve to avoid passing deprecated --no-call-home option
@@ -619,13 +763,12 @@ ytdlpPlugin.resolve = async function (url, options) {
   if (isYouTube) {
     flags.jsRuntimes = 'node';
     flags.extractorArgs = 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck';
-    // Hanya gunakan cookies jika secara eksplisit diaktifkan via ENV
-    if (process.env.USE_YOUTUBE_COOKIES === 'true') {
-      const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-      if (fs.existsSync(cookiesTxtPath)) {
-        flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
-        console.log(`🍪 [ytdlpPlugin.resolve] Passing cookies file: "${flags.cookies}"`);
-      }
+    const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
+    const cookiesExist = fs.existsSync(cookiesTxtPath) && fs.statSync(cookiesTxtPath).size > 10;
+    const cookiesEnabled = cookiesExist && (process.env.USE_YOUTUBE_COOKIES !== 'false');
+    if (cookiesEnabled) {
+      flags.cookies = cookiesTxtPath.replace(/\\/g, '/');
+      console.log(`🍪 [ytdlpPlugin.resolve] Passing cookies file: "${flags.cookies}"`);
     } else {
       console.log('ℹ️ [ytdlpPlugin.resolve] Resolving with Android client (unauthenticated mode).');
     }
@@ -774,8 +917,10 @@ ytdlpPlugin.getStreamURL = async function (song) {
     }
   }
 
+  const proxyParam = song.workingProxy ? `&proxy=${encodeURIComponent(song.workingProxy)}` : '';
+  const titleParam = song.name ? `&title=${encodeURIComponent(song.name)}` : '';
   const ageRestrictedParam = song.ageRestricted ? '&ageRestricted=true' : '';
-  const streamUrl = `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}${ageRestrictedParam}`;
+  const streamUrl = `http://127.0.0.1:${proxyServerPort}/stream?url=${encodeURIComponent(song.url)}${proxyParam}${titleParam}${ageRestrictedParam}`;
   console.log(`🔌 [ytdlpPlugin.getStreamURL] Proxying stream for "${song.name}" via port ${proxyServerPort}`);
   return streamUrl;
 };
