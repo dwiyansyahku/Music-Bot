@@ -65,6 +65,18 @@ const qwelcome = {
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('setroles')
+        .setDescription('Atur channel roles yang dicantumkan di tombol sambutan')
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Channel roles server')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(true)
+        )
     ),
 
   async execute(interaction, client) {
@@ -136,12 +148,13 @@ const qwelcome = {
       });
     }
 
-    // === STATUS ===
+    // === SET RULES ===
     if (sub === 'setrules') {
       const rulesChannel = interaction.options.getChannel('channel');
       const guildSettings = storage.read('settings');
       if (!guildSettings[guildId]) guildSettings[guildId] = {};
       guildSettings[guildId].rulesChannelId = rulesChannel.id;
+      guildSettings[guildId].rulesUrl = `https://discord.com/channels/${guildId}/${rulesChannel.id}`;
       storage.write('settings', guildSettings);
 
       return interaction.reply({
@@ -149,7 +162,28 @@ const qwelcome = {
           new EmbedBuilder()
             .setColor(0x5865F2)
             .setTitle('✅ Channel Peraturan Diatur!')
-            .setDescription(`Pesan sambutan sekarang akan mention <#${rulesChannel.id}> sebagai channel peraturan.`)
+            .setDescription(`Tombol **READ RULES** sekarang akan mengarah ke <#${rulesChannel.id}>.`)
+            .setFooter({ text: 'Berlaku untuk semua pesan welcome baru.' })
+        ],
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    // === SET ROLES ===
+    if (sub === 'setroles') {
+      const rolesChannel = interaction.options.getChannel('channel');
+      const guildSettings = storage.read('settings');
+      if (!guildSettings[guildId]) guildSettings[guildId] = {};
+      guildSettings[guildId].rolesChannelId = rolesChannel.id;
+      guildSettings[guildId].rolesUrl = `https://discord.com/channels/${guildId}/${rolesChannel.id}`;
+      storage.write('settings', guildSettings);
+
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle('✅ Channel Roles Diatur!')
+            .setDescription(`Tombol **AMBIL ROLES** sekarang akan mengarah ke <#${rolesChannel.id}>.`)
             .setFooter({ text: 'Berlaku untuk semua pesan welcome baru.' })
         ],
         flags: MessageFlags.Ephemeral,
@@ -158,6 +192,7 @@ const qwelcome = {
 
     // === STATUS ===
     if (sub === 'status') {
+      const guildSettings = storage.read('settings')[guildId] || {};
       const statusEmbed = new EmbedBuilder()
         .setColor(config.enabled ? 0x57F287 : 0xED4245)
         .setTitle('📋 Status Fitur Sambutan')
@@ -168,12 +203,22 @@ const qwelcome = {
             inline: true,
           },
           {
-            name: '📢 Channel',
+            name: '📢 Channel Sambutan',
             value: config.channelId ? `<#${config.channelId}>` : '`Belum diatur`',
+            inline: true,
+          },
+          {
+            name: '📜 Channel Rules',
+            value: guildSettings.rulesChannelId ? `<#${guildSettings.rulesChannelId}>` : '`Belum diatur`',
+            inline: true,
+          },
+          {
+            name: '🎭 Channel Roles',
+            value: guildSettings.rolesChannelId ? `<#${guildSettings.rolesChannelId}>` : '`Belum diatur`',
             inline: true,
           }
         )
-        .setFooter({ text: 'Gunakan /qwelcome setchannel untuk mengubah channel.' });
+        .setFooter({ text: 'Gunakan /qwelcome setchannel, setrules, atau setroles untuk mengubah.' });
 
       return interaction.reply({ embeds: [statusEmbed], flags: MessageFlags.Ephemeral });
     }
