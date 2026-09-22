@@ -59,6 +59,7 @@ if (fs.existsSync(wingetPackagesPath)) {
 const { Client, GatewayIntentBits, Collection, PermissionFlagsBits, AuditLogEvent, EmbedBuilder } = require('discord.js');
 const storage = require('./utils/storage');
 const circuitBreaker = require('./utils/circuitBreaker');
+const proxyRotator = require('./utils/proxyRotator');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
@@ -72,6 +73,9 @@ const http = require('http');
 let activeStreams = 0;
 const MAX_CONCURRENT_STREAMS = 1;
 const streamQueue = [];
+
+// Inisialisasi proxy rotator dari environment variables
+proxyRotator.init();
 
 let proxyServerPort = 0;
 
@@ -111,10 +115,10 @@ function startProxyServer() {
         flags.noPluginDirs = true;
       }
 
-      const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
+      const proxyUrl = proxyRotator.getProxy() || process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
       if (proxyUrl) {
         flags.proxy = proxyUrl;
-        console.log(`🌐 [Proxy Server] Using proxy: "${proxyUrl.replace(/:[^:@]+@/, ':***@')}"`);
+        console.log(`🌐 [Proxy Server] Using proxy: "${proxyRotator._maskProxy(proxyUrl)}"`);
       }
 
       const args = formatFlags(flags);
@@ -203,9 +207,10 @@ const loadedCookies = setupCookies();
 
 // ============================================================
 // Metadata Cache — hindari spawn yt-dlp berulang untuk URL sama
-// TTL 10 menit agar data tidak basi
+// TTL 30 menit agar mengurangi request ke YouTube secara signifikan
 // ============================================================
-const METADATA_CACHE_TTL = 10 * 60 * 1000; // 10 menit
+const METADATA_CACHE_TTL = 30 * 60 * 1000; // 30 menit
+const METADATA_CACHE_MAX_SIZE = 200;        // Maks 200 entri
 const metadataCache = new Map();
 
 // Cache menyimpan RAW JSON dari yt-dlp (bukan Song object),
@@ -214,17 +219,24 @@ function getCachedMetadata(url) {
   const entry = metadataCache.get(url);
   if (entry && Date.now() - entry.ts < METADATA_CACHE_TTL) {
     console.log(`📦 [Metadata Cache] HIT for: "${url}"`);
+    // Pindahkan ke akhir Map agar LRU eviction benar (most recently used)
+    metadataCache.delete(url);
+    metadataCache.set(url, entry);
     return entry.data; // raw JSON info
   }
+  // Hapus entri yang sudah expired
+  if (entry) metadataCache.delete(url);
   return null;
 }
 
 function setCachedMetadata(url, data) {
+  // Hapus dulu jika sudah ada agar posisi di Map ter-update (LRU)
+  if (metadataCache.has(url)) metadataCache.delete(url);
   metadataCache.set(url, { data, ts: Date.now() });
-  // Bersihkan cache lama jika terlalu besar (>100 entri)
-  if (metadataCache.size > 100) {
-    const oldest = [...metadataCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
-    metadataCache.delete(oldest[0]);
+  // Evict entri terlama (awal Map) jika melebihi batas
+  if (metadataCache.size > METADATA_CACHE_MAX_SIZE) {
+    const oldestKey = metadataCache.keys().next().value;
+    metadataCache.delete(oldestKey);
   }
 }
 
@@ -521,6 +533,11 @@ async function customYtdlpJson(url, flags, timeoutMs = 120000) {
       console.warn(`⚠️ [Auth Error] YouTube meminta login. Menggunakan mode unauthenticated android/SoundCloud fallback.`);
     }
 
+    // Laporkan kegagalan proxy agar bisa di-rotasi/cooldown
+    if (flags.proxy) {
+      proxyRotator.recordFailure(flags.proxy, errText);
+    }
+
     throw err;
   }
 }
@@ -592,10 +609,10 @@ ytdlpPlugin.resolve = async function (url, options) {
     flags.noPluginDirs = true;
   }
 
-  const proxyUrl = process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
+  const proxyUrl = proxyRotator.getProxy() || process.env.PROXY_URL || process.env.YTDL_PROXY || process.env.YTDLP_PROXY;
   if (proxyUrl) {
     flags.proxy = proxyUrl;
-    console.log(`🌐 [ytdlpPlugin.resolve] Using proxy: "${proxyUrl.replace(/:[^:@]+@/, ':***@')}"`);
+    console.log(`🌐 [ytdlpPlugin.resolve] Using proxy: "${proxyRotator._maskProxy(proxyUrl)}" (${proxyRotator.getHealthyCount()}/${proxyRotator.proxies.length} healthy)`);
   }
 
   // Smart playlist detection berdasarkan jenis URL YouTube:
@@ -671,6 +688,7 @@ ytdlpPlugin.resolve = async function (url, options) {
 
     console.log(`✅ [ytdlpPlugin.resolve] Execution completed successfully in ${Date.now() - startTime}ms`);
     circuitBreaker.recordSuccess();
+    if (proxyUrl) proxyRotator.recordSuccess(proxyUrl);
 
     // Simpan RAW JSON ke cache (bukan Song object) — playlist & pencarian tidak di-cache
     if (!url.startsWith('ytsearch') && !Array.isArray(info.entries)) {
