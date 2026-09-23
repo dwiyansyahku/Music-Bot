@@ -543,16 +543,14 @@ function buildInviteEmbed({
   isTest = false
 }) {
   const guild = member.guild;
-  const memberCount = guild.memberCount;
-  const createdTs = Math.floor(member.user.createdTimestamp / 1000);
+  const serverName = (guild?.name || member?.guild?.name || 'QUMPRUY').toUpperCase();
+  const memberCount = guild?.memberCount || 1;
+  const createdTs = Math.floor((member.user?.createdTimestamp || Date.now()) / 1000);
   const joinedTs = Math.floor((member.joinedTimestamp || Date.now()) / 1000);
-  const avatarURL = member.user.displayAvatarURL({ dynamic: true, size: 256 });
+  const avatarURL = member.user?.displayAvatarURL ? member.user.displayAvatarURL({ dynamic: true, size: 256 }) : undefined;
 
   // Deteksi akun baru (< 3 hari)
-  const isNewAccount = (Date.now() - member.user.createdTimestamp) < (3 * 24 * 60 * 60 * 1000);
-
-  // Styling warna: Blurple rapi atau Dark Slate
-  const embedColor = isTest ? 0x5865F2 : (isNewAccount ? 0xE67E22 : 0x2B2D31);
+  const isNewAccount = member.user?.createdTimestamp ? (Date.now() - member.user.createdTimestamp) < (3 * 24 * 60 * 60 * 1000) : false;
 
   let inviterDisplay = '';
   let codeDisplay = '';
@@ -567,7 +565,7 @@ function buildInviteEmbed({
       statsDisplay = '• Statistik belum tercatat';
     }
   } else if (inviteType === 'vanity') {
-    inviterDisplay = `• Tipe: Vanity URL Resmi Server\n• Server: **${guild.name}**`;
+    inviterDisplay = `• Tipe: Vanity URL Resmi Server\n• Server: **${serverName}**`;
     codeDisplay = `• Tautan: \`discord.gg/${inviteCode || 'vanity'}\`\n• Penggunaan: **${inviteUses ?? 'N/A'}** kali`;
     statsDisplay = '• Tautan undangan kustom server';
   } else if (inviteType === 'bot') {
@@ -581,13 +579,13 @@ function buildInviteEmbed({
   }
 
   const embed = new EmbedBuilder()
-    .setColor(embedColor)
+    .setColor(0x0c0a14)
     .setAuthor({
-      name: `INVITE TRACKER | Member Bergabung`,
-      iconURL: guild.iconURL({ dynamic: true }) || undefined
+      name: `${serverName} • Member Directory`,
+      iconURL: guild?.iconURL ? guild.iconURL({ dynamic: true }) : undefined
     })
-    .setTitle(isTest ? 'Uji Coba Tampilan Invite Tracker' : 'Member Baru Bergabung')
-    .setDescription(`**${member.user.username}** telah bergabung ke **${guild.name}**.${isTest ? ' *(Pesan Simulasi)*' : ''}`)
+    .setTitle(isTest ? 'Simulasi Pelacakan Undangan' : 'Member Baru Bergabung')
+    .setDescription(`Selamat datang <@${member.id}> di **${serverName}**.${isTest ? ' *(Pesan Simulasi)*' : ''}`)
     .setThumbnail(avatarURL)
     .addFields(
       {
@@ -757,87 +755,7 @@ async function handleMemberJoin(member, client) {
 
     if (channel) {
       let ticketBuffer = null;
-      try {
-        ticketBuffer = await renderQumpruyTicket({
-          member,
-          inviter,
-          inviteType,
-          inviteCode: usedCode,
-          memberCount: guild.memberCount
-        });
-      } catch (err) {
-        console.warn(`[InviteTracker] Canvas render error:`, err.message);
-      }
-
-      if (ticketBuffer) {
-        const attachment = new AttachmentBuilder(ticketBuffer, { name: 'qumpruy-ticket.png' });
-
-        const rulesChannelId = settings[guild.id]?.rulesChannelId
-          || guild.rulesChannelId
-          || guild.channels.cache.find(c => c.name.includes('rules'))?.id;
-
-        const components = [];
-        if (rulesChannelId) {
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setLabel('READ RULES')
-              .setStyle(ButtonStyle.Link)
-              .setURL(`https://discord.com/channels/${guild.id}/${rulesChannelId}`)
-          );
-          components.push(row);
-        }
-
-        let inviterText = '`Vanity URL Server`';
-        if (inviteType === 'regular' && inviter) {
-          inviterText = `<@${inviter.id}>`;
-        } else if (inviteType === 'bot') {
-          inviterText = inviter ? `<@${inviter.id}> (Bot Auth)` : '`OAuth2 Bot`';
-        } else if (inviteType === 'unknown') {
-          inviterText = '`Direct Link / Discovery`';
-        }
-
-        const dateFormatted = new Date().toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        });
-
-        const embed = new EmbedBuilder()
-          .setColor(0x0c0a14)
-          .setImage('attachment://qumpruy-ticket.png')
-          .setFooter({
-            text: `${guild.name} | ${dateFormatted} ${getFormattedTime()}`,
-            iconURL: guild.iconURL({ dynamic: true }) || undefined
-          });
-
-        let sent = false;
-        const maxAttempts = 3;
-        for (let attempt = 1; attempt <= maxAttempts && !sent; attempt++) {
-          try {
-            await channel.send({
-              content: `Hii <@${member.id}>\n\nMember ke - **${guild.memberCount}**\nInvited by: ${inviterText}`,
-              embeds: [embed],
-              files: [new AttachmentBuilder(ticketBuffer, { name: 'qumpruy-ticket.png' })],
-              components
-            });
-            sent = true;
-          } catch (sendErr) {
-            const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
-            if (isNetErr && attempt < maxAttempts) {
-              const delay = attempt * 2000;
-              console.warn(`[InviteTracker] Jaringan terputus saat kirim tiket (${sendErr.message}), mencoba ulang (${attempt}/${maxAttempts - 1}) dalam ${delay / 1000} detik...`);
-              await new Promise(r => setTimeout(r, delay));
-            } else {
-              console.warn(`[InviteTracker] Gagal kirim tiket dengan attachment (${sendErr.message}), beralih ke embed teks...`);
-              break;
-            }
-          }
-        }
-
-        if (sent) return;
-      }
-
-      // Fallback ke embed standar jika rendering atau upload attachment gagal
+      // Kirim embed log undangan estetik (tanpa kanvas grafis sesuai permintaan)
       const embed = buildInviteEmbed({
         member,
         inviter,
@@ -846,7 +764,9 @@ async function handleMemberJoin(member, client) {
         inviteUses: usedUses,
         inviterStats
       });
-      await channel.send({ embeds: [embed] }).catch(() => {});
+      await channel.send({ embeds: [embed] }).catch(err => {
+        console.warn('[InviteTracker Send Error]:', err.message);
+      });
     }
   }
 }

@@ -265,8 +265,7 @@ const qwelcome = {
       if (rulesUrl) {
         buttons.push(
           new ButtonBuilder()
-            .setLabel('READ RULES')
-            .setEmoji('📜')
+            .setLabel('Peraturan Server')
             .setStyle(ButtonStyle.Link)
             .setURL(rulesUrl)
         );
@@ -274,8 +273,7 @@ const qwelcome = {
       if (rolesUrl) {
         buttons.push(
           new ButtonBuilder()
-            .setLabel('AMBIL ROLES')
-            .setEmoji('🎭')
+            .setLabel('Ambil Roles')
             .setStyle(ButtonStyle.Link)
             .setURL(rolesUrl)
         );
@@ -287,29 +285,18 @@ const qwelcome = {
       try {
         const bannerBuffer = await renderWelcomeBanner({
           member,
+          guild,
           inviter: interaction.user,
           inviteType: 'regular',
           memberCount
         });
-
-        const attachment = new AttachmentBuilder(bannerBuffer, { name: 'qumpruy-welcome.png' });
-
-        const embed = new EmbedBuilder()
-          .setColor(0x0c0a14)
-          .setImage('attachment://qumpruy-welcome.png')
-          .setFooter({
-            text: `${guild.name} • Glad you're here! 🙌`,
-            iconURL: guild.iconURL({ dynamic: true }) || undefined,
-          })
-          .setTimestamp();
 
         let sent = false;
         const maxAttempts = 3;
         for (let attempt = 1; attempt <= maxAttempts && !sent; attempt++) {
           try {
             await channel.send({
-              content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server. *(ini preview test)*`,
-              embeds: [embed],
+              content: `Selamat datang <@${member.user.id}> di **${guild.name}**! *(Preview Simulasi)*`,
               files: [new AttachmentBuilder(bannerBuffer, { name: 'qumpruy-welcome.png' })],
               components
             });
@@ -326,7 +313,7 @@ const qwelcome = {
         }
 
         return interaction.editReply({
-          content: `✅ Preview sambutan berhasil dikirim ke <#${channel.id}>!`
+          content: `Preview sambutan berhasil dikirim ke <#${channel.id}>.`
         });
       } catch (err) {
         return interaction.editReply({

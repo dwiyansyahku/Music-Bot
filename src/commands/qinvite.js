@@ -255,73 +255,26 @@ const qinvite = {
       }
 
       try {
-        const ticketBuffer = await renderQumpruyTicket({
+        const { buildInviteEmbed, getInviterStats } = require('../utils/inviteTracker');
+        const inviterStats = getInviterStats(guildId, interaction.user.id);
+        const embed = buildInviteEmbed({
           member: interaction.member,
           inviter: interaction.user,
           inviteType: 'regular',
           inviteCode: 'qumpruy',
-          memberCount: guild.memberCount
+          inviteUses: 10,
+          inviterStats,
+          isTest: true
         });
 
-        const attachment = new AttachmentBuilder(ticketBuffer, { name: 'qumpruy-ticket.png' });
-
-        const rulesChannelId = settings[guildId]?.rulesChannelId
-          || guild.rulesChannelId
-          || guild.channels.cache.find(c => c.name.includes('rules'))?.id;
-
-        const components = [];
-        if (rulesChannelId) {
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setLabel('READ RULES')
-              .setStyle(ButtonStyle.Link)
-              .setURL(`https://discord.com/channels/${guildId}/${rulesChannelId}`)
-          );
-          components.push(row);
-        }
-
-        const dateFormatted = new Date().toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        });
-
-        const embed = new EmbedBuilder()
-          .setColor(0x0c0a14)
-          .setImage('attachment://qumpruy-ticket.png')
-          .setFooter({
-            text: `${guild.name} | ${dateFormatted}`,
-            iconURL: guild.iconURL({ dynamic: true }) || undefined
-          });
-
-        let sent = false;
-        const maxAttempts = 3;
-        for (let attempt = 1; attempt <= maxAttempts && !sent; attempt++) {
-          try {
-            await targetChannel.send({
-              content: `Hii <@${interaction.member.id}>\n\nMember ke - **${guild.memberCount}**\nInvited by: <@${interaction.user.id}> *(Preview Simulasi)*`,
-              embeds: [embed],
-              files: [new AttachmentBuilder(ticketBuffer, { name: 'qumpruy-ticket.png' })],
-              components
-            });
-            sent = true;
-          } catch (sendErr) {
-            const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
-            if (isNetErr && attempt < maxAttempts) {
-              const delay = attempt * 2000;
-              await new Promise(r => setTimeout(r, delay));
-            } else {
-              throw sendErr;
-            }
-          }
-        }
+        await targetChannel.send({ embeds: [embed] });
 
         return interaction.editReply({
-          content: `Simulasi UI Tiket QUMPRUY berhasil dikirim ke <#${targetChannel.id}>.`
+          content: `Simulasi log undangan estetik berhasil dikirim ke <#${targetChannel.id}>.`
         });
       } catch (err) {
         return interaction.editReply({
-          content: `Gagal membuat simulasi tiket: ${err.message}`
+          content: `Gagal mengirim simulasi log: ${err.message}`
         });
       }
     }
