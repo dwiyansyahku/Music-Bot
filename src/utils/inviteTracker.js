@@ -222,148 +222,119 @@ function drawStarShape(ctx, cx, cy, spikes, outerRadius, innerRadius, color = '#
  */
 async function renderQumpruyTicket({
   member,
+  guild = null,
   inviter = null,
   inviteType = 'regular',
   inviteCode = null,
   memberCount = null
 }) {
-  const width = 960;
-  const height = 550;
+  const width = 1060;
+  const height = 660;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  // Background Gradient
-  const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-  bgGrad.addColorStop(0, '#09080e');
-  bgGrad.addColorStop(0.5, '#0c0a14');
-  bgGrad.addColorStop(1, '#07060a');
-  ctx.fillStyle = bgGrad;
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, width, height);
+  bg.addColorStop(0, '#090812');
+  bg.addColorStop(0.5, '#120d24');
+  bg.addColorStop(1, '#07060e');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
-  // Grid texture
-  ctx.strokeStyle = '#181424';
+  // Subtle Grid
+  ctx.save();
+  ctx.strokeStyle = 'rgba(167, 139, 250, 0.05)';
   ctx.lineWidth = 1;
-  for (let x = 24; x < width - 24; x += 36) {
+  const gridSize = 42;
+  for (let x = 0; x < width; x += gridSize) {
     ctx.beginPath();
-    ctx.moveTo(x, 24);
-    ctx.lineTo(x, height - 24);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
     ctx.stroke();
   }
-  for (let y = 24; y < height - 24; y += 36) {
+  for (let y = 0; y < height; y += gridSize) {
     ctx.beginPath();
-    ctx.moveTo(24, y);
-    ctx.lineTo(width - 24, y);
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
     ctx.stroke();
   }
+  ctx.restore();
 
   // Floating pixel particles
   const particles = [
-    { x: 390, y: 65, s: 4, c: '#a78bfa' },
-    { x: 420, y: 85, s: 3, c: '#ffffff' },
-    { x: 890, y: 75, s: 5, c: '#8b5cf6' },
-    { x: 870, y: 100, s: 3, c: '#c4b5fd' },
-    { x: 60, y: 500, s: 4, c: '#8b5cf6' },
-    { x: 360, y: 495, s: 3, c: '#ffffff' },
-    { x: 890, y: 480, s: 5, c: '#a78bfa' }
+    { x: 390, y: 55, s: 4, c: '#a78bfa' },
+    { x: 440, y: 45, s: 3, c: '#ffffff' },
+    { x: 990, y: 65, s: 5, c: '#8b5cf6' },
+    { x: 1010, y: 95, s: 3, c: '#c4b5fd' },
+    { x: 50, y: 610, s: 4, c: '#8b5cf6' },
+    { x: 380, y: 620, s: 3, c: '#ffffff' },
+    { x: 1000, y: 610, s: 5, c: '#a78bfa' }
   ];
   for (const p of particles) {
     ctx.fillStyle = p.c;
     ctx.fillRect(p.x, p.y, p.s, p.s);
   }
 
-  // Double Border with Purple & White Accents
+  // Outer Double Border with minimal margin (14px)
+  const offset = 14;
   ctx.strokeStyle = '#8b5cf6';
   ctx.lineWidth = 2.5;
-  ctx.strokeRect(22, 22, width - 44, height - 44);
+  ctx.strokeRect(offset, offset, width - 2 * offset, height - 2 * offset);
 
-  ctx.strokeStyle = '#4c3a70';
+  ctx.strokeStyle = 'rgba(196, 181, 253, 0.3)';
   ctx.lineWidth = 1.2;
-  ctx.setLineDash([8, 6]);
-  ctx.strokeRect(32, 32, width - 64, height - 64);
-  ctx.setLineDash([]);
+  ctx.strokeRect(offset + 8, offset + 8, width - 2 * (offset + 8), height - 2 * (offset + 8));
 
-  // Corner Rivets
-  function drawCornerAccent(cx, cy) {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.strokeStyle = '#a78bfa';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(-8, 0); ctx.lineTo(8, 0);
-    ctx.moveTo(0, -8); ctx.lineTo(0, 8);
-    ctx.stroke();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-2, -2, 4, 4);
-    ctx.restore();
+  // Corner metallic accents
+  function drawCornerAccent(x, y) {
+    ctx.fillStyle = '#a78bfa';
+    ctx.fillRect(x - 3, y - 3, 6, 6);
   }
-  drawCornerAccent(44, 44);
-  drawCornerAccent(width - 44, 44);
-  drawCornerAccent(44, height - 44);
-  drawCornerAccent(width - 44, height - 44);
+  drawCornerAccent(offset + 8, offset + 8);
+  drawCornerAccent(width - offset - 8, offset + 8);
+  drawCornerAccent(offset + 8, height - offset - 8);
+  drawCornerAccent(width - offset - 8, height - offset - 8);
 
-  // Chains in corners
-  function drawChain(startX, startY, count, angle) {
-    for (let i = 0; i < count; i++) {
-      const cx = startX + i * 22 * Math.cos(angle);
-      const cy = startY + i * 22 * Math.sin(angle);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle);
-      ctx.strokeStyle = '#a78bfa';
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.roundRect(-16, -9, 32, 18, 9);
-      ctx.stroke();
-      ctx.strokeStyle = '#09080e';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.roundRect(-9, -5, 18, 10, 5);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-  drawChain(width - 36, 36, 4, (Math.PI * 3) / 4);
-  drawChain(36, height - 36, 4, -Math.PI / 4);
+  // Left Section (ID / Photo Box)
+  const leftX = 36;
+  const leftY = 36;
+  const leftW = 330;
+  const leftH = height - 72;
 
-  // Left Section Box
-  const leftX = 54;
-  const leftY = 54;
-  const leftW = 280;
-  const leftH = 442;
-
-  ctx.fillStyle = '#100e18';
+  ctx.fillStyle = '#100d1c';
   ctx.fillRect(leftX, leftY, leftW, leftH);
-  ctx.strokeStyle = '#3d2f5c';
+  ctx.strokeStyle = '#4c3a72';
   ctx.lineWidth = 1.5;
   ctx.strokeRect(leftX, leftY, leftW, leftH);
 
-  // Draw QUMPRUY Logo Badge on top left
+  // Logo top left
   const logoPath = path.join(process.cwd(), 'src', 'assets', 'qumpruy_logo.jpg');
+  const logoSize = 88;
+  const logoX = leftX + (leftW - logoSize) / 2;
+  const logoY = leftY + 22;
+
   if (fs.existsSync(logoPath)) {
     try {
       const logoImg = await loadImage(logoPath);
       ctx.save();
-      const logoSize = 72;
-      const logoX = leftX + (leftW - logoSize) / 2;
-      const logoY = leftY + 18;
       ctx.beginPath();
       ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
       ctx.clip();
       ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
       ctx.restore();
 
-      ctx.strokeStyle = '#8b5cf6';
-      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 1, 0, Math.PI * 2);
+      ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 2, 0, Math.PI * 2);
       ctx.stroke();
     } catch (_) {}
   }
 
-  // Member Avatar Box
-  const avatarSize = 160; // Was 135px -> now 160px
+  // Member Avatar Box (220 x 220px - Maximized!)
+  const avatarSize = 220;
   const avatarX = leftX + (leftW - avatarSize) / 2;
-  const avatarY = leftY + 115;
+  const avatarY = leftY + 135;
 
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2.5;
@@ -373,7 +344,7 @@ async function renderQumpruyTicket({
   ctx.lineWidth = 1.5;
   ctx.strokeRect(avatarX - 10, avatarY - 10, avatarSize + 20, avatarSize + 20);
 
-  ctx.fillStyle = '#171424';
+  ctx.fillStyle = '#181328';
   ctx.fillRect(avatarX, avatarY, avatarSize, avatarSize);
 
   // Try to load real member avatar
@@ -391,69 +362,68 @@ async function renderQumpruyTicket({
   }
 
   if (!avatarLoaded) {
-    // Silhouette fallback
     ctx.fillStyle = '#f5f3ff';
     ctx.beginPath();
-    ctx.arc(avatarX + avatarSize / 2, avatarY + 58, 34, 0, Math.PI * 2);
+    ctx.arc(avatarX + avatarSize / 2, avatarY + 70, 44, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(avatarX + avatarSize / 2, avatarY + 142, 54, 44, 0, Math.PI, 0, true);
+    ctx.ellipse(avatarX + avatarSize / 2, avatarY + 172, 70, 56, 0, Math.PI, 0, true);
     ctx.fill();
   }
 
   // Pixel Crown on top of avatar
-  ctx.fillStyle = '#8b5cf6';
-  ctx.fillRect(avatarX + avatarSize / 2 - 14, avatarY + 6, 7, 7);
-  ctx.fillRect(avatarX + avatarSize / 2 - 3, avatarY + 6, 7, 7);
-  ctx.fillRect(avatarX + avatarSize / 2 + 8, avatarY + 6, 7, 7);
-  ctx.fillRect(avatarX + avatarSize / 2 - 12, avatarY + 13, 25, 6);
+  ctx.fillStyle = '#a855f7';
+  ctx.fillRect(avatarX + avatarSize / 2 - 16, avatarY + 8, 8, 8);
+  ctx.fillRect(avatarX + avatarSize / 2 - 4, avatarY + 8, 8, 8);
+  ctx.fillRect(avatarX + avatarSize / 2 + 8, avatarY + 8, 8, 8);
+  ctx.fillRect(avatarX + avatarSize / 2 - 14, avatarY + 17, 28, 7);
 
   // Lencana Royal Citizen
-  const badgeY = leftY + leftH - 58;
-  drawStarShape(ctx, leftX + 44, badgeY - 5, 4, 7, 2.5, '#a78bfa');
-  drawStarShape(ctx, leftX + leftW - 44, badgeY - 5, 4, 7, 2.5, '#a78bfa');
+  const badgeY = leftY + leftH - 70;
+  drawStarShape(ctx, leftX + 45, badgeY - 5, 4, 8, 3, '#c084fc');
+  drawStarShape(ctx, leftX + leftW - 45, badgeY - 5, 4, 8, 3, '#c084fc');
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 14px "Consolas", monospace';
+  ctx.font = 'bold 18px "Consolas", monospace';
   ctx.textAlign = 'center';
   ctx.fillText('ROYAL CITIZEN', leftX + leftW / 2, badgeY);
 
-  ctx.font = '11px "Consolas", monospace';
+  ctx.font = '14px "Consolas", monospace';
   ctx.fillStyle = '#9ca3af';
-  ctx.fillText('AUTHENTIC IDENTIFIER', leftX + leftW / 2, badgeY + 18);
+  ctx.fillText('AUTHENTIC IDENTIFIER', leftX + leftW / 2, badgeY + 26);
 
   // Right Section
-  const rightX = 370;
-  let curY = 82;
+  const rightX = 400;
+  let curY = 74;
 
-  const serverName = (member?.guild?.name || 'QUMPRUY').toUpperCase();
+  const serverName = (guild?.name || member?.guild?.name || 'QUMPRUY').toUpperCase();
   ctx.textAlign = 'left';
   ctx.fillStyle = '#ffffff';
-  let titleFontSize = 44;
+  let titleFontSize = 54;
   ctx.font = `bold ${titleFontSize}px "Times New Roman", Georgia, serif`;
-  while (ctx.measureText(serverName).width > 520 && titleFontSize > 26) {
+  while (ctx.measureText(serverName).width > 580 && titleFontSize > 28) {
     titleFontSize -= 2;
     ctx.font = `bold ${titleFontSize}px "Times New Roman", Georgia, serif`;
   }
   ctx.fillText(serverName, rightX, curY);
 
-  curY += 28;
-  ctx.font = 'bold 15px "Consolas", monospace';
+  curY += 34;
+  ctx.font = 'bold 20px "Consolas", monospace';
   ctx.fillStyle = '#a78bfa';
   ctx.fillText('—  O F F I C I A L   C O M M U N I T Y  —', rightX + 15, curY);
 
-  curY += 18;
-  ctx.strokeStyle = '#3d2f5c';
-  ctx.lineWidth = 1.2;
+  curY += 22;
+  ctx.strokeStyle = '#4c3a72';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(rightX, curY);
-  ctx.lineTo(width - 55, curY);
+  ctx.lineTo(width - 45, curY);
   ctx.stroke();
 
-  drawStarShape(ctx, rightX + (width - 55 - rightX) / 2, curY, 4, 6, 2.5, '#a78bfa');
+  drawStarShape(ctx, rightX + (width - 45 - rightX) / 2, curY, 4, 7, 3, '#c084fc');
 
   // Fields Table
-  const displayName = (member?.displayName || member?.user?.username || 'NEVERENDLESSLY').toUpperCase().slice(0, 22);
+  const displayName = (member?.displayName || member?.user?.username || 'CITIZEN').toUpperCase().slice(0, 22);
   const username = (member?.user?.username || 'USER').toUpperCase().slice(0, 22);
 
   let statusText = 'VIA VANITY URL';
@@ -477,33 +447,33 @@ async function renderQumpruyTicket({
     { label: 'SINCE', value: dateStr }
   ];
 
-  curY += 38;
+  curY += 48;
   const labelX = rightX;
-  const valueX = rightX + 130;
-  const rowHeight = 38;
+  const valueX = rightX + 165;
+  const rowHeight = 50;
 
   for (const item of fields) {
     ctx.fillStyle = '#c4b5fd';
-    ctx.font = 'bold 16px "Consolas", monospace';
+    ctx.font = 'bold 22px "Consolas", monospace';
     ctx.textAlign = 'left';
     ctx.fillText(item.label, labelX, curY);
-    ctx.fillText(':', labelX + 102, curY);
+    ctx.fillText(':', labelX + 130, curY);
 
     ctx.fillStyle = '#ffffff';
-    let valFontSize = 19;
+    let valFontSize = 24;
     ctx.font = `bold ${valFontSize}px "Times New Roman", Georgia, serif`;
-    while (ctx.measureText(item.value).width > (width - 55 - valueX) && valFontSize > 13) {
+    while (ctx.measureText(item.value).width > (width - 45 - valueX) && valFontSize > 15) {
       valFontSize -= 1;
       ctx.font = `bold ${valFontSize}px "Times New Roman", Georgia, serif`;
     }
     ctx.fillText(item.value, valueX, curY);
 
-    ctx.strokeStyle = '#271f3b';
+    ctx.strokeStyle = '#2d2345';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(valueX, curY + 6);
-    ctx.lineTo(width - 55, curY + 6);
+    ctx.moveTo(valueX, curY + 8);
+    ctx.lineTo(width - 45, curY + 8);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -511,34 +481,35 @@ async function renderQumpruyTicket({
   }
 
   // Tagline Box
-  curY += 8;
-  const boxW = width - 55 - rightX;
-  const boxH = 58;
+  curY += 12;
+  const boxW = width - 45 - rightX;
+  const boxH = 74;
 
-  ctx.fillStyle = '#110e1a';
+  ctx.fillStyle = '#120e20';
   ctx.fillRect(rightX, curY, boxW, boxH);
   ctx.strokeStyle = '#8b5cf6';
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1.5;
   ctx.strokeRect(rightX, curY, boxW, boxH);
 
+  drawStarShape(ctx, rightX + 24, curY + 24, 4, 5.5, 2.5, '#c084fc');
   ctx.fillStyle = '#a78bfa';
-  ctx.font = 'bold 11px "Consolas", monospace';
-  ctx.fillText('ROYAL STATUS :', rightX + 16, curY + 20);
+  ctx.font = 'bold 14px "Consolas", monospace';
+  ctx.fillText('ROYAL STATUS :', rightX + 38, curY + 28);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'italic bold 16px "Times New Roman", Georgia, serif';
-  ctx.fillText('WELCOME TO THE EMPIRE OF QUMPRUY', rightX + 28, curY + 42);
+  ctx.font = 'italic bold 21px "Times New Roman", Georgia, serif';
+  ctx.fillText('WELCOME TO THE EMPIRE OF QUMPRUY', rightX + 34, curY + 56);
 
   // Barcode
-  curY += boxH + 20;
+  curY += boxH + 26;
   const barcodeX = rightX;
   const barcodeY = curY;
   const barcodeW = boxW;
-  const barcodeH = 40;
+  const barcodeH = 54;
 
   ctx.fillStyle = '#ffffff';
   let bx = barcodeX;
-  const barPattern = [4, 1, 5, 2, 2, 1, 2, 3, 5, 1, 4, 2, 1, 4, 1, 2, 5, 1, 3, 1, 4, 2, 1, 5, 1, 2, 4, 1, 2, 1, 5, 2, 1, 4, 1, 2, 5, 1, 4, 1, 2, 1, 5, 2, 1, 4, 2, 1, 5];
+  const barPattern = [4, 2, 5, 2, 3, 1, 3, 4, 6, 2, 4, 2, 1, 5, 2, 2, 6, 2, 3, 1, 5, 2, 2, 6, 2, 3, 4, 2, 3, 2, 6, 2, 2, 5, 2, 3, 6, 2, 4, 2, 3, 2, 6, 3, 2, 5, 3, 2, 6];
   for (let i = 0; i < barPattern.length && bx < barcodeX + barcodeW; i++) {
     const w = barPattern[i];
     ctx.fillRect(bx, barcodeY, w, barcodeH);
@@ -546,15 +517,15 @@ async function renderQumpruyTicket({
   }
 
   // Barcode ID
-  curY += barcodeH + 22;
+  curY += barcodeH + 30;
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 18px "Consolas", "Courier New", monospace';
+  ctx.font = 'bold 24px "Consolas", monospace';
 
-  const mCount = memberCount || member?.guild?.memberCount || 1;
-  drawStarShape(ctx, rightX + boxW / 2 - 130, curY - 5, 4, 6, 2.5, '#8b5cf6');
+  const mCount = memberCount || member?.guild?.memberCount || guild?.memberCount || 1;
+  drawStarShape(ctx, rightX + boxW / 2 - 160, curY - 8, 4, 9, 3.5, '#a855f7');
   ctx.fillText(`ID : QMP - ${mCount}`, rightX + boxW / 2, curY);
-  drawStarShape(ctx, rightX + boxW / 2 + 130, curY - 5, 4, 6, 2.5, '#8b5cf6');
+  drawStarShape(ctx, rightX + boxW / 2 + 160, curY - 8, 4, 9, 3.5, '#a855f7');
 
   return canvas.toBuffer('image/png');
 }
