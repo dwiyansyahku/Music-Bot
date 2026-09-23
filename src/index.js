@@ -316,6 +316,16 @@ function startProxyServer() {
 startProxyServer();
 
 
+const { Agent: UndiciAgent } = require('undici');
+
+// Custom undici Agent untuk Discord REST
+// Menghindari socket reuse yang sudah di-close oleh Cloudflare/Discord edge (penyebab utama "This operation was aborted")
+const restAgent = new UndiciAgent({
+  keepAliveTimeout: 10_000,
+  keepAliveMaxTimeout: 15_000,
+  pipelining: 0
+});
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -326,7 +336,11 @@ const client = new Client({
     GatewayIntentBits.GuildPresences, // Required for online status in /userinfo
     GatewayIntentBits.GuildInvites,   // Required for invite tracking (inviteCreate, inviteDelete, guildMemberAdd tracking)
   ],
-  rest: { timeout: 60_000 }, // 60s timeout to prevent AbortError on image uploads
+  rest: {
+    agent: restAgent,
+    timeout: 60_000, // 60s timeout to prevent AbortError on image uploads
+    retries: 5,      // Tingkatkan retry internal REST discord.js ke 5 kali
+  },
 });
 
 // Set higher listener limit to avoid WebSocketShard leak warning on voice reconnection

@@ -25,8 +25,8 @@ module.exports = {
     try {
       const { handleMemberJoin } = require('../utils/inviteTracker');
       await handleMemberJoin(member, client);
-      // Jeda kecil (400ms) agar koneksi socket HTTP tidak bertabrakan dengan welcome banner
-      await new Promise(r => setTimeout(r, 400));
+      // Jeda 1.5 detik agar koneksi socket HTTP / multipart stabil dan tidak bertabrakan dengan welcome banner
+      await new Promise(r => setTimeout(r, 1500));
     } catch (inviteErr) {
       console.warn('[InviteTracker Join Error]:', inviteErr.message);
     }
@@ -220,23 +220,23 @@ module.exports = {
         })
         .setTimestamp();
 
-      const sendOptions = {
-        content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server.`,
-        embeds: [embed],
-        files: [attachment],
-        components
-      };
-
       let sent = false;
-      for (let attempt = 1; attempt <= 2 && !sent; attempt++) {
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts && !sent; attempt++) {
         try {
-          await channel.send(sendOptions);
+          await channel.send({
+            content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server.`,
+            embeds: [embed],
+            files: [new AttachmentBuilder(bannerBuffer, { name: 'qumpruy-welcome.png' })],
+            components
+          });
           sent = true;
         } catch (sendErr) {
           const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
-          if (isNetErr && attempt === 1) {
-            console.warn(`[Welcome] Jaringan terputus saat kirim banner (${sendErr.message}), mencoba ulang dalam 1 detik...`);
-            await new Promise(r => setTimeout(r, 1000));
+          if (isNetErr && attempt < maxAttempts) {
+            const delay = attempt * 2000;
+            console.warn(`[Welcome] Jaringan terputus saat kirim banner (${sendErr.message}), mencoba ulang (${attempt}/${maxAttempts - 1}) dalam ${delay / 1000} detik...`);
+            await new Promise(r => setTimeout(r, delay));
           } else {
             console.warn(`[Welcome] Gagal kirim banner dengan attachment (${sendErr.message}), beralih ke embed teks...`);
             break;

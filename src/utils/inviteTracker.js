@@ -839,23 +839,23 @@ async function handleMemberJoin(member, client) {
             iconURL: guild.iconURL({ dynamic: true }) || undefined
           });
 
-        const sendOptions = {
-          content: `Hii <@${member.id}>\n\nMember ke - **${guild.memberCount}**\nInvited by: ${inviterText}`,
-          embeds: [embed],
-          files: [attachment],
-          components
-        };
-
         let sent = false;
-        for (let attempt = 1; attempt <= 2 && !sent; attempt++) {
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts && !sent; attempt++) {
           try {
-            await channel.send(sendOptions);
+            await channel.send({
+              content: `Hii <@${member.id}>\n\nMember ke - **${guild.memberCount}**\nInvited by: ${inviterText}`,
+              embeds: [embed],
+              files: [new AttachmentBuilder(ticketBuffer, { name: 'qumpruy-ticket.png' })],
+              components
+            });
             sent = true;
           } catch (sendErr) {
             const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
-            if (isNetErr && attempt === 1) {
-              console.warn(`[InviteTracker] Jaringan terputus saat kirim tiket (${sendErr.message}), mencoba ulang dalam 1 detik...`);
-              await new Promise(r => setTimeout(r, 1000));
+            if (isNetErr && attempt < maxAttempts) {
+              const delay = attempt * 2000;
+              console.warn(`[InviteTracker] Jaringan terputus saat kirim tiket (${sendErr.message}), mencoba ulang (${attempt}/${maxAttempts - 1}) dalam ${delay / 1000} detik...`);
+              await new Promise(r => setTimeout(r, delay));
             } else {
               console.warn(`[InviteTracker] Gagal kirim tiket dengan attachment (${sendErr.message}), beralih ke embed teks...`);
               break;

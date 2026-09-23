@@ -295,19 +295,21 @@ const qinvite = {
           });
 
         let sent = false;
-        for (let attempt = 1; attempt <= 2 && !sent; attempt++) {
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts && !sent; attempt++) {
           try {
             await targetChannel.send({
               content: `Hii <@${interaction.member.id}>\n\nMember ke - **${guild.memberCount}**\nInvited by: <@${interaction.user.id}> *(Preview Simulasi)*`,
               embeds: [embed],
-              files: [attachment],
+              files: [new AttachmentBuilder(ticketBuffer, { name: 'qumpruy-ticket.png' })],
               components
             });
             sent = true;
           } catch (sendErr) {
             const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
-            if (isNetErr && attempt === 1) {
-              await new Promise(r => setTimeout(r, 1000));
+            if (isNetErr && attempt < maxAttempts) {
+              const delay = attempt * 2000;
+              await new Promise(r => setTimeout(r, delay));
             } else {
               throw sendErr;
             }
