@@ -294,12 +294,25 @@ const qinvite = {
             iconURL: guild.iconURL({ dynamic: true }) || undefined
           });
 
-        await targetChannel.send({
-          content: `Hii <@${interaction.member.id}>\n\nMember ke - **${guild.memberCount}**\nInvited by: <@${interaction.user.id}> *(Preview Simulasi)*`,
-          embeds: [embed],
-          files: [attachment],
-          components
-        });
+        let sent = false;
+        for (let attempt = 1; attempt <= 2 && !sent; attempt++) {
+          try {
+            await targetChannel.send({
+              content: `Hii <@${interaction.member.id}>\n\nMember ke - **${guild.memberCount}**\nInvited by: <@${interaction.user.id}> *(Preview Simulasi)*`,
+              embeds: [embed],
+              files: [attachment],
+              components
+            });
+            sent = true;
+          } catch (sendErr) {
+            const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
+            if (isNetErr && attempt === 1) {
+              await new Promise(r => setTimeout(r, 1000));
+            } else {
+              throw sendErr;
+            }
+          }
+        }
 
         return interaction.editReply({
           content: `Simulasi UI Tiket QUMPRUY berhasil dikirim ke <#${targetChannel.id}>.`
