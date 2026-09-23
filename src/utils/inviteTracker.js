@@ -227,8 +227,8 @@ async function renderQumpruyTicket({
   inviteCode = null,
   memberCount = null
 }) {
-  const width = 850;
-  const height = 480;
+  const width = 960;
+  const height = 550;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
@@ -243,13 +243,13 @@ async function renderQumpruyTicket({
   // Grid texture
   ctx.strokeStyle = '#181424';
   ctx.lineWidth = 1;
-  for (let x = 24; x < width - 24; x += 32) {
+  for (let x = 24; x < width - 24; x += 36) {
     ctx.beginPath();
     ctx.moveTo(x, 24);
     ctx.lineTo(x, height - 24);
     ctx.stroke();
   }
-  for (let y = 24; y < height - 24; y += 32) {
+  for (let y = 24; y < height - 24; y += 36) {
     ctx.beginPath();
     ctx.moveTo(24, y);
     ctx.lineTo(width - 24, y);
@@ -258,13 +258,13 @@ async function renderQumpruyTicket({
 
   // Floating pixel particles
   const particles = [
-    { x: 350, y: 55, s: 4, c: '#a78bfa' },
-    { x: 370, y: 75, s: 3, c: '#ffffff' },
-    { x: 800, y: 65, s: 4, c: '#8b5cf6' },
-    { x: 780, y: 90, s: 3, c: '#c4b5fd' },
-    { x: 50, y: 440, s: 4, c: '#8b5cf6' },
-    { x: 320, y: 430, s: 3, c: '#ffffff' },
-    { x: 800, y: 420, s: 4, c: '#a78bfa' }
+    { x: 390, y: 65, s: 4, c: '#a78bfa' },
+    { x: 420, y: 85, s: 3, c: '#ffffff' },
+    { x: 890, y: 75, s: 5, c: '#8b5cf6' },
+    { x: 870, y: 100, s: 3, c: '#c4b5fd' },
+    { x: 60, y: 500, s: 4, c: '#8b5cf6' },
+    { x: 360, y: 495, s: 3, c: '#ffffff' },
+    { x: 890, y: 480, s: 5, c: '#a78bfa' }
   ];
   for (const p of particles) {
     ctx.fillStyle = p.c;
@@ -273,13 +273,13 @@ async function renderQumpruyTicket({
 
   // Double Border with Purple & White Accents
   ctx.strokeStyle = '#8b5cf6';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.strokeRect(22, 22, width - 44, height - 44);
 
   ctx.strokeStyle = '#4c3a70';
   ctx.lineWidth = 1.2;
   ctx.setLineDash([8, 6]);
-  ctx.strokeRect(30, 30, width - 60, height - 60);
+  ctx.strokeRect(32, 32, width - 64, height - 64);
   ctx.setLineDash([]);
 
   // Corner Rivets
@@ -289,47 +289,47 @@ async function renderQumpruyTicket({
     ctx.strokeStyle = '#a78bfa';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(-7, 0); ctx.lineTo(7, 0);
-    ctx.moveTo(0, -7); ctx.lineTo(0, 7);
+    ctx.moveTo(-8, 0); ctx.lineTo(8, 0);
+    ctx.moveTo(0, -8); ctx.lineTo(0, 8);
     ctx.stroke();
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(-2, -2, 4, 4);
     ctx.restore();
   }
-  drawCornerAccent(40, 40);
-  drawCornerAccent(width - 40, 40);
-  drawCornerAccent(40, height - 40);
-  drawCornerAccent(width - 40, height - 40);
+  drawCornerAccent(44, 44);
+  drawCornerAccent(width - 44, 44);
+  drawCornerAccent(44, height - 44);
+  drawCornerAccent(width - 44, height - 44);
 
   // Chains in corners
   function drawChain(startX, startY, count, angle) {
     for (let i = 0; i < count; i++) {
-      const cx = startX + i * 20 * Math.cos(angle);
-      const cy = startY + i * 20 * Math.sin(angle);
+      const cx = startX + i * 22 * Math.cos(angle);
+      const cy = startY + i * 22 * Math.sin(angle);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(angle);
       ctx.strokeStyle = '#a78bfa';
       ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.roundRect(-15, -8, 30, 16, 8);
+      ctx.roundRect(-16, -9, 32, 18, 9);
       ctx.stroke();
       ctx.strokeStyle = '#09080e';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.roundRect(-8, -4, 16, 8, 4);
+      ctx.roundRect(-9, -5, 18, 10, 5);
       ctx.stroke();
       ctx.restore();
     }
   }
-  drawChain(width - 32, 32, 4, (Math.PI * 3) / 4);
-  drawChain(32, height - 32, 4, -Math.PI / 4);
+  drawChain(width - 36, 36, 4, (Math.PI * 3) / 4);
+  drawChain(36, height - 36, 4, -Math.PI / 4);
 
   // Left Section Box
-  const leftX = 52;
-  const leftY = 50;
-  const leftW = 246;
-  const leftH = 380;
+  const leftX = 54;
+  const leftY = 54;
+  const leftW = 280;
+  const leftH = 442;
 
   ctx.fillStyle = '#100e18';
   ctx.fillRect(leftX, leftY, leftW, leftH);
@@ -343,7 +343,7 @@ async function renderQumpruyTicket({
     try {
       const logoImg = await loadImage(logoPath);
       ctx.save();
-      const logoSize = 64;
+      const logoSize = 72;
       const logoX = leftX + (leftW - logoSize) / 2;
       const logoY = leftY + 18;
       ctx.beginPath();
@@ -353,7 +353,7 @@ async function renderQumpruyTicket({
       ctx.restore();
 
       ctx.strokeStyle = '#8b5cf6';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 1, 0, Math.PI * 2);
       ctx.stroke();
@@ -361,17 +361,17 @@ async function renderQumpruyTicket({
   }
 
   // Member Avatar Box
-  const avatarSize = 135;
+  const avatarSize = 160; // Was 135px -> now 160px
   const avatarX = leftX + (leftW - avatarSize) / 2;
-  const avatarY = leftY + 105;
+  const avatarY = leftY + 115;
 
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.strokeRect(avatarX - 5, avatarY - 5, avatarSize + 10, avatarSize + 10);
 
   ctx.strokeStyle = '#8b5cf6';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(avatarX - 9, avatarY - 9, avatarSize + 18, avatarSize + 18);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(avatarX - 10, avatarY - 10, avatarSize + 20, avatarSize + 20);
 
   ctx.fillStyle = '#171424';
   ctx.fillRect(avatarX, avatarY, avatarSize, avatarSize);
@@ -394,62 +394,67 @@ async function renderQumpruyTicket({
     // Silhouette fallback
     ctx.fillStyle = '#f5f3ff';
     ctx.beginPath();
-    ctx.arc(avatarX + avatarSize / 2, avatarY + 50, 28, 0, Math.PI * 2);
+    ctx.arc(avatarX + avatarSize / 2, avatarY + 58, 34, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(avatarX + avatarSize / 2, avatarY + 120, 46, 38, 0, Math.PI, 0, true);
+    ctx.ellipse(avatarX + avatarSize / 2, avatarY + 142, 54, 44, 0, Math.PI, 0, true);
     ctx.fill();
   }
 
   // Pixel Crown on top of avatar
   ctx.fillStyle = '#8b5cf6';
-  ctx.fillRect(avatarX + avatarSize / 2 - 12, avatarY + 4, 6, 6);
-  ctx.fillRect(avatarX + avatarSize / 2 - 3, avatarY + 4, 6, 6);
-  ctx.fillRect(avatarX + avatarSize / 2 + 6, avatarY + 4, 6, 6);
-  ctx.fillRect(avatarX + avatarSize / 2 - 10, avatarY + 10, 20, 5);
+  ctx.fillRect(avatarX + avatarSize / 2 - 14, avatarY + 6, 7, 7);
+  ctx.fillRect(avatarX + avatarSize / 2 - 3, avatarY + 6, 7, 7);
+  ctx.fillRect(avatarX + avatarSize / 2 + 8, avatarY + 6, 7, 7);
+  ctx.fillRect(avatarX + avatarSize / 2 - 12, avatarY + 13, 25, 6);
 
   // Lencana Royal Citizen
-  const badgeY = leftY + leftH - 52;
-  drawStarShape(ctx, leftX + 38, badgeY - 5, 4, 6, 2, '#a78bfa');
-  drawStarShape(ctx, leftX + leftW - 38, badgeY - 5, 4, 6, 2, '#a78bfa');
+  const badgeY = leftY + leftH - 58;
+  drawStarShape(ctx, leftX + 44, badgeY - 5, 4, 7, 2.5, '#a78bfa');
+  drawStarShape(ctx, leftX + leftW - 44, badgeY - 5, 4, 7, 2.5, '#a78bfa');
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 12px "Consolas", monospace';
+  ctx.font = 'bold 14px "Consolas", monospace';
   ctx.textAlign = 'center';
   ctx.fillText('ROYAL CITIZEN', leftX + leftW / 2, badgeY);
 
-  ctx.font = '9px "Consolas", monospace';
+  ctx.font = '11px "Consolas", monospace';
   ctx.fillStyle = '#9ca3af';
-  ctx.fillText('AUTHENTIC IDENTIFIER', leftX + leftW / 2, badgeY + 16);
+  ctx.fillText('AUTHENTIC IDENTIFIER', leftX + leftW / 2, badgeY + 18);
 
   // Right Section
-  const rightX = 338;
-  let curY = 74;
+  const rightX = 370;
+  let curY = 82;
 
   const serverName = (member?.guild?.name || 'QUMPRUY').toUpperCase();
   ctx.textAlign = 'left';
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 34px "Times New Roman", Georgia, serif';
+  let titleFontSize = 44;
+  ctx.font = `bold ${titleFontSize}px "Times New Roman", Georgia, serif`;
+  while (ctx.measureText(serverName).width > 520 && titleFontSize > 26) {
+    titleFontSize -= 2;
+    ctx.font = `bold ${titleFontSize}px "Times New Roman", Georgia, serif`;
+  }
   ctx.fillText(serverName, rightX, curY);
 
-  curY += 26;
-  ctx.font = 'bold 13px "Consolas", monospace';
+  curY += 28;
+  ctx.font = 'bold 15px "Consolas", monospace';
   ctx.fillStyle = '#a78bfa';
   ctx.fillText('—  O F F I C I A L   C O M M U N I T Y  —', rightX + 15, curY);
 
-  curY += 15;
+  curY += 18;
   ctx.strokeStyle = '#3d2f5c';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
   ctx.moveTo(rightX, curY);
   ctx.lineTo(width - 55, curY);
   ctx.stroke();
 
-  drawStarShape(ctx, rightX + (width - 55 - rightX) / 2, curY, 4, 5, 2, '#a78bfa');
+  drawStarShape(ctx, rightX + (width - 55 - rightX) / 2, curY, 4, 6, 2.5, '#a78bfa');
 
   // Fields Table
-  const displayName = (member?.displayName || member?.user?.username || 'NEVERENDLESSLY').toUpperCase().slice(0, 20);
-  const username = (member?.user?.username || 'USER').toUpperCase().slice(0, 20);
+  const displayName = (member?.displayName || member?.user?.username || 'NEVERENDLESSLY').toUpperCase().slice(0, 22);
+  const username = (member?.user?.username || 'USER').toUpperCase().slice(0, 22);
 
   let statusText = 'VIA VANITY URL';
   if (inviteType === 'regular' && inviter) {
@@ -472,25 +477,30 @@ async function renderQumpruyTicket({
     { label: 'SINCE', value: dateStr }
   ];
 
-  curY += 34;
+  curY += 38;
   const labelX = rightX;
-  const valueX = rightX + 115;
-  const rowHeight = 33;
+  const valueX = rightX + 130;
+  const rowHeight = 38;
 
   for (const item of fields) {
     ctx.fillStyle = '#c4b5fd';
-    ctx.font = 'bold 14px "Consolas", monospace';
+    ctx.font = 'bold 16px "Consolas", monospace';
     ctx.textAlign = 'left';
     ctx.fillText(item.label, labelX, curY);
-    ctx.fillText(':', labelX + 88, curY);
+    ctx.fillText(':', labelX + 102, curY);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px "Times New Roman", Georgia, serif';
+    let valFontSize = 19;
+    ctx.font = `bold ${valFontSize}px "Times New Roman", Georgia, serif`;
+    while (ctx.measureText(item.value).width > (width - 55 - valueX) && valFontSize > 13) {
+      valFontSize -= 1;
+      ctx.font = `bold ${valFontSize}px "Times New Roman", Georgia, serif`;
+    }
     ctx.fillText(item.value, valueX, curY);
 
     ctx.strokeStyle = '#271f3b';
     ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(valueX, curY + 6);
     ctx.lineTo(width - 55, curY + 6);
@@ -501,34 +511,34 @@ async function renderQumpruyTicket({
   }
 
   // Tagline Box
-  curY += 10;
+  curY += 8;
   const boxW = width - 55 - rightX;
-  const boxH = 50;
+  const boxH = 58;
 
   ctx.fillStyle = '#110e1a';
   ctx.fillRect(rightX, curY, boxW, boxH);
   ctx.strokeStyle = '#8b5cf6';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.2;
   ctx.strokeRect(rightX, curY, boxW, boxH);
 
   ctx.fillStyle = '#a78bfa';
-  ctx.font = 'bold 10px "Consolas", monospace';
-  ctx.fillText('ROYAL STATUS :', rightX + 14, curY + 18);
+  ctx.font = 'bold 11px "Consolas", monospace';
+  ctx.fillText('ROYAL STATUS :', rightX + 16, curY + 20);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'italic bold 14px "Times New Roman", Georgia, serif';
-  ctx.fillText('WELCOME TO THE EMPIRE OF QUMPRUY', rightX + 25, curY + 36);
+  ctx.font = 'italic bold 16px "Times New Roman", Georgia, serif';
+  ctx.fillText('WELCOME TO THE EMPIRE OF QUMPRUY', rightX + 28, curY + 42);
 
   // Barcode
   curY += boxH + 20;
   const barcodeX = rightX;
   const barcodeY = curY;
   const barcodeW = boxW;
-  const barcodeH = 34;
+  const barcodeH = 40;
 
   ctx.fillStyle = '#ffffff';
   let bx = barcodeX;
-  const barPattern = [3, 1, 4, 1, 2, 1, 1, 2, 4, 1, 3, 2, 1, 3, 1, 2, 4, 1, 2, 1, 3, 2, 1, 4, 1, 2, 3, 1, 2, 1, 4, 2, 1, 3, 1, 2, 4, 1, 3, 1, 2, 1, 4, 2, 1, 3, 2, 1, 4];
+  const barPattern = [4, 1, 5, 2, 2, 1, 2, 3, 5, 1, 4, 2, 1, 4, 1, 2, 5, 1, 3, 1, 4, 2, 1, 5, 1, 2, 4, 1, 2, 1, 5, 2, 1, 4, 1, 2, 5, 1, 4, 1, 2, 1, 5, 2, 1, 4, 2, 1, 5];
   for (let i = 0; i < barPattern.length && bx < barcodeX + barcodeW; i++) {
     const w = barPattern[i];
     ctx.fillRect(bx, barcodeY, w, barcodeH);
@@ -536,15 +546,15 @@ async function renderQumpruyTicket({
   }
 
   // Barcode ID
-  curY += barcodeH + 20;
+  curY += barcodeH + 22;
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 15px "Consolas", "Courier New", monospace';
+  ctx.font = 'bold 18px "Consolas", "Courier New", monospace';
 
   const mCount = memberCount || member?.guild?.memberCount || 1;
-  drawStarShape(ctx, rightX + boxW / 2 - 110, curY - 5, 4, 5, 2, '#8b5cf6');
+  drawStarShape(ctx, rightX + boxW / 2 - 130, curY - 5, 4, 6, 2.5, '#8b5cf6');
   ctx.fillText(`ID : QMP - ${mCount}`, rightX + boxW / 2, curY);
-  drawStarShape(ctx, rightX + boxW / 2 + 110, curY - 5, 4, 5, 2, '#8b5cf6');
+  drawStarShape(ctx, rightX + boxW / 2 + 130, curY - 5, 4, 6, 2.5, '#8b5cf6');
 
   return canvas.toBuffer('image/png');
 }

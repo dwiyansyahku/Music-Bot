@@ -119,8 +119,8 @@ async function renderWelcomeBanner({
   memberCount = null,
   customQuote = null
 }) {
-  const width = 880;
-  const height = 360;
+  const width = 960;
+  const height = 460;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
@@ -133,24 +133,24 @@ async function renderWelcomeBanner({
   ctx.fillRect(0, 0, width, height);
 
   // Purple ambient glow on left & right
-  const leftGlow = ctx.createRadialGradient(150, 180, 10, 150, 180, 260);
-  leftGlow.addColorStop(0, 'rgba(139, 92, 246, 0.25)');
+  const leftGlow = ctx.createRadialGradient(180, 230, 20, 180, 230, 320);
+  leftGlow.addColorStop(0, 'rgba(139, 92, 246, 0.28)');
   leftGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = leftGlow;
   ctx.fillRect(0, 0, width, height);
 
-  const rightGlow = ctx.createRadialGradient(720, 110, 20, 720, 110, 320);
-  rightGlow.addColorStop(0, 'rgba(168, 85, 247, 0.18)');
+  const rightGlow = ctx.createRadialGradient(780, 150, 30, 780, 150, 380);
+  rightGlow.addColorStop(0, 'rgba(168, 85, 247, 0.22)');
   rightGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = rightGlow;
   ctx.fillRect(0, 0, width, height);
 
   // 2. Futuristic Chamfered Border
-  const offset = 18;
-  const cut = 20;
+  const offset = 20;
+  const cut = 24;
 
   ctx.strokeStyle = '#8b5cf6';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.moveTo(offset + cut, offset);
   ctx.lineTo(width - offset - cut, offset);
@@ -164,34 +164,34 @@ async function renderWelcomeBanner({
   ctx.stroke();
 
   // Inner subtle border
-  ctx.strokeStyle = 'rgba(167, 139, 250, 0.22)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(offset + 8, offset + 8, width - 2 * (offset + 8), height - 2 * (offset + 8));
+  ctx.strokeStyle = 'rgba(167, 139, 250, 0.25)';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(offset + 10, offset + 10, width - 2 * (offset + 10), height - 2 * (offset + 10));
 
   // Corner HUD brackets
   function drawHudCorner(x, y, dirX, dirY) {
     ctx.strokeStyle = '#c4b5fd';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(x, y + dirY * 16);
+    ctx.moveTo(x, y + dirY * 20);
     ctx.lineTo(x, y);
-    ctx.lineTo(x + dirX * 16, y);
+    ctx.lineTo(x + dirX * 20, y);
     ctx.stroke();
   }
-  drawHudCorner(offset + 8, offset + 8, 1, 1);
-  drawHudCorner(width - offset - 8, offset + 8, -1, 1);
-  drawHudCorner(offset + 8, height - offset - 8, 1, -1);
-  drawHudCorner(width - offset - 8, height - offset - 8, -1, -1);
+  drawHudCorner(offset + 10, offset + 10, 1, 1);
+  drawHudCorner(width - offset - 10, offset + 10, -1, 1);
+  drawHudCorner(offset + 10, height - offset - 10, 1, -1);
+  drawHudCorner(width - offset - 10, height - offset - 10, -1, -1);
 
   // Floating pixel stars
   const particles = [
-    { x: 380, y: 55, s: 4, c: '#a78bfa' },
-    { x: 420, y: 38, s: 3, c: '#ffffff' },
-    { x: 810, y: 55, s: 4, c: '#8b5cf6' },
-    { x: 830, y: 80, s: 3, c: '#c4b5fd' },
-    { x: 55, y: 310, s: 4, c: '#8b5cf6' },
-    { x: 340, y: 315, s: 3, c: '#a78bfa' },
-    { x: 800, y: 310, s: 4, c: '#ffffff' }
+    { x: 420, y: 65, s: 4, c: '#a78bfa' },
+    { x: 470, y: 48, s: 3, c: '#ffffff' },
+    { x: 880, y: 65, s: 5, c: '#8b5cf6' },
+    { x: 910, y: 95, s: 3, c: '#c4b5fd' },
+    { x: 65, y: 400, s: 4, c: '#8b5cf6' },
+    { x: 380, y: 410, s: 4, c: '#a78bfa' },
+    { x: 890, y: 400, s: 5, c: '#ffffff' }
   ];
   for (const p of particles) {
     drawPixelDot(ctx, p.x, p.y, p.s, p.c);
@@ -204,16 +204,16 @@ async function renderWelcomeBanner({
       const logoImg = await loadImage(logoPath);
       ctx.save();
       ctx.globalAlpha = 0.14;
-      const wmSize = 220;
-      ctx.drawImage(logoImg, width - wmSize - 45, (height - wmSize) / 2, wmSize, wmSize);
+      const wmSize = 280;
+      ctx.drawImage(logoImg, width - wmSize - 50, (height - wmSize) / 2, wmSize, wmSize);
       ctx.restore();
     } catch (_) {}
   }
 
-  // 4. Left Area: Glowing Circular Avatar with Crown
-  const avCenterX = 150;
-  const avCenterY = 185;
-  const avRadius = 66;
+  // 4. Left Area: Enlarged Glowing Circular Avatar with Crown
+  const avCenterX = 175;
+  const avCenterY = 225;
+  const avRadius = 88; // 33% larger (diameter 176px vs 132px)
 
   // Outer gradient glow ring
   const ringGrad = ctx.createLinearGradient(
@@ -225,17 +225,17 @@ async function renderWelcomeBanner({
   ringGrad.addColorStop(1, '#6366f1');
 
   ctx.strokeStyle = ringGrad;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5;
   ctx.beginPath();
-  ctx.arc(avCenterX, avCenterY, avRadius + 7, 0, Math.PI * 2);
+  ctx.arc(avCenterX, avCenterY, avRadius + 9, 0, Math.PI * 2);
   ctx.stroke();
 
   // Outer orbital dashed ring
-  ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([6, 6]);
+  ctx.strokeStyle = 'rgba(168, 85, 247, 0.45)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 8]);
   ctx.beginPath();
-  ctx.arc(avCenterX, avCenterY, avRadius + 15, 0, Math.PI * 2);
+  ctx.arc(avCenterX, avCenterY, avRadius + 18, 0, Math.PI * 2);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -263,95 +263,100 @@ async function renderWelcomeBanner({
     ctx.fillRect(avCenterX - avRadius, avCenterY - avRadius, avRadius * 2, avRadius * 2);
     ctx.fillStyle = '#f5f3ff';
     ctx.beginPath();
-    ctx.arc(avCenterX, avCenterY - 12, 28, 0, Math.PI * 2);
+    ctx.arc(avCenterX, avCenterY - 14, 36, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(avCenterX, avCenterY + 45, 48, 38, 0, Math.PI, 0, true);
+    ctx.ellipse(avCenterX, avCenterY + 60, 62, 48, 0, Math.PI, 0, true);
     ctx.fill();
   }
   ctx.restore();
 
   // Floating Royal Pixel Crown above avatar
-  const crownY = avCenterY - avRadius - 28;
+  const crownY = avCenterY - avRadius - 32;
   ctx.fillStyle = '#8b5cf6';
-  ctx.fillRect(avCenterX - 15, crownY, 7, 7);
-  ctx.fillRect(avCenterX - 3, crownY - 5, 7, 7);
-  ctx.fillRect(avCenterX + 9, crownY, 7, 7);
-  ctx.fillRect(avCenterX - 13, crownY + 8, 27, 6);
-  drawPixelDot(ctx, avCenterX - 1, crownY - 1, 3, '#ffffff');
+  ctx.fillRect(avCenterX - 18, crownY, 9, 9);
+  ctx.fillRect(avCenterX - 4, crownY - 6, 9, 9);
+  ctx.fillRect(avCenterX + 10, crownY, 9, 9);
+  ctx.fillRect(avCenterX - 16, crownY + 10, 33, 7);
+  drawPixelDot(ctx, avCenterX - 2, crownY - 2, 4, '#ffffff');
 
   // Pill Badge below Avatar: "NEW MEMBER"
-  ctx.fillStyle = 'rgba(139, 92, 246, 0.25)';
-  drawRoundedRect(ctx, avCenterX - 68, avCenterY + avRadius + 22, 136, 24, 12);
+  ctx.fillStyle = 'rgba(139, 92, 246, 0.28)';
+  drawRoundedRect(ctx, avCenterX - 78, avCenterY + avRadius + 22, 156, 30, 15);
   ctx.fill();
   ctx.strokeStyle = '#8b5cf6';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  drawStar(ctx, avCenterX - 55, avCenterY + avRadius + 37, 4, 5, 2, '#c4b5fd');
+  drawStar(ctx, avCenterX + 55, avCenterY + avRadius + 37, 4, 5, 2, '#c4b5fd');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('NEW MEMBER', avCenterX, avCenterY + avRadius + 42);
+
+  // 5. Right Area: Modern Typography & Information
+  const textX = 315;
+
+  // Top Glass Pill: "WELCOME TO QUMPRUY"
+  ctx.fillStyle = 'rgba(139, 92, 246, 0.22)';
+  drawRoundedRect(ctx, textX, 52, 260, 30, 15);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(167, 139, 250, 0.45)';
   ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  drawStar(ctx, avCenterX - 48, avCenterY + avRadius + 34, 4, 4, 1.5, '#c4b5fd');
-  drawStar(ctx, avCenterX + 48, avCenterY + avRadius + 34, 4, 4, 1.5, '#c4b5fd');
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('NEW MEMBER', avCenterX, avCenterY + avRadius + 38);
-
-  // 5. Right Area: Modern Typography & Information
-  const textX = 265;
-
-  // Top Glass Pill: "WELCOME TO QUMPRUY"
-  ctx.fillStyle = 'rgba(139, 92, 246, 0.2)';
-  drawRoundedRect(ctx, textX, 55, 230, 26, 13);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(167, 139, 250, 0.4)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  drawStar(ctx, textX + 18, 68, 4, 5, 2, '#c4b5fd');
+  drawStar(ctx, textX + 20, 67, 4, 5.5, 2.5, '#c4b5fd');
   ctx.fillStyle = '#c4b5fd';
-  ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+  ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('WELCOME TO QUMPRUY', textX + 32, 72);
+  ctx.fillText('WELCOME TO QUMPRUY', textX + 36, 72);
 
   // Subtitle
   ctx.fillStyle = '#9ca3af';
-  ctx.font = 'bold 15px "Segoe UI", Arial, sans-serif';
-  ctx.fillText('HELLO, WELCOME ABOARD!', textX, 114);
+  ctx.font = 'bold 17px "Segoe UI", Arial, sans-serif';
+  ctx.fillText('HELLO, WELCOME ABOARD!', textX, 118);
 
-  // Member Display Name (Massive, bright white with subtle shadow)
-  const displayName = (member?.displayName || member?.user?.username || 'NEW MEMBER').toUpperCase().slice(0, 20);
+  // Member Display Name (Massive, dynamically adjusted)
+  const displayName = (member?.displayName || member?.user?.username || 'NEW MEMBER').toUpperCase().slice(0, 24);
+  let nameFontSize = 46;
+  ctx.font = `bold ${nameFontSize}px "Segoe UI", Arial, sans-serif`;
+  while (ctx.measureText(displayName).width > 570 && nameFontSize > 26) {
+    nameFontSize -= 2;
+    ctx.font = `bold ${nameFontSize}px "Segoe UI", Arial, sans-serif`;
+  }
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
-  ctx.fillText(displayName, textX, 156);
+  ctx.fillText(displayName, textX, 168);
 
   // Discord tag & subtitle
   const username = (member?.user?.username || 'user');
   const count = memberCount || member?.guild?.memberCount || 1;
   ctx.fillStyle = '#a78bfa';
-  ctx.font = 'bold 15px "Consolas", monospace';
-  ctx.fillText(`@${username}  •  Member Ke - #${count}`, textX, 185);
+  ctx.font = 'bold 17px "Consolas", monospace';
+  ctx.fillText(`@${username}  •  Member Ke - #${count}`, textX, 202);
 
   // Random quote from collection or custom quote
   const chosenQuote = customQuote || WELCOME_QUOTES[Math.floor(Math.random() * WELCOME_QUOTES.length)];
   ctx.fillStyle = '#94a3b8';
-  ctx.font = 'italic 13px "Georgia", serif';
+  ctx.font = 'italic 15px "Georgia", serif';
 
   let quoteText = `"${chosenQuote}"`;
-  const maxQuoteW = width - textX - 55; // 880 - 265 - 55 = 560px
+  const maxQuoteW = width - textX - 55;
   if (ctx.measureText(quoteText).width > maxQuoteW) {
     while (ctx.measureText(quoteText + '..."').width > maxQuoteW && quoteText.length > 10) {
       quoteText = quoteText.slice(0, -1);
     }
     quoteText = quoteText + '..."';
   }
-  ctx.fillText(quoteText, textX, 220);
+  ctx.fillText(quoteText, textX, 242);
 
   // Horizontal divider
-  ctx.strokeStyle = 'rgba(139, 92, 246, 0.35)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(textX, 240);
-  ctx.lineTo(width - 55, 240);
+  ctx.moveTo(textX, 268);
+  ctx.lineTo(width - 55, 268);
   ctx.stroke();
 
   // Bottom 3 Glass Badges (Kombinasi C: INVITED BY, JOINED DATE, SERVER COUNT)
@@ -368,32 +373,32 @@ async function renderWelcomeBanner({
   const dateFormatted = `${joinDate.getDate()} ${joinDate.toLocaleDateString('id-ID', { month: 'short' })} ${joinDate.getFullYear()}`;
 
   const badges = [
-    { label: 'Invited By', value: inviterDisplay.slice(0, 16) },
+    { label: 'Invited By', value: inviterDisplay.slice(0, 18) },
     { label: 'Joined Date', value: dateFormatted },
     { label: 'Server Count', value: `${count} Members` }
   ];
 
   let bx = textX;
-  const badgeW = 165;
-  const badgeH = 46;
+  const badgeW = 185;
+  const badgeH = 62;
 
   for (const b of badges) {
-    ctx.fillStyle = 'rgba(23, 18, 38, 0.85)';
-    drawRoundedRect(ctx, bx, 256, badgeW, badgeH, 8);
+    ctx.fillStyle = 'rgba(23, 18, 38, 0.88)';
+    drawRoundedRect(ctx, bx, 288, badgeW, badgeH, 10);
     ctx.fill();
-    ctx.strokeStyle = '#3d2f5c';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#433466';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
     ctx.fillStyle = '#a78bfa';
-    ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
-    ctx.fillText(b.label.toUpperCase(), bx + 12, 274);
+    ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(b.label.toUpperCase(), bx + 14, 310);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
-    ctx.fillText(b.value, bx + 12, 292);
+    ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(b.value, bx + 14, 336);
 
-    bx += badgeW + 16;
+    bx += badgeW + 18;
   }
 
   return canvas.toBuffer('image/png');
