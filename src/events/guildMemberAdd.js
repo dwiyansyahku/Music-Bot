@@ -209,10 +209,14 @@ module.exports = {
     if (bannerBuffer) {
       let sent = false;
       const maxAttempts = 3;
+      const caption = `Selamat datang <@${member.user.id}> di **${guild.name}**!\n` +
+        `Jangan lupa untuk membaca peraturan server dan mengambil roles ya. Kalau lagi ada waktu luang, yuk langsung mampir ke voice channel buat ngobrol dan kenalan bareng kita!\n\n` +
+        `*Welcome to **${guild.name}**! Don't forget to check out the server rules and claim your roles. Whenever you have some free time, feel free to hop into voice to chat and say hi!*`;
+
       for (let attempt = 1; attempt <= maxAttempts && !sent; attempt++) {
         try {
           await channel.send({
-            content: `Selamat datang <@${member.user.id}> di **${guild.name}**!`,
+            content: caption,
             files: [new AttachmentBuilder(bannerBuffer, { name: 'qumpruy-welcome.png' })],
             components
           });
