@@ -88,7 +88,16 @@ const qwelcome = {
     // Pastikan Map welcomeSettings ada
     if (!client.welcomeSettings) client.welcomeSettings = new Map();
 
-    const config = client.welcomeSettings.get(guildId) || { enabled: false, channelId: null };
+    let config = client.welcomeSettings.get(guildId);
+    if (!config || !config.channelId) {
+      const savedWelcome = storage.read('settings')[guildId]?.welcome;
+      if (savedWelcome) {
+        config = savedWelcome;
+        client.welcomeSettings.set(guildId, config);
+      } else {
+        config = config || { enabled: false, channelId: null };
+      }
+    }
 
     // === SET CHANNEL ===
     if (sub === 'setchannel') {
@@ -227,18 +236,13 @@ const qwelcome = {
     if (sub === 'test') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      if (!config.channelId) {
-        return interaction.editReply({
-          content: '❌ Belum ada channel yang diatur! Gunakan `/qwelcome setchannel` dulu.'
-        });
-      }
-
-      const channel = interaction.guild.channels.cache.get(config.channelId)
-        || await client.channels.fetch(config.channelId).catch(() => null);
+      const targetChannelId = config.channelId || interaction.channel.id;
+      const channel = interaction.guild.channels.cache.get(targetChannelId)
+        || await client.channels.fetch(targetChannelId).catch(() => null);
 
       if (!channel) {
         return interaction.editReply({
-          content: '❌ Channel sambutan tidak ditemukan! Mungkin sudah dihapus. Atur ulang dengan `/qwelcome setchannel`.'
+          content: '❌ Channel tujuan tidak ditemukan! Pastikan bot memiliki akses ke channel.'
         });
       }
 

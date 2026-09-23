@@ -3,9 +3,17 @@
     "cardHubChannelId": "1532222435250929735",
     "cardHubMessageId": "1536363763245121707",
     "cardResultChannel": "1532290934396555354",
+    "rulesChannelId": "1396254677930082344",
+    "rulesUrl": "https://discord.com/channels/1396245234693963878/1396254677930082344",
+    "rolesChannelId": "1490660628849889431",
+    "rolesUrl": "https://discord.com/channels/1396245234693963878/1490660628849889431",
     "welcome": {
       "enabled": true,
-      "channelId": "1396428545684672542"
+      "channelId": "1396428142972899349"
+    },
+    "inviteTracking": {
+      "enabled": true,
+      "channelId": "1551970316438343761"
     },
     "jail": {
       "roleId": "1524880481211125840",

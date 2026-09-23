@@ -42,6 +42,30 @@ function read(name) {
   }
   try {
     const parsed = JSON.parse(fs.readFileSync(fp, 'utf8'));
+    // Deep-merge dengan seed jika ada setting penting baru dari seed yang belum ada di disk
+    const seedPath = path.join(SEEDS_DIR, `${name}.json`);
+    if (fs.existsSync(seedPath)) {
+      try {
+        const seedData = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+        let modified = false;
+        for (const [k, v] of Object.entries(seedData)) {
+          if (!parsed[k]) {
+            parsed[k] = v;
+            modified = true;
+          } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+            for (const [sk, sv] of Object.entries(v)) {
+              if (parsed[k][sk] === undefined) {
+                parsed[k][sk] = sv;
+                modified = true;
+              }
+            }
+          }
+        }
+        if (modified) {
+          fs.writeFileSync(fp, JSON.stringify(parsed, null, 2), 'utf8');
+        }
+      } catch (_) {}
+    }
     memoryCache.set(name, parsed);
     return parsed;
   } catch {
