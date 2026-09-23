@@ -25,6 +25,8 @@ module.exports = {
     try {
       const { handleMemberJoin } = require('../utils/inviteTracker');
       await handleMemberJoin(member, client);
+      // Jeda kecil (400ms) agar koneksi socket HTTP tidak bertabrakan dengan welcome banner
+      await new Promise(r => setTimeout(r, 400));
     } catch (inviteErr) {
       console.warn('[InviteTracker Join Error]:', inviteErr.message);
     }
@@ -193,15 +195,20 @@ module.exports = {
       components.push(new ActionRowBuilder().addComponents(buttons));
     }
 
+    let bannerBuffer = null;
     try {
       // Render banner kanvas selamat datang
-      const bannerBuffer = await renderWelcomeBanner({
+      bannerBuffer = await renderWelcomeBanner({
         member,
         inviter: inviterUser,
         inviteType,
         memberCount
       });
+    } catch (bannerErr) {
+      console.warn(`[Welcome] Gagal render canvas banner:`, bannerErr.message);
+    }
 
+    if (bannerBuffer) {
       const attachment = new AttachmentBuilder(bannerBuffer, { name: 'qumpruy-welcome.png' });
 
       const embed = new EmbedBuilder()
@@ -213,16 +220,35 @@ module.exports = {
         })
         .setTimestamp();
 
-      await channel.send({
+      const sendOptions = {
         content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server.`,
         embeds: [embed],
         files: [attachment],
         components
-      });
-    } catch (bannerErr) {
-      console.warn(`[Welcome] Gagal render canvas banner, fallback ke embed biasa:`, bannerErr.message);
+      };
 
-      const rulesText = rulesChannelId
+      let sent = false;
+      for (let attempt = 1; attempt <= 2 && !sent; attempt++) {
+        try {
+          await channel.send(sendOptions);
+          sent = true;
+        } catch (sendErr) {
+          const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
+          if (isNetErr && attempt === 1) {
+            console.warn(`[Welcome] Jaringan terputus saat kirim banner (${sendErr.message}), mencoba ulang dalam 1 detik...`);
+            await new Promise(r => setTimeout(r, 1000));
+          } else {
+            console.warn(`[Welcome] Gagal kirim banner dengan attachment (${sendErr.message}), beralih ke embed teks...`);
+            break;
+          }
+        }
+      }
+
+      if (sent) return;
+    }
+
+    // Fallback ke embed standar jika banner gagal render ATAU upload attachment gagal
+    const rulesText = rulesChannelId
         ? `📌 Silakan baca info & peraturan di <#${rulesChannelId}>!`
         : `📌 Jangan lupa baca peraturan server ya!`;
 
@@ -260,7 +286,6 @@ module.exports = {
       }).catch(err => {
         console.error(`[Welcome] Gagal kirim pesan welcome di guild ${guild.name}:`, err.message);
       });
-    }
   },
 };
 

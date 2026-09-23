@@ -299,12 +299,25 @@ const qwelcome = {
           })
           .setTimestamp();
 
-        await channel.send({
-          content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server. *(ini preview test)*`,
-          embeds: [embed],
-          files: [attachment],
-          components
-        });
+        let sent = false;
+        for (let attempt = 1; attempt <= 2 && !sent; attempt++) {
+          try {
+            await channel.send({
+              content: `👋 Selamat datang <@${member.user.id}>! Selamat bergabung di server. *(ini preview test)*`,
+              embeds: [embed],
+              files: [attachment],
+              components
+            });
+            sent = true;
+          } catch (sendErr) {
+            const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
+            if (isNetErr && attempt === 1) {
+              await new Promise(r => setTimeout(r, 1000));
+            } else {
+              throw sendErr;
+            }
+          }
+        }
 
         return interaction.editReply({
           content: `✅ Preview sambutan berhasil dikirim ke <#${channel.id}>!`

@@ -42,6 +42,27 @@ const WELCOME_QUOTES = [
   "Bebas berekspresi, hormati sesama, dan nikmati setiap momen serunya!"
 ];
 
+/**
+ * Unduh buffer gambar dari URL secara aman dengan timeout ketat
+ */
+async function fetchImageBuffer(url, timeoutMs = 3500) {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'DiscordBot (https://discord.js.org, 14.26.4)',
+        'Accept': 'image/png,image/webp,image/jpeg,image/*;q=0.9'
+      },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (_) {
+    return null;
+  }
+}
+
 function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
@@ -228,9 +249,12 @@ async function renderWelcomeBanner({
   if (member && member.user && member.user.displayAvatarURL) {
     try {
       const avUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
-      const avImg = await loadImage(avUrl);
-      ctx.drawImage(avImg, avCenterX - avRadius, avCenterY - avRadius, avRadius * 2, avRadius * 2);
-      avatarLoaded = true;
+      const avBuf = await fetchImageBuffer(avUrl, 3500);
+      if (avBuf) {
+        const avImg = await loadImage(avBuf);
+        ctx.drawImage(avImg, avCenterX - avRadius, avCenterY - avRadius, avRadius * 2, avRadius * 2);
+        avatarLoaded = true;
+      }
     } catch (_) {}
   }
 

@@ -8,6 +8,27 @@ const path = require('path');
 const storage = require('./storage');
 
 /**
+ * Unduh buffer gambar dari URL secara aman dengan timeout ketat
+ */
+async function fetchImageBuffer(url, timeoutMs = 3500) {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'DiscordBot (https://discord.js.org, 14.26.4)',
+        'Accept': 'image/png,image/webp,image/jpeg,image/*;q=0.9'
+      },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
  * Format waktu lokal WIB / ringkas
  */
 function getFormattedTime() {
@@ -360,9 +381,12 @@ async function renderQumpruyTicket({
   if (member && member.user && member.user.displayAvatarURL) {
     try {
       const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
-      const avatarImg = await loadImage(avatarUrl);
-      ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
-      avatarLoaded = true;
+      const avatarBuf = await fetchImageBuffer(avatarUrl, 3500);
+      if (avatarBuf) {
+        const avatarImg = await loadImage(avatarBuf);
+        ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+        avatarLoaded = true;
+      }
     } catch (_) {}
   }
 
@@ -751,15 +775,20 @@ async function handleMemberJoin(member, client) {
       || await client.channels.fetch(guildConfig.channelId).catch(() => null);
 
     if (channel) {
+      let ticketBuffer = null;
       try {
-        const ticketBuffer = await renderQumpruyTicket({
+        ticketBuffer = await renderQumpruyTicket({
           member,
           inviter,
           inviteType,
           inviteCode: usedCode,
           memberCount: guild.memberCount
         });
+      } catch (err) {
+        console.warn(`[InviteTracker] Canvas render error:`, err.message);
+      }
 
+      if (ticketBuffer) {
         const attachment = new AttachmentBuilder(ticketBuffer, { name: 'qumpruy-ticket.png' });
 
         const rulesChannelId = settings[guild.id]?.rulesChannelId
@@ -800,24 +829,43 @@ async function handleMemberJoin(member, client) {
             iconURL: guild.iconURL({ dynamic: true }) || undefined
           });
 
-        await channel.send({
+        const sendOptions = {
           content: `Hii <@${member.id}>\n\nMember ke - **${guild.memberCount}**\nInvited by: ${inviterText}`,
           embeds: [embed],
           files: [attachment],
           components
-        });
-      } catch (err) {
-        console.warn(`[InviteTracker] Canvas render error, fallback to embed:`, err.message);
-        const embed = buildInviteEmbed({
-          member,
-          inviter,
-          inviteType,
-          inviteCode: usedCode,
-          inviteUses: usedUses,
-          inviterStats
-        });
-        await channel.send({ embeds: [embed] }).catch(() => {});
+        };
+
+        let sent = false;
+        for (let attempt = 1; attempt <= 2 && !sent; attempt++) {
+          try {
+            await channel.send(sendOptions);
+            sent = true;
+          } catch (sendErr) {
+            const isNetErr = /other side closed|aborted|socket|econnreset|etimedout/i.test(sendErr.message || '');
+            if (isNetErr && attempt === 1) {
+              console.warn(`[InviteTracker] Jaringan terputus saat kirim tiket (${sendErr.message}), mencoba ulang dalam 1 detik...`);
+              await new Promise(r => setTimeout(r, 1000));
+            } else {
+              console.warn(`[InviteTracker] Gagal kirim tiket dengan attachment (${sendErr.message}), beralih ke embed teks...`);
+              break;
+            }
+          }
+        }
+
+        if (sent) return;
       }
+
+      // Fallback ke embed standar jika rendering atau upload attachment gagal
+      const embed = buildInviteEmbed({
+        member,
+        inviter,
+        inviteType,
+        inviteCode: usedCode,
+        inviteUses: usedUses,
+        inviterStats
+      });
+      await channel.send({ embeds: [embed] }).catch(() => {});
     }
   }
 }
