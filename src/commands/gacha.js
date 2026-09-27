@@ -1178,6 +1178,30 @@ function getGuildThroneDataByDuelId(duelId) {
 }
 
 /**
+ * Dapatkan Set ID semua user (baik penantang maupun bertahan) yang sedang berada dalam duel aktif
+ */
+function getBusyDuelUserIds(guildId) {
+  const { guildData } = getGuildThroneData(guildId);
+  const busy = new Set();
+  for (const d of Object.values(guildData.activeDuels || {})) {
+    if (d.status === 'WAITING_TACTICS') {
+      if (d.challengerId) busy.add(d.challengerId);
+      if (d.defenderId) busy.add(d.defenderId);
+    }
+  }
+  return busy;
+}
+
+/**
+ * Cek apakah user sedang berada dalam duel tahta aktif (sebagai penantang atau pemegang tahta)
+ */
+function isUserInActiveDuel(guildId, userId) {
+  if (!guildId || !userId) return false;
+  const busy = getBusyDuelUserIds(guildId);
+  return busy.has(userId);
+}
+
+/**
  * Buat ActionRow untuk opsi tantangan (Tombol Acak & Select Menu Pemilihan Lawan)
  */
 async function buildDefenderChallengeComponents(guild, itemTier, challengerId, activeHolders, busyDefenderIds) {
@@ -1185,9 +1209,11 @@ async function buildDefenderChallengeComponents(guild, itemTier, challengerId, a
   if (!activeHolders || activeHolders.length === 0) return components;
 
   const now = Date.now();
+  // Gunakan busyUserIds (gabungan challenger dan defender yang sedang duel)
+  const busyUserIds = busyDefenderIds instanceof Set ? busyDefenderIds : getBusyDuelUserIds(guild?.id);
 
   // 1. Button Row (Tombol Acak Lawan)
-  const hasAvailable = activeHolders.some(h => !busyDefenderIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
+  const hasAvailable = activeHolders.some(h => !busyUserIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
   const randomBtn = new ButtonBuilder()
     .setCustomId(`throne_challenge_random:${itemTier}:${challengerId}`)
     .setLabel('Acak Lawan')
@@ -1206,7 +1232,7 @@ async function buildDefenderChallengeComponents(guild, itemTier, challengerId, a
       if (m) displayName = m.displayName;
     } catch (_) {}
 
-    const isBusy = busyDefenderIds.has(holder.userId);
+    const isBusy = busyUserIds.has(holder.userId);
     const isProtected = holder.userData?.throneProtectedUntil && holder.userData.throneProtectedUntil > now;
     const streak = holder.userData?.duelDefenseStreak || 0;
 
@@ -1324,14 +1350,36 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
   // Case D: KURSI TAHTA PENUH! (>= Quota) -> Tampilkan 2 Opsi Tantangan (Acak & Dipilih)
   const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
 
-  const busyDefenderIds = new Set(
-    Object.values(throneGuild.activeDuels || {})
-      .filter(d => d.itemTier === itemTier && d.status === 'WAITING_TACTICS')
-      .map(d => d.defenderId)
-  );
+  // Jika penantang saat ini sedang berada dalam duel aktif lain (sebagai penantang atau bertahan)
+  if (isUserInActiveDuel(guildId, member.id)) {
+    return {
+      text: (
+        `\n• **Kursi Tahta ${itemTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
+        `Sebagai pemilik relik ${itemTier}, kamu berhak menantang pemegang tahta. Namun, saat ini **kamu masih berada dalam duel aktif yang belum selesai**.\n` +
+        `Selesaikan duelmu yang sedang berlangsung terlebih dahulu sebelum menantang tahta kembali!`
+      ),
+      challengeRows: [],
+      toString() { return this.text; }
+    };
+  }
 
+  // Jika penantang sudah berada di antrean duel untuk tier ini
+  const existingQIdx = (throneGuild.queues[itemTier] || []).findIndex(q => q.challengerId === member.id);
+  if (existingQIdx !== -1) {
+    return {
+      text: (
+        `\n• **Kursi Tahta ${itemTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
+        `Sebagai pemilik relik ${itemTier}, kamu sudah terdaftar pada **antrean penantang (Posisi: #${existingQIdx + 1})**.\n` +
+        `Tantanganmu akan dimulai secara otomatis saat giliranmu tiba!`
+      ),
+      challengeRows: [],
+      toString() { return this.text; }
+    };
+  }
+
+  const busyUserIds = getBusyDuelUserIds(guildId);
   const candidateHolders = activeHolders.filter(h => h.userId !== member.id);
-  const challengeRows = await buildDefenderChallengeComponents(guild, itemTier, member.id, candidateHolders, busyDefenderIds);
+  const challengeRows = await buildDefenderChallengeComponents(guild, itemTier, member.id, candidateHolders, busyUserIds);
 
   const text = (
     `\n• **Kursi Tahta ${itemTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
@@ -1472,6 +1520,14 @@ async function resolveThroneLoungeChannel(guildId, client, fallbackChannel = nul
 
 async function initiateThroneDuel({ guildId, challengerId, targetDefender, itemTier, configuredRoleId, channel, client }) {
   const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
+  const busyUserIds = getBusyDuelUserIds(guildId);
+
+  // Hard Guard: Cegah duel ganda jika penantang atau bertahan sudah dalam duel aktif!
+  if (busyUserIds.has(challengerId) || busyUserIds.has(targetDefender.userId)) {
+    console.warn(`[Throne Duel Guard] Aborted duplicate duel creation: Challenger ${challengerId} (busy=${busyUserIds.has(challengerId)}), Defender ${targetDefender.userId} (busy=${busyUserIds.has(targetDefender.userId)})`);
+    return null;
+  }
+
   const now = Date.now();
   const duelId = generateDuelId();
   const expiresAt = now + 12 * 60 * 60 * 1000; // 12 jam
@@ -2087,31 +2143,43 @@ async function processChallengerQueue(guildId, itemTier, client) {
   }
 
   // Cari defender yang sedang tidak dalam duel aktif DAN tidak memiliki perisai tahta aktif
-  const busyDefenderIds = new Set(
-    Object.values(throneGuild.activeDuels || {})
-      .filter(d => d.itemTier === itemTier && d.status === 'WAITING_TACTICS')
-      .map(d => d.defenderId)
-  );
+  const busyUserIds = getBusyDuelUserIds(guildId);
 
   // Jika antrean memiliki preferensi targetDefenderId tertentu
   const nextQPeek = throneGuild.queues[itemTier][0];
+  if (!nextQPeek) return;
+
+  // Cek apakah penantang di antrean sudah memiliki role tahta ini
+  const challengerData = guildUsers[nextQPeek.challengerId];
+  if (challengerData?.activeRole?.tier === itemTier) {
+    throneGuild.queues[itemTier].shift();
+    saveThroneStorage(throneAll);
+    return processChallengerQueue(guildId, itemTier, client);
+  }
+
+  // Cek apakah penantang di antrean sedang sibuk dalam duel aktif lain
+  if (busyUserIds.has(nextQPeek.challengerId)) {
+    // Penantang sedang bertarung di duel lain, antrean menunggu duel tersebut selesai
+    return;
+  }
+
   let targetDefender = null;
-  if (nextQPeek && nextQPeek.targetDefenderId) {
+  if (nextQPeek.targetDefenderId) {
     targetDefender = activeHolders.find(h =>
       h.userId === nextQPeek.targetDefenderId &&
-      !busyDefenderIds.has(h.userId) &&
+      !busyUserIds.has(h.userId) &&
       !(h.userData?.throneProtectedUntil > now) // Cek shield aktif!
     );
   }
   if (!targetDefender) {
     targetDefender = activeHolders.find(h =>
-      !busyDefenderIds.has(h.userId) &&
+      !busyUserIds.has(h.userId) &&
       !(h.userData?.throneProtectedUntil > now) // Cek shield aktif!
     );
   }
 
   if (!targetDefender) {
-    // Semua kursi masih sibuk duel
+    // Semua kursi masih sibuk duel atau terlindungi perisai
     return;
   }
 
@@ -2384,6 +2452,13 @@ async function processDuelButton(interaction, client) {
     }
 
     const guildId = interaction.guildId;
+    if (isUserInActiveDuel(guildId, challengerId)) {
+      return interaction.reply({
+        content: 'Kamu saat ini sedang berada dalam duel tahta yang masih berlangsung. Selesaikan duelmu terlebih dahulu sebelum menantang tahta lagi!',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
     const gachaData = storage.read('gacha_data');
     const challengerData = getOrInitUserData(gachaData, guildId, challengerId);
     const now = Date.now();
@@ -2413,13 +2488,9 @@ async function processDuelButton(interaction, client) {
     }
 
     const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
-    const busyDefenderIds = new Set(
-      Object.values(throneGuild.activeDuels || {})
-        .filter(d => d.itemTier === itemTier && d.status === 'WAITING_TACTICS')
-        .map(d => d.defenderId)
-    );
+    const busyUserIds = getBusyDuelUserIds(guildId);
 
-    const availableHolders = activeHolders.filter(h => !busyDefenderIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
+    const availableHolders = activeHolders.filter(h => !busyUserIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
     if (availableHolders.length === 0) {
       const existingQueueIdx = throneGuild.queues[itemTier].findIndex(q => q.challengerId === challengerId);
       if (existingQueueIdx === -1) {
@@ -2432,11 +2503,16 @@ async function processDuelButton(interaction, client) {
           queuedAt: Date.now()
         });
         saveThroneStorage(throneAll);
+        return interaction.update({
+          content: `Semua pemegang tahta **${itemTier}** sedang bertarung dalam duel aktif atau memiliki perlindungan tahta. Kamu telah ditempatkan pada antrean penantang (Posisi: #${throneGuild.queues[itemTier].length}).`,
+          components: []
+        });
+      } else {
+        return interaction.update({
+          content: `Semua pemegang tahta **${itemTier}** sedang bertarung dalam duel aktif atau memiliki perlindungan tahta. Kamu sudah berada dalam antrean penantang (Posisi: #${existingQueueIdx + 1}).`,
+          components: []
+        });
       }
-      return interaction.update({
-        content: `Semua pemegang tahta **${itemTier}** sedang bertarung dalam duel aktif atau memiliki perlindungan tahta. Kamu telah ditempatkan pada antrean penantang (Posisi: #${throneGuild.queues[itemTier].length}).`,
-        components: []
-      });
     }
 
     const targetDefender = availableHolders[Math.floor(Math.random() * availableHolders.length)];
@@ -2444,7 +2520,7 @@ async function processDuelButton(interaction, client) {
     const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
     const tacticsTargetChannel = await resolveDuelChannel(guildId, itemTier, client, interaction.channel);
 
-    await initiateThroneDuel({
+    const duelResult = await initiateThroneDuel({
       guildId,
       challengerId,
       targetDefender,
@@ -2453,6 +2529,13 @@ async function processDuelButton(interaction, client) {
       channel: tacticsTargetChannel,
       client
     });
+
+    if (!duelResult) {
+      return interaction.update({
+        content: 'Tidak dapat memulai duel: Salah satu pihak saat ini sedang berada dalam duel aktif lain.',
+        components: []
+      });
+    }
 
     return interaction.update({
       content: `Lawan terpilih secara acak: <@${targetDefender.userId}>!\nTantangan perebutan **Tahta ${itemTier}** telah dikirim ke <#${tacticsTargetChannel.id}>. Silakan pasang taktikmu di sana.`,
@@ -2473,10 +2556,17 @@ async function processDuelButton(interaction, client) {
       });
     }
 
+    const guildId = interaction.guildId;
+    if (isUserInActiveDuel(guildId, challengerId)) {
+      return interaction.reply({
+        content: 'Kamu saat ini sedang berada dalam duel tahta yang masih berlangsung. Selesaikan duelmu terlebih dahulu sebelum menantang tahta lagi!',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
     const selectedUserId = interaction.values ? interaction.values[0] : null;
     if (!selectedUserId) return;
 
-    const guildId = interaction.guildId;
     const gachaData = storage.read('gacha_data');
     const challengerData = getOrInitUserData(gachaData, guildId, challengerId);
     const now = Date.now();
@@ -2509,35 +2599,39 @@ async function processDuelButton(interaction, client) {
 
     const targetDefender = { userId: selectedUserId, userData: targetUserData };
     const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
-    const busyDefenderIds = new Set(
-      Object.values(throneGuild.activeDuels || {})
-        .filter(d => d.itemTier === itemTier && d.status === 'WAITING_TACTICS')
-        .map(d => d.defenderId)
-    );
+    const busyUserIds = getBusyDuelUserIds(guildId);
 
     const settingsData = storage.read('settings');
     const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
 
-    if (busyDefenderIds.has(selectedUserId)) {
-      throneGuild.queues[itemTier].push({
-        challengerId,
-        targetDefenderId: selectedUserId,
-        itemTier,
-        configuredRoleId,
-        channelId: interaction.channelId,
-        queuedAt: Date.now()
-      });
-      saveThroneStorage(throneAll);
+    if (busyUserIds.has(selectedUserId)) {
+      const existingQueueIdx = throneGuild.queues[itemTier].findIndex(q => q.challengerId === challengerId);
+      if (existingQueueIdx === -1) {
+        throneGuild.queues[itemTier].push({
+          challengerId,
+          targetDefenderId: selectedUserId,
+          itemTier,
+          configuredRoleId,
+          channelId: interaction.channelId,
+          queuedAt: Date.now()
+        });
+        saveThroneStorage(throneAll);
 
-      return interaction.update({
-        content: `<@${selectedUserId}> saat ini sedang dalam duel aktif. Kamu telah dimasukkan ke antrean khusus untuk menantangnya setelah duelnya selesai.`,
-        components: []
-      });
+        return interaction.update({
+          content: `<@${selectedUserId}> saat ini sedang dalam duel aktif. Kamu telah dimasukkan ke antrean khusus untuk menantangnya setelah duelnya selesai (Posisi: #${throneGuild.queues[itemTier].length}).`,
+          components: []
+        });
+      } else {
+        return interaction.update({
+          content: `<@${selectedUserId}> saat ini sedang dalam duel aktif. Kamu sudah berada dalam antrean penantang (Posisi: #${existingQueueIdx + 1}).`,
+          components: []
+        });
+      }
     }
 
     const tacticsTargetChannel = await resolveDuelChannel(guildId, itemTier, client, interaction.channel);
 
-    await initiateThroneDuel({
+    const duelResult = await initiateThroneDuel({
       guildId,
       challengerId,
       targetDefender,
@@ -2546,6 +2640,13 @@ async function processDuelButton(interaction, client) {
       channel: tacticsTargetChannel,
       client
     });
+
+    if (!duelResult) {
+      return interaction.update({
+        content: 'Tidak dapat memulai duel: Salah satu pihak saat ini sedang berada dalam duel aktif lain.',
+        components: []
+      });
+    }
 
     return interaction.update({
       content: `Kamu telah memilih <@${selectedUserId}> sebagai lawanmu!\nTantangan perebutan **Tahta ${itemTier}** telah dikirim ke <#${tacticsTargetChannel.id}>. Silakan pasang taktikmu di sana.`,
@@ -3564,6 +3665,13 @@ async function executeGachaChallenge(interaction, client) {
   const userData = getOrInitUserData(gachaData, guildId, userId);
   const now = Date.now();
 
+  if (isUserInActiveDuel(guildId, userId)) {
+    return interaction.reply({
+      content: 'Kamu saat ini sedang berada dalam duel tahta yang masih berlangsung. Selesaikan duelmu terlebih dahulu sebelum menantang lagi!',
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
   if (userData.challengeCooldownUntil && userData.challengeCooldownUntil > now) {
     const remMins = Math.ceil((userData.challengeCooldownUntil - now) / 60000);
     return interaction.reply({
@@ -3646,11 +3754,7 @@ async function executeGachaChallenge(interaction, client) {
 
   // 6. Kursi Penuh! (>= quota) -> Duel Clash of Thrones
   const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
-  const busyDefenderIds = new Set(
-    Object.values(throneGuild.activeDuels || {})
-      .filter(d => d.itemTier === tier && d.status === 'WAITING_TACTICS')
-      .map(d => d.defenderId)
-  );
+  const busyUserIds = getBusyDuelUserIds(guildId);
 
   const tacticsTargetChannel = await resolveDuelChannel(guildId, tier, client, interaction.channel);
 
@@ -3679,24 +3783,32 @@ async function executeGachaChallenge(interaction, client) {
       });
     }
 
-    if (busyDefenderIds.has(targetUser.id)) {
-      throneGuild.queues[tier].push({
-        challengerId: userId,
-        targetDefenderId: targetUser.id,
-        itemTier: tier,
-        configuredRoleId,
-        channelId: interaction.channelId,
-        queuedAt: Date.now()
-      });
-      saveThroneStorage(throneAll);
+    if (busyUserIds.has(targetUser.id)) {
+      const existingQueueIdx = throneGuild.queues[tier].findIndex(q => q.challengerId === userId);
+      if (existingQueueIdx === -1) {
+        throneGuild.queues[tier].push({
+          challengerId: userId,
+          targetDefenderId: targetUser.id,
+          itemTier: tier,
+          configuredRoleId,
+          channelId: interaction.channelId,
+          queuedAt: Date.now()
+        });
+        saveThroneStorage(throneAll);
 
-      return interaction.reply({
-        content: `<@${targetUser.id}> saat ini sedang dalam duel aktif. Kamu telah dimasukkan ke antrean khusus untuk menantangnya setelah duelnya selesai.`,
-        flags: MessageFlags.Ephemeral
-      });
+        return interaction.reply({
+          content: `<@${targetUser.id}> saat ini sedang dalam duel aktif. Kamu telah dimasukkan ke antrean khusus untuk menantangnya setelah duelnya selesai (Posisi: #${throneGuild.queues[tier].length}).`,
+          flags: MessageFlags.Ephemeral
+        });
+      } else {
+        return interaction.reply({
+          content: `<@${targetUser.id}> saat ini sedang dalam duel aktif. Kamu sudah berada dalam antrean penantang (Posisi: #${existingQueueIdx + 1}).`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
     }
 
-    await initiateThroneDuel({
+    const duelResult = await initiateThroneDuel({
       guildId,
       challengerId: userId,
       targetDefender: targetHolder,
@@ -3706,6 +3818,13 @@ async function executeGachaChallenge(interaction, client) {
       client
     });
 
+    if (!duelResult) {
+      return interaction.reply({
+        content: 'Tidak dapat memulai duel: Salah satu pihak saat ini sedang berada dalam duel aktif lain.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
     return interaction.reply({
       content: `Tantangan berhasil dikirim ke <@${targetUser.id}>!\nTantangan perebutan **Tahta ${tier}** telah dikirim ke <#${tacticsTargetChannel.id}>. Silakan pasang taktikmu di sana.`,
       flags: MessageFlags.Ephemeral
@@ -3714,25 +3833,33 @@ async function executeGachaChallenge(interaction, client) {
 
   // Case 6B: Mode acak dipilih
   if (mode === 'random') {
-    const availableHolders = activeHolders.filter(h => !busyDefenderIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
+    const availableHolders = activeHolders.filter(h => !busyUserIds.has(h.userId) && !(h.userData?.throneProtectedUntil > now));
     if (availableHolders.length === 0) {
-      throneGuild.queues[tier].push({
-        challengerId: userId,
-        itemTier: tier,
-        configuredRoleId,
-        channelId: interaction.channelId,
-        queuedAt: Date.now()
-      });
-      saveThroneStorage(throneAll);
+      const existingQueueIdx = throneGuild.queues[tier].findIndex(q => q.challengerId === userId);
+      if (existingQueueIdx === -1) {
+        throneGuild.queues[tier].push({
+          challengerId: userId,
+          itemTier: tier,
+          configuredRoleId,
+          channelId: interaction.channelId,
+          queuedAt: Date.now()
+        });
+        saveThroneStorage(throneAll);
 
-      return interaction.reply({
-        content: `Semua pemegang tahta **${tier}** sedang bertarung dalam duel aktif atau memiliki perlindungan tahta. Kamu telah dimasukkan ke dalam antrean penantang (Posisi #${throneGuild.queues[tier].length}).`,
-        flags: MessageFlags.Ephemeral
-      });
+        return interaction.reply({
+          content: `Semua pemegang tahta **${tier}** sedang bertarung dalam duel aktif atau memiliki perlindungan tahta. Kamu telah dimasukkan ke dalam antrean penantang (Posisi #${throneGuild.queues[tier].length}).`,
+          flags: MessageFlags.Ephemeral
+        });
+      } else {
+        return interaction.reply({
+          content: `Semua pemegang tahta **${tier}** sedang bertarung dalam duel aktif atau memiliki perlindungan tahta. Kamu sudah berada dalam antrean penantang (Posisi #${existingQueueIdx + 1}).`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
     }
 
     const targetDefender = availableHolders[Math.floor(Math.random() * availableHolders.length)];
-    await initiateThroneDuel({
+    const duelResult = await initiateThroneDuel({
       guildId,
       challengerId: userId,
       targetDefender,
@@ -3742,6 +3869,13 @@ async function executeGachaChallenge(interaction, client) {
       client
     });
 
+    if (!duelResult) {
+      return interaction.reply({
+        content: 'Tidak dapat memulai duel: Salah satu pihak saat ini sedang berada dalam duel aktif lain.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
     return interaction.reply({
       content: `Lawan terpilih secara acak: <@${targetDefender.userId}>!\nTantangan perebutan **Tahta ${tier}** telah dikirim ke <#${tacticsTargetChannel.id}>. Silakan pasang taktikmu di sana.`,
       flags: MessageFlags.Ephemeral
@@ -3749,7 +3883,7 @@ async function executeGachaChallenge(interaction, client) {
   }
 
   // Case 6C: Mode pick atau tanpa opsi -> Tampilkan 2 opsi (Tombol Acak & Select Menu)
-  const challengeRows = await buildDefenderChallengeComponents(interaction.guild, tier, userId, activeHolders, busyDefenderIds);
+  const challengeRows = await buildDefenderChallengeComponents(interaction.guild, tier, userId, activeHolders, busyUserIds);
 
   const embed = new EmbedBuilder()
     .setColor(tier === 'MYTHIC' ? 0xFF007F : 0xFEE75C)
@@ -3794,6 +3928,12 @@ async function executeGachaChallengePrompt(interaction, client, challengeTier) {
   const gachaData = storage.read('gacha_data');
   const userData = getOrInitUserData(gachaData, guildId, userId);
   const now = Date.now();
+
+  if (isUserInActiveDuel(guildId, userId)) {
+    const content = 'Kamu saat ini sedang berada dalam duel tahta yang masih berlangsung. Selesaikan duelmu terlebih dahulu sebelum menantang lagi!';
+    if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+    return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  }
 
   if (userData.challengeCooldownUntil && userData.challengeCooldownUntil > now) {
     const remMins = Math.ceil((userData.challengeCooldownUntil - now) / 60000);
@@ -3876,13 +4016,9 @@ async function executeGachaChallengePrompt(interaction, client, challengeTier) {
 
   // 6. Kursi Penuh! (>= quota) -> Bangun komponen challenge (Acak / Pilih)
   const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
-  const busyDefenderIds = new Set(
-    Object.values(throneGuild.activeDuels || {})
-      .filter(d => d.itemTier === tier && d.status === 'WAITING_TACTICS')
-      .map(d => d.defenderId)
-  );
+  const busyUserIds = getBusyDuelUserIds(guildId);
 
-  const challengeRows = await buildDefenderChallengeComponents(interaction.guild, tier, userId, activeHolders, busyDefenderIds);
+  const challengeRows = await buildDefenderChallengeComponents(interaction.guild, tier, userId, activeHolders, busyUserIds);
 
   const embed = new EmbedBuilder()
     .setColor(tier === 'MYTHIC' ? 0xFF007F : 0xFEE75C)
@@ -3915,6 +4051,12 @@ async function executeGachaDuelStartPrompt(interaction, client) {
   const gachaData = storage.read('gacha_data') || {};
   const userData = getOrInitUserData(gachaData, guildId, userId);
   const now = Date.now();
+
+  if (isUserInActiveDuel(guildId, userId)) {
+    const content = 'Kamu saat ini sedang berada dalam duel tahta yang masih berlangsung. Selesaikan duelmu terlebih dahulu sebelum menantang lagi!';
+    if (interaction.deferred || interaction.replied) return interaction.editReply({ content });
+    return interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  }
 
   if (userData.challengeCooldownUntil && userData.challengeCooldownUntil > now) {
     const remMins = Math.ceil((userData.challengeCooldownUntil - now) / 60000);
@@ -6347,6 +6489,8 @@ module.exports = {
   updateDuelPanelIfExists,
   initiateThroneDuel,
   buildDefenderChallengeComponents,
+  getBusyDuelUserIds,
+  isUserInActiveDuel,
   checkAndExpireGachaRoles,
   checkAndExpireThroneDuels,
   processDuelButton,
