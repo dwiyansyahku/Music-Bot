@@ -268,7 +268,7 @@ function buildHelpEmbed(category, client, guild = null) {
           `• \`/mod setlogchannel [channel]\` — Saluran Mod Log audit terpusat (Auto-Kick, Ban, Jail, Voice Disconnect, Server Mute/Deafen, Anti-Nuke, Anti-Raid, Webhook, & Ghost Ping).\n\n` +
           `◈ **Perlindungan Otomatis Tanpa Perintah (Passive Security):**\n` +
           `• **🚨 Proteksi Anti-Nuke:** Memantau aksi beruntun moderator (channel/role delete, mass ban/kick). Jika melampaui batas wajar (15s), role izin berbahaya langsung dicabut & akun di-timeout 24 jam.\n` +
-          `• **🚪 Anti-Raid Join Gate:** Otomatis menolak & meng-kick akun kloningan/bot yang berusia **kurang dari 3 hari** serta mendeteksi lonjakan mass-join (> 5 akun dalam 10s).\n` +
+          `• **🚪 Anti-Raid Join Gate:** Otomatis menolak & meng-kick akun kloningan/bot yang berusia **kurang dari 1 hari** serta mendeteksi lonjakan mass-join (> 5 akun dalam 10s).\n` +
           `• **🔗 Proteksi Webhook Liar:** Menghapus seketika webhook tidak berwenang yang dibuat di channel server untuk mencegah broadcast scam.\n` +
           `• **👻 Anti-Ghost Ping & Edit Monitor:** Melacak pesan mention yang sengaja dihapus cepat serta memindai pesan yang diedit menjadi link phising.\n` +
           `• **🔒 Karantina Media Member Baru:** Member yang baru bergabung < 24 jam dibatasi mengirim file lampiran/media di chatroom umum.\n` +

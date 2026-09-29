@@ -31,9 +31,9 @@ module.exports = {
       console.warn('[InviteTracker Join Error]:', inviteErr.message);
     }
 
-    // ─── 1. ANTI-RAID: PEMERIKSAAN UMUR AKUN MINIMAL (MIN 3 HARI / 72 JAM) ───
+    // ─── 1. ANTI-RAID: PEMERIKSAAN UMUR AKUN MINIMAL (MIN 1 HARI / 24 JAM) ───
     const accountAgeMs = now - member.user.createdTimestamp;
-    const minAgeMs = 3 * 24 * 60 * 60 * 1000; // 3 hari
+    const minAgeMs = 1 * 24 * 60 * 60 * 1000; // 1 hari (24 jam)
 
     if (accountAgeMs < minAgeMs && !member.user.bot) {
       const ageHours = Math.max(1, Math.floor(accountAgeMs / (1000 * 60 * 60)));
@@ -50,9 +50,9 @@ module.exports = {
               .setTitle(`🛡️ Akses Server Ditolak — ${guild.name}`)
               .setDescription(
                 `Halo **${member.user.username}**,\n\n` +
-                `Demi menjaga keamanan komunitas dari serangan bot raid dan akun kloningan, server **${guild.name}** mewajibkan akun Discord berusia **minimal 3 hari (72 jam)**.\n\n` +
+                `Demi menjaga keamanan komunitas dari serangan bot raid dan akun kloningan, server **${guild.name}** mewajibkan akun Discord berusia **minimal 1 hari (24 jam)**.\n\n` +
                 `• **Umur Akunmu:** ${ageHours < 24 ? `${ageHours} jam` : `${ageDays} hari`}\n` +
-                `• **Syarat Minimal:** 3 hari (72 jam)\n\n` +
+                `• **Syarat Minimal:** 1 hari (24 jam)\n\n` +
                 `Silakan bergabung kembali setelah akunmu melewati batas usia minimal ya. Terima kasih atas pengertiannya! 🙏`
               )
           ]
@@ -62,7 +62,7 @@ module.exports = {
       // Kick akun dari server
       let kickSuccess = false;
       if (member.kickable) {
-        await member.kick('Anti-Raid: Umur akun < 3 hari (Pencegahan bot raid)').then(() => {
+        await member.kick('Anti-Raid: Umur akun < 1 hari (Pencegahan bot raid)').then(() => {
           kickSuccess = true;
         }).catch(err => {
           console.error('[Anti-Raid Kick Error]:', err.message);
@@ -75,7 +75,7 @@ module.exports = {
         action: 'ANTI_RAID',
         moderator: { id: client.user.id, username: 'Anti-Raid Gatekeeper', tag: client.user.tag },
         target: member.user,
-        reason: `Akun baru berusia ${ageHours} jam (kurang dari 3 hari). Dikeluarkan otomatis.`,
+        reason: `Akun baru berusia ${ageHours} jam (kurang dari 1 hari). Dikeluarkan otomatis.`,
         details: `• **Akun Terdeteksi:** <@${member.user.id}> (\`${member.user.tag}\`)\n` +
                  `• **Tanggal Dibuat:** <t:${Math.floor(member.user.createdTimestamp / 1000)}:R> (<t:${Math.floor(member.user.createdTimestamp / 1000)}:F>)\n` +
                  `• **Umur Akun:** ${ageHours < 24 ? `${ageHours} jam` : `${ageDays} hari`}\n` +
