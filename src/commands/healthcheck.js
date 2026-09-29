@@ -64,6 +64,7 @@ module.exports = {
     // ========================================
     // 2. DATA FILES (Volume/Persistence)
     // ========================================
+    const dataDir = path.join(process.cwd(), 'data');
     const coreFiles = ['cards.json', 'settings.json', 'voiceStats.json', 'gacha_data.json'];
     const onDemandFiles = [
       'jail.json', 'musicquiz_lb.json', 'timecapsules.json',
