@@ -35,12 +35,27 @@ module.exports = {
     const uptimeStr = `${hours}j ${minutes}m ${seconds}d`;
     const apiLatency = Math.round(client.ws.ping);
 
+    const memory = process.memoryUsage();
+    const rssMB = (memory.rss / (1024 * 1024)).toFixed(1);
+    const heapUsedMB = (memory.heapUsed / (1024 * 1024)).toFixed(1);
+    const platformStr = process.platform === 'linux' ? '🐧 Linux (Railway Docker)' : `💻 ${process.platform}`;
+
+    let canvasOk = false;
+    try {
+      const { createCanvas } = require('@napi-rs/canvas');
+      createCanvas(1, 1);
+      canvasOk = true;
+    } catch { }
+
     results.push({
       category: '🤖 Bot Core',
       checks: [
         { name: 'Bot Online', status: true, detail: `${client.user.tag}` },
+        { name: 'Host Platform', status: true, detail: platformStr },
+        { name: 'RAM Usage', status: memory.rss < 600 * 1024 * 1024, detail: `${rssMB} MB (Heap: ${heapUsedMB} MB)` },
         { name: 'Uptime', status: true, detail: uptimeStr },
         { name: 'API Latency', status: apiLatency < 500, detail: `${apiLatency}ms${apiLatency >= 500 ? ' ⚠️ Tinggi' : ''}` },
+        { name: 'Canvas Engine', status: canvasOk, detail: canvasOk ? 'Siap (@napi-rs/canvas)' : '❌ Gagal inisialisasi' },
         { name: 'Server Count', status: true, detail: `${client.guilds.cache.size} server` },
         { name: 'Slash Commands', status: (client.commands?.size || 0) > 0, detail: `${client.commands?.size || 0} commands loaded` },
       ]
@@ -270,13 +285,14 @@ module.exports = {
     const proxyRotator = require('../utils/proxyRotator');
     const proxyChecks = [];
 
-    const proxyCount = proxyRotator._getProxyCount ? proxyRotator._getProxyCount() : 0;
+    const proxyCount = proxyRotator.proxies?.length || (proxyRotator._getProxyCount ? proxyRotator._getProxyCount() : 0);
+    const healthyCount = proxyRotator.getHealthyCount ? proxyRotator.getHealthyCount() : proxyCount;
     const currentProxy = proxyRotator.getProxy ? proxyRotator.getProxy() : null;
 
     proxyChecks.push({
       name: 'Proxy Pool',
       status: proxyCount > 0,
-      detail: proxyCount > 0 ? `${proxyCount} proxy tersedia` : '⚠️ Tidak ada proxy (risiko 429)'
+      detail: proxyCount > 0 ? `${healthyCount}/${proxyCount} proxy aktif & sehat` : '⚠️ Tidak ada proxy (Direct)'
     });
 
     if (currentProxy && proxyRotator._maskProxy) {
