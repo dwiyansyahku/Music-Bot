@@ -64,13 +64,13 @@ module.exports = {
     // ========================================
     // 2. DATA FILES (Volume/Persistence)
     // ========================================
-    const dataDir = path.join(process.cwd(), 'data');
-    const dataFiles = [
-      'cards.json', 'settings.json', 'voiceStats.json', 'jail.json',
-      'gacha_data.json', 'musicquiz_lb.json', 'gallery.json',
-      'saweria_donations.json', 'season_data.json', 'stardust_rain.json',
-      'throne_data.json', 'throne_duels.json', 'timecapsules.json', 'events.json'
+    const coreFiles = ['cards.json', 'settings.json', 'voiceStats.json', 'gacha_data.json'];
+    const onDemandFiles = [
+      'jail.json', 'musicquiz_lb.json', 'timecapsules.json',
+      'gallery.json', 'saweria_donations.json', 'season_data.json',
+      'stardust_rain.json', 'throne_data.json', 'throne_duels.json', 'events.json'
     ];
+    const dataFiles = [...coreFiles, ...onDemandFiles];
 
     const dataChecks = [];
     let totalDataSize = 0;
@@ -79,6 +79,7 @@ module.exports = {
     for (const file of dataFiles) {
       const filePath = path.join(dataDir, file);
       const exists = fs.existsSync(filePath);
+      const isCore = coreFiles.includes(file);
       let size = 0;
       if (exists) {
         try {
@@ -90,8 +91,9 @@ module.exports = {
       }
       dataChecks.push({
         name: file,
-        status: exists,
-        detail: exists ? `${(size / 1024).toFixed(1)} KB` : 'Tidak ada'
+        // Jika core file tidak ada -> FAIL (false). Jika on-demand tidak ada -> OPSIONAL (null)
+        status: exists ? true : (isCore ? false : null),
+        detail: exists ? `${(size / 1024).toFixed(1)} KB` : (isCore ? '❌ Wajib Ada!' : 'Belum dibuat (On-demand)')
       });
     }
 
