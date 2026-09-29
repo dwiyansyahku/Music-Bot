@@ -421,6 +421,12 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   }
 
   // CASE 2: Post brand new message if not published yet or deleted
+  // SAFETY GUARD: Jangan pernah kirim pesan baru jika ini proses auto-sync / startup!
+  // Pesan baru hanya boleh dibuat jika dipicu langsung oleh user (isAutoSync === false)
+  if (isAutoSync) {
+    return null;
+  }
+
   try {
     const newMessage = await publishChannel.send({
       embeds: [embed],

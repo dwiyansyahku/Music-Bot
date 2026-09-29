@@ -214,7 +214,7 @@ function handleVoiceStateUpdate(oldState, newState, client) {
       const cardsData = storage.read('cards');
       if (cardsData[guildId]?.[userId]?.publishedMessageId && client) {
         const { publishCardToChannel } = require('./cardHandler');
-        publishCardToChannel(guild, member, client).catch(() => {});
+        publishCardToChannel(guild, member, client, true).catch(() => {});
       }
     }
   }

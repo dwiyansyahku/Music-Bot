@@ -428,26 +428,9 @@ module.exports = {
     console.log('✅ [Schedulers] Morning, Night, Announce, Birthday, Event, Time Capsule, Gacha Role Expiry schedulers aktif!');
 
     // =============================================
-    // INITIAL STARTUP CARD GALLERY REFRESH (1x on boot)
+    // INITIAL STARTUP PANELS REFRESH (1x on boot)
     // =============================================
     setTimeout(async () => {
-      try {
-        const cardsData = storage.read('cards');
-        const { publishCardToChannel } = require('../utils/cardHandler');
-        for (const guild of client.guilds.cache.values()) {
-          const guildCards = cardsData[guild.id] || {};
-          for (const [userId, userCard] of Object.entries(guildCards)) {
-            if (userCard.publishedMessageId) {
-              const member = await guild.members.fetch(userId).catch(() => null);
-              if (member) {
-                await publishCardToChannel(guild, member, client, true).catch(() => { });
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[CardSync] Startup refresh failed:', err.message);
-      }
 
       // AUTO-REFRESH THRONE & DUEL PANELS ON STARTUP
       try {
