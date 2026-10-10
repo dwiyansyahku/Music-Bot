@@ -2,8 +2,6 @@ const {
   SlashCommandBuilder,
   AttachmentBuilder,
   EmbedBuilder,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
   MessageFlags
 } = require('discord.js');
 const { isOwnerOrMod, replyNoAccessMod } = require('../utils/helpers');
@@ -15,10 +13,11 @@ const {
   addDivisionMember,
   removeDivisionMember,
   resetOrgData,
-  setOrgPanelRef,
-  getOrgPanelRef
+  getOrgMessage,
+  setOrgMessage,
+  clearOrgMessage
 } = require('../utils/orgHelper');
-const { generateOrgChartImage, generateDivisionDetailImage } = require('../utils/orgChartGenerator');
+const { generateOrgChartImage } = require('../utils/orgChartGenerator');
 
 const DIVISION_CHOICES = [
   { name: '⚡ Head Admin', value: 'head_admin' },
@@ -30,43 +29,13 @@ const DIVISION_CHOICES = [
 ];
 
 /**
- * Membuat Select Menu dropdown divisi untuk navigasi org chart
+ * Helper: Membuat embed + attachment untuk org chart
  */
-function buildOrgSelectMenu() {
-  return new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId('org_division_select')
-      .setPlaceholder('🔍 Pilih divisi untuk melihat detail...')
-      .setMinValues(1)
-      .setMaxValues(1)
-      .addOptions([
-        {
-          label: '🏛️ Tampilan Penuh',
-          description: 'Lihat seluruh bagan struktur organisasi',
-          value: 'full_chart',
-          emoji: '🏛️'
-        },
-        ...Object.entries(DIVISIONS).map(([key, div]) => ({
-          label: div.name,
-          description: `Lihat detail anggota divisi ${div.name}`,
-          value: key,
-          emoji: div.icon
-        }))
-      ])
-  );
-}
-
-/**
- * Membuat payload lengkap /org show (embed + gambar + select menu)
- * @param {Object} orgData
- * @param {import('discord.js').Guild} guild
- * @param {import('discord.js').Client} client
- * @returns {Promise<Object>} payload siap untuk .editReply() atau .edit()
- */
-async function buildOrgShowPayload(orgData, guild, client) {
+async function buildOrgChartPayload(guildId, guild, client) {
+  const orgData = getGuildOrg(guildId);
   const imageBuffer = await generateOrgChartImage(orgData, guild);
   const attachment = new AttachmentBuilder(imageBuffer, {
-    name: `struktur_organisasi_${guild.id}.png`
+    name: `struktur_organisasi_${guildId}.png`
   });
 
   const embed = new EmbedBuilder()
@@ -77,55 +46,61 @@ async function buildOrgShowPayload(orgData, guild, client) {
       `◈ **Divisi Aktif:**\n` +
       `• **Head Admin** • **Security** • **Admin TikTok**\n` +
       `• **Admin Instagram** • **Streamer** • **Team Creative**\n\n` +
-      `🔍 *Gunakan dropdown di bawah untuk melihat detail setiap divisi dengan ukuran besar.*\n` +
-      `💡 *Atau klik gambar di atas untuk zoom langsung.*`
+      `💡 *Gunakan \`/org list\` untuk melihat rincian anggota dalam bentuk teks.*`
     )
-    .setImage(`attachment://struktur_organisasi_${guild.id}.png`)
+    .setImage(`attachment://struktur_organisasi_${guildId}.png`)
     .setFooter({
-      text: `Qumpruy Community System • Auto-update aktif`,
+      text: `Qumpruy Community System • Terakhir diperbarui`,
       iconURL: guild.iconURL({ dynamic: true }) || client.user.displayAvatarURL()
     })
     .setTimestamp();
 
-  return {
-    embeds: [embed],
-    files: [attachment],
-    components: [buildOrgSelectMenu()]
-  };
+  return { embed, attachment };
 }
 
 /**
- * Update panel /org show yang sudah ada secara otomatis (realtime)
- * Dipanggil setiap kali data organisasi berubah (setketua, addmember, dll)
+ * Helper: Refresh / auto-update pesan org chart yang sudah di-post ("live message").
+ * Jika pesan lama sudah dihapus atau tidak bisa diedit, otomatis kirim ulang di channel yang sama
+ * dan simpan referensi baru.
  */
-async function updateOrgPanel(guild, client) {
-  const guildId = guild.id;
-  const panelRef = getOrgPanelRef(guildId);
-  if (!panelRef) return; // tidak ada panel tersimpan
+async function refreshLiveOrgChart(guildId, guild, client) {
+  const liveMsg = getOrgMessage(guildId);
+  if (!liveMsg) return; // Belum pernah di-post, skip
 
   try {
-    const channel = guild.channels.cache.get(panelRef.channelId) ||
-      await guild.channels.fetch(panelRef.channelId).catch(() => null);
-    if (!channel) return;
+    const channel = guild.channels.cache.get(liveMsg.channelId) ||
+                    await guild.channels.fetch(liveMsg.channelId).catch(() => null);
+    if (!channel) {
+      clearOrgMessage(guildId);
+      return;
+    }
 
-    const message = await channel.messages.fetch(panelRef.messageId).catch(() => null);
-    if (!message) return;
+    const { embed, attachment } = await buildOrgChartPayload(guildId, guild, client);
 
-    const orgData = getGuildOrg(guildId);
-    const payload = await buildOrgShowPayload(orgData, guild, client);
-
-    await message.edit(payload);
+    // Coba edit pesan lama
+    try {
+      const oldMsg = await channel.messages.fetch(liveMsg.messageId);
+      await oldMsg.edit({
+        embeds: [embed],
+        files: [attachment]
+      });
+      // Berhasil di-edit, referensi tetap sama
+    } catch (fetchErr) {
+      // Pesan lama sudah dihapus / tidak accessible — kirim ulang dan simpan referensi baru
+      const newMsg = await channel.send({
+        embeds: [embed],
+        files: [attachment]
+      });
+      setOrgMessage(guildId, channel.id, newMsg.id);
+    }
   } catch (err) {
-    console.warn('[/org] Auto-update panel gagal:', err.message);
+    console.warn('[/org] Gagal refresh live org chart:', err.message);
+    // Jika channel sudah tidak ada, bersihkan referensi
+    clearOrgMessage(guildId);
   }
 }
 
 module.exports = {
-  // Export helpers agar bisa dipakai dari interactionCreate
-  buildOrgShowPayload,
-  updateOrgPanel,
-  buildOrgSelectMenu,
-
   data: new SlashCommandBuilder()
     .setName('org')
     .setDescription('Sistem manajemen & tampilan bagan struktur organisasi QUMPRUY')
@@ -133,13 +108,7 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('show')
-        .setDescription('Tampilkan bagan visual struktur organisasi QUMPRUY')
-        .addBooleanOption(opt =>
-          opt
-            .setName('private')
-            .setDescription('Tampilkan hanya untuk Anda sendiri (ephemeral)')
-            .setRequired(false)
-        )
+        .setDescription('Tampilkan bagan visual struktur organisasi QUMPRUY (auto-update realtime)')
     )
     // 2. LIST
     .addSubcommand(sub =>
@@ -261,22 +230,20 @@ module.exports = {
     // 1. SUBCOMMAND: SHOW
     // ==========================================
     if (sub === 'show') {
-      const isPrivate = interaction.options.getBoolean('private') || false;
-      await interaction.deferReply({
-        flags: isPrivate ? MessageFlags.Ephemeral : undefined
-      });
+      await interaction.deferReply();
 
       try {
-        const orgData = getGuildOrg(guildId);
-        const payload = await buildOrgShowPayload(orgData, guild, client);
-        const reply = await interaction.editReply(payload);
+        const { embed, attachment } = await buildOrgChartPayload(guildId, guild, client);
 
-        // Simpan referensi panel publik untuk auto-update di kemudian hari
-        if (!isPrivate && reply) {
-          setOrgPanelRef(guildId, interaction.channelId, reply.id);
-        }
+        const sentMsg = await interaction.editReply({
+          embeds: [embed],
+          files: [attachment]
+        });
 
-        return reply;
+        // Simpan referensi pesan ini sebagai "live message" yang akan auto-update
+        setOrgMessage(guildId, interaction.channelId, sentMsg.id);
+
+        return sentMsg;
       } catch (err) {
         console.error('[/org show] Error:', err);
         return await interaction.editReply({
@@ -375,14 +342,16 @@ module.exports = {
         roleTitle
       });
 
-      // Auto-update panel yang sudah ada
-      updateOrgPanel(guild, client).catch(() => {});
+      // Auto-refresh live org chart
+      refreshLiveOrgChart(guildId, guild, client).catch(e =>
+        console.warn('[/org setketua] Auto-refresh failed:', e.message)
+      );
 
       return await interaction.editReply({
         content:
           `✅ Berhasil mengatur **${leaderData.name}** (<@${targetUser.id}>) sebagai **${leaderData.roleTitle}**!\n` +
           `🖼️ Foto: ${photoAttachment ? 'Custom upload tersimpan di database lokal' : 'Avatar Discord'}\n\n` +
-          `🔄 *Panel bagan otomatis diperbarui.*`
+          `🔄 *Bagan struktur organisasi telah otomatis diperbarui.*`
       });
     }
 
@@ -393,11 +362,13 @@ module.exports = {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       removeLeader(guildId);
 
-      // Auto-update panel
-      updateOrgPanel(guild, client).catch(() => {});
+      // Auto-refresh live org chart
+      refreshLiveOrgChart(guildId, guild, client).catch(e =>
+        console.warn('[/org removeketua] Auto-refresh failed:', e.message)
+      );
 
       return await interaction.editReply({
-        content: '✅ Jabatan Ketua Umum berhasil dikosongkan.\n🔄 *Panel bagan otomatis diperbarui.*'
+        content: '✅ Jabatan Ketua Umum berhasil dikosongkan.\n\n🔄 *Bagan struktur organisasi telah otomatis diperbarui.*'
       });
     }
 
@@ -436,15 +407,17 @@ module.exports = {
         roleDetail
       });
 
-      // Auto-update panel
-      updateOrgPanel(guild, client).catch(() => {});
+      // Auto-refresh live org chart
+      refreshLiveOrgChart(guildId, guild, client).catch(e =>
+        console.warn('[/org addmember] Auto-refresh failed:', e.message)
+      );
 
       return await interaction.editReply({
         content:
           `✅ Berhasil menambahkan/memperbarui **${memberData.name}** (<@${targetUser.id}>) ke divisi **${divConfig.name}**!\n` +
           `🏷️ Peran: **${memberData.roleDetail}**\n` +
           `🖼️ Foto: ${photoAttachment ? 'Custom upload tersimpan di database lokal' : 'Avatar Discord'}\n\n` +
-          `🔄 *Panel bagan otomatis diperbarui.*`
+          `🔄 *Bagan struktur organisasi telah otomatis diperbarui.*`
       });
     }
 
@@ -459,13 +432,14 @@ module.exports = {
       const divConfig = DIVISIONS[divisionKey];
 
       const removed = removeDivisionMember(guildId, divisionKey, targetUser.id);
-
-      // Auto-update panel
-      updateOrgPanel(guild, client).catch(() => {});
-
       if (removed) {
+        // Auto-refresh live org chart
+        refreshLiveOrgChart(guildId, guild, client).catch(e =>
+          console.warn('[/org removemember] Auto-refresh failed:', e.message)
+        );
+
         return await interaction.editReply({
-          content: `✅ Berhasil menghapus <@${targetUser.id}> dari divisi **${divConfig.name}**.\n🔄 *Panel bagan otomatis diperbarui.*`
+          content: `✅ Berhasil menghapus <@${targetUser.id}> dari divisi **${divConfig.name}**.\n\n🔄 *Bagan struktur organisasi telah otomatis diperbarui.*`
         });
       } else {
         return await interaction.editReply({
@@ -489,11 +463,13 @@ module.exports = {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       resetOrgData(guildId);
 
-      // Auto-update panel
-      updateOrgPanel(guild, client).catch(() => {});
+      // Auto-refresh live org chart
+      refreshLiveOrgChart(guildId, guild, client).catch(e =>
+        console.warn('[/org reset] Auto-refresh failed:', e.message)
+      );
 
       return await interaction.editReply({
-        content: '🗑️ Seluruh data struktur organisasi telah berhasil direset ke keadaan kosong.\n🔄 *Panel bagan otomatis diperbarui.*'
+        content: '🗑️ Seluruh data struktur organisasi telah berhasil direset ke keadaan kosong.\n\n🔄 *Bagan struktur organisasi telah otomatis diperbarui.*'
       });
     }
   }

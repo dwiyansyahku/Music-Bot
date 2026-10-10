@@ -240,21 +240,35 @@ function resetOrgData(guildId) {
 }
 
 /**
- * Simpan referensi pesan panel /org show agar bisa di-update otomatis
- * Saat data berubah, bot akan edit pesan ini alih-alih kirim baru
+ * Mendapatkan referensi pesan org chart yang sedang "live" (persistent message)
+ * @returns {{ channelId: string, messageId: string } | null}
  */
-function setOrgPanelRef(guildId, channelId, messageId) {
-  const orgData = getGuildOrg(guildId);
-  orgData._panelRef = { channelId, messageId, updatedAt: new Date().toISOString() };
-  saveGuildOrg(guildId, orgData);
+function getOrgMessage(guildId) {
+  const allOrg = storage.read('organization') || {};
+  const guildData = allOrg[guildId];
+  if (!guildData || !guildData._liveMessage) return null;
+  return guildData._liveMessage;
 }
 
 /**
- * Ambil referensi pesan panel /org show yang tersimpan
+ * Menyimpan referensi pesan org chart yang sedang "live"
  */
-function getOrgPanelRef(guildId) {
-  const orgData = getGuildOrg(guildId);
-  return orgData._panelRef || null;
+function setOrgMessage(guildId, channelId, messageId) {
+  const allOrg = storage.read('organization') || {};
+  if (!allOrg[guildId]) allOrg[guildId] = getGuildOrg(guildId);
+  allOrg[guildId]._liveMessage = { channelId, messageId };
+  storage.write('organization', allOrg);
+}
+
+/**
+ * Hapus referensi pesan org chart live (misalnya jika pesan sudah dihapus)
+ */
+function clearOrgMessage(guildId) {
+  const allOrg = storage.read('organization') || {};
+  if (allOrg[guildId]) {
+    delete allOrg[guildId]._liveMessage;
+    storage.write('organization', allOrg);
+  }
 }
 
 module.exports = {
@@ -267,6 +281,7 @@ module.exports = {
   addDivisionMember,
   removeDivisionMember,
   resetOrgData,
-  setOrgPanelRef,
-  getOrgPanelRef
+  getOrgMessage,
+  setOrgMessage,
+  clearOrgMessage
 };
