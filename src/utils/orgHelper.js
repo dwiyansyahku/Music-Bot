@@ -239,6 +239,24 @@ function resetOrgData(guildId) {
   return true;
 }
 
+/**
+ * Simpan referensi pesan panel /org show agar bisa di-update otomatis
+ * Saat data berubah, bot akan edit pesan ini alih-alih kirim baru
+ */
+function setOrgPanelRef(guildId, channelId, messageId) {
+  const orgData = getGuildOrg(guildId);
+  orgData._panelRef = { channelId, messageId, updatedAt: new Date().toISOString() };
+  saveGuildOrg(guildId, orgData);
+}
+
+/**
+ * Ambil referensi pesan panel /org show yang tersimpan
+ */
+function getOrgPanelRef(guildId) {
+  const orgData = getGuildOrg(guildId);
+  return orgData._panelRef || null;
+}
+
 module.exports = {
   DIVISIONS,
   getGuildOrg,
@@ -248,5 +266,7 @@ module.exports = {
   removeLeader,
   addDivisionMember,
   removeDivisionMember,
-  resetOrgData
+  resetOrgData,
+  setOrgPanelRef,
+  getOrgPanelRef
 };

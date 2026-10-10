@@ -2,6 +2,8 @@ const {
   SlashCommandBuilder,
   AttachmentBuilder,
   EmbedBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
   MessageFlags
 } = require('discord.js');
 const { isOwnerOrMod, replyNoAccessMod } = require('../utils/helpers');
@@ -12,9 +14,11 @@ const {
   removeLeader,
   addDivisionMember,
   removeDivisionMember,
-  resetOrgData
+  resetOrgData,
+  setOrgPanelRef,
+  getOrgPanelRef
 } = require('../utils/orgHelper');
-const { generateOrgChartImage } = require('../utils/orgChartGenerator');
+const { generateOrgChartImage, generateDivisionDetailImage } = require('../utils/orgChartGenerator');
 
 const DIVISION_CHOICES = [
   { name: '⚡ Head Admin', value: 'head_admin' },
@@ -25,7 +29,103 @@ const DIVISION_CHOICES = [
   { name: '🎨 Team Creative', value: 'team_creative' },
 ];
 
+/**
+ * Membuat Select Menu dropdown divisi untuk navigasi org chart
+ */
+function buildOrgSelectMenu() {
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('org_division_select')
+      .setPlaceholder('🔍 Pilih divisi untuk melihat detail...')
+      .setMinValues(1)
+      .setMaxValues(1)
+      .addOptions([
+        {
+          label: '🏛️ Tampilan Penuh',
+          description: 'Lihat seluruh bagan struktur organisasi',
+          value: 'full_chart',
+          emoji: '🏛️'
+        },
+        ...Object.entries(DIVISIONS).map(([key, div]) => ({
+          label: div.name,
+          description: `Lihat detail anggota divisi ${div.name}`,
+          value: key,
+          emoji: div.icon
+        }))
+      ])
+  );
+}
+
+/**
+ * Membuat payload lengkap /org show (embed + gambar + select menu)
+ * @param {Object} orgData
+ * @param {import('discord.js').Guild} guild
+ * @param {import('discord.js').Client} client
+ * @returns {Promise<Object>} payload siap untuk .editReply() atau .edit()
+ */
+async function buildOrgShowPayload(orgData, guild, client) {
+  const imageBuffer = await generateOrgChartImage(orgData, guild);
+  const attachment = new AttachmentBuilder(imageBuffer, {
+    name: `struktur_organisasi_${guild.id}.png`
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor(0x00F2FE)
+    .setTitle(`🏛️ STRUKTUR ORGANISASI — ${(orgData.title || guild.name).toUpperCase()}`)
+    .setDescription(
+      `Bagan resmi kepengurusan dan divisi komunitas **${orgData.title || guild.name}**.\n\n` +
+      `◈ **Divisi Aktif:**\n` +
+      `• **Head Admin** • **Security** • **Admin TikTok**\n` +
+      `• **Admin Instagram** • **Streamer** • **Team Creative**\n\n` +
+      `🔍 *Gunakan dropdown di bawah untuk melihat detail setiap divisi dengan ukuran besar.*\n` +
+      `💡 *Atau klik gambar di atas untuk zoom langsung.*`
+    )
+    .setImage(`attachment://struktur_organisasi_${guild.id}.png`)
+    .setFooter({
+      text: `Qumpruy Community System • Auto-update aktif`,
+      iconURL: guild.iconURL({ dynamic: true }) || client.user.displayAvatarURL()
+    })
+    .setTimestamp();
+
+  return {
+    embeds: [embed],
+    files: [attachment],
+    components: [buildOrgSelectMenu()]
+  };
+}
+
+/**
+ * Update panel /org show yang sudah ada secara otomatis (realtime)
+ * Dipanggil setiap kali data organisasi berubah (setketua, addmember, dll)
+ */
+async function updateOrgPanel(guild, client) {
+  const guildId = guild.id;
+  const panelRef = getOrgPanelRef(guildId);
+  if (!panelRef) return; // tidak ada panel tersimpan
+
+  try {
+    const channel = guild.channels.cache.get(panelRef.channelId) ||
+      await guild.channels.fetch(panelRef.channelId).catch(() => null);
+    if (!channel) return;
+
+    const message = await channel.messages.fetch(panelRef.messageId).catch(() => null);
+    if (!message) return;
+
+    const orgData = getGuildOrg(guildId);
+    const payload = await buildOrgShowPayload(orgData, guild, client);
+
+    await message.edit(payload);
+  } catch (err) {
+    console.warn('[/org] Auto-update panel gagal:', err.message);
+  }
+}
+
 module.exports = {
+  // Export helpers agar bisa dipakai dari interactionCreate
+  buildOrgShowPayload,
+  updateOrgPanel,
+  buildOrgSelectMenu,
+
   data: new SlashCommandBuilder()
     .setName('org')
     .setDescription('Sistem manajemen & tampilan bagan struktur organisasi QUMPRUY')
@@ -168,32 +268,15 @@ module.exports = {
 
       try {
         const orgData = getGuildOrg(guildId);
-        const imageBuffer = await generateOrgChartImage(orgData, guild);
-        const attachment = new AttachmentBuilder(imageBuffer, {
-          name: `struktur_organisasi_${guildId}.png`
-        });
+        const payload = await buildOrgShowPayload(orgData, guild, client);
+        const reply = await interaction.editReply(payload);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00F2FE)
-          .setTitle(`🏛️ STRUKTUR ORGANISASI — ${(orgData.title || guild.name).toUpperCase()}`)
-          .setDescription(
-            `Bagan resmi kepengurusan dan divisi komunitas **${orgData.title || guild.name}**.\n\n` +
-            `◈ **Divisi Aktif:**\n` +
-            `• **Head Admin** • **Security** • **Admin TikTok**\n` +
-            `• **Admin Instagram** • **Streamer** • **Team Creative**\n\n` +
-            `💡 *Gunakan \`/org list\` untuk melihat rincian anggota dalam bentuk teks.*`
-          )
-          .setImage(`attachment://struktur_organisasi_${guildId}.png`)
-          .setFooter({
-            text: `Qumpruy Community System • Terakhir diperbarui`,
-            iconURL: guild.iconURL({ dynamic: true }) || client.user.displayAvatarURL()
-          })
-          .setTimestamp();
+        // Simpan referensi panel publik untuk auto-update di kemudian hari
+        if (!isPrivate && reply) {
+          setOrgPanelRef(guildId, interaction.channelId, reply.id);
+        }
 
-        return await interaction.editReply({
-          embeds: [embed],
-          files: [attachment]
-        });
+        return reply;
       } catch (err) {
         console.error('[/org show] Error:', err);
         return await interaction.editReply({
@@ -292,11 +375,14 @@ module.exports = {
         roleTitle
       });
 
+      // Auto-update panel yang sudah ada
+      updateOrgPanel(guild, client).catch(() => {});
+
       return await interaction.editReply({
         content:
           `✅ Berhasil mengatur **${leaderData.name}** (<@${targetUser.id}>) sebagai **${leaderData.roleTitle}**!\n` +
           `🖼️ Foto: ${photoAttachment ? 'Custom upload tersimpan di database lokal' : 'Avatar Discord'}\n\n` +
-          `👉 *Gunakan \`/org show\` untuk melihat bagan visual terbarunya.*`
+          `🔄 *Panel bagan otomatis diperbarui.*`
       });
     }
 
@@ -306,8 +392,12 @@ module.exports = {
     if (sub === 'removeketua') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       removeLeader(guildId);
+
+      // Auto-update panel
+      updateOrgPanel(guild, client).catch(() => {});
+
       return await interaction.editReply({
-        content: '✅ Jabatan Ketua Umum berhasil dikosongkan.'
+        content: '✅ Jabatan Ketua Umum berhasil dikosongkan.\n🔄 *Panel bagan otomatis diperbarui.*'
       });
     }
 
@@ -346,12 +436,15 @@ module.exports = {
         roleDetail
       });
 
+      // Auto-update panel
+      updateOrgPanel(guild, client).catch(() => {});
+
       return await interaction.editReply({
         content:
           `✅ Berhasil menambahkan/memperbarui **${memberData.name}** (<@${targetUser.id}>) ke divisi **${divConfig.name}**!\n` +
           `🏷️ Peran: **${memberData.roleDetail}**\n` +
           `🖼️ Foto: ${photoAttachment ? 'Custom upload tersimpan di database lokal' : 'Avatar Discord'}\n\n` +
-          `👉 *Gunakan \`/org show\` untuk melihat bagan visual terbarunya.*`
+          `🔄 *Panel bagan otomatis diperbarui.*`
       });
     }
 
@@ -366,9 +459,13 @@ module.exports = {
       const divConfig = DIVISIONS[divisionKey];
 
       const removed = removeDivisionMember(guildId, divisionKey, targetUser.id);
+
+      // Auto-update panel
+      updateOrgPanel(guild, client).catch(() => {});
+
       if (removed) {
         return await interaction.editReply({
-          content: `✅ Berhasil menghapus <@${targetUser.id}> dari divisi **${divConfig.name}**.`
+          content: `✅ Berhasil menghapus <@${targetUser.id}> dari divisi **${divConfig.name}**.\n🔄 *Panel bagan otomatis diperbarui.*`
         });
       } else {
         return await interaction.editReply({
@@ -391,8 +488,12 @@ module.exports = {
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       resetOrgData(guildId);
+
+      // Auto-update panel
+      updateOrgPanel(guild, client).catch(() => {});
+
       return await interaction.editReply({
-        content: '🗑️ Seluruh data struktur organisasi telah berhasil direset ke keadaan kosong.'
+        content: '🗑️ Seluruh data struktur organisasi telah berhasil direset ke keadaan kosong.\n🔄 *Panel bagan otomatis diperbarui.*'
       });
     }
   }

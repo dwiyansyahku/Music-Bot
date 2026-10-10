@@ -830,6 +830,177 @@ async function generateOrgChartImage(orgData, guild = null) {
   return canvas.toBuffer('image/png');
 }
 
+/**
+ * Generator gambar detail satu divisi saja — ukuran besar dan jelas
+ * Digunakan oleh Select Menu dropdown di /org show
+ * @param {Object} orgData
+ * @param {string} divisionKey
+ * @param {import('discord.js').Guild} [guild]
+ * @returns {Promise<Buffer>}
+ */
+async function generateDivisionDetailImage(orgData, divisionKey, guild = null) {
+  const divConfig = DIVISIONS[divisionKey];
+  if (!divConfig) throw new Error(`Divisi '${divisionKey}' tidak valid.`);
+
+  const divData = orgData.divisions?.[divisionKey] || { members: [] };
+  const members = divData.members || [];
+
+  const width = 1200;
+  const height = 800;
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+  bgGrad.addColorStop(0, '#060714');
+  bgGrad.addColorStop(0.4, '#0a0c20');
+  bgGrad.addColorStop(1, '#04040d');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, width, height);
+
+  // Subtle grid
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.018)';
+  ctx.lineWidth = 1;
+  const gridSize = 35;
+  for (let gx = 0; gx < width; gx += gridSize) {
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, height); ctx.stroke();
+  }
+  for (let gy = 0; gy < height; gy += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(width, gy); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Ambient glow menggunakan warna divisi
+  const ambientGlow = ctx.createRadialGradient(width / 2, height / 2, 20, width / 2, height / 2, 500);
+  ambientGlow.addColorStop(0, divConfig.color + '30');
+  ambientGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = ambientGlow;
+  ctx.fillRect(0, 0, width, height);
+
+  // ==========================================
+  // HEADER DIVISI
+  // ==========================================
+  // Icon divisi besar
+  drawDivisionIcon(ctx, divisionKey, 70, 55, divConfig.color);
+
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `900 32px ${FONT_FAMILY}`;
+  ctx.textAlign = 'left';
+  ctx.shadowColor = divConfig.color;
+  ctx.shadowBlur = 14;
+  ctx.fillText(divConfig.name.toUpperCase(), 100, 64);
+
+  // Badge anggota
+  const countBadge = `${members.length} ANGGOTA`;
+  ctx.font = `bold 14px ${FONT_FAMILY}`;
+  const cbW = ctx.measureText(countBadge).width + 28;
+  drawRoundRectPath(ctx, width - cbW - 50, 38, cbW, 34, 17);
+  ctx.fillStyle = divConfig.color + '33';
+  ctx.fill();
+  ctx.strokeStyle = divConfig.color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = divConfig.color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(countBadge, width - cbW / 2 - 50, 55);
+  ctx.restore();
+
+  // Divider
+  ctx.save();
+  const divGrad = ctx.createLinearGradient(50, 90, width - 50, 90);
+  divGrad.addColorStop(0, divConfig.color);
+  divGrad.addColorStop(1, 'rgba(255,255,255,0.05)');
+  ctx.strokeStyle = divGrad;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(50, 90);
+  ctx.lineTo(width - 50, 90);
+  ctx.stroke();
+  ctx.restore();
+
+  // ==========================================
+  // MEMBER CARDS — Ukuran Besar dan Jelas
+  // ==========================================
+  const contentStartY = 120;
+  const contentH = height - contentStartY - 50;
+
+  if (members.length === 0) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
+    ctx.font = `italic 22px ${FONT_FAMILY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Belum ada anggota terdaftar di divisi ini', width / 2, height / 2);
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.font = `16px ${FONT_FAMILY}`;
+    ctx.fillText('Gunakan /org addmember untuk menambahkan anggota', width / 2, height / 2 + 40);
+    ctx.restore();
+  } else {
+    // Hitung layout: max 5 kartu per baris, kartu besar
+    const maxPerRow = Math.min(members.length, 4);
+    const rows = Math.ceil(members.length / maxPerRow);
+    const gap = 28;
+    const cardW = Math.min(240, (width - 100 - gap * (maxPerRow - 1)) / maxPerRow);
+    const cardH = Math.min(380, (contentH - gap * (rows - 1)) / rows);
+
+    for (let i = 0; i < members.length; i++) {
+      const row = Math.floor(i / maxPerRow);
+      const col = i % maxPerRow;
+      const membersInThisRow = Math.min(maxPerRow, members.length - row * maxPerRow);
+      const totalRowW = membersInThisRow * cardW + (membersInThisRow - 1) * gap;
+      const startX = (width - totalRowW) / 2;
+
+      const cx = startX + col * (cardW + gap);
+      const cy = contentStartY + row * (cardH + gap) + (contentH - rows * cardH - (rows - 1) * gap) / 2;
+
+      const m = members[i];
+      let mCustomCard = null;
+      let mAvatar = null;
+
+      if (m.photoPath) {
+        mCustomCard = await loadImgSafe(m.photoPath);
+      }
+      if (!mCustomCard && m.userId && guild) {
+        try {
+          const memberObj = guild.members.cache.get(m.userId) || await guild.members.fetch(m.userId).catch(() => null);
+          if (memberObj) {
+            mAvatar = await loadImgSafe(memberObj.user.displayAvatarURL({ extension: 'png', size: 256 }));
+          }
+        } catch (_) {}
+      }
+
+      drawPortraitIDCard(ctx, {
+        customCardImg: mCustomCard,
+        avatarImg: mAvatar,
+        name: m.name,
+        role: m.roleDetail,
+        x: cx,
+        y: cy,
+        w: cardW,
+        h: cardH,
+        r: 16,
+        accentColor: divConfig.color,
+        isLeader: false
+      });
+    }
+  }
+
+  // Footer
+  ctx.save();
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
+  ctx.font = `11px ${FONT_FAMILY}`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${divConfig.icon} ${divConfig.name.toUpperCase()} — QUMPRUY ORGANIZATION`, width / 2, height - 18);
+  ctx.restore();
+
+  return canvas.toBuffer('image/png');
+}
+
 module.exports = {
-  generateOrgChartImage
+  generateOrgChartImage,
+  generateDivisionDetailImage
 };
