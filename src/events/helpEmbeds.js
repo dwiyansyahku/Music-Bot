@@ -29,6 +29,7 @@ function buildHelpEmbed(category, client, guild = null) {
           {
             name: '✦ Hiburan & Komunitas',
             value: [
+              '• **Struktur Organisasi** — Bagan visual kepengurusan & 6 divisi via `/org`',
               '• **Musik & Audio** — Pemutar lagu YouTube/Spotify, lirik & efek',
               '• **Music Quiz** — Game tebak lagu audio 10 detik di voice',
               '• **Member Card** — Kartu profil identitas & voice stats',
@@ -280,6 +281,32 @@ function buildHelpEmbed(category, client, guild = null) {
         )
         .setFooter({ text: 'Perintah moderasi hanya dapat digunakan oleh Staff / Moderator yang berwenang' });
 
+    case 'org':
+      return new EmbedBuilder()
+        .setColor(0x00F2FE)
+        .setAuthor({ name: `PANDUAN FITUR — ${guildName.toUpperCase()}` })
+        .setTitle('Struktur Organisasi & Divisi (QUMPRUY)')
+        .setDescription(
+          `**Fungsi:**\n` +
+          `Menampilkan dan mengelola bagan visual resmi kepengurusan server **${guildName}** dengan render Canvas beresolusi tinggi, glassmorphism dark mode, dan foto custom anggota.\n\n` +
+          `◈ **Daftar 6 Divisi Resmi:**\n` +
+          `1. ⚡ **Head Admin**\n` +
+          `2. 🛡️ **Security**\n` +
+          `3. 📱 **Admin TikTok**\n` +
+          `4. 📸 **Admin Instagram**\n` +
+          `5. 🎙️ **Streamer**\n` +
+          `6. 🎨 **Team Creative**\n\n` +
+          `◈ **Perintah Penggunaan:**\n` +
+          `• \`/org show\` — Tampilkan bagan visual (PNG Canvas) struktur organisasi ke chat.\n` +
+          `• \`/org list\` — Tampilkan daftar teks seluruh pengurus dan divisi saat ini.\n` +
+          `• \`/org setketua [user] [nama] [foto] [jabatan]\` — Atur Ketua Umum *(Staff/Mod only)*.\n` +
+          `• \`/org removeketua\` — Kosongkan jabatan Ketua Umum *(Staff/Mod only)*.\n` +
+          `• \`/org addmember [divisi] [user] [nama] [jabatan] [foto]\` — Tambah/update anggota divisi *(Staff/Mod only)*.\n` +
+          `• \`/org removemember [divisi] [user]\` — Hapus anggota dari divisi *(Staff/Mod only)*.\n` +
+          `• \`/org reset\` — Reset seluruh bagan organisasi ke kosong *(Staff/Mod only)*.`
+        )
+        .setFooter({ text: 'Foto custom name tag dapat diunggah langsung saat menjalankan command' });
+
     case 'all_cmds':
       return new EmbedBuilder()
         .setColor(0x2B2D31)
@@ -299,7 +326,7 @@ function buildHelpEmbed(category, client, guild = null) {
           },
           {
             name: '✦ Komunitas, Galeri & Profil',
-            value: '`/card`, `/setcard`, `/gallery submit`, `/gallery panel`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/voicewelcome`, `/achievements`, `/userinfo`, `/serverinfo`',
+            value: '`/org`, `/card`, `/setcard`, `/gallery submit`, `/gallery panel`, `/membermap`, `/birthday`, `/timecapsule`, `/event`, `/voicewelcome`, `/achievements`, `/userinfo`, `/serverinfo`',
             inline: false
           },
           {
@@ -328,6 +355,11 @@ function createHelpGuidePanelPayload(guild) {
         label: 'Direktori Utama',
         description: 'Kembali ke ringkasan pengantar direktori',
         value: 'overview'
+      },
+      {
+        label: 'Struktur Organisasi (QUMPRUY)',
+        description: 'Bagan visual Canvas kepengurusan 6 divisi & ketua',
+        value: 'org'
       },
       {
         label: 'Pemutar Musik & Audio',

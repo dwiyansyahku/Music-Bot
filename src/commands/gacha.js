@@ -1278,6 +1278,11 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
   const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
   if (!configuredRoleId) return '';
 
+  if (guild && client) {
+    await reconcileThroneHolders(guild, client, itemTier);
+    gachaData = storage.read('gacha_data') || {};
+  }
+
   const now = Date.now();
 
   // 1. Cek semua pemegang tahta aktif saat ini di server untuk tier ini (Permanen)
@@ -1395,11 +1400,171 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
 }
 
 /**
- * Worker: Pengecekan otomatis role gacha (Role tahta kini Permanen)
+ * Hukuman Kekalahan Duel Tahta:
+ * 1. Jika pihak yang kalah menduduki tahta (defender maupun challenger dengan role tahta aktif),
+ *    maka role Discord dicopot dan activeRole dikosongkan (rolenya terhapus).
+ * 2. Relik kartu terkait di inventaris dihapus (hangus), sehingga pemain wajib melakukan
+ *    /gacha pull terlebih dahulu untuk memperoleh relik agar dapat duel kembali.
+ * 3. Mengembalikan kursi yang dikosongkan (vacatedTier) agar antrean tahta terkait dapat diproses.
+ */
+async function penalizeDuelLoser(guild, loserId, loserData, duelTier, client) {
+  if (!loserData) return { lostRole: false, lostRoleTier: null, lostRoleId: null, vacatedTier: null };
+
+  let vacatedTier = null;
+  let lostRoleId = null;
+  let lostRoleTier = null;
+
+  if (loserData.activeRole) {
+    lostRoleTier = loserData.activeRole.tier;
+    lostRoleId = loserData.activeRole.roleId;
+    vacatedTier = lostRoleTier;
+
+    if (guild && lostRoleId) {
+      try {
+        const loserMember = await guild.members.fetch(loserId).catch(() => null);
+        if (loserMember) {
+          await loserMember.roles.remove(lostRoleId).catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    loserData.activeRole = null;
+
+    // Hapus seluruh relik tier tahta yang dicopot serta relik tier duel dari inventaris
+    loserData.inventory = (loserData.inventory || []).filter(name => {
+      const g = GACHA_ITEMS.find(it => it.name === name);
+      return !g || (g.tier !== lostRoleTier && g.tier !== duelTier);
+    });
+  } else {
+    // Penantang tidak memegang tahta (penantang murni tanpa kursi), hapus relik tier duel yang digunakan
+    loserData.inventory = (loserData.inventory || []).filter(name => {
+      const g = GACHA_ITEMS.find(it => it.name === name);
+      return !g || g.tier !== duelTier;
+    });
+  }
+
+  return {
+    lostRole: !!lostRoleTier,
+    lostRoleTier,
+    lostRoleId,
+    vacatedTier
+  };
+}
+
+/**
+ * Sinkronisasi & Penertiban Kursi Tahta Server (Kapasitas Maksimal Bersih)
+ * Memastikan jumlah pemegang tahta tidak pernah melebihi kuota resmi:
+ * Mythic (maks 3 kursi), Legendary (maks 5 kursi).
+ * Sekaligus membersihkan ghost holders (user yang sudah keluar server)
+ * dan menertibkan role Discord agar tepat sesuai kuota.
+ */
+async function reconcileThroneHolders(guild, client, targetTier = null) {
+  if (!guild) return;
+  const guildId = guild.id;
+  const tiersToCheck = targetTier ? [targetTier] : ['MYTHIC', 'LEGENDARY'];
+
+  const gachaData = storage.read('gacha_data') || {};
+  if (!gachaData[guildId]) return;
+  const settingsData = storage.read('settings') || {};
+  const gachaRoles = settingsData[guildId]?.gachaRoles || {};
+
+  let dataModified = false;
+
+  for (const tier of tiersToCheck) {
+    const config = THRONE_CONFIG[tier];
+    if (!config) continue;
+
+    const configuredRoleId = gachaRoles[tier];
+    const holders = [];
+
+    for (const [uId, uData] of Object.entries(gachaData[guildId])) {
+      if (uData.activeRole && uData.activeRole.tier === tier) {
+        holders.push({
+          userId: uId,
+          userData: uData,
+          obtainedAt: uData.activeRole.obtainedAt || 0
+        });
+      }
+    }
+
+    // 1. Verifikasi keberadaan member di guild (hapus ghost holder jika sudah leave)
+    const validHolders = [];
+    for (const h of holders) {
+      let member = guild.members?.cache?.get(h.userId);
+      if (!member) {
+        member = await guild.members.fetch(h.userId).catch(() => null);
+      }
+      if (!member) {
+        h.userData.activeRole = null;
+        dataModified = true;
+        console.log(`[Throne Reconcile] User ${h.userId} tidak lagi berada di server. Kursi tahta ${tier} dikosongkan.`);
+      } else {
+        validHolders.push(h);
+      }
+    }
+
+    // 2. Tertibkan kuota: jika validHolders melebihi kuota resmi
+    validHolders.sort((a, b) => a.obtainedAt - b.obtainedAt);
+
+    if (validHolders.length > config.quota) {
+      const allowedHolders = validHolders.slice(0, config.quota);
+      const overflowHolders = validHolders.slice(config.quota);
+
+      for (const overflow of overflowHolders) {
+        overflow.userData.activeRole = null;
+        dataModified = true;
+        console.warn(`[Throne Reconcile] Pemegang melebihi kapasitas ${config.quota}! Menertibkan kursi ${tier} dari user ${overflow.userId}`);
+
+        const member = guild.members?.cache?.get(overflow.userId) ||
+          await guild.members.fetch(overflow.userId).catch(() => null);
+        if (member && configuredRoleId) {
+          await member.roles.remove(configuredRoleId).catch(() => {});
+        }
+      }
+      validHolders.length = config.quota;
+    }
+
+    // 3. Sinkronisasi dengan Discord Role jika configuredRoleId terpasang
+    if (configuredRoleId) {
+      const allowedUserIds = new Set(validHolders.map(h => h.userId));
+      const discordRole = guild.roles?.cache?.get(configuredRoleId);
+
+      if (discordRole) {
+        for (const [mId, member] of discordRole.members) {
+          if (!allowedUserIds.has(mId)) {
+            await member.roles.remove(configuredRoleId).catch(() => {});
+            console.warn(`[Throne Reconcile] Mencopot role ${tier} (${configuredRoleId}) dari member tidak berhak: ${mId}`);
+          }
+        }
+
+        for (const h of validHolders) {
+          const member = guild.members?.cache?.get(h.userId) ||
+            await guild.members.fetch(h.userId).catch(() => null);
+          if (member && !member.roles.cache.has(configuredRoleId)) {
+            await member.roles.add(configuredRoleId).catch(() => {});
+          }
+        }
+      }
+    }
+  }
+
+  if (dataModified) {
+    storage.write('gacha_data', gachaData);
+  }
+}
+
+/**
+ * Worker: Pengecekan otomatis dan penertiban kapasitas role gacha (berjalan berkala)
  */
 async function checkAndExpireGachaRoles(client) {
-  // Role tahta Mythic & Legendary berstatus permanen (hanya berpindah melalui tantangan duel)
-  return;
+  if (!client) return;
+  for (const guild of client.guilds.cache.values()) {
+    try {
+      await reconcileThroneHolders(guild, client);
+    } catch (err) {
+      console.error(`[checkAndExpireGachaRoles Error guild ${guild.id}]:`, err.message);
+    }
+  }
 }
 
 /**
@@ -1638,27 +1803,31 @@ async function executeInstantClash(duelId, client) {
   const now = Date.now();
 
   let resultTitle, resultDesc;
+  let vacatedTier = null;
 
   if (challengerWins) {
-    if (guild) {
-      try {
-        const defenderMember = await guild.members.fetch(duel.defenderId).catch(() => null);
-        if (defenderMember && defenderMember.roles.cache.has(duel.configuredRoleId)) {
-          await defenderMember.roles.remove(duel.configuredRoleId).catch(() => {});
-        }
-      } catch (_) {}
-    }
-    defenderData.activeRole = null;
+    // Winner: Challenger, Loser: Defender
+    await penalizeDuelLoser(guild, duel.defenderId, defenderData, duel.itemTier, client);
     defenderData.stardust = (defenderData.stardust || 0) + 250;
     defenderData.duelDefenseStreak = 0;
+
+    let previousChallengerRoleTier = null;
+    if (challengerData.activeRole) {
+      previousChallengerRoleTier = challengerData.activeRole.tier;
+      if (challengerData.activeRole.roleId && guild) {
+        try {
+          const challengerMember = await guild.members.fetch(duel.challengerId).catch(() => null);
+          if (challengerMember) {
+            await challengerMember.roles.remove(challengerData.activeRole.roleId).catch(() => {});
+          }
+        } catch (_) {}
+      }
+    }
 
     if (guild) {
       try {
         const challengerMember = await guild.members.fetch(duel.challengerId).catch(() => null);
         if (challengerMember) {
-          if (challengerData.activeRole && challengerData.activeRole.roleId && challengerMember.roles.cache.has(challengerData.activeRole.roleId)) {
-            await challengerMember.roles.remove(challengerData.activeRole.roleId).catch(() => {});
-          }
           await challengerMember.roles.add(duel.configuredRoleId).catch(() => {});
         }
       } catch (_) {}
@@ -1673,14 +1842,19 @@ async function executeInstantClash(duelId, client) {
     challengerData.duelWins = (challengerData.duelWins || 0) + 1;
     defenderData.duelLosses = (defenderData.duelLosses || 0) + 1;
 
+    if (previousChallengerRoleTier && previousChallengerRoleTier !== duel.itemTier) {
+      vacatedTier = previousChallengerRoleTier;
+    }
+
     resultTitle = `Tahta ${duel.itemTier} Berpindah Tangan`;
     resultDesc = (
       `<@${duel.challengerId}> berhasil mengungguli <@${duel.defenderId}> dalam duel strategi.\n\n` +
       `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name} — Permanen)\n` +
-      `• Kompensasi: **<@${duel.defenderId}>** (+250 Stardust)`
+      `• Mantan Tahta: **<@${duel.defenderId}>** (Role dicopot, relik ${duel.itemTier} hangus, +250 Stardust)` +
+      (previousChallengerRoleTier ? `\n• Kursi Lama: Kursi Tahta **${previousChallengerRoleTier}** milik <@${duel.challengerId}> kini kosong dan terbuka diperebutkan!` : '')
     );
   } else {
-    // DEFENDER MENANG (atau SERI)
+    // DEFENDER MENANG (atau SERI) -> Challenger Kalah!
     defenderData.duelDefenseStreak = (defenderData.duelDefenseStreak || 0) + 1;
     defenderData.duelWins = (defenderData.duelWins || 0) + 1;
     challengerData.duelLosses = (challengerData.duelLosses || 0) + 1;
@@ -1696,12 +1870,25 @@ async function executeInstantClash(duelId, client) {
       streakText = `\n• Pertahanan Beruntun: ${defenderData.duelDefenseStreak}x`;
     }
 
+    // Terapkan hukuman kekalahan untuk Challenger (Role dicopot jika punya role tahta + relik hangus)
+    const penalty = await penalizeDuelLoser(guild, duel.challengerId, challengerData, duel.itemTier, client);
+    if (penalty.vacatedTier) {
+      vacatedTier = penalty.vacatedTier;
+    }
+
     resultTitle = `Tahta ${duel.itemTier} Berhasil Dipertahankan`;
+    let challengerConsequence = '';
+    if (penalty.lostRole) {
+      challengerConsequence = `\n• Penantang: <@${duel.challengerId}> kalah! Role Tahta <@&${penalty.lostRoleId}> (**${penalty.lostRoleTier}**) telah **dicopot** dan relik hangus. Tarik gacha kembali untuk mendapatkan relik baru agar dapat bertarung lagi!`;
+    } else {
+      challengerConsequence = `\n• Penantang: Relik **${duel.itemTier}** milik <@${duel.challengerId}> **hangus** akibat kekalahan. Tarik gacha kembali untuk mendapatkan relik baru agar dapat menantang lagi.`;
+    }
+
     resultDesc = (
       `<@${duel.defenderId}> berhasil mempertahankan posisinya dari tantangan <@${duel.challengerId}>.\n\n` +
       `• Status: **<@${duel.defenderId}>** tetap menduduki tahta secara Permanen (+50 Stardust)` +
       streakText +
-      `\n• Penantang: Relik <@${duel.challengerId}> tersimpan di inventaris.`
+      challengerConsequence
     );
   }
 
@@ -1827,6 +2014,9 @@ async function executeInstantClash(duelId, client) {
 
   // Auto-pop antrean jika ada
   await processChallengerQueue(duel.guildId, duel.itemTier, client);
+  if (vacatedTier) {
+    await processChallengerQueue(duel.guildId, vacatedTier, client);
+  }
 
   if (guild) {
     updateDuelPanelIfExists(guild, client).catch(() => {});
@@ -2036,6 +2226,9 @@ async function handleDuelExpiry(duel, client) {
 
   // Auto-pop antrean jika ada
   await processChallengerQueue(duel.guildId, duel.itemTier, client);
+  if (vacatedTier) {
+    await processChallengerQueue(duel.guildId, vacatedTier, client);
+  }
 
   if (guild) {
     updateDuelPanelIfExists(guild, client).catch(() => {});
@@ -2124,6 +2317,11 @@ async function processChallengerQueue(guildId, itemTier, client) {
     const challengerMember = await guild.members.fetch(nextQ.challengerId).catch(() => null);
     if (challengerMember) {
       const uData = getOrInitUserData(gachaData, guildId, nextQ.challengerId);
+      let vacatedTier = null;
+      if (uData.activeRole && uData.activeRole.roleId) {
+        vacatedTier = uData.activeRole.tier;
+        await challengerMember.roles.remove(uData.activeRole.roleId).catch(() => {});
+      }
       await challengerMember.roles.add(nextQ.configuredRoleId).catch(() => {});
       uData.activeRole = {
         tier: itemTier,
@@ -2137,6 +2335,10 @@ async function processChallengerQueue(guildId, itemTier, client) {
         if (ch) {
           ch.send(`Kursi tahta kosong tersedia. <@${nextQ.challengerId}> dari antrean resmi menduduki kursi tahta **${config.name}** (Permanen).`);
         }
+      }
+
+      if (vacatedTier) {
+        await processChallengerQueue(guildId, vacatedTier, client);
       }
     }
     return processChallengerQueue(guildId, itemTier, client);
@@ -2260,31 +2462,34 @@ async function handleDuelForfeit(interaction, client, duelId) {
   let tierColor = 0xFEE75C;
   let resultTitle = '';
   let resultDesc = '';
+  let vacatedTier = null;
 
   if (isDefender) {
     // Defender menyerah -> Penantang menang seketika!
     challengerData.duelWins = (challengerData.duelWins || 0) + 1;
     defenderData.duelLosses = (defenderData.duelLosses || 0) + 1;
 
-    if (guild) {
-      try {
-        const defenderMember = await guild.members.fetch(duel.defenderId).catch(() => null);
-        if (defenderMember && defenderMember.roles.cache.has(duel.configuredRoleId)) {
-          await defenderMember.roles.remove(duel.configuredRoleId).catch(() => {});
-        }
-      } catch (_) {}
-    }
-    defenderData.activeRole = null;
+    await penalizeDuelLoser(guild, duel.defenderId, defenderData, duel.itemTier, client);
     defenderData.stardust = (defenderData.stardust || 0) + 100;
     defenderData.duelDefenseStreak = 0;
+
+    let previousChallengerRoleTier = null;
+    if (challengerData.activeRole) {
+      previousChallengerRoleTier = challengerData.activeRole.tier;
+      if (challengerData.activeRole.roleId && guild) {
+        try {
+          const challengerMember = await guild.members.fetch(duel.challengerId).catch(() => null);
+          if (challengerMember) {
+            await challengerMember.roles.remove(challengerData.activeRole.roleId).catch(() => {});
+          }
+        } catch (_) {}
+      }
+    }
 
     if (guild) {
       try {
         const challengerMember = await guild.members.fetch(duel.challengerId).catch(() => null);
         if (challengerMember) {
-          if (challengerData.activeRole && challengerData.activeRole.roleId && challengerMember.roles.cache.has(challengerData.activeRole.roleId)) {
-            await challengerMember.roles.remove(challengerData.activeRole.roleId).catch(() => {});
-          }
           await challengerMember.roles.add(duel.configuredRoleId).catch(() => {});
         }
       } catch (_) {}
@@ -2297,15 +2502,20 @@ async function handleDuelForfeit(interaction, client, duelId) {
     challengerData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
     challengerData.challengeCooldownUntil = 0;
 
+    if (previousChallengerRoleTier && previousChallengerRoleTier !== duel.itemTier) {
+      vacatedTier = previousChallengerRoleTier;
+    }
+
     tierColor = 0xFF007F;
     resultTitle = `Tahta ${duel.itemTier} Diserahkan (Defender Menyerah)`;
     resultDesc = (
       `<@${duel.defenderId}> memutuskan untuk menyerah dalam duel tahta.\n\n` +
       `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name} — Permanen)\n` +
-      `• Kompensasi: **<@${duel.defenderId}>** (+100 Stardust)`
+      `• Mantan Tahta: **<@${duel.defenderId}>** (Role dicopot, relik ${duel.itemTier} hangus, +100 Stardust)` +
+      (previousChallengerRoleTier ? `\n• Kursi Lama: Kursi Tahta **${previousChallengerRoleTier}** milik <@${duel.challengerId}> kini kosong dan terbuka diperebutkan!` : '')
     );
   } else {
-    // Challenger menyerah -> Defender mempertahankan tahtanya!
+    // Challenger menyerah -> Defender mempertahankan tahtanya! Challenger kalah!
     defenderData.duelWins = (defenderData.duelWins || 0) + 1;
     challengerData.duelLosses = (challengerData.duelLosses || 0) + 1;
     defenderData.duelDefenseStreak = (defenderData.duelDefenseStreak || 0) + 1;
@@ -2313,12 +2523,24 @@ async function handleDuelForfeit(interaction, client, duelId) {
     defenderData.throneProtectedUntil = now + 60 * 60 * 1000; // 1 Jam kebal tantangan
     challengerData.challengeCooldownUntil = now + 30 * 60 * 1000; // 30 Menit jeda tantangan
 
+    const penalty = await penalizeDuelLoser(guild, duel.challengerId, challengerData, duel.itemTier, client);
+    if (penalty.vacatedTier) {
+      vacatedTier = penalty.vacatedTier;
+    }
+
     tierColor = 0x57F287;
     resultTitle = `Tahta ${duel.itemTier} Dipertahankan (Penantang Menyerah)`;
+    let challengerConsequence = '';
+    if (penalty.lostRole) {
+      challengerConsequence = `\n• Penantang: <@${duel.challengerId}> menyerah! Role Tahta <@&${penalty.lostRoleId}> (**${penalty.lostRoleTier}**) telah **dicopot** dan relik hangus.`;
+    } else {
+      challengerConsequence = `\n• Penantang: Relik **${duel.itemTier}** milik <@${duel.challengerId}> **hangus** akibat menyerah dari duel.`;
+    }
+
     resultDesc = (
       `<@${duel.challengerId}> memutuskan untuk membatalkan/menyerah dari tantangan duel.\n\n` +
-      `• Status: **<@${duel.defenderId}>** tetap menduduki tahta secara Permanen (+50 Stardust)\n` +
-      `• Penantang: Relik <@${duel.challengerId}> tersimpan di inventaris.`
+      `• Status: **<@${duel.defenderId}>** tetap menduduki tahta secara Permanen (+50 Stardust)` +
+      challengerConsequence
     );
   }
 
@@ -2423,6 +2645,9 @@ async function handleDuelForfeit(interaction, client, duelId) {
   }
 
   await processChallengerQueue(duel.guildId, duel.itemTier, client);
+  if (vacatedTier) {
+    await processChallengerQueue(duel.guildId, vacatedTier, client);
+  }
 
   if (guild) {
     updateDuelPanelIfExists(guild, client).catch(() => {});
@@ -2471,7 +2696,11 @@ async function processDuelButton(interaction, client) {
       });
     }
 
-    const guildUsers = gachaData[guildId] || {};
+    if (interaction.guild && client) {
+      await reconcileThroneHolders(interaction.guild, client, itemTier);
+    }
+    const freshGachaData = storage.read('gacha_data');
+    const guildUsers = freshGachaData[guildId] || {};
     const activeHolders = [];
 
     for (const [uId, uData] of Object.entries(guildUsers)) {
@@ -3294,12 +3523,17 @@ function createDuelPanelPayload(guild) {
     }
   }
 
+  const maxMythicQuota = THRONE_CONFIG.MYTHIC.quota;
+  const maxLegQuota = THRONE_CONFIG.LEGENDARY.quota;
+  const displayMythicHolders = mythicHolders.slice(0, maxMythicQuota);
+  const displayLegHolders = legHolders.slice(0, maxLegQuota);
+
   const mythicRoleText = gachaRoles.MYTHIC
-    ? `<@&${gachaRoles.MYTHIC}>\n${mythicHolders.length > 0 ? mythicHolders.map((h, i) => `${i + 1}. ${h}`).join('\n') : '_Kursi Tahta Kosong_'}`
+    ? `<@&${gachaRoles.MYTHIC}>\n${displayMythicHolders.length > 0 ? displayMythicHolders.map((h, i) => `${i + 1}. ${h}`).join('\n') : '_Kursi Tahta Kosong_'}`
     : '_Role belum diatur (Admin: /gacha setrole)_';
 
   const legRoleText = gachaRoles.LEGENDARY
-    ? `<@&${gachaRoles.LEGENDARY}>\n${legHolders.length > 0 ? legHolders.map((h, i) => `${i + 1}. ${h}`).join('\n') : '_Role belum diatur (Admin: /gacha setrole)_'}`
+    ? `<@&${gachaRoles.LEGENDARY}>\n${displayLegHolders.length > 0 ? displayLegHolders.map((h, i) => `${i + 1}. ${h}`).join('\n') : '_Role belum diatur (Admin: /gacha setrole)_'}`
     : '_Role belum diatur (Admin: /gacha setrole)_';
 
   // Cek duel aktif di server
@@ -3325,8 +3559,8 @@ function createDuelPanelPayload(guild) {
       `Selamat datang di **Arena Duel Tahta** ${guild ? guild.name : ''}!\n\n` +
       `Tempat para pemilik relik legendaris bertarung strategi rahasia untuk merebut kursi tahta server dan menyandang Role Discord eksklusif secara **Permanen**.\n\n` +
       `**Status Kursi Tahta Server Saat Ini:**\n` +
-      `• Tahta MYTHIC (Maksimal 3 Kursi): (${mythicHolders.length}/3 Kursi Terisi)\n${mythicRoleText}\n\n` +
-      `• Tahta LEGENDARY (Maksimal 5 Kursi): (${legHolders.length}/5 Kursi Terisi)\n${legRoleText}\n\n` +
+      `• Tahta MYTHIC (Maksimal ${maxMythicQuota} Kursi): (${displayMythicHolders.length}/${maxMythicQuota} Kursi Terisi)\n${mythicRoleText}\n\n` +
+      `• Tahta LEGENDARY (Maksimal ${maxLegQuota} Kursi): (${displayLegHolders.length}/${maxLegQuota} Kursi Terisi)\n${legRoleText}\n\n` +
       `**Pertarungan Duel Berlangsung:**\n${activeDuelText}\n\n` +
       `**Aturan Kudeta Tahta:**\n` +
       `• Wajib memiliki relik **Mythic** atau **Legendary** di inventaris untuk menantang tahta.\n` +
@@ -3710,8 +3944,11 @@ async function executeGachaChallenge(interaction, client) {
     });
   }
 
-  // 4. Cari pemegang tahta aktif tier ini (Permanen)
-  const guildUsers = gachaData[guildId] || {};
+  if (interaction.guild && client) {
+    await reconcileThroneHolders(interaction.guild, client, tier);
+  }
+  const freshGachaData = storage.read('gacha_data');
+  const guildUsers = freshGachaData[guildId] || {};
   const activeHolders = [];
   for (const [uId, uData] of Object.entries(guildUsers)) {
     if (uData.activeRole && uData.activeRole.tier === tier && uId !== userId) {
@@ -3969,10 +4206,13 @@ async function executeGachaChallengePrompt(interaction, client, challengeTier) {
     return interaction.reply({ content, flags: MessageFlags.Ephemeral });
   }
 
-  // 4. Cari pemegang tahta aktif tier ini (Permanen)
-  const guildUsers = gachaData[guildId] || {};
+  if (interaction.guild && client) {
+    await reconcileThroneHolders(interaction.guild, client, tier);
+  }
+  const freshGachaDataPrompt = storage.read('gacha_data');
+  const guildUsersPrompt = freshGachaDataPrompt[guildId] || {};
   const activeHolders = [];
-  for (const [uId, uData] of Object.entries(guildUsers)) {
+  for (const [uId, uData] of Object.entries(guildUsersPrompt)) {
     if (uData.activeRole && uData.activeRole.tier === tier && uId !== userId) {
       activeHolders.push({ userId: uId, userData: uData });
     }
@@ -6492,6 +6732,8 @@ module.exports = {
   getBusyDuelUserIds,
   isUserInActiveDuel,
   checkAndExpireGachaRoles,
+  reconcileThroneHolders,
+  penalizeDuelLoser,
   checkAndExpireThroneDuels,
   processDuelButton,
   processStardustRainButton,
