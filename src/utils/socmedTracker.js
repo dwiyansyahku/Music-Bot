@@ -126,7 +126,8 @@ async function sendSocmedNotification(client, guildId, data) {
     .setURL(data.url)
     .setDescription(
       `${cleanExcerpt}\n\n` +
-      `**Platform:** \`${isTikTok ? 'TikTok' : 'Instagram'}\` • **Status:** \`${isLive ? 'Sedang Berlangsung' : 'Tersedia'}\``
+      `**Platform:** \`${isTikTok ? 'TikTok' : 'Instagram'}\` • **Status:** \`${isLive ? 'Sedang Berlangsung' : 'Tersedia'}\`\n` +
+      `🔗 **Tautan Langsung:** [Buka di ${isTikTok ? 'TikTok' : 'Instagram'}](${data.url})`
     )
     .setFooter({
       text: `Qumpruy • ${isTikTok ? 'TikTok' : 'Instagram'} Notification`,
@@ -141,12 +142,26 @@ async function sendSocmedNotification(client, guildId, data) {
   }
 
   // 4. Tombol Akses Langsung
+  const buttonLabel = isLive
+    ? `Masuk ke Live ${isTikTok ? 'TikTok' : 'Instagram'}`
+    : `Tonton di ${isTikTok ? 'TikTok' : 'Instagram'}`;
+
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setLabel(isLive ? `Masuk ke Live ${isTikTok ? 'TikTok' : 'Instagram'}` : `Tonton di ${isTikTok ? 'TikTok' : 'Instagram'}`)
+      .setLabel(buttonLabel)
       .setStyle(ButtonStyle.Link)
       .setURL(data.url)
   );
+
+  // 5. Cek apakah ada tautan pemutar video langsung (vxtiktok / ddinstagram)
+  let proxyVideoUrl = null;
+  if (!isLive && data.url) {
+    if (isTikTok && (data.url.includes('/video/') || data.url.includes('tiktok.com'))) {
+      proxyVideoUrl = data.url.replace(/(?:www\.)?tiktok\.com/, 'vxtiktok.com');
+    } else if (!isTikTok && (data.url.includes('/reel/') || data.url.includes('/p/') || data.url.includes('instagram.com'))) {
+      proxyVideoUrl = data.url.replace(/(?:www\.)?instagram\.com/, 'ddinstagram.com');
+    }
+  }
 
   // Kirim ke Discord
   const sendOptions = {
@@ -158,7 +173,15 @@ async function sendSocmedNotification(client, guildId, data) {
     sendOptions.files = [attachment];
   }
 
-  await channel.send(sendOptions);
+  const sentMessage = await channel.send(sendOptions);
+
+  // Jika berupa postingan video, kirim pemutar video native Discord agar member bisa langsung menekan Play di Discord
+  if (!isLive && proxyVideoUrl && (proxyVideoUrl.includes('/video/') || proxyVideoUrl.includes('/reel/') || proxyVideoUrl.includes('/p/'))) {
+    await channel.send({
+      content: `🎬 **Pemutar Video Langsung (Bisa Diputar di Sini):**\n${proxyVideoUrl}`
+    }).catch(() => {});
+  }
+
   console.log(`[Socmed] Notifikasi ${data.platform} (${data.type}) berhasil dikirim ke #${channel.name} (${guild.name})`);
   return true;
 }

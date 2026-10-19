@@ -296,29 +296,21 @@ async function renderSocmedCard({
     ctx.fillText('PRATINJAU KONTEN', previewBoxX + previewBoxW / 2, previewBoxY + previewBoxH / 2 + 18);
   }
 
-  // Overlay Play Button jika tipe video / post
+  // Overlay info bar di bawah cuplikan jika tipe video / post
   if (!isLive) {
-    const playCenterX = previewBoxX + previewBoxW / 2;
-    const playCenterY = previewBoxY + previewBoxH / 2;
-
-    // Semi-transparent glass circle
     ctx.save();
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(playCenterX, playCenterY, 36, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+    ctx.lineWidth = 1;
+    roundedRect(ctx, previewBoxX + 24, previewBoxY + previewBoxH - 46, previewBoxW - 48, 30, 8);
     ctx.fill();
     ctx.stroke();
 
-    // Triangle play symbol
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.moveTo(playCenterX - 10, playCenterY - 15);
-    ctx.lineTo(playCenterX + 16, playCenterY);
-    ctx.lineTo(playCenterX - 10, playCenterY + 15);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillStyle = '#E2E8F0';
+    ctx.font = '500 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('▶ PUTAR LANGSUNG MELALUI PEMUTAR DI BAWAH', previewBoxX + previewBoxW / 2, previewBoxY + previewBoxH - 31);
     ctx.restore();
   }
 
@@ -335,7 +327,7 @@ async function renderSocmedCard({
   ctx.font = 'bold 11px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(isLive ? '● ON AIR' : '▶ CUPLIKAN', previewBoxX + 76, previewBoxY + 30);
+  ctx.fillText(isLive ? '● ON AIR' : '◆ CUPLIKAN', previewBoxX + 76, previewBoxY + 30);
   ctx.restore();
 
   // Border outline untuk preview snapshot

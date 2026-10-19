@@ -447,6 +447,12 @@ const socmedCommand = {
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+      const sampleUrl = isLive
+        ? (isTikTok ? 'https://www.tiktok.com/@tiktok/live' : 'https://www.instagram.com')
+        : (isTikTok
+            ? 'https://www.tiktok.com/@tiktok/video/7106594312292453678'
+            : 'https://www.instagram.com/reel/C21jX_nS_4o/');
+
       const sampleData = {
         platform: platform,
         type: tipe,
@@ -455,8 +461,8 @@ const socmedCommand = {
         title: isLive ? 'Sesi Obrolan Santai & Musik Komunitas' : 'Cuplikan Highlights & Rilis Konten Terbaru',
         caption: isLive
           ? 'Ruang siaran telah resmi dibuka malam ini. Bergabunglah untuk mendengarkan lagu dan berbincang bersama teman-teman.'
-          : 'Rekap momen terbaik dan kreasi visual terkini. Simak cuplikan lengkapnya melalui tautan resmi yang telah disediakan.',
-        url: isTikTok ? 'https://www.tiktok.com' : 'https://www.instagram.com',
+          : 'Rekap momen terbaik dan kreasi visual terkini. Simak cuplikan lengkapnya melalui pemutar video di bawah atau tautan resmi.',
+        url: sampleUrl,
         extraInfo: isLive ? 'Siaran Langsung • Resolusi Tinggi' : 'Karya Visual Terbaru • 1080p'
       };
 
