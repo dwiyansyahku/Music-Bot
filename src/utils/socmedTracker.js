@@ -6,10 +6,12 @@ const {
   AttachmentBuilder
 } = require('discord.js');
 const storage = require('./storage');
-const { getRandomPhrase } = require('./socmedPhrases');
-const { renderSocmedCard } = require('./socmedCanvas');
 const { TikTokLiveConnection } = require('tiktok-live-connector');
 const Parser = require('rss-parser');
+const { execFile } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const rssParser = new Parser({
   timeout: 8000,
@@ -19,6 +21,58 @@ const rssParser = new Parser({
 });
 
 const DEFAULT_ROLE_ID = '1396396538686607410';
+
+const YTDLP_PATH = process.platform === 'win32'
+  ? path.resolve(__dirname, '../../bin/yt-dlp.exe')
+  : path.resolve(__dirname, '../../bin/yt-dlp');
+
+/**
+ * Mengunduh snippet video Reels/TikTok agar dapat diputar langsung di Discord
+ * @param {string} url 
+ * @returns {Promise<string|null>} Path file sementara atau null jika gagal/bukan video
+ */
+async function downloadVideoSnippet(url) {
+  if (!url || typeof url !== 'string') return null;
+  const isVideoLink = url.includes('instagram.com/reel') ||
+                      url.includes('instagram.com/p/') ||
+                      url.includes('tiktok.com');
+  if (!isVideoLink) return null;
+  if (!fs.existsSync(YTDLP_PATH)) {
+    console.warn('[Socmed] yt-dlp binary tidak ditemukan di:', YTDLP_PATH);
+    return null;
+  }
+
+  const tempFilePath = path.join(os.tmpdir(), `socmed_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.mp4`);
+  const args = [
+    '-f', 'best[ext=mp4]/best',
+    '--max-filesize', '25M',
+    '--socket-timeout', '10',
+    '--no-playlist',
+    '--no-warnings',
+    '-o', tempFilePath,
+    url
+  ];
+
+  return new Promise((resolve) => {
+    execFile(YTDLP_PATH, args, { timeout: 25000 }, (error) => {
+      if (error) {
+        console.warn(`[Socmed] Gagal mengunduh video via yt-dlp: ${error.message}`);
+        if (fs.existsSync(tempFilePath)) fs.unlink(tempFilePath, () => {});
+        return resolve(null);
+      }
+      if (fs.existsSync(tempFilePath)) {
+        try {
+          const stats = fs.statSync(tempFilePath);
+          if (stats.size > 1000 && stats.size <= 25 * 1024 * 1024) {
+            return resolve(tempFilePath);
+          }
+        } catch (_) {}
+        fs.unlink(tempFilePath, () => {});
+      }
+      resolve(null);
+    });
+  });
+}
 
 /**
  * Mengambil konfigurasi socmed untuk guild tertentu
@@ -43,7 +97,12 @@ function saveSocmedConfig(guildId, config) {
 }
 
 /**
- * Mengirim notifikasi visual mewah (Canvas + Embed + Role Mention) ke channel yang diset
+ * Mengirim notifikasi sosial media ke channel Discord sesuai layout yang diminta:
+ * - Mention role murni (tanpa kalimat tambahan)
+ * - Embed:
+ *   - Top: Profil akun (nama, handle, icon/avatar, url)
+ *   - Mid: Deskripsi konten (caption) + video/feed yang dapat diplay langsung di Discord
+ *   - Bottom: Button link ke platform
  * 
  * @param {import('discord.js').Client} client
  * @param {string} guildId
@@ -81,49 +140,63 @@ async function sendSocmedNotification(client, guildId, data) {
     return false;
   }
 
-  const isLive = data.type.toLowerCase() === 'live';
+  const isLive = data.type?.toLowerCase() === 'live';
 
-  // 1. Pilih kalimat ajakan elegan secara acak (rotasi dinamis)
-  const invitationPhrase = getRandomPhrase(isLive ? 'live' : 'post');
+  // 1. Role mention murni (tanpa kalimat tambahan, sesuai revisi)
   const roleMention = config.roleId ? `<@&${config.roleId}>` : `<@&${DEFAULT_ROLE_ID}>`;
-  const messageContent = `${roleMention}\n\n${invitationPhrase}`;
+  const messageContent = roleMention;
 
-  // 2. Bangun Embed yang Bersih dan Elegan (Tanpa Canvas, Fokus Nama Akun & Deskripsi)
+  // 2. Bangun Embed Sesuai Permintaan:
+  // - Top: Profil akun (nama, handle/username, avatar akun)
+  // - Mid: Deskripsi konten (+ playable video Discord / preview)
   const embedColor = isTikTok
     ? (isLive ? 0xFE2C55 : 0x00F2FE)
     : (isLive ? 0xE1306C : 0x833AB4);
 
-  const cleanTitle = data.title || (isLive ? `Siaran Langsung: ${data.author}` : `Konten Baru dari ${data.author}`);
-  const cleanCaption = data.caption || 'Simak konten video selengkapnya melalui tautan di bawah.';
+  const handleFormatted = data.handle
+    ? (data.handle.startsWith('@') ? data.handle : `@${data.handle}`)
+    : (isTikTok ? '@tiktok' : '@instagram');
+
+  const authorDisplayName = data.author
+    ? `${data.author} (${handleFormatted})`
+    : handleFormatted;
+
+  const defaultAvatar = isTikTok
+    ? 'https://cdn-icons-png.flaticon.com/512/3046/3046121.png'
+    : 'https://cdn-icons-png.flaticon.com/512/2111/2111463.png';
 
   const embed = new EmbedBuilder()
     .setColor(embedColor)
     .setAuthor({
-      name: `${data.author} (${data.handle})`,
-      iconURL: data.avatarUrl || undefined,
-      url: data.url
-    })
-    .setTitle(cleanTitle)
-    .setURL(data.url)
-    .setDescription(
-      `**Deskripsi:**\n> *${cleanCaption.replace(/\n+/g, '\n> ')}*\n\n` +
-      `**Platform:** \`${isTikTok ? 'TikTok' : 'Instagram'}\` • **Status:** \`${isLive ? 'Sedang Live' : 'Video Baru'}\``
-    )
-    .setFooter({
-      text: `Qumpruy • ${isTikTok ? 'TikTok' : 'Instagram'} Notification`,
-      iconURL: guild.iconURL({ dynamic: true }) || undefined
+      name: authorDisplayName,
+      iconURL: data.avatarUrl || defaultAvatar,
+      url: data.authorUrl || data.url
     })
     .setTimestamp();
 
-  // Jika ada thumbnail asli dari postingan video, tampilkan langsung
-  if (data.previewUrl) {
+  // Mid: Deskripsi Konten (Caption)
+  const captionText = data.caption || data.title || (isLive ? '🔴 Sedang siaran langsung! Klik tombol di bawah untuk bergabung.' : 'Konten video terbaru telah tayang! Tonton langsung di bawah.');
+  embed.setDescription(captionText);
+
+  // Cek apakah ada file video yang dapat diunduh untuk diputar langsung di Discord
+  let downloadedVideoPath = null;
+  if (!isLive && data.url) {
+    downloadedVideoPath = await downloadVideoSnippet(data.url);
+  }
+
+  const files = [];
+  if (downloadedVideoPath) {
+    // Video reel / feed berhasil didownload -> lampirkan sebagai attachment Discord agar player video interaktif muncul langsung di pesan
+    files.push(new AttachmentBuilder(downloadedVideoPath, { name: `${isTikTok ? 'tiktok' : 'instagram'}_feed.mp4` }));
+  } else if (data.previewUrl) {
+    // Jika bukan video atau gagal unduh, tampilkan preview gambar asli di embed
     embed.setImage(data.previewUrl);
   }
 
-  // 3. Tombol Akses Langsung ke Video / Live
+  // 3. Tombol Akses Langsung ke Postingan / Live (Bawah)
   const buttonLabel = isLive
-    ? `Masuk ke Live ${isTikTok ? 'TikTok' : 'Instagram'}`
-    : `Tonton Video di ${isTikTok ? 'TikTok' : 'Instagram'}`;
+    ? `Tonton Live di ${isTikTok ? 'TikTok' : 'Instagram'}`
+    : `Tonton di ${isTikTok ? 'TikTok' : 'Instagram'}`;
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -132,24 +205,29 @@ async function sendSocmedNotification(client, guildId, data) {
       .setURL(data.url)
   );
 
-  // Kirim pesan pengumuman ke Discord
   const sendOptions = {
     content: messageContent,
     embeds: [embed],
     components: [row]
   };
 
-  const sentMessage = await channel.send(sendOptions);
-
-  // Tampilkan link video langsung di chat agar dapat dibuka atau diputar
-  if (!isLive && data.url) {
-    await channel.send({
-      content: `🎬 **Tautan Video:** ${data.url}`
-    }).catch(() => {});
+  if (files.length > 0) {
+    sendOptions.files = files;
   }
 
-  console.log(`[Socmed] Notifikasi ${data.platform} (${data.type}) berhasil dikirim ke #${channel.name} (${guild.name})`);
-  return true;
+  try {
+    await channel.send(sendOptions);
+    console.log(`[Socmed] Notifikasi ${data.platform} (${data.type}) berhasil dikirim ke #${channel.name} (${guild.name})`);
+    return true;
+  } catch (err) {
+    console.error(`[Socmed] Gagal mengirim pesan ke #${channel.name}:`, err.message);
+    return false;
+  } finally {
+    // Hapus file video sementara setelah terkirim
+    if (downloadedVideoPath && fs.existsSync(downloadedVideoPath)) {
+      fs.unlink(downloadedVideoPath, () => {});
+    }
+  }
 }
 
 /**

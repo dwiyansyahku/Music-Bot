@@ -185,6 +185,12 @@ const socmedCommand = {
         )
         .addStringOption(opt =>
           opt
+            .setName('akun')
+            .setDescription('Nama atau handle akun pembuat konten (opsional, contoh: qumpruy.official)')
+            .setRequired(false)
+        )
+        .addStringOption(opt =>
+          opt
             .setName('judul')
             .setDescription('Judul postingan')
             .setRequired(false)
@@ -192,7 +198,7 @@ const socmedCommand = {
         .addStringOption(opt =>
           opt
             .setName('cuplikan')
-            .setDescription('Review atau cuplikan caption konten')
+            .setDescription('Deskripsi / caption konten')
             .setRequired(false)
         )
         .addAttachmentOption(opt =>
@@ -451,19 +457,19 @@ const socmedCommand = {
         ? (isTikTok ? 'https://www.tiktok.com/@tiktok/live' : 'https://www.instagram.com')
         : (isTikTok
             ? 'https://www.tiktok.com/@tiktok/video/7106594312292453678'
-            : 'https://www.instagram.com/reel/C21jX_nS_4o/');
+            : 'https://www.instagram.com/reel/DegTK3yB5bb/');
 
       const sampleData = {
         platform: platform,
         type: tipe,
-        author: isTikTok ? 'Qumpruy Official' : 'Qumpruy Community',
-        handle: isTikTok ? '@qumpruy.official' : '@qumpruy.id',
-        title: isLive ? 'Sesi Obrolan Santai & Musik Komunitas' : 'Cuplikan Highlights & Rilis Konten Terbaru',
+        author: isTikTok ? 'Qumpruy Official' : 'Qumpruy',
+        handle: isTikTok ? '@qumpruy.official' : '@qumpruy.official',
+        title: isLive ? 'Sesi Obrolan Santai & Musik Komunitas' : 'Video Baru dari Qumpruy',
         caption: isLive
-          ? 'Ruang siaran telah resmi dibuka malam ini. Bergabunglah untuk mendengarkan lagu dan berbincang bersama teman-teman.'
-          : 'Rekap momen terbaik dan kreasi visual terkini. Simak cuplikan lengkapnya melalui pemutar video di bawah atau tautan resmi.',
+          ? 'Ruang siaran telah resmi dibuka. Bergabunglah untuk mendengarkan lagu dan mengobrol santai bersama.'
+          : '✨ Rekap video keseruan terbaru dari Qumpruy. Tonton videonya langsung di Discord!',
         url: sampleUrl,
-        extraInfo: isLive ? 'Siaran Langsung • Resolusi Tinggi' : 'Karya Visual Terbaru • 1080p'
+        avatarUrl: interaction.guild.iconURL({ dynamic: true }) || undefined
       };
 
       const success = await sendSocmedNotification(client, guildId, sampleData);
@@ -497,20 +503,33 @@ const socmedCommand = {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const link = interaction.options.getString('link', true);
-      const judul = interaction.options.getString('judul') || 'Publikasi Konten Baru';
-      const cuplikan = interaction.options.getString('cuplikan') || 'Simak karya visual terbaru hari ini melalui tautan resmi.';
+      const akun = interaction.options.getString('akun');
+      const judul = interaction.options.getString('judul');
+      const cuplikan = interaction.options.getString('cuplikan');
       const attachment = interaction.options.getAttachment('gambar');
+
+      // Ambil username / handle
+      let handle = akun ? akun.replace(/^@/, '') : '';
+      if (!handle) {
+        const ttMatch = link.match(/tiktok\.com\/@([a-zA-Z0-9_.-]+)/i);
+        const igMatch = link.match(/instagram\.com\/([a-zA-Z0-9_.-]+)/i);
+        if (ttMatch) handle = ttMatch[1];
+        else if (igMatch && !['reel', 'p', 'tv', 'stories', 'reels'].includes(igMatch[1].toLowerCase())) handle = igMatch[1];
+        else handle = platform;
+      }
+
+      const description = cuplikan || judul || 'Simak postingan video terbaru melalui pemutar di bawah.';
 
       const postData = {
         platform: platform,
         type: 'post',
         author: interaction.guild.name,
-        handle: `@${platform}`,
-        title: judul,
-        caption: cuplikan,
+        handle: `@${handle}`,
+        title: judul || null,
+        caption: description,
         url: link,
         previewUrl: attachment?.url || null,
-        extraInfo: 'Publikasi Resmi • Konten Baru'
+        avatarUrl: interaction.guild.iconURL({ dynamic: true }) || undefined
       };
 
       const success = await sendSocmedNotification(client, guildId, postData);
@@ -563,7 +582,7 @@ const socmedCommand = {
 
       if (success) {
         return interaction.editReply({
-          content: `✅ Pengumuman siaran langsung berhasil disiarkan ke <#${config.channelId}>.`
+          content: `✅ Pengumuman siaran langsung berhasil disiarkan ke <#${targetChId}>.`
         });
       } else {
         return interaction.editReply({
