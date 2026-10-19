@@ -23,13 +23,27 @@ const socmedCommand = {
     .addSubcommand(sub =>
       sub
         .setName('setup')
-        .setDescription('Atur channel tujuan notifikasi dan role yang akan di-mention')
+        .setDescription('Atur channel tujuan notifikasi TikTok, Instagram, dan role mention')
         .addChannelOption(opt =>
           opt
-            .setName('channel')
-            .setDescription('Channel text untuk mengirim notifikasi')
+            .setName('tiktok')
+            .setDescription('Channel khusus notifikasi TikTok (Live & Video)')
             .addChannelTypes(ChannelType.GuildText)
-            .setRequired(true)
+            .setRequired(false)
+        )
+        .addChannelOption(opt =>
+          opt
+            .setName('instagram')
+            .setDescription('Channel khusus notifikasi Instagram (Feed & Live)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+        .addChannelOption(opt =>
+          opt
+            .setName('channel_utama')
+            .setDescription('Channel bersama untuk TikTok & Instagram (opsional jika tidak dipisah)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
         )
         .addRoleOption(opt =>
           opt
@@ -241,23 +255,39 @@ const socmedCommand = {
     // 1. SETUP
     // ==========================================
     if (sub === 'setup') {
-      const channel = interaction.options.getChannel('channel', true);
+      const chTiktok = interaction.options.getChannel('tiktok');
+      const chInstagram = interaction.options.getChannel('instagram');
+      const chUtama = interaction.options.getChannel('channel_utama');
       const role = interaction.options.getRole('role');
       const aktif = interaction.options.getBoolean('aktif') ?? true;
 
-      config.channelId = channel.id;
-      config.roleId = role ? role.id : (config.roleId || DEFAULT_ROLE_ID);
+      if (!chTiktok && !chInstagram && !chUtama && !config.tiktokChannelId && !config.instagramChannelId && !config.channelId) {
+        return interaction.reply({
+          content: '❌ Harap tentukan minimal salah satu channel (`tiktok`, `instagram`, atau `channel_utama`).',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (chTiktok) config.tiktokChannelId = chTiktok.id;
+      if (chInstagram) config.instagramChannelId = chInstagram.id;
+      if (chUtama) config.channelId = chUtama.id;
+      if (role) config.roleId = role.id;
       config.enabled = aktif;
       if (!Array.isArray(config.tiktok)) config.tiktok = [];
       if (!Array.isArray(config.feeds)) config.feeds = [];
 
       saveSocmedConfig(guildId, config);
 
+      const ttText = config.tiktokChannelId ? `<#${config.tiktokChannelId}>` : (config.channelId ? `<#${config.channelId}> *(Utama)*` : '*Belum diset*');
+      const igText = config.instagramChannelId ? `<#${config.instagramChannelId}>` : (config.channelId ? `<#${config.channelId}> *(Utama)*` : '*Belum diset*');
+      const roleText = config.roleId ? `<@&${config.roleId}>` : `<@&${DEFAULT_ROLE_ID}>`;
+
       return interaction.reply({
         content:
           `✅ **Pengaturan Notifikasi Berhasil Disimpan**\n\n` +
-          `• **Channel:** <#${channel.id}>\n` +
-          `• **Role Mention:** <@&${config.roleId}>\n` +
+          `• **Channel TikTok:** ${ttText}\n` +
+          `• **Channel Instagram:** ${igText}\n` +
+          `• **Role Mention:** ${roleText}\n` +
           `• **Status Pemantau:** \`${config.enabled ? 'Aktif' : 'Nonaktif'}\`\n\n` +
           `*Gunakan \`/socmed test\` untuk menguji tampilan pengiriman sekarang.*`,
         flags: MessageFlags.Ephemeral
@@ -268,7 +298,8 @@ const socmedCommand = {
     // 2. STATUS
     // ==========================================
     if (sub === 'status') {
-      const channelText = config.channelId ? `<#${config.channelId}>` : '*Belum diset (gunakan `/socmed setup`)*';
+      const ttText = config.tiktokChannelId ? `<#${config.tiktokChannelId}>` : (config.channelId ? `<#${config.channelId}> *(Channel Bersama)*` : '*Belum diatur*');
+      const igText = config.instagramChannelId ? `<#${config.instagramChannelId}>` : (config.channelId ? `<#${config.channelId}> *(Channel Bersama)*` : '*Belum diatur*');
       const roleText = config.roleId ? `<@&${config.roleId}>` : `<@&${DEFAULT_ROLE_ID}>`;
       const statusText = config.enabled ? '🟢 Aktif' : '⚪ Nonaktif';
 
@@ -284,8 +315,9 @@ const socmedCommand = {
         .setColor(0x2B2D31)
         .setTitle('Konfigurasi Notifikasi Sosial Media')
         .setDescription(
-          `**Pengaturan Utama:**\n` +
-          `• Channel Tujuan: ${channelText}\n` +
+          `**Pengaturan Channel & Peran:**\n` +
+          `• Channel TikTok: ${ttText}\n` +
+          `• Channel Instagram: ${igText}\n` +
           `• Role Mention: ${roleText}\n` +
           `• Pemantau Otomatis: ${statusText}\n\n` +
           `**Akun TikTok Dipantau (Live):**\n${tiktokList}\n\n` +
@@ -400,19 +432,20 @@ const socmedCommand = {
     // 5. TEST (SIMULATION)
     // ==========================================
     if (sub === 'test') {
-      if (!config.channelId) {
+      const platform = interaction.options.getString('platform', true);
+      const tipe = interaction.options.getString('tipe', true);
+      const isTikTok = platform === 'tiktok';
+      const isLive = tipe === 'live';
+      const targetChId = isTikTok ? (config.tiktokChannelId || config.channelId) : (config.instagramChannelId || config.channelId);
+
+      if (!targetChId) {
         return interaction.reply({
-          content: '❌ Harap tentukan channel tujuan terlebih dahulu dengan perintah `/socmed setup`.',
+          content: `❌ Harap tentukan channel untuk platform **${platform.toUpperCase()}** terlebih dahulu dengan perintah \`/socmed setup\`.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-      const platform = interaction.options.getString('platform', true);
-      const tipe = interaction.options.getString('tipe', true);
-      const isTikTok = platform === 'tiktok';
-      const isLive = tipe === 'live';
 
       const sampleData = {
         platform: platform,
@@ -431,11 +464,11 @@ const socmedCommand = {
 
       if (success) {
         return interaction.editReply({
-          content: `✅ Uji coba pengiriman notifikasi **${platform.toUpperCase()} (${tipe.toUpperCase()})** berhasil dikirimkan ke <#${config.channelId}>.`
+          content: `✅ Uji coba pengiriman notifikasi **${platform.toUpperCase()} (${tipe.toUpperCase()})** berhasil dikirimkan ke <#${targetChId}>.`
         });
       } else {
         return interaction.editReply({
-          content: `❌ Gagal mengirim notifikasi. Pastikan bot memiliki izin kirim pesan dan sematkan file di <#${config.channelId}>.`
+          content: `❌ Gagal mengirim notifikasi. Pastikan bot memiliki izin kirim pesan dan sematkan file di <#${targetChId}>.`
         });
       }
     }
@@ -444,22 +477,23 @@ const socmedCommand = {
     // 6. POST (MANUAL BROADCAST)
     // ==========================================
     if (sub === 'post') {
-      if (!config.channelId) {
+      const platform = interaction.options.getString('platform', true);
+      const isTikTok = platform === 'tiktok';
+      const targetChId = isTikTok ? (config.tiktokChannelId || config.channelId) : (config.instagramChannelId || config.channelId);
+
+      if (!targetChId) {
         return interaction.reply({
-          content: '❌ Harap tentukan channel tujuan terlebih dahulu dengan perintah `/socmed setup`.',
+          content: `❌ Harap tentukan channel untuk platform **${platform.toUpperCase()}** terlebih dahulu dengan perintah \`/socmed setup\`.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const platform = interaction.options.getString('platform', true);
       const link = interaction.options.getString('link', true);
       const judul = interaction.options.getString('judul') || 'Publikasi Konten Baru';
       const cuplikan = interaction.options.getString('cuplikan') || 'Simak karya visual terbaru hari ini melalui tautan resmi.';
       const attachment = interaction.options.getAttachment('gambar');
-
-      const isTikTok = platform === 'tiktok';
 
       const postData = {
         platform: platform,
@@ -477,7 +511,7 @@ const socmedCommand = {
 
       if (success) {
         return interaction.editReply({
-          content: `✅ Pengumuman konten berhasil disiarkan ke <#${config.channelId}>.`
+          content: `✅ Pengumuman konten berhasil disiarkan ke <#${targetChId}>.`
         });
       } else {
         return interaction.editReply({
@@ -490,16 +524,19 @@ const socmedCommand = {
     // 7. LIVE (MANUAL BROADCAST)
     // ==========================================
     if (sub === 'live') {
-      if (!config.channelId) {
+      const platform = interaction.options.getString('platform', true);
+      const isTikTok = platform === 'tiktok';
+      const targetChId = isTikTok ? (config.tiktokChannelId || config.channelId) : (config.instagramChannelId || config.channelId);
+
+      if (!targetChId) {
         return interaction.reply({
-          content: '❌ Harap tentukan channel tujuan terlebih dahulu dengan perintah `/socmed setup`.',
+          content: `❌ Harap tentukan channel untuk platform **${platform.toUpperCase()}** terlebih dahulu dengan perintah \`/socmed setup\`.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const platform = interaction.options.getString('platform', true);
       const link = interaction.options.getString('link', true);
       const judul = interaction.options.getString('judul') || 'Siaran Langsung Sedang Mengudara';
       const attachment = interaction.options.getAttachment('gambar');

@@ -62,21 +62,25 @@ function saveSocmedConfig(guildId, config) {
  */
 async function sendSocmedNotification(client, guildId, data) {
   const config = getSocmedConfig(guildId);
-  if (!config.channelId) {
-    console.warn(`[Socmed] Guild ${guildId} belum mengatur channelId socmed.`);
+  const isTikTok = data.platform.toLowerCase() === 'tiktok';
+  const targetChannelId = isTikTok
+    ? (config.tiktokChannelId || config.channelId)
+    : (config.instagramChannelId || config.channelId);
+
+  if (!targetChannelId) {
+    console.warn(`[Socmed] Guild ${guildId} belum mengatur channel untuk platform ${data.platform}.`);
     return false;
   }
 
   const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
   if (!guild) return false;
 
-  const channel = guild.channels.cache.get(config.channelId) || await guild.channels.fetch(config.channelId).catch(() => null);
+  const channel = guild.channels.cache.get(targetChannelId) || await guild.channels.fetch(targetChannelId).catch(() => null);
   if (!channel) {
-    console.warn(`[Socmed] Channel ${config.channelId} tidak ditemukan di guild ${guild.name}.`);
+    console.warn(`[Socmed] Channel ${targetChannelId} tidak ditemukan di guild ${guild.name}.`);
     return false;
   }
 
-  const isTikTok = data.platform.toLowerCase() === 'tiktok';
   const isLive = data.type.toLowerCase() === 'live';
 
   // 1. Pilih kalimat ajakan elegan secara acak (rotasi dinamis)
@@ -272,7 +276,8 @@ async function checkAllGuilds(client) {
   const settings = storage.read('settings');
   for (const [guildId, guildSettings] of Object.entries(settings)) {
     const config = guildSettings.socmed;
-    if (!config || !config.enabled || !config.channelId) continue;
+    if (!config || !config.enabled) continue;
+    if (!config.channelId && !config.tiktokChannelId && !config.instagramChannelId) continue;
 
     // Cek TikTok Live
     if (Array.isArray(config.tiktok)) {
