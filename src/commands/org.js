@@ -20,12 +20,12 @@ const {
 const { generateOrgChartImage } = require('../utils/orgChartGenerator');
 
 const DIVISION_CHOICES = [
-  { name: '⚡ Head Admin', value: 'head_admin' },
-  { name: '🛡️ Security', value: 'security' },
-  { name: '📱 Admin TikTok', value: 'admin_tiktok' },
-  { name: '📸 Admin Instagram', value: 'admin_instagram' },
-  { name: '🎙️ Streamer', value: 'streamer' },
-  { name: '🎨 Team Creative', value: 'team_creative' },
+  { name: 'Head Admin', value: 'head_admin' },
+  { name: 'Security', value: 'security' },
+  { name: 'Admin TikTok', value: 'admin_tiktok' },
+  { name: 'Admin Instagram', value: 'admin_instagram' },
+  { name: 'Streamer', value: 'streamer' },
+  { name: 'Team Creative', value: 'team_creative' },
 ];
 
 /**
@@ -40,7 +40,7 @@ async function buildOrgChartPayload(guildId, guild, client) {
 
   const embed = new EmbedBuilder()
     .setColor(0x00F2FE)
-    .setTitle(`🏛️ STRUKTUR ORGANISASI — ${(orgData.title || guild.name).toUpperCase()}`)
+    .setTitle(`STRUKTUR ORGANISASI — ${(orgData.title || guild.name).toUpperCase()}`)
     .setDescription(
       `Bagan resmi kepengurusan dan divisi komunitas **${orgData.title || guild.name}**.\n\n` +
       `◈ **Divisi Aktif:**\n` +
@@ -261,7 +261,7 @@ module.exports = {
       const orgData = getGuildOrg(guildId);
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
-        .setTitle(`📋 DAFTAR PENGURUS — ${(orgData.title || guild.name).toUpperCase()}`)
+        .setTitle(`DAFTAR PENGURUS — ${(orgData.title || guild.name).toUpperCase()}`)
         .setDescription(`Daftar lengkap pimpinan dan divisi organisasi server saat ini.`);
 
       // Leader
@@ -273,7 +273,7 @@ module.exports = {
         });
       } else {
         embed.addFields({
-          name: `👑 Ketua Umum`,
+          name: `Ketua Umum`,
           value: `*Belum ada Ketua yang ditentukan.*`,
           inline: false
         });

@@ -37,6 +37,16 @@ module.exports = {
     }
 
     // =============================================
+    // SOCIAL MEDIA TRACKER (TIKTOK & INSTAGRAM)
+    // =============================================
+    try {
+      const { initSocmedScheduler } = require('../utils/socmedTracker');
+      initSocmedScheduler(client);
+    } catch (socErr) {
+      console.error('⚠️ [Socmed Startup] Gagal inisialisasi socmed tracker:', socErr.message);
+    }
+
+    // =============================================
     // AUTO-RECONNECT 24/7 VOICE CHANNELS
     // =============================================
     try {
