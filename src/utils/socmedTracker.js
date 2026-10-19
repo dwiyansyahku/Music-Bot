@@ -88,32 +88,13 @@ async function sendSocmedNotification(client, guildId, data) {
   const roleMention = config.roleId ? `<@&${config.roleId}>` : `<@&${DEFAULT_ROLE_ID}>`;
   const messageContent = `${roleMention}\n\n${invitationPhrase}`;
 
-  // 2. Render Kartu Canvas Resolusi Tinggi (1200 x 630)
-  let attachment = null;
-  try {
-    const cardBuffer = await renderSocmedCard({
-      platform: data.platform,
-      type: data.type,
-      author: data.author,
-      handle: data.handle,
-      avatarUrl: data.avatarUrl,
-      title: data.title,
-      caption: data.caption,
-      previewUrl: data.previewUrl,
-      extraInfo: data.extraInfo || (isLive ? 'Siaran Langsung • Live Broadcast' : 'Publikasi Konten Baru')
-    });
-    attachment = new AttachmentBuilder(cardBuffer, { name: 'socmed-preview.png' });
-  } catch (canvasErr) {
-    console.error('[Socmed Canvas] Gagal render canvas:', canvasErr.message);
-  }
-
-  // 3. Bangun Embed yang Elegan dan Rapi
+  // 2. Bangun Embed yang Bersih dan Elegan (Tanpa Canvas, Fokus Nama Akun & Deskripsi)
   const embedColor = isTikTok
     ? (isLive ? 0xFE2C55 : 0x00F2FE)
     : (isLive ? 0xE1306C : 0x833AB4);
 
-  const cleanTitle = data.title || (isLive ? `Siaran Langsung dari ${data.author}` : `Konten Baru dari ${data.author}`);
-  const cleanExcerpt = data.caption ? `> *${data.caption.replace(/\n+/g, ' ').slice(0, 300)}*` : '> *Simak cuplikan lengkap melalui tautan di bawah.*';
+  const cleanTitle = data.title || (isLive ? `Siaran Langsung: ${data.author}` : `Konten Baru dari ${data.author}`);
+  const cleanCaption = data.caption || 'Simak konten video selengkapnya melalui tautan di bawah.';
 
   const embed = new EmbedBuilder()
     .setColor(embedColor)
@@ -125,9 +106,8 @@ async function sendSocmedNotification(client, guildId, data) {
     .setTitle(cleanTitle)
     .setURL(data.url)
     .setDescription(
-      `${cleanExcerpt}\n\n` +
-      `**Platform:** \`${isTikTok ? 'TikTok' : 'Instagram'}\` • **Status:** \`${isLive ? 'Sedang Berlangsung' : 'Tersedia'}\`\n` +
-      `🔗 **Tautan Langsung:** [Buka di ${isTikTok ? 'TikTok' : 'Instagram'}](${data.url})`
+      `**Deskripsi:**\n> *${cleanCaption.replace(/\n+/g, '\n> ')}*\n\n` +
+      `**Platform:** \`${isTikTok ? 'TikTok' : 'Instagram'}\` • **Status:** \`${isLive ? 'Sedang Live' : 'Video Baru'}\``
     )
     .setFooter({
       text: `Qumpruy • ${isTikTok ? 'TikTok' : 'Instagram'} Notification`,
@@ -135,16 +115,15 @@ async function sendSocmedNotification(client, guildId, data) {
     })
     .setTimestamp();
 
-  if (attachment) {
-    embed.setImage('attachment://socmed-preview.png');
-  } else if (data.previewUrl) {
+  // Jika ada thumbnail asli dari postingan video, tampilkan langsung
+  if (data.previewUrl) {
     embed.setImage(data.previewUrl);
   }
 
-  // 4. Tombol Akses Langsung
+  // 3. Tombol Akses Langsung ke Video / Live
   const buttonLabel = isLive
     ? `Masuk ke Live ${isTikTok ? 'TikTok' : 'Instagram'}`
-    : `Tonton di ${isTikTok ? 'TikTok' : 'Instagram'}`;
+    : `Tonton Video di ${isTikTok ? 'TikTok' : 'Instagram'}`;
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -153,32 +132,19 @@ async function sendSocmedNotification(client, guildId, data) {
       .setURL(data.url)
   );
 
-  // 5. Cek apakah ada tautan pemutar video langsung (vxtiktok / ddinstagram)
-  let proxyVideoUrl = null;
-  if (!isLive && data.url) {
-    if (isTikTok && (data.url.includes('/video/') || data.url.includes('tiktok.com'))) {
-      proxyVideoUrl = data.url.replace(/(?:www\.)?tiktok\.com/, 'vxtiktok.com');
-    } else if (!isTikTok && (data.url.includes('/reel/') || data.url.includes('/p/') || data.url.includes('instagram.com'))) {
-      proxyVideoUrl = data.url.replace(/(?:www\.)?instagram\.com/, 'ddinstagram.com');
-    }
-  }
-
-  // Kirim ke Discord
+  // Kirim pesan pengumuman ke Discord
   const sendOptions = {
     content: messageContent,
     embeds: [embed],
     components: [row]
   };
-  if (attachment) {
-    sendOptions.files = [attachment];
-  }
 
   const sentMessage = await channel.send(sendOptions);
 
-  // Jika berupa postingan video, kirim pemutar video native Discord agar member bisa langsung menekan Play di Discord
-  if (!isLive && proxyVideoUrl && (proxyVideoUrl.includes('/video/') || proxyVideoUrl.includes('/reel/') || proxyVideoUrl.includes('/p/'))) {
+  // Tampilkan link video langsung di chat agar dapat dibuka atau diputar
+  if (!isLive && data.url) {
     await channel.send({
-      content: `🎬 **Pemutar Video Langsung (Bisa Diputar di Sini):**\n${proxyVideoUrl}`
+      content: `🎬 **Tautan Video:** ${data.url}`
     }).catch(() => {});
   }
 
