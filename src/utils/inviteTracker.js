@@ -1,6 +1,7 @@
 const {
   EmbedBuilder, PermissionFlagsBits, ChannelType, AuditLogEvent,
-  AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
+  AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
+  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags
 } = require('discord.js');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const fs = require('fs');
@@ -877,6 +878,493 @@ async function createDedicatedInviteChannel(guild) {
   return { channel: newChannel, created: true };
 }
 
+/**
+ * Generate embed panel audit pencarian invite
+ */
+function buildInviteAuditPanelEmbed(guild) {
+  return new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setAuthor({
+      name: 'INVITE TRACKER — PUSAT AUDIT & PENCARIAN UNDANGAN',
+      iconURL: guild.iconURL({ dynamic: true }) || undefined
+    })
+    .setTitle(`Audit Tautan & Statistik Undangan — ${guild.name}`)
+    .setDescription(
+      `Pusat penelusuran data undangan member dan efektivitas tautan server.\n\n` +
+      `**Fasilitas Pencarian:**\n` +
+      `• **Cari Member** — Mengetahui siapa yang mengundang akun tertentu, tanggal join, dan status akun.\n` +
+      `• **Cari Pengundang** — Menampilkan daftar member yang berhasil diajak oleh seorang pengundang.\n` +
+      `• **Cari Kode Tautan** — Menelusuri histori pemakaian tautan/link server tertentu.\n` +
+      `• **Peringkat Undangan** — Menampilkan daftar pengundang teratas di server secara instan.\n\n` +
+      `*Pilih salah satu tombol di bawah untuk memulai pencarian tertutup (Ephemeral):*`
+    )
+    .setFooter({
+      text: `${guild.name} • Invite Audit Service • ${getFormattedTime()}`,
+      iconURL: guild.iconURL({ dynamic: true }) || undefined
+    })
+    .setTimestamp();
+}
+
+/**
+ * Tombol ActionRow untuk panel audit invite
+ */
+function buildInviteAuditButtons() {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('qinv_btn_search_member')
+      .setLabel('Cari Member')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('qinv_btn_search_inviter')
+      .setLabel('Cari Pengundang')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('qinv_btn_search_code')
+      .setLabel('Cari Kode Tautan')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('qinv_btn_leaderboard')
+      .setLabel('Peringkat Undangan')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return [row];
+}
+
+/**
+ * Handle tombol audit invite ditekan (menampilkan modal input)
+ */
+async function handleInviteAuditButton(interaction) {
+  const customId = interaction.customId;
+
+  // 1. Cari Member
+  if (customId === 'qinv_btn_search_member') {
+    const modal = new ModalBuilder()
+      .setCustomId('qinv_modal_search_member')
+      .setTitle('Pencarian Data Member');
+
+    const input = new TextInputBuilder()
+      .setCustomId('qinv_input_query')
+      .setLabel('Username / User ID / Mention Member')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Contoh: @username atau 123456789012345678')
+      .setRequired(true)
+      .setMaxLength(100);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+    return interaction.showModal(modal);
+  }
+
+  // 2. Cari Pengundang
+  if (customId === 'qinv_btn_search_inviter') {
+    const modal = new ModalBuilder()
+      .setCustomId('qinv_modal_search_inviter')
+      .setTitle('Pencarian Pengundang');
+
+    const input = new TextInputBuilder()
+      .setCustomId('qinv_input_query')
+      .setLabel('Username / User ID / Mention Pengundang')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Contoh: @username atau 123456789012345678')
+      .setRequired(true)
+      .setMaxLength(100);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+    return interaction.showModal(modal);
+  }
+
+  // 3. Cari Kode Tautan
+  if (customId === 'qinv_btn_search_code') {
+    const modal = new ModalBuilder()
+      .setCustomId('qinv_modal_search_code')
+      .setTitle('Pencarian Kode Tautan Invite');
+
+    const input = new TextInputBuilder()
+      .setCustomId('qinv_input_query')
+      .setLabel('Kode Tautan Invite (Tanpa Link / Dengan Link)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Contoh: qumpruy atau discord.gg/xxxxxx')
+      .setRequired(true)
+      .setMaxLength(100);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+    return interaction.showModal(modal);
+  }
+
+  // 4. Leaderboard (Instan)
+  if (customId === 'qinv_btn_leaderboard') {
+    const topEntries = getLeaderboard(interaction.guild.id, 10);
+    if (topEntries.length === 0) {
+      return interaction.reply({
+        content: 'Belum ada data pengundang yang tercatat di server ini.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    const descriptionLines = topEntries.map((entry, idx) => {
+      const rank = idx + 1;
+      return `**${rank}.** <@${entry.userId}> — **${entry.total}** invite (\`${entry.regular}\` valid, \`${entry.leaves}\` left)`;
+    });
+
+    const embed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setAuthor({
+        name: 'INVITE AUDIT | PAPAN PERINGKAT PENGUNDANG',
+        iconURL: interaction.guild.iconURL({ dynamic: true }) || undefined
+      })
+      .setTitle(`Top 10 Pengundang Terbanyak — ${interaction.guild.name}`)
+      .setDescription(descriptionLines.join('\n'))
+      .setFooter({ text: `${interaction.guild.name} • Net = (Valid - Left)` })
+      .setTimestamp();
+
+    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+  }
+}
+
+/**
+ * Cari data invite berdasarkan tipe (member, inviter, code)
+ */
+async function searchInviteData({ guild, type, query, client, page = 1 }) {
+  const guildId = guild.id;
+  const invitesData = storage.read('invites');
+  const guildData = invitesData[guildId] || { members: {}, inviters: {} };
+  const members = guildData.members || {};
+
+  // === 1. CARI BERDASARKAN MEMBER ===
+  if (type === 'member') {
+    // Ekstrak ID jika format mention atau string
+    const match = query.match(/\d{17,20}/);
+    let targetId = match ? match[0] : null;
+
+    if (!targetId) {
+      // Coba cari di cache guild berdasarkan username
+      const found = guild.members.cache.find(m =>
+        m.user.username.toLowerCase() === query.toLowerCase() ||
+        m.displayName.toLowerCase() === query.toLowerCase()
+      );
+      if (found) targetId = found.id;
+    }
+
+    if (!targetId) {
+      // Coba cari di records invites
+      for (const [mid, rec] of Object.entries(members)) {
+        if (mid === query) {
+          targetId = mid;
+          break;
+        }
+      }
+    }
+
+    if (!targetId || !members[targetId]) {
+      return {
+        embed: new EmbedBuilder()
+          .setColor(0xED4245)
+          .setTitle('Data Member Tidak Ditemukan')
+          .setDescription(`Tidak ditemukan catatan undangan untuk kueri \`${query}\`. Kemungkinan member ini bergabung sebelum bot aktif atau belum tercatat.`)
+      };
+    }
+
+    const record = members[targetId];
+    const targetUser = await client.users.fetch(targetId).catch(() => null);
+    const isStillInGuild = guild.members.cache.has(targetId);
+
+    const inviterStats = record.inviterId ? getInviterStats(guildId, record.inviterId) : null;
+    const joinedTs = record.joinedAt ? Math.floor(record.joinedAt / 1000) : null;
+
+    const embed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setAuthor({
+        name: 'AUDIT UNDANGAN — INFORMASI MEMBER',
+        iconURL: targetUser?.displayAvatarURL({ dynamic: true }) || undefined
+      })
+      .setTitle(`Hasil Penelusuran: ${targetUser ? targetUser.username : targetId}`)
+      .addFields(
+        {
+          name: 'Member',
+          value: `• Nama: <@${targetId}>\n• ID: \`${targetId}\`\n• Status: ${isStillInGuild ? '`Masih di Server`' : '`Telah Keluar (Left)`'}`,
+          inline: true
+        },
+        {
+          name: 'Pengundang',
+          value: record.inviterId
+            ? `• Nama: <@${record.inviterId}>\n• ID: \`${record.inviterId}\`\n• Total Net: **${inviterStats ? inviterStats.total : 0}** invite`
+            : record.inviteType === 'vanity'
+            ? '• *Bergabung melalui Vanity URL*'
+            : record.inviteType === 'bot'
+            ? '• *Diintegrasikan oleh Administrator (Bot)*'
+            : '• *Tidak diketahui / Tautan Langsung*',
+          inline: true
+        },
+        {
+          name: 'Detail Tautan',
+          value: `• Kode: \`${record.code || 'Vanity/Unknown'}\`\n• Tipe: \`${record.inviteType || 'regular'}\`\n• Akun Baru: ${record.fake ? '`Ya (Suspek < 3 hari saat join)`' : '`Tidak (Normal)`'}`,
+          inline: true
+        },
+        {
+          name: 'Waktu Bergabung',
+          value: joinedTs ? `• <t:${joinedTs}:F>\n• (<t:${joinedTs}:R>)` : '• *Tidak tercatat*',
+          inline: true
+        }
+      )
+      .setFooter({ text: `${guild.name} • Invite Audit Service` })
+      .setTimestamp();
+
+    return { embed };
+  }
+
+  // === 2. CARI BERDASARKAN PENGUNDANG (INVITER) ===
+  if (type === 'inviter') {
+    const match = query.match(/\d{17,20}/);
+    let inviterId = match ? match[0] : null;
+
+    if (!inviterId) {
+      const found = guild.members.cache.find(m =>
+        m.user.username.toLowerCase() === query.toLowerCase() ||
+        m.displayName.toLowerCase() === query.toLowerCase()
+      );
+      if (found) inviterId = found.id;
+    }
+
+    if (!inviterId) {
+      // Coba cocokkan dengan keys inviters
+      const invitersList = guildData.inviters || {};
+      for (const iid of Object.keys(invitersList)) {
+        if (iid === query) {
+          inviterId = iid;
+          break;
+        }
+      }
+    }
+
+    if (!inviterId) {
+      return {
+        embed: new EmbedBuilder()
+          .setColor(0xED4245)
+          .setTitle('Pengundang Tidak Ditemukan')
+          .setDescription(`Tidak ditemukan catatan pengundang untuk kueri \`${query}\`.`)
+      };
+    }
+
+    const inviterUser = await client.users.fetch(inviterId).catch(() => null);
+    const stats = getInviterStats(guildId, inviterId);
+
+    // Ambil semua member yang diundang oleh orang ini
+    const invitedList = [];
+    for (const [mid, rec] of Object.entries(members)) {
+      if (rec.inviterId === inviterId) {
+        invitedList.push({
+          memberId: mid,
+          joinedAt: rec.joinedAt || 0,
+          code: rec.code || '-',
+          fake: rec.fake || false,
+          inGuild: guild.members.cache.has(mid)
+        });
+      }
+    }
+
+    // Urutkan dari yang paling baru bergabung
+    invitedList.sort((a, b) => b.joinedAt - a.joinedAt);
+
+    const pageSize = 6;
+    const totalPages = Math.max(1, Math.ceil(invitedList.length / pageSize));
+    const currentPage = Math.min(Math.max(1, page), totalPages);
+
+    const startIdx = (currentPage - 1) * pageSize;
+    const pagedItems = invitedList.slice(startIdx, startIdx + pageSize);
+
+    let listText = '';
+    if (pagedItems.length === 0) {
+      listText = '*Belum ada rincian riwayat member yang tercatat.*';
+    } else {
+      listText = pagedItems.map((item, idx) => {
+        const num = startIdx + idx + 1;
+        const timeStr = item.joinedAt ? `<t:${Math.floor(item.joinedAt / 1000)}:d>` : '-';
+        const statusStr = item.inGuild ? '`Aktif`' : '`Left`';
+        const fakeBadge = item.fake ? ' `[Akun Baru]`' : '';
+        return `**${num}.** <@${item.memberId}> (${timeStr}) — ${statusStr}${fakeBadge}`;
+      }).join('\n');
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setAuthor({
+        name: 'AUDIT UNDANGAN — DAFTAR PENGUNDANG',
+        iconURL: inviterUser?.displayAvatarURL({ dynamic: true }) || undefined
+      })
+      .setTitle(`Riwayat Undangan: ${inviterUser ? inviterUser.username : inviterId}`)
+      .setDescription(
+        `Statistik: **${stats.total}** Net (\`${stats.regular}\` valid, \`${stats.leaves}\` keluar, \`${stats.fake}\` akun baru, \`${stats.bonus}\` bonus)\n\n` +
+        `**Member yang Bergabung via Tautan (${invitedList.length} orang):**\n` +
+        listText
+      )
+      .setFooter({
+        text: `Halaman ${currentPage} dari ${totalPages} • Total ${invitedList.length} member`
+      })
+      .setTimestamp();
+
+    // Tombol pagination jika lebih dari 1 halaman
+    let components = [];
+    if (totalPages > 1) {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`qinv_page_prev_${inviterId}_${currentPage}`)
+          .setLabel('Halaman Sebelumnya')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(currentPage <= 1),
+        new ButtonBuilder()
+          .setCustomId(`qinv_page_next_${inviterId}_${currentPage}`)
+          .setLabel('Halaman Berikutnya')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(currentPage >= totalPages)
+      );
+      components = [row];
+    }
+
+    return { embed, components };
+  }
+
+  // === 3. CARI BERDASARKAN KODE TAUTAN ===
+  if (type === 'code') {
+    // Bersihkan link menjadi kode murni
+    const cleanCode = query
+      .replace(/https?:\/\/(www\.)?discord\.(gg|com\/invite)\//i, '')
+      .trim();
+
+    // Cari di cache guild invites
+    const cachedGuild = client.invitesCache?.get(guildId);
+    const cachedInvite = cachedGuild?.invites?.get(cleanCode);
+
+    // Cari member yang join dengan kode ini di storage
+    const joinedWithCode = [];
+    for (const [mid, rec] of Object.entries(members)) {
+      if (rec.code && rec.code.toLowerCase() === cleanCode.toLowerCase()) {
+        joinedWithCode.push({
+          memberId: mid,
+          joinedAt: rec.joinedAt || 0,
+          inGuild: guild.members.cache.has(mid)
+        });
+      }
+    }
+
+    joinedWithCode.sort((a, b) => b.joinedAt - a.joinedAt);
+
+    const isVanity = cleanCode.toLowerCase() === (cachedGuild?.vanityCode || '').toLowerCase();
+
+    const embed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setAuthor({
+        name: 'AUDIT UNDANGAN — INFORMASI KODE TAUTAN',
+        iconURL: guild.iconURL({ dynamic: true }) || undefined
+      })
+      .setTitle(`Detail Tautan: discord.gg/${cleanCode}`)
+      .addFields(
+        {
+          name: 'Status Tautan',
+          value: isVanity
+            ? '• **Vanity URL Resmi Server**'
+            : cachedInvite
+            ? '• **Tautan Aktif di Server**'
+            : '• **Tautan Kadaluarsa / Telah Dihapus**',
+          inline: true
+        },
+        {
+          name: 'Pembuat Tautan',
+          value: cachedInvite?.inviter
+            ? `• <@${cachedInvite.inviter.id}> (\`${cachedInvite.inviter.username}\`)`
+            : isVanity
+            ? '• Administrator (Server Vanity)'
+            : '• *Tidak diketahui*',
+          inline: true
+        },
+        {
+          name: 'Total Penggunaan Tercatat',
+          value: `• **${joinedWithCode.length}** member bergabung via link ini`,
+          inline: true
+        }
+      );
+
+    if (joinedWithCode.length > 0) {
+      const sample = joinedWithCode.slice(0, 8).map((item, idx) => {
+        const timeStr = item.joinedAt ? `<t:${Math.floor(item.joinedAt / 1000)}:R>` : '-';
+        return `**${idx + 1}.** <@${item.memberId}> (${timeStr}) — ${item.inGuild ? '`Aktif`' : '`Left`'}`;
+      }).join('\n');
+
+      embed.addFields({
+        name: `Member Terbaru yang Menggunakan Tautan Ini (8 Teratas)`,
+        value: sample,
+        inline: false
+      });
+    }
+
+    embed.setFooter({ text: `${guild.name} • Invite Code Audit` }).setTimestamp();
+
+    return { embed };
+  }
+
+  return {
+    embed: new EmbedBuilder()
+      .setColor(0xED4245)
+      .setTitle('Tipe Pencarian Tidak Valid')
+  };
+}
+
+/**
+ * Handle submit modal pencarian invite
+ */
+async function handleInviteAuditModalSubmit(interaction, client) {
+  const customId = interaction.customId;
+  const query = interaction.fields.getTextInputValue('qinv_input_query')?.trim();
+
+  let type = '';
+  if (customId === 'qinv_modal_search_member') type = 'member';
+  if (customId === 'qinv_modal_search_inviter') type = 'inviter';
+  if (customId === 'qinv_modal_search_code') type = 'code';
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const result = await searchInviteData({
+    guild: interaction.guild,
+    type,
+    query,
+    client,
+    page: 1
+  });
+
+  return interaction.editReply({
+    embeds: [result.embed],
+    components: result.components || []
+  });
+}
+
+/**
+ * Handle pagination tombol daftar pengundang
+ */
+async function handleInviteAuditPagination(interaction, client) {
+  const customId = interaction.customId;
+  // Format: qinv_page_prev_INVITERID_CURRENTPAGE atau qinv_page_next_INVITERID_CURRENTPAGE
+  const parts = customId.split('_');
+  const dir = parts[2]; // prev / next
+  const inviterId = parts[3];
+  const currentPage = parseInt(parts[4], 10) || 1;
+
+  const targetPage = dir === 'next' ? currentPage + 1 : currentPage - 1;
+
+  await interaction.deferUpdate();
+
+  const result = await searchInviteData({
+    guild: interaction.guild,
+    type: 'inviter',
+    query: inviterId,
+    client,
+    page: targetPage
+  });
+
+  return interaction.editReply({
+    embeds: [result.embed],
+    components: result.components || []
+  });
+}
+
 module.exports = {
   initInviteTracker,
   cacheGuildInvites,
@@ -888,5 +1376,12 @@ module.exports = {
   getLeaderboard,
   buildInviteEmbed,
   createDedicatedInviteChannel,
-  renderQumpruyTicket
+  renderQumpruyTicket,
+  buildInviteAuditPanelEmbed,
+  buildInviteAuditButtons,
+  handleInviteAuditButton,
+  handleInviteAuditModalSubmit,
+  handleInviteAuditPagination,
+  searchInviteData
 };
+

@@ -11,7 +11,10 @@ const {
   getInviterStats,
   getLeaderboard,
   cacheGuildInvites,
-  renderQumpruyTicket
+  renderQumpruyTicket,
+  buildInviteAuditPanelEmbed,
+  buildInviteAuditButtons,
+  searchInviteData
 } = require('../utils/inviteTracker');
 
 const qinvite = {
@@ -71,6 +74,40 @@ const qinvite = {
             .setDescription('Member yang ingin dicek statistik undangannya')
             .setRequired(false)
         )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('panel')
+        .setDescription('Kirim embed panel audit & pencarian invite ke channel log')
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Channel tujuan penempatan panel (default: channel saat ini)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('search')
+        .setDescription('Cari data undangan berdasarkan member, pengundang, atau kode tautan')
+        .addStringOption(opt =>
+          opt
+            .setName('tipe')
+            .setDescription('Kategori data yang ingin dicari')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Member (Siapa yang mengundang?)', value: 'member' },
+              { name: 'Pengundang (Siapa saja yang diundang?)', value: 'inviter' },
+              { name: 'Kode Tautan (Detail & history link)', value: 'code' }
+            )
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('kueri')
+            .setDescription('Username, User ID, Mention, atau Kode invite')
+            .setRequired(true)
+        )
     ),
 
   async execute(interaction, client) {
@@ -78,8 +115,8 @@ const qinvite = {
     const guild = interaction.guild;
     const guildId = guild.id;
 
-    // Leaderboard dan Stats dapat diakses oleh semua member
-    if (sub !== 'leaderboard' && sub !== 'stats') {
+    // Leaderboard, Stats, dan Search dapat diakses oleh semua member
+    if (sub !== 'leaderboard' && sub !== 'stats' && sub !== 'search') {
       if (!await isOwnerOrMod(interaction, client)) {
         return replyNoAccessMod(interaction);
       }
@@ -352,6 +389,51 @@ const qinvite = {
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });
+    }
+
+    // === PANEL (KIRIM PANEL AUDIT INVITE) ===
+    if (sub === 'panel') {
+      const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+      const botPerms = targetChannel.permissionsFor(guild.members.me);
+
+      if (!botPerms.has(PermissionFlagsBits.SendMessages) || !botPerms.has(PermissionFlagsBits.EmbedLinks)) {
+        return interaction.reply({
+          content: `Bot membutuhkan izin **Send Messages** dan **Embed Links** di <#${targetChannel.id}>.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const embed = buildInviteAuditPanelEmbed(guild);
+      const components = buildInviteAuditButtons();
+
+      await targetChannel.send({ embeds: [embed], components });
+
+      return interaction.editReply({
+        content: `Panel Audit & Pencarian Invite berhasil disematkan di <#${targetChannel.id}>.`
+      });
+    }
+
+    // === SEARCH (PENCARIAN DATA UNDANGAN) ===
+    if (sub === 'search') {
+      const type = interaction.options.getString('tipe');
+      const query = interaction.options.getString('kueri')?.trim();
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const result = await searchInviteData({
+        guild,
+        type,
+        query,
+        client,
+        page: 1
+      });
+
+      return interaction.editReply({
+        embeds: [result.embed],
+        components: result.components || []
+      });
     }
   }
 };

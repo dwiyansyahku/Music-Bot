@@ -779,5 +779,109 @@ module.exports = {
       }
       return;
     }
+
+    // ====== Community Desk (Buttons & Actions) ======
+    if (interaction.isButton() && interaction.customId.startsWith('cdesk_btn_')) {
+      try {
+        const { handleDeskButton } = require('../utils/communityDesk');
+        await handleDeskButton(interaction);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses formulir pengaduan.');
+      }
+      return;
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith('cdesk_act_')) {
+      try {
+        const { handleDeskAction } = require('../utils/communityDesk');
+        await handleDeskAction(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses tindakan moderasi tiket.');
+      }
+      return;
+    }
+
+    // ====== Community Desk (Modals) ======
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('cdesk_modal_mod_reply_')) {
+      try {
+        const { handleDeskModReplySubmit } = require('../utils/communityDesk');
+        await handleDeskModReplySubmit(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal mengirim balasan tiket ke member.');
+      }
+      return;
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('cdesk_modal_')) {
+      try {
+        const { handleDeskModalSubmit } = require('../utils/communityDesk');
+        await handleDeskModalSubmit(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses pengiriman pengaduan.');
+      }
+      return;
+    }
+
+    // ====== Invite Audit & Search (Buttons & Modals) ======
+    if (interaction.isButton() && interaction.customId.startsWith('qinv_btn_')) {
+      try {
+        const { handleInviteAuditButton } = require('../utils/inviteTracker');
+        await handleInviteAuditButton(interaction);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses tombol audit undangan.');
+      }
+      return;
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith('qinv_page_')) {
+      try {
+        const { handleInviteAuditPagination } = require('../utils/inviteTracker');
+        await handleInviteAuditPagination(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses perpindahan halaman pengundang.');
+      }
+      return;
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('qinv_modal_')) {
+      try {
+        const { handleInviteAuditModalSubmit } = require('../utils/inviteTracker');
+        await handleInviteAuditModalSubmit(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses pencarian data undangan.');
+      }
+      return;
+    }
+
+    // ====== Voice Lounge Hub (Dynamic Voice) ======
+    if (interaction.isButton() && interaction.customId.startsWith('vlounge_btn_')) {
+      try {
+        const { handleVoiceLoungeButton } = require('../utils/dynamicVoice');
+        await handleVoiceLoungeButton(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal membuat ruang suara mandiri.');
+      }
+      return;
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith('vlounge_ctrl_')) {
+      try {
+        const { handleVoiceLoungeControl } = require('../utils/dynamicVoice');
+        await handleVoiceLoungeControl(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses kontrol ruang suara.');
+      }
+      return;
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('vlounge_modal_')) {
+      try {
+        const { handleVoiceLoungeModalSubmit } = require('../utils/dynamicVoice');
+        await handleVoiceLoungeModalSubmit(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses pengaturan ruang suara.');
+      }
+      return;
+    }
   },
 };

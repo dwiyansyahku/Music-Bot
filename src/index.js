@@ -1150,6 +1150,12 @@ client.on('voiceStateUpdate', (oldState, newState) => {
   // Track voice channel duration & companions
   voiceTracker.handleVoiceStateUpdate(oldState, newState, client);
 
+  // Handle auto-delete dynamic voice channels when empty
+  const { handleDynamicVoiceStateUpdate } = require('./utils/dynamicVoice');
+  handleDynamicVoiceStateUpdate(oldState, newState, client).catch(err => {
+    console.error('⚠️ [Dynamic Voice Error]:', err.message);
+  });
+
   // =============================================
   // ENFORCE JAIL VOICE RULES
   // =============================================
