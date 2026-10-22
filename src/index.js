@@ -1,4 +1,12 @@
 require('dotenv').config();
+
+// Auto-clean common env vars from accidental surrounding quotes and whitespace
+['DISCORD_TOKEN', 'CLIENT_ID', 'PREFIX', 'DEFAULT_VOLUME'].forEach((key) => {
+  if (process.env[key]) {
+    process.env[key] = process.env[key].trim().replace(/^["']|["']$/g, '').trim();
+  }
+});
+
 const dns = require('dns');
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
