@@ -38,6 +38,19 @@ module.exports = {
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
+        .addStringOption(opt =>
+          opt
+            .setName('kategori')
+            .setDescription('Kategori pengaduan untuk channel ini (default: Semua Kategori)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Semua Kategori / All Categories', value: 'all' },
+              { name: 'Laporan Member / Member Reports', value: 'report' },
+              { name: 'Ide & Kolaborasi / Content & Collab', value: 'content' },
+              { name: 'Kritik & Saran / Feedback & Suggestions', value: 'feedback' },
+              { name: 'Pesan Khusus Staf / General Inquiries', value: 'other' }
+            )
+        )
     )
     .addSubcommand(sub =>
       sub
@@ -81,6 +94,7 @@ module.exports = {
     // === 2. SETCHANNEL ===
     if (sub === 'setchannel') {
       const targetChannel = interaction.options.getChannel('channel');
+      const category = interaction.options.getString('kategori') || 'all';
       const botPerms = targetChannel.permissionsFor(guild.members.me);
 
       if (!botPerms.has(PermissionFlagsBits.SendMessages) || !botPerms.has(PermissionFlagsBits.EmbedLinks)) {
@@ -90,19 +104,35 @@ module.exports = {
         });
       }
 
-      saveGuildSetting(guildId, 'deskReportChannelId', targetChannel.id);
+      const settings = storage.read('settings');
+      if (!settings[guildId]) settings[guildId] = {};
+      if (!settings[guildId].deskChannels) settings[guildId].deskChannels = {};
+
+      settings[guildId].deskChannels[category] = targetChannel.id;
+      if (category === 'all') {
+        settings[guildId].deskReportChannelId = targetChannel.id;
+      }
+      storage.write('settings', settings);
+
+      const categoryNames = {
+        all: 'Semua Kategori (All Categories)',
+        report: 'Laporan Member (Member Reports)',
+        content: 'Ide & Kolaborasi (Content & Collab)',
+        feedback: 'Kritik & Saran (Feedback & Suggestions)',
+        other: 'Pesan Khusus Staf (General Inquiries)'
+      };
 
       const embed = new EmbedBuilder()
         .setColor(0x57F287)
         .setAuthor({
-          name: 'COMMUNITY DESK | Konfigurasi Saluran',
+          name: 'COMMUNITY DESK | Konfigurasi Saluran Kategori',
           iconURL: guild.iconURL({ dynamic: true }) || undefined
         })
-        .setTitle('Saluran Tiket Pengaduan Berhasil Disetel')
+        .setTitle('Saluran Tiket Berhasil Disetel')
         .setDescription(
-          `Seluruh tiket laporan pelanggaran, usulan ide konten, serta kritik dan saran member akan dikirimkan ke <#${targetChannel.id}>.`
+          `Tiket untuk kategori **${categoryNames[category] || category}** akan otomatis dikirimkan ke <#${targetChannel.id}>.`
         )
-        .setFooter({ text: `${guild.name} • Akses staf moderator aktif` })
+        .setFooter({ text: `${guild.name} • Akses staf aktif` })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
@@ -110,7 +140,10 @@ module.exports = {
 
     // === 3. STATUS ===
     if (sub === 'status') {
-      const reportChannelId = getDeskReportChannelId(guildId);
+      const settings = storage.read('settings');
+      const guildSettings = settings[guildId] || {};
+      const deskChannels = guildSettings.deskChannels || {};
+
       const ticketsData = storage.read('tickets');
       const guildTickets = Object.values(ticketsData[guildId] || {});
 
@@ -119,17 +152,24 @@ module.exports = {
       const resolvedTickets = guildTickets.filter(t => t.status === 'RESOLVED').length;
       const dismissedTickets = guildTickets.filter(t => t.status === 'DISMISSED').length;
 
+      const formatCh = (chId) => chId ? `<#${chId}>` : '*Belum disetel*';
+
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
         .setAuthor({
           name: 'COMMUNITY DESK | Status Konfigurasi',
           iconURL: guild.iconURL({ dynamic: true }) || undefined
         })
-        .setTitle('Status Layanan & Statistik Pengaduan')
+        .setTitle('Status Layanan & Distribusi Kategori Saluran')
         .addFields(
           {
-            name: 'Saluran Tiket Staf',
-            value: reportChannelId ? `• <#${reportChannelId}>` : '• *Belum diatur (Gunakan `/desk setchannel`)*',
+            name: 'Distribusi Saluran Tiket per Kategori',
+            value:
+              `• **Umum / Default (All):** ${formatCh(deskChannels.all || guildSettings.deskReportChannelId)}\n` +
+              `• **Laporan Member (Report):** ${formatCh(deskChannels.report)}\n` +
+              `• **Ide & Kolaborasi (Content):** ${formatCh(deskChannels.content)}\n` +
+              `• **Kritik & Saran (Feedback):** ${formatCh(deskChannels.feedback)}\n` +
+              `• **Pesan Staf (Inquiries):** ${formatCh(deskChannels.other)}`,
             inline: false
           },
           {

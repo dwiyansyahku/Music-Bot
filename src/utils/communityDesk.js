@@ -37,13 +37,24 @@ function getTimestampText() {
 }
 
 /**
- * Ambil ID channel penerima tiket laporan
+ * Ambil ID channel penerima tiket laporan berdasarkan kategori
+ * @param {string} guildId
+ * @param {'all'|'report'|'content'|'feedback'|'other'} [categoryType='all']
  */
-function getDeskReportChannelId(guildId) {
+function getDeskReportChannelId(guildId, categoryType = 'all') {
   if (!guildId) return null;
   const settings = storage.read('settings') || {};
   const guildSettings = settings[guildId] || {};
+  const deskChannels = guildSettings.deskChannels || {};
+
+  const catKey = (categoryType || 'all').toLowerCase();
+  if (catKey === 'report' && deskChannels.report) return deskChannels.report;
+  if (catKey === 'content' && deskChannels.content) return deskChannels.content;
+  if (catKey === 'feedback' && deskChannels.feedback) return deskChannels.feedback;
+  if (catKey === 'other' && deskChannels.other) return deskChannels.other;
+
   return (
+    deskChannels.all ||
     guildSettings.deskReportChannelId ||
     guildSettings.reportChannelId ||
     getModLogChannelId(guildId)
@@ -62,25 +73,25 @@ function buildDeskPanelEmbed(guild) {
     })
     .setTitle(`Layanan Informasi & Aspirasi Warga — ${guild.name}`)
     .setDescription(
-      `Selamat datang di Pusat Layanan Komunitas. Gunakan sarana ini untuk menyampaikan laporan pelanggaran, usulan konten, serta aspirasi demi kenyamanan bersama.\n\n` +
-      `**Ketentuan & Kerahasiaan:**\n` +
-      `• Seluruh pengiriman bersifat **rahasia** dan langsung ditujukan kepada tim moderator.\n` +
+      `Selamat datang di Pusat Layanan Komunitas (Community Desk). Gunakan sarana ini untuk menyampaikan laporan pelanggaran, usulan konten, serta aspirasi demi kenyamanan bersama.\n\n` +
+      `**Ketentuan & Kerahasiaan (Privacy Policy):**\n` +
+      `• Seluruh pengiriman bersifat **tertutup (Confidential / Ephemeral)** dan langsung ditujukan kepada tim staf/moderator.\n` +
       `• Member lain maupun terlapor **tidak dapat melihat** pesan atau identitas pelapor.\n` +
-      `• Dilarang keras menyalahgunakan sistem ini untuk laporan palsu atau spam.\n\n` +
-      `*Pilih salah satu tombol di bawah untuk membuka formulir:*`
+      `• Dilarang keras menyalahgunakan sistem ini untuk laporan palsu (False reports) atau spam.\n\n` +
+      `*Pilih salah satu tombol di bawah untuk membuka formulir pengiriman:*`
     )
     .addFields(
       {
-        name: 'Layanan yang Tersedia',
+        name: 'Kategori Layanan yang Tersedia (Available Services)',
         value:
-          `• **Laporkan Member** — Pelanggaran aturan, tindakan toksik, spam, atau penipuan.\n` +
-          `• **Ide & Kolaborasi** — Usulan topik video, streaming, mabar, atau proyek kreatif.\n` +
-          `• **Kritik & Saran** — Masukan dan evaluasi untuk server, bot, maupun pengelolaan acara.\n` +
-          `• **Pesan Lainnya** — Pertanyaan atau keperluan umum yang ditujukan ke staf.`
+          `• **Laporkan Member (Member Report)** — Pelanggaran aturan server, tindakan toksik, spam, atau penipuan.\n` +
+          `• **Ide & Kolaborasi (Content & Collab)** — Usulan topik video, streaming, mabar, atau proyek kreatif komunitas.\n` +
+          `• **Kritik & Saran (Feedback & Suggestions)** — Masukan dan evaluasi untuk server, bot, maupun pengelolaan acara.\n` +
+          `• **Pesan Lainnya (General Inquiries)** — Pertanyaan atau keperluan umum yang ditujukan langsung ke staf.`
       }
     )
     .setFooter({
-      text: `${guild.name} • Community Desk • ${getTimestampText()}`,
+      text: `${guild.name} • Community Desk Service • ${getTimestampText()}`,
       iconURL: guild.iconURL({ dynamic: true }) || undefined
     })
     .setTimestamp();
@@ -93,19 +104,19 @@ function buildDeskPanelButtons() {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('cdesk_btn_report')
-      .setLabel('Laporkan Member')
+      .setLabel('Laporkan Member / Report')
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId('cdesk_btn_content')
-      .setLabel('Ide & Kolaborasi')
+      .setLabel('Ide & Kolaborasi / Content')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('cdesk_btn_feedback')
-      .setLabel('Kritik & Saran')
+      .setLabel('Kritik & Saran / Feedback')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('cdesk_btn_other')
-      .setLabel('Pesan Lainnya')
+      .setLabel('Pesan Lainnya / Inquiries')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -292,15 +303,22 @@ async function handleDeskModalSubmit(interaction, client) {
   const user = interaction.user;
   const customId = interaction.customId;
 
-  // Tentukan channel tujuan pengiriman tiket staf
-  const reportChannelId = getDeskReportChannelId(guild.id);
+  // Tentukan jenis kategori tiket
+  let categoryType = 'all';
+  if (customId === 'cdesk_modal_report') categoryType = 'report';
+  else if (customId === 'cdesk_modal_content') categoryType = 'content';
+  else if (customId === 'cdesk_modal_feedback') categoryType = 'feedback';
+  else if (customId === 'cdesk_modal_other') categoryType = 'other';
+
+  // Tentukan channel tujuan pengiriman tiket staf berdasarkan kategori
+  const reportChannelId = getDeskReportChannelId(guild.id, categoryType);
   const targetChannel = reportChannelId
     ? (guild.channels.cache.get(reportChannelId) || await client.channels.fetch(reportChannelId).catch(() => null))
     : null;
 
   if (!targetChannel) {
     return interaction.reply({
-      content: 'Saluran penerimaan tiket moderator belum diatur oleh admin. Silakan laporkan kendala ini kepada pengelola server.',
+      content: 'Saluran penerimaan tiket untuk kategori ini belum diatur oleh admin server. Silakan hubungi staf/pengelola.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -321,7 +339,7 @@ async function handleDeskModalSubmit(interaction, client) {
   if (!ticketsData[guild.id]) ticketsData[guild.id] = {};
 
   if (customId === 'cdesk_modal_report') {
-    categoryLabel = 'LAPORAN PELANGGARAN';
+    categoryLabel = 'LAPORAN PELANGGARAN / MEMBER REPORT';
     embedColor = DESK_COLORS.REPORT;
 
     const rawTarget = interaction.fields.getTextInputValue('cdesk_input_target')?.trim() || '-';
@@ -393,7 +411,7 @@ async function handleDeskModalSubmit(interaction, client) {
     };
 
   } else if (customId === 'cdesk_modal_content') {
-    categoryLabel = 'IDE & KOLABORASI KONTEN';
+    categoryLabel = 'IDE & KOLABORASI KONTEN / CONTENT & COLLAB';
     embedColor = DESK_COLORS.CONTENT;
 
     const title = interaction.fields.getTextInputValue('cdesk_input_title')?.trim() || '-';
@@ -403,7 +421,7 @@ async function handleDeskModalSubmit(interaction, client) {
 
     fields = [
       {
-        name: 'Pengusul',
+        name: 'Pengusul / Submitter',
         value: `• Nama: <@${user.id}> (\`${user.username}\`)\n• ID: \`${user.id}\``,
         inline: true
       },
@@ -413,12 +431,12 @@ async function handleDeskModalSubmit(interaction, client) {
         inline: true
       },
       {
-        name: 'Topik Konten',
+        name: 'Topik Konten / Topic',
         value: `**${title}**`,
         inline: false
       },
       {
-        name: 'Konsep & Rencana Pelaksanaan',
+        name: 'Konsep & Rencana Pelaksanaan / Concept Details',
         value: details,
         inline: false
       }
@@ -426,7 +444,7 @@ async function handleDeskModalSubmit(interaction, client) {
 
     if (contact) {
       fields.push({
-        name: 'Kontak / Akun Media Sosial',
+        name: 'Kontak / Akun Media Sosial (Contact)',
         value: contact,
         inline: false
       });
@@ -447,7 +465,7 @@ async function handleDeskModalSubmit(interaction, client) {
     };
 
   } else if (customId === 'cdesk_modal_feedback') {
-    categoryLabel = 'KRITIK & SARAN KOMUNITAS';
+    categoryLabel = 'KRITIK & SARAN KOMUNITAS / FEEDBACK & SUGGESTIONS';
     embedColor = DESK_COLORS.FEEDBACK;
 
     const topic = interaction.fields.getTextInputValue('cdesk_input_topic')?.trim() || '-';
@@ -456,17 +474,17 @@ async function handleDeskModalSubmit(interaction, client) {
 
     fields = [
       {
-        name: 'Pengirim Masukan',
+        name: 'Pengirim Masukan / Feedback By',
         value: `• Nama: <@${user.id}> (\`${user.username}\`)\n• ID: \`${user.id}\``,
         inline: true
       },
       {
-        name: 'Bidang',
+        name: 'Bidang / Category Topic',
         value: `• \`${topic}\``,
         inline: true
       },
       {
-        name: 'Uraian Masukan / Kendala',
+        name: 'Uraian Masukan / Details',
         value: details,
         inline: false
       }
@@ -474,7 +492,7 @@ async function handleDeskModalSubmit(interaction, client) {
 
     if (solution) {
       fields.push({
-        name: 'Usulan Solusi / Harapan',
+        name: 'Usulan Solusi / Proposed Solutions',
         value: solution,
         inline: false
       });
@@ -494,7 +512,7 @@ async function handleDeskModalSubmit(interaction, client) {
     };
 
   } else if (customId === 'cdesk_modal_other') {
-    categoryLabel = 'PESAN KHUSUS STAF';
+    categoryLabel = 'PESAN KHUSUS STAF / GENERAL INQUIRIES';
     embedColor = DESK_COLORS.OTHER;
 
     const subject = interaction.fields.getTextInputValue('cdesk_input_subject')?.trim() || '-';
