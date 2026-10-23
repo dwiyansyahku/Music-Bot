@@ -708,6 +708,14 @@ module.exports = {
           const round = parts[3];
           return await handlePlayerBossStance(interaction, client, stance, partyId, round);
         }
+
+        if (interaction.customId.startsWith('boss_force_round:')) {
+          const parts = interaction.customId.split(':');
+          const partyId = parts[1];
+          const round = parts[2];
+          const { forceResolveCombatRound } = require('../utils/dungeonBoss');
+          return await forceResolveCombatRound(interaction, client, partyId, round);
+        }
       } catch (bossErr) {
         return safeErrorReply(bossErr, 'Gagal memproses aksi Boss Raid.');
       }

@@ -573,7 +573,15 @@ function buildCombatTurnPayload(boss, party) {
       .setStyle(ButtonStyle.Success)
   );
 
-  return { embeds: [embed], components: [row] };
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`boss_force_round:${party.id}:${combat.round}`)
+      .setLabel('Putar Ronde (Jika Ada yang AFK)')
+      .setEmoji('⏩')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return { embeds: [embed], components: [row, row2] };
 }
 
 /**
@@ -616,6 +624,23 @@ async function handlePlayerBossStance(interaction, client, stance, partyId, roun
     flags: MessageFlags.Ephemeral
   });
 
+  // Perbarui embed pesan pertarungan di thread agar status pemain langsung berubah jadi (Taktik Terkunci 🔒)
+  if (interaction.message && interaction.message.editable) {
+    const updatedPayload = buildCombatTurnPayload(boss, party);
+    await interaction.message.edit(updatedPayload).catch(() => {});
+  } else if (combat.messageId && client) {
+    try {
+      const ch = await client.channels.fetch(interaction.channelId).catch(() => null);
+      if (ch) {
+        const msg = await ch.messages.fetch(combat.messageId).catch(() => null);
+        if (msg) {
+          const updatedPayload = buildCombatTurnPayload(boss, party);
+          await msg.edit(updatedPayload).catch(() => {});
+        }
+      }
+    } catch (_) {}
+  }
+
   // Cek apakah seluruh anggota yang masih hidup sudah memilih
   const livingMembers = party.members.filter(id => !boss.playerStats[id]?.isKnockedOut);
   const allLivingChosen = livingMembers.every(id => !!combat.playerStances[id]);
@@ -624,6 +649,50 @@ async function handlePlayerBossStance(interaction, client, stance, partyId, roun
     // Selesaikan kalkulasi ronde!
     await resolveCombatRound(guildId, partyId, client);
   }
+}
+
+/**
+ * Paksa Putar Ronde Tempur (Beri otomatis taktik bagi member yang AFK / belum memilih)
+ */
+async function forceResolveCombatRound(interaction, client, partyId, round) {
+  const guildId = interaction.guildId;
+  const userId = interaction.user.id;
+  const { allData, boss } = getGuildBossState(guildId);
+  const combat = boss.activeCombat;
+
+  if (!combat || combat.partyId !== partyId) {
+    return interaction.reply({ content: 'Sesi pertarungan ini sudah berakhir atau tidak ditemukan.', flags: MessageFlags.Ephemeral });
+  }
+
+  if (combat.round !== parseInt(round, 10)) {
+    return interaction.reply({ content: 'Ronde tersebut sudah selesai.', flags: MessageFlags.Ephemeral });
+  }
+
+  const party = boss.parties?.[partyId];
+  if (!party || !party.members.includes(userId)) {
+    return interaction.reply({ content: 'Hanya anggota squad party yang dapat memutar ronde pertarungan!', flags: MessageFlags.Ephemeral });
+  }
+
+  const livingMembers = party.members.filter(id => !boss.playerStats[id]?.isKnockedOut);
+  let autoFilledCount = 0;
+
+  for (const id of livingMembers) {
+    if (!combat.playerStances[id]) {
+      const defaultStances = ['attack', 'defend', 'special'];
+      combat.playerStances[id] = defaultStances[Math.floor(Math.random() * defaultStances.length)];
+      autoFilledCount++;
+    }
+  }
+
+  saveBossStorage(allData);
+
+  await interaction.reply({
+    content: `⏩ **Ronde diputar paksa!** ${autoFilledCount > 0 ? `(${autoFilledCount} member yang belum memilih otomatis diatur taktiknya)` : ''}`,
+    flags: MessageFlags.Ephemeral
+  });
+
+  // Eksekusi kalkulasi ronde!
+  await resolveCombatRound(guildId, partyId, client);
 }
 
 /**
@@ -1252,6 +1321,7 @@ module.exports = {
   leaveBossParty,
   startPartyCombat,
   handlePlayerBossStance,
+  forceResolveCombatRound,
   buildCombatTurnPayload,
   buildBossLobbyPayload,
   buildLiveLeaderboardEmbeds,
