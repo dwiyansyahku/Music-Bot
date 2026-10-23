@@ -6449,29 +6449,64 @@ async function executeSeasonReset(guild, client, options = {}) {
   const championUser = userRankings.length > 0 ? userRankings[0] : null;
   const prevChampionId = seasonData[guildId]?.currentChampionId || seasonData[guildId]?.lastChampionId || null;
 
-  // 2. Cabut Seluruh Role Tahta Discord (MYTHIC, LEGENDARY, CHAMPION) dari Semua Member
+  // 2. Kosongkan Kursi Tahta (MYTHIC & LEGENDARY) dan Anugerahkan Role Eksklusif Juara (CHAMPION) ke Top 1
   const gachaRoles = settingsData[guildId]?.gachaRoles || {};
-  const rolesToRevoke = [
+  const throneRolesToRevoke = [
     gachaRoles.MYTHIC,
-    gachaRoles.LEGENDARY,
-    gachaRoles.CHAMPION
+    gachaRoles.LEGENDARY
   ].filter(Boolean);
 
-  let revokedRolesCount = 0;
+  let revokedThroneRolesCount = 0;
+  let roleTransferStatus = 'Role Juara belum diatur (Admin dapat mengatur via `/gacha setrole tier:CHAMPION`)';
+
   if (guild) {
     try {
       await guild.members.fetch().catch(() => {});
-      for (const roleId of rolesToRevoke) {
+
+      // A. Kosongkan seluruh tahta kasta (Mythic & Legendary) dari semua member
+      for (const roleId of throneRolesToRevoke) {
         const roleObj = guild.roles?.cache?.get(roleId) || await guild.roles?.fetch(roleId).catch(() => null);
         if (roleObj && roleObj.members) {
           for (const [mId, mObj] of roleObj.members) {
             await mObj.roles.remove(roleId, 'Reset Season Gacha (Wipe Tahta)').catch(() => {});
-            revokedRolesCount++;
+            revokedThroneRolesCount++;
+          }
+        }
+      }
+
+      // B. Anugerahkan Role Eksklusif Juara Musim (CHAMPION) ke Juara Top 1
+      const championRoleId = gachaRoles.CHAMPION;
+      if (championRoleId) {
+        const champRoleObj = guild.roles?.cache?.get(championRoleId) || await guild.roles?.fetch(championRoleId).catch(() => null);
+
+        // Cabut role Champion dari pemegang lama jika orangnya berbeda
+        if (prevChampionId && (!championUser || prevChampionId !== championUser.userId)) {
+          const prevMember = guild.members?.cache?.get(prevChampionId) || await guild.members?.fetch(prevChampionId).catch(() => null);
+          if (prevMember && prevMember.roles?.cache?.has(championRoleId)) {
+            await prevMember.roles.remove(championRoleId, 'Ganti Juara Season Baru').catch(() => {});
+          }
+        }
+
+        // Pastikan member lain yang bukan juara tidak memegang role Champion
+        if (champRoleObj && champRoleObj.members) {
+          for (const [mId, mObj] of champRoleObj.members) {
+            if (!championUser || mId !== championUser.userId) {
+              await mObj.roles.remove(championRoleId, 'Bukan Juara Season Saat Ini').catch(() => {});
+            }
+          }
+        }
+
+        // Berikan role eksklusif Juara ke Juara Top 1
+        if (championUser) {
+          const newChampionMember = guild.members?.cache?.get(championUser.userId) || await guild.members?.fetch(championUser.userId).catch(() => null);
+          if (newChampionMember) {
+            await newChampionMember.roles.add(championRoleId, `Juara Top 1 Gacha Season ${prevSeasonNum}`).catch(() => {});
+            roleTransferStatus = `Role Eksklusif <@&${championRoleId}> resmi dianugerahkan kepada <@${championUser.userId}>`;
           }
         }
       }
     } catch (roleErr) {
-      console.error('[Season Reset Role Revoke Error]:', roleErr.message);
+      console.error('[Season Reset Role Handling Error]:', roleErr.message);
     }
   }
 
@@ -6534,9 +6569,10 @@ async function executeSeasonReset(guild, client, options = {}) {
 
   // 6. Buat pengumuman Season Reset
   const champText = championUser
-    ? `🏆 **Juara Musim Lalu (Top 1 Koleksi Season ${prevSeasonNum}):** <@${championUser.userId}>\n` +
+    ? `🏆 **Juara Musim (Top 1 Koleksi Season ${prevSeasonNum}):** <@${championUser.userId}>\n` +
       `• **Koleksi:** **${championUser.relicCount} Relik** & **${championUser.titleCount} Gelar**\n` +
-      `• **Skor Akhir:** **${championUser.score.toLocaleString()} Poin**`
+      `• **Skor Akhir:** **${championUser.score.toLocaleString()} Poin**\n` +
+      `• **Hadiah Role:** ${roleTransferStatus}`
     : '_Tidak ada catatan juara pada musim lalu_';
 
   const resetEmbed = new EmbedBuilder()
@@ -6547,7 +6583,7 @@ async function executeSeasonReset(guild, client, options = {}) {
       `${champText}\n\n` +
       `**Pembersihan Musim Baru (Full Reset Ke 0):**\n` +
       `• **Relik Koleksi:** Direset menjadi **0** (${totalWipedRelics.toLocaleString()} relik dibersihkan)\n` +
-      `• **Role Tahta Discord:** Seluruh role tahta (<@&${gachaRoles.MYTHIC || ''}> & <@&${gachaRoles.LEGENDARY || ''}>) dicabut & tahta dikosongkan\n` +
+      `• **Role Tahta Discord:** Seluruh tahta kasta (<@&${gachaRoles.MYTHIC || ''}> & <@&${gachaRoles.LEGENDARY || ''}>) dicabut & tahta dikosongkan\n` +
       `• **Saldo Stardust:** Direset menjadi **0 Dust**\n` +
       `• **Saldo Tiket Gacha:** Direset menjadi **0 Tiket**\n` +
       `• **Pity Rate, Gelar, & Rekor Duel:** Direset kembali ke 0\n\n` +
@@ -6574,9 +6610,9 @@ async function executeSeasonReset(guild, client, options = {}) {
     moderator: options.moderator || { id: client?.user?.id || 'system', username: client?.user?.username || 'Sistem Reset Season (WIB)' },
     details: `Pergantian Musim ke Season ${nextSeasonNum} (WIB) — Full Wipe ke 0.\n` +
       `• Total Partisipan: ${userRankings.length} Member\n` +
-      `• Juara Musim Lalu: ${championUser ? `<@${championUser.userId}>` : 'None'}\n` +
+      `• Juara Musim Lalu (Top 1): ${championUser ? `<@${championUser.userId}>` : 'None'}\n` +
       `• Total Relik Dihapus: ${totalWipedRelics.toLocaleString()}\n` +
-      `• Role Tahta Dicabut: ${revokedRolesCount} Penugasan\n` +
+      `• Role Tahta Dicabut: ${revokedThroneRolesCount} Penugasan\n` +
       `• Stardust & Tiket: Direset ke 0 untuk semua member`
   });
 
