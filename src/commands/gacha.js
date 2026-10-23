@@ -5004,12 +5004,12 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
     };
     const b = bonusMap[tier] || { dmg: 0, hp: 0 };
     equippedDisplay =
-      `⚔️ **${targetData.equippedRelic}** \`[Tier ${tier}]\`\n` +
+      `**${targetData.equippedRelic}** \`[Tier ${tier}]\`\n` +
       `↳ **Bonus Tempur:** \`+${b.dmg}% ATK\` • \`+${b.hp} Max HP\` (Total: **${100 + b.hp} HP**)`;
   } else {
     equippedDisplay =
-      `⚠️ *Belum ada senjata yang terpasang.*\n` +
-      `↳ *Klik tombol **[⚔️ Ganti Senjata]** di bawah untuk memasang relik terbaikmu menghadapi Boss Raid!*`;
+      `*Belum ada senjata yang terpasang.*\n` +
+      `↳ *Gunakan tombol **[Ganti Senjata]** di bawah untuk memasang relik terbaikmu menghadapi Boss Raid.*`;
   }
 
   // 4. Status Tahta & Pertarungan
@@ -5024,21 +5024,21 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
   const totalDuels = duelWins + duelLosses;
   const winrate = totalDuels > 0 ? Math.round((duelWins / totalDuels) * 100) : 0;
   const duelRecordText = totalDuels > 0
-    ? `⚔️ **${duelWins}W** — 🛡️ **${duelLosses}L** (${winrate}% WR)`
+    ? `**${duelWins}W** — **${duelLosses}L** (${winrate}% WR)`
     : '_Belum pernah duel_';
 
   // Buffs
   const activeBuffs = [];
   if (targetData.luckyBuffPulls && targetData.luckyBuffPulls > 0) {
-    activeBuffs.push(`🔮 Jimat Keberuntungan: 2x Rate (${targetData.luckyBuffPulls}x pull tersisa)`);
+    activeBuffs.push(`Jimat Keberuntungan: 2x Rate (${targetData.luckyBuffPulls}x pull tersisa)`);
   }
   if (targetData.throneProtectedUntil && targetData.throneProtectedUntil > Date.now()) {
     const remMins = Math.ceil((targetData.throneProtectedUntil - Date.now()) / 60000);
-    activeBuffs.push(`🛡️ Perisai Tahta: Kebal tantangan (${remMins}m tersisa)`);
+    activeBuffs.push(`Perisai Tahta: Kebal tantangan (${remMins}m tersisa)`);
   }
   if (targetData.challengeCooldownUntil && targetData.challengeCooldownUntil > Date.now()) {
     const remMins = Math.ceil((targetData.challengeCooldownUntil - Date.now()) / 60000);
-    activeBuffs.push(`⏳ Cooldown Duel: ${remMins}m jeda`);
+    activeBuffs.push(`Cooldown Duel: ${remMins}m jeda`);
   }
 
   // 5. Badges & Titles
@@ -5050,15 +5050,14 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
   }
 
   const equippedTitleDisplay = targetData.equippedTitle
-    ? `🏷️ **"${targetData.equippedTitle}"** *(Aktif)*`
+    ? `**"${targetData.equippedTitle}"** *(Aktif)*`
     : '_Belum memasang gelar (/gacha equip)_';
 
   // 6. Highlight Relik Kasta Tinggi
   const highTierItems = [];
   for (const t of ['ANCIENT', 'MYTHIC', 'LEGENDARY']) {
     for (const item of userByTier[t]) {
-      const emoji = t === 'ANCIENT' ? '🌌' : t === 'MYTHIC' ? '🔮' : '👑';
-      highTierItems.push(`${emoji} **${item.name}** \`[${t}]\``);
+      highTierItems.push(`• **${item.name}** \`[${t}]\``);
     }
   }
   let highTierText = highTierItems.length > 0
@@ -5069,71 +5068,66 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
   const embed = new EmbedBuilder()
     .setColor(embedColor)
     .setAuthor({
-      name: `INVENTARIS & PETUALANGAN • ${user.username.toUpperCase()}`,
+      name: `INVENTARIS & PROFIL • ${user.username.toUpperCase()}`,
       iconURL: user.displayAvatarURL({ dynamic: true })
     })
-    .setTitle(`🏛️ Gudang Relik & Profil Pejuang`)
+    .setTitle('Koleksi Relik & Profil Pejuang')
     .setDescription(
-      `> *"Setiap relik kuno menyimpan serpihan takdir, kekuatan perang, dan berkah dewa semesta."*\n\n` +
-      `🎫 **Tiket Gacha:** \`${targetData.tickets} Tiket\`  •  ✨ **Stardust:** \`${targetData.stardust} Dust\`\n` +
-      `🎰 **Total Tarikan:** \`${targetData.pulls}x Pull\`  •  🔥 **Daily Streak:** \`Hari ke-${targetData.streak || 0}\`\n` +
-      `🎯 **Pity Target:** Epic \`${10 - (targetData.pityEpic || 0)}x\`  |  Legendary+ \`${25 - (targetData.pityLegendary || 0)}x\``
+      `> *"Setiap relik kuno menyimpan serpihan takdir, kekuatan perang, dan berkah semesta."*\n\n` +
+      `• **Tiket:** \`${targetData.tickets} Tiket\`  •  **Stardust:** \`${targetData.stardust} Dust\`\n` +
+      `• **Total Tarikan:** \`${targetData.pulls}x Pull\`  •  **Streak Harian:** \`Hari ke-${targetData.streak || 0}\`\n` +
+      `• **Pity Target:** Epic \`${10 - (targetData.pityEpic || 0)}x\`  •  Legendary+ \`${25 - (targetData.pityLegendary || 0)}x\``
     )
     .addFields(
       {
-        name: '⚔️ Senjata Utama Raid Boss',
+        name: 'Senjata Utama Raid Boss',
         value: equippedDisplay,
         inline: false
       },
       {
-        name: '👑 Tahta & Clash of Thrones',
+        name: 'Status Tahta & Rekor Tempur',
         value: `• **Status Tahta:** ${activeRoleDisplay}\n• **Rekor Tempur:** ${duelRecordText}` +
           (activeBuffs.length > 0 ? `\n• **Efek Aktif:** ${activeBuffs.join(' • ')}` : ''),
         inline: false
       },
       {
-        name: '🏆 Gelar & Lencana Prestasi',
+        name: 'Gelar & Lencana Prestasi',
         value: `• **Gelar:** ${equippedTitleDisplay}\n• **Lencana (${targetData.badges.length}):** ${badgesText}`,
         inline: false
       },
       {
-        name: `📦 Etalase Koleksi Relik (${userCollected}/${totalPool} — ${percentage}%)`,
+        name: `Koleksi Relik (${userCollected}/${totalPool} — ${percentage}%)`,
         value:
           `\`[${progressBar}]\` **${percentage}% Lengkap** (${uniqueCount} Unik)\n\n` +
-          `🌌 **Ancient:** **${userByTier.ANCIENT.length}/${poolByTier.ANCIENT}**  •  🔮 **Mythic:** **${userByTier.MYTHIC.length}/${poolByTier.MYTHIC}**  •  👑 **Legendary:** **${userByTier.LEGENDARY.length}/${poolByTier.LEGENDARY}**\n` +
-          `💎 **Epic:** **${userByTier.EPIC.length}/${poolByTier.EPIC}**  •  ⭐ **Rare:** **${userByTier.RARE.length}/${poolByTier.RARE}**  •  ⚪ **Common:** **${userByTier.COMMON.length}/${poolByTier.COMMON}**\n\n` +
+          `• Ancient: **${userByTier.ANCIENT.length}/${poolByTier.ANCIENT}**  •  Mythic: **${userByTier.MYTHIC.length}/${poolByTier.MYTHIC}**  •  Legendary: **${userByTier.LEGENDARY.length}/${poolByTier.LEGENDARY}**\n` +
+          `• Epic: **${userByTier.EPIC.length}/${poolByTier.EPIC}**  •  Rare: **${userByTier.RARE.length}/${poolByTier.RARE}**  •  Common: **${userByTier.COMMON.length}/${poolByTier.COMMON}**\n\n` +
           `**Koleksi Kasta Tertinggi:**\n${highTierText}`,
         inline: false
       }
     )
-    .setFooter({ text: 'Gacha 2.0 • Tekan tombol di bawah untuk berinteraksi' })
+    .setFooter({ text: 'Gacha 2.0 • Pilih menu aksi di bawah' })
     .setTimestamp();
 
   const invButtons = [
     new ButtonBuilder()
       .setCustomId('gacha_btn_pull_1')
       .setLabel('Tarik 1x')
-      .setEmoji('🎫')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('gacha_btn_pull_10')
       .setLabel('Tarik 10x')
-      .setEmoji('🎰')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('gacha_btn_equip_relic')
       .setLabel('Ganti Senjata')
-      .setEmoji('⚔️')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('gacha_btn_limiteds')
       .setLabel('Relik Limited')
-      .setEmoji('🏛️')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('gacha_btn_shop')
       .setLabel('Toko Stardust')
-      .setEmoji('🏪')
       .setStyle(ButtonStyle.Secondary)
   ];
 
@@ -5145,12 +5139,10 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
       new ButtonBuilder()
         .setCustomId('gacha_btn_boss_lobby')
         .setLabel('Lobi Boss Raid')
-        .setEmoji('👹')
         .setStyle(ButtonStyle.Danger),
       new ButtonBuilder()
         .setCustomId('gacha_btn_album')
         .setLabel('Album Koleksi')
-        .setEmoji('📜')
         .setStyle(ButtonStyle.Secondary)
     ];
 
@@ -5168,7 +5160,6 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
         new ButtonBuilder()
           .setCustomId(`gacha_btn_challenge_prompt:${challengeTier}`)
           .setLabel(`Tantang Tahta ${challengeTier}`)
-          .setEmoji('👑')
           .setStyle(ButtonStyle.Danger)
       );
     }
@@ -6350,7 +6341,7 @@ async function executeGachaEquipPrompt(interaction) {
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle('⚔️ Pasang Equipment Senjata Raid Boss')
+    .setTitle('Pasang Equipment Senjata Raid Boss')
     .setDescription(
       `Pilih salah satu relik terkuat dari koleksimu untuk dijadikan senjata utama menghadapi Raid Boss!\n\n` +
       `• **Status Terpasang Saat Ini:** **${userData.equippedRelic || 'Belum Ada yang Dipasang'}**\n\n` +
