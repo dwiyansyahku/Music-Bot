@@ -74,13 +74,19 @@ function read(name) {
   }
 }
 
-/** Tulis seluruh isi file JSON (update memory cache & disk) */
+/** Tulis seluruh isi file JSON (update memory cache & disk secara atomik agar tahan crash) */
 function write(name, data) {
   memoryCache.set(name, data);
+  const targetPath = getFilePath(name);
+  const tempPath = `${targetPath}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}.tmp`;
   try {
-    fs.writeFileSync(getFilePath(name), JSON.stringify(data, null, 2), 'utf8');
+    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
+    fs.renameSync(tempPath, targetPath);
   } catch (err) {
     console.error(`[Storage] Gagal menulis ${name}.json:`, err.message);
+    try {
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    } catch (_) {}
   }
 }
 

@@ -441,20 +441,25 @@ module.exports = {
     // INITIAL STARTUP PANELS REFRESH (1x on boot)
     // =============================================
     setTimeout(async () => {
-
-      // AUTO-REFRESH THRONE & DUEL PANELS ON STARTUP
+      // AUTO-REFRESH ALL DISCORD PANELS ON STARTUP (Gacha Hub, Leaderboard, Arena Duel, Member Map)
       try {
-        const { updateDuelPanelIfExists } = require('../commands/gacha');
-        if (updateDuelPanelIfExists) {
-          for (const guild of client.guilds.cache.values()) {
-            await updateDuelPanelIfExists(guild, client).catch(() => { });
+        const { autoSyncAllGachaPanels } = require('../commands/gacha');
+        for (const guild of client.guilds.cache.values()) {
+          if (autoSyncAllGachaPanels) {
+            await autoSyncAllGachaPanels(guild, client).catch(() => {});
           }
-          console.log('[DuelSync] Panel Tahta & Arena Duel berhasil diperbarui otomatis pada startup.');
+
+          // Realtime auto-sync panel peta member jika terpasang
+          try {
+            const { updateMemberMapPanel } = require('../utils/memberMapHelper');
+            if (updateMemberMapPanel) await updateMemberMapPanel(guild, client).catch(() => {});
+          } catch (_) {}
         }
-      } catch (duelSyncErr) {
-        console.warn('[DuelSync] Startup duel panel refresh failed:', duelSyncErr.message);
+        console.log('✅ [PanelSync] Seluruh panel Discord (Gacha Hub, Leaderboard, Arena Duel, Member Map) berhasil disinkronisasi & diperbarui otomatis.');
+      } catch (panelSyncErr) {
+        console.warn('[PanelSync] Startup panel refresh failed:', panelSyncErr.message);
       }
-    }, 5000);
+    }, 4000);
 
     // =============================================
     // AUTO-SYNC PUBLISHED CARDS FOR ACTIVE VOICE USERS (EVERY 60s)

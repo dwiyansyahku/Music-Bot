@@ -3809,6 +3809,74 @@ async function updateDuelPanelIfExists(guild, client) {
 }
 
 /**
+ * Auto-refresh ALL Gacha & Boss Panels in configured channels (Hub, Leaderboard, Duel, Tactics, Daily, Pull)
+ * Dipanggil otomatis saat bot startup atau setelah deployment agar tampilan selalu up to date tanpa perlu re-setup manual.
+ */
+async function autoSyncAllGachaPanels(guild, client) {
+  try {
+    if (!guild || !client) return;
+    const settingsData = storage.read('settings') || {};
+    const gCh = settingsData[guild.id]?.gachaChannels || {};
+
+    // 1. Hub Interaktif Panel (#gacha-lounge: Tarik, Tas, Toko, Daily, Boss)
+    if (gCh.hub) {
+      const hubChannel = guild.channels?.cache?.get(gCh.hub) ||
+        await client.channels.fetch(gCh.hub).catch(() => null);
+      if (hubChannel && hubChannel.isTextBased() && !hubChannel.isThread()) {
+        await deployGachaPanel(guild, hubChannel, 'hub', client);
+      }
+    }
+
+    // 2. Live Scoreboard Dashboard (#papan-klasemen: Boss & Tahta)
+    if (gCh.leaderboard) {
+      const { updateLiveLeaderboardChannel } = require('../utils/dungeonBoss');
+      if (updateLiveLeaderboardChannel) {
+        await updateLiveLeaderboardChannel(guild, client).catch(() => {});
+      }
+    }
+
+    // 3. Panel Arena Duel & Tahta (#arena-duel / Clash of Thrones)
+    const throneChId = gCh.throne || gCh.duel;
+    if (throneChId) {
+      const channel = guild.channels?.cache?.get(throneChId) ||
+        await client.channels.fetch(throneChId).catch(() => null);
+      if (channel && channel.isTextBased() && !channel.isThread()) {
+        await deployGachaPanel(guild, channel, 'duel', client);
+      }
+    }
+
+    // 4. Panel Persiapan Taktik
+    if (gCh.tactics && gCh.tactics !== throneChId) {
+      const tChannel = guild.channels?.cache?.get(gCh.tactics) ||
+        await client.channels.fetch(gCh.tactics).catch(() => null);
+      if (tChannel && tChannel.isTextBased() && !tChannel.isThread()) {
+        await deployGachaPanel(guild, tChannel, 'tactics', client);
+      }
+    }
+
+    // 5. Panel Hadiah Harian (jika diatur khusus terpisah)
+    if (gCh.daily && gCh.daily !== gCh.hub) {
+      const dChannel = guild.channels?.cache?.get(gCh.daily) ||
+        await client.channels.fetch(gCh.daily).catch(() => null);
+      if (dChannel && dChannel.isTextBased() && !dChannel.isThread()) {
+        await deployGachaPanel(guild, dChannel, 'daily', client);
+      }
+    }
+
+    // 6. Panel Tarik Gacha (jika diatur khusus terpisah)
+    if (gCh.pull && gCh.pull !== gCh.hub) {
+      const pChannel = guild.channels?.cache?.get(gCh.pull) ||
+        await client.channels.fetch(gCh.pull).catch(() => null);
+      if (pChannel && pChannel.isTextBased() && !pChannel.isThread()) {
+        await deployGachaPanel(guild, pChannel, 'pull', client);
+      }
+    }
+  } catch (err) {
+    console.error('[autoSyncAllGachaPanels Error]:', err.message);
+  }
+}
+
+/**
  * Broadcast Jackpot to configured channel (Legendary / Mythic)
  */
 async function broadcastJackpot(guild, member, item, client, options = {}) {
@@ -7035,6 +7103,7 @@ module.exports = {
   executeGachaDuelStatus,
   executeGachaDuelHelp,
   updateDuelPanelIfExists,
+  autoSyncAllGachaPanels,
   initiateThroneDuel,
   buildDefenderChallengeComponents,
   getBusyDuelUserIds,
