@@ -344,9 +344,9 @@ module.exports = {
       ].filter(Boolean);
       const targetDuelChannels = allowedDuelChannels.length > 0 ? allowedDuelChannels : [gChannels.play].filter(Boolean);
 
-      const isChannelValid = isDuelAction
+      const isChannelValid = (gChannels.hub && interaction.channelId === gChannels.hub) || (isDuelAction
         ? (targetDuelChannels.length === 0 || targetDuelChannels.includes(interaction.channelId))
-        : (!requiredChannelId || interaction.channelId === requiredChannelId);
+        : (!requiredChannelId || interaction.channelId === requiredChannelId));
 
       if (!isChannelValid && requiredChannelId) {
         const { isOwnerOrMod } = require('../utils/helpers');

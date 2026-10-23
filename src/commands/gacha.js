@@ -7154,9 +7154,9 @@ module.exports = {
       ].filter(Boolean);
       const targetDuelChannels = allowedDuelChannels.length > 0 ? allowedDuelChannels : [gChannels.play].filter(Boolean);
 
-      const isSubChannelValid = isDuelSub
+      const isSubChannelValid = (gChannels.hub && interaction.channelId === gChannels.hub) || (isDuelSub
         ? (targetDuelChannels.length === 0 || targetDuelChannels.includes(interaction.channelId))
-        : (!requiredChannelId || interaction.channelId === requiredChannelId);
+        : (!requiredChannelId || interaction.channelId === requiredChannelId));
 
       if (!isSubChannelValid && requiredChannelId) {
         const isAuthorized = await isOwnerOrMod(interaction, client);
@@ -7224,6 +7224,10 @@ module.exports = {
 
         let desc = '';
         if (type === 'hub') {
+          settingsData[guildId].gachaChannels.hub = channel.id;
+          if (!settingsData[guildId].gachaChannels.play) settingsData[guildId].gachaChannels.play = channel.id;
+          if (!settingsData[guildId].gachaChannels.pull) settingsData[guildId].gachaChannels.pull = channel.id;
+          if (!settingsData[guildId].gachaChannels.daily) settingsData[guildId].gachaChannels.daily = channel.id;
           desc = `Hub Interaktif Gacha Lounge dipasang di <#${channel.id}>. Semua aksi (Gacha, Inventory, Shop, Daily, Boss Raid) tersedia dari satu panel.`;
           await deployGachaPanel(interaction.guild, channel, 'hub', client);
         } else if (type === 'leaderboard') {
