@@ -173,7 +173,7 @@ function createCardHubPayload(guild) {
     .setDescription(
       `Buat dan kelola kartu profil identitas digitalmu di server **${guild.name}**.\n\n` +
       `◈ **Petunjuk Pembuatan:**\n` +
-      `1. Klik tombol **Buat / Edit Profil** untuk mengisi Bio, Asal Kota, Tanggal Lahir, MBTI / Sosmed, dan Foto Banner.\n` +
+      `1. Klik tombol **Buat / Edit Profil** untuk mengisi Bio, Asal Kota, Tanggal Lahir, dan MBTI / Sosmed.\n` +
       `2. **Zodiak Otomatis:** Zodiakmu akan otomatis terhitung dan ditampilkan dari tanggal lahir.\n` +
       `3. Kartumu akan otomatis diterbitkan dan diperbarui di <#${targetChannelId}>.\n` +
       `4. **Live Voice & Companions:** Menampilkan durasi ngobrol dan teman terdekatmu secara otomatis.\n` +
@@ -433,22 +433,11 @@ async function handleCardButton(interaction, client) {
       .setValue(mbtiSocialPrefill.slice(0, 100))
       .setRequired(false)
       .setMaxLength(100);
-
-    const bannerInput = new TextInputBuilder()
-      .setCustomId('card_input_banner')
-      .setLabel('Banner Image URL')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Link gambar banner (Direct image URL https://...)')
-      .setValue((userCard.bannerUrl || '').slice(0, 250))
-      .setRequired(false)
-      .setMaxLength(250);
-
     modal.addComponents(
       new ActionRowBuilder().addComponents(bioInput),
       new ActionRowBuilder().addComponents(asalInput),
       new ActionRowBuilder().addComponents(birthdayInput),
-      new ActionRowBuilder().addComponents(mbtiSocialInput),
-      new ActionRowBuilder().addComponents(bannerInput)
+      new ActionRowBuilder().addComponents(mbtiSocialInput)
     );
 
     return interaction.showModal(modal);
@@ -599,7 +588,6 @@ async function handleCardModalSubmit(interaction, client) {
     ).trim();
   } catch (_) {}
 
-  let bannerUrl = interaction.fields.getTextInputValue('card_input_banner').trim();
 
   // Save profile data
   const cardsData = storage.read('cards');
@@ -661,19 +649,8 @@ async function handleCardModalSubmit(interaction, client) {
     delete userCard.linkUrl;
   }
 
-  // 4. Process Banner Image
-  let bannerWarning = '';
-  if (bannerUrl) {
-    const bannerCheck = isValidBannerUrl(bannerUrl);
-    if (bannerCheck.isValid && bannerCheck.url) {
-      userCard.bannerUrl = bannerCheck.url;
-    } else {
-      delete userCard.bannerUrl;
-      bannerWarning = '\n\n⚠️ **Catatan Banner:** Tautan banner yang kamu masukkan tidak valid (bukan link gambar langsung / salinan link Discord). Banner belum dipasang, tetapi bagian profil lainnya tetap berhasil disimpan!';
-    }
-  } else {
-    delete userCard.bannerUrl;
-  }
+  // Clean up banner field
+  delete userCard.bannerUrl;
 
   // Clean up unused legacy fields
   delete userCard.color;
@@ -706,18 +683,18 @@ async function handleCardModalSubmit(interaction, client) {
       );
 
       await interaction.editReply({
-        content: `✅ **Profil berhasil disimpan & diperbarui di <#${targetChannelId}>!**${bannerWarning}\nKlik tombol di bawah untuk langsung menuju ke kartumu:`,
+        content: `✅ **Profil berhasil disimpan & diperbarui di <#${targetChannelId}>!**\nKlik tombol di bawah untuk langsung menuju ke kartumu:`,
         components: [row]
       }).catch(() => {});
     } else {
       await interaction.editReply({
-        content: `✅ **Profil berhasil disimpan & dipublikasikan di <#${targetChannelId}>!**${bannerWarning}`
+        content: `✅ **Profil berhasil disimpan & dipublikasikan di <#${targetChannelId}>!**`
       }).catch(() => {});
     }
   } catch (err) {
     console.error('[CardHandler] Publish failed:', err.message);
     await interaction.editReply({
-      content: `**Profile saved!** Card published to <#${targetChannelId}>.${bannerWarning}`
+      content: `**Profile saved!** Card published to <#${targetChannelId}>.`
     }).catch(() => {});
   }
 }

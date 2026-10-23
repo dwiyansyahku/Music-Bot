@@ -125,19 +125,6 @@ async function generateMemberCardCanvas(guild, member) {
   ctx.fillStyle = rightGlow;
   ctx.fillRect(0, 0, width, height);
 
-  // 2. GAMBAR BANNER KUSTOM (JIKA ADA)
-  if (userCard.bannerUrl) {
-    try {
-      const bannerBuffer = await fetchImageBuffer(userCard.bannerUrl, 2500);
-      if (bannerBuffer) {
-        const bannerImg = await loadImage(bannerBuffer);
-        ctx.save();
-        ctx.globalAlpha = 0.20;
-        ctx.drawImage(bannerImg, 0, 0, width, height);
-        ctx.restore();
-      }
-    } catch (_) {}
-  }
 
   // Pola Grid Halus di Latar Belakang
   ctx.save();
@@ -443,11 +430,14 @@ async function generateMemberCardCanvas(guild, member) {
     '#34D399'
   );
 
-  // Zodiak & MBTI
+  // Zodiak & MBTI (Hitung dari tanggal lahir atau gunakan fallback zodiak tersimpan)
   let zodiacSymbolAndName = null;
   if (userCard.birthdate && userCard.birthdate.day && userCard.birthdate.month) {
     const zodiacObj = getZodiac(userCard.birthdate.day, userCard.birthdate.month);
     if (zodiacObj) zodiacSymbolAndName = zodiacObj.label;
+  }
+  if (!zodiacSymbolAndName) {
+    zodiacSymbolAndName = userCard.zodiac || userCard.zodiacRaw || null;
   }
   const mbtiText = userCard.mbti ? userCard.mbti.toUpperCase() : null;
   let zodiacMbtiDisplay = '-';
@@ -496,11 +486,19 @@ async function generateMemberCardCanvas(guild, member) {
     ctx.fillText('🌐 Belum menambahkan tautan sosial (/card edit)', socX + 16, socY + 52);
   }
 
-  // Top Companions
+  // Top Companions (Fetch displayName jika belum ada di cache memori)
   ctx.font = `500 12px ${FONT_FAMILY}`;
   ctx.fillStyle = '#CBD5E1';
   let companionText = 'Teman Voice: Belum ada data mengobrol bersama';
   if (voiceStats.topCompanions && voiceStats.topCompanions.length > 0) {
+    for (const c of voiceStats.topCompanions) {
+      if ((!c.name || c.name === 'Member') && guild) {
+        try {
+          const fetchedMember = await guild.members.fetch(c.id).catch(() => null);
+          if (fetchedMember) c.name = fetchedMember.displayName;
+        } catch (_) {}
+      }
+    }
     const list = voiceStats.topCompanions.slice(0, 3).map((c, i) => `${i + 1}. ${c.name} (${c.timeFormatted})`).join('  •  ');
     companionText = `Kawan Dekat: ${list}`;
   }

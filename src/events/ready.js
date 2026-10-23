@@ -288,12 +288,10 @@ module.exports = {
                   card.birthdate.age = Math.max(0, currentYear - card.birthdate.year);
                 }
 
-                const embed = buildBirthdayAnnouncementEmbed(member, null, card.birthdate, guild);
+                const { buildBirthdayAnnouncementPayload } = require('../utils/birthdayHelper');
+                const payload = await buildBirthdayAnnouncementPayload(member, null, card.birthdate, guild);
 
-                await channel.send({
-                  content: `🎂 **Selamat Ulang Tahun, <@${member.id}>!**`,
-                  embeds: [embed],
-                }).catch(err => console.error(`[Birthday Scheduler] Gagal kirim ucapan ke ${guild.name}:`, err.message));
+                await channel.send(payload).catch(err => console.error(`[Birthday Scheduler] Gagal kirim ucapan ke ${guild.name}:`, err.message));
 
                 celebratedUsers.add(userId);
                 console.log(`🎂 [Birthday] Ucapan ulang tahun asli terkirim untuk ${member.user.tag} di ${guild.name}`);

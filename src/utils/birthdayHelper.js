@@ -225,8 +225,44 @@ function getNextBirthdayCountdown(day, month) {
   };
 }
 
+const { AttachmentBuilder } = require('discord.js');
+const { generateBirthdayCardCanvas } = require('./birthdayCardCanvas');
+
 /**
- * Buat Embed Ucapan Ulang Tahun yang Mewah & Menarik
+ * Buat Payload Lengkap Ucapan Ulang Tahun bertenaga Canvas Image + Sambutan Meriah Minim Emoji
+ */
+async function buildBirthdayAnnouncementPayload(member, customWish, birthInfo, guild) {
+  const wishText = customWish || BIRTHDAY_WISHES[Math.floor(Math.random() * BIRTHDAY_WISHES.length)](member.displayName, birthInfo?.age);
+
+  const canvasBuffer = await generateBirthdayCardCanvas(guild, member, birthInfo, wishText);
+  const attachment = new AttachmentBuilder(canvasBuffer, { name: 'birthday-card.png' });
+
+  const embed = new EmbedBuilder()
+    .setColor(0xEAB308) // Festive Gold
+    .setTitle(`Perayaan Ulang Tahun — ${member.displayName}`)
+    .setDescription(
+      `Hari ini adalah momen spesial perayaan hari lahir **<@${member.id}>** di **${guild.name}**.\n` +
+      `Mari luangkan waktu untuk memberikan ucapan selamat serta doa terbaikmu di chat.`
+    )
+    .setImage('attachment://birthday-card.png')
+    .setFooter({
+      text: `${guild.name} • Official Birthday Celebration`,
+      iconURL: guild.iconURL({ dynamic: true }) || undefined
+    })
+    .setTimestamp();
+
+  // Sambutan meriah di atas pesan tapi minim emoji (elegan, bersih & festive)
+  const content = `✦ **Hari Istimewa — Selamat Ulang Tahun, <@${member.id}>!**\nMari bersama-sama merayakan hari bahagia kawan kita hari ini. Semoga senantiasa diberikan kesehatan, kebahagiaan, dan kelancaran dalam setiap langkah perjalanan hidup.`;
+
+  return {
+    content,
+    embeds: [embed],
+    files: [attachment]
+  };
+}
+
+/**
+ * Buat Embed Ucapan Ulang Tahun yang Mewah & Menarik (Fallback Embed)
  */
 function buildBirthdayAnnouncementEmbed(member, customWish, birthInfo, guild) {
   const user = member.user;
@@ -246,7 +282,6 @@ function buildBirthdayAnnouncementEmbed(member, customWish, birthInfo, guild) {
       `Mari sampaikan ucapan dan doa terbaik di chat!`
     )
     .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 512 }))
-    .setImage(BIRTHDAY_GIFS[Math.floor(Math.random() * BIRTHDAY_GIFS.length)])
     .setFooter({
       text: `${guild.name} • Birthday System • ${birthInfo?.formatted || ''} ${zodiac ? `(${zodiac.label})` : ''}`,
       iconURL: guild.iconURL({ dynamic: true }) || undefined
@@ -273,5 +308,7 @@ module.exports = {
   getZodiac,
   parseBirthdate,
   getNextBirthdayCountdown,
-  buildBirthdayAnnouncementEmbed
+  buildBirthdayAnnouncementEmbed,
+  buildBirthdayAnnouncementPayload
 };
+

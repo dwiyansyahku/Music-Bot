@@ -265,14 +265,20 @@ function getVoiceStats(guildId, userId, guild) {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 3);
 
+// In-memory cache for companion display names to prevent showing generic 'Member' on cache misses
+const companionNameCache = new Map();
+
   const topCompanions = [];
   for (const [cId, timeMs] of sortedCompanions) {
     if (timeMs < 60000) continue; // Skip less than 1 min
     const companionMember = guild?.members?.cache?.get(cId);
-    const name = companionMember ? companionMember.displayName : 'Member';
+    let name = companionMember?.displayName || companionNameCache.get(cId) || null;
+    if (companionMember) {
+      companionNameCache.set(cId, companionMember.displayName);
+    }
     topCompanions.push({
       id: cId,
-      name,
+      name: name || 'Member',
       timeFormatted: formatDuration(timeMs)
     });
   }

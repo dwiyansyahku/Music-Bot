@@ -162,12 +162,10 @@ module.exports = {
         age: 20
       };
 
-      const embed = buildBirthdayAnnouncementEmbed(targetMember, null, birthInfo, interaction.guild);
+      const { buildBirthdayAnnouncementPayload } = require('../utils/birthdayHelper');
+      const payload = await buildBirthdayAnnouncementPayload(targetMember, null, birthInfo, interaction.guild);
 
-      await targetChannel.send({
-        content: `Selamat Ulang Tahun, <@${targetMember.id}>! ✦`,
-        embeds: [embed]
-      });
+      await targetChannel.send(payload);
 
       return interaction.reply({
         content: `Pesan simulasi ulang tahun berhasil dikirim ke <#${channelId}>.`,

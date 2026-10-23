@@ -245,10 +245,9 @@ assert(panelPayload && panelPayload.embeds && panelPayload.components, 'Payload 
     roles: { color: null }
   };
 
-  const { embed: cardEmbed } = await buildMemberCardEmbed(mockGuild, mockMember);
-  assert(cardEmbed && cardEmbed.data && cardEmbed.data.fields, 'Card Embed berhasil dirender tanpa error');
-  const locField = cardEmbed.data.fields.find(f => f.name === 'Location');
-  assert(locField && locField.value.includes('Filipina 🇵🇭'), `Field Location pada kartu profil menampilkan: "${locField?.value}"`);
+  const { embed: cardEmbed, files: cardFiles } = await buildMemberCardEmbed(mockGuild, mockMember);
+  assert(cardEmbed && cardEmbed.data && cardEmbed.data.image?.url === 'attachment://member-card.png', 'Card Canvas Embed berhasil dirender dengan attachment member-card.png');
+  assert(cardFiles && cardFiles.length > 0, 'Canvas image buffer terlampir sebagai attachment kartu profil');
 
   storage.read = originalRead;
 
