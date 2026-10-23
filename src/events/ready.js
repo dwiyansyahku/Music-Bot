@@ -130,6 +130,9 @@ module.exports = {
     const lastSentAnnounce = new Map(); // key: `${guildId}_${id}`
     let lastBirthdayCheck = ''; // "DD-MM" string
     let lastVoiceNightReminder = ''; // "DD-MM" string
+    let lastBossRaidSpawnCheck = ''; // "DD-MM" string
+    let lastBossWarning30 = ''; // "DD-MM" string
+    let lastBossWarning15 = ''; // "DD-MM" string
 
     setInterval(async () => {
       // ====== Hitung waktu WIB sekarang ======
@@ -209,6 +212,43 @@ module.exports = {
           await broadcastVoiceNightReminder(client);
         } catch (vErr) {
           console.error('⚠️ [Voice Night Reminder] Error:', vErr.message);
+        }
+      }
+
+      // ====== 2.6. WORLD BOSS PRE-SPAWN COUNTDOWN WARNINGS (20:30 & 20:45 WIB) ======
+      if (currentHour === 20 && currentMinute === 30 && lastBossWarning30 !== birthdayKey) {
+        lastBossWarning30 = birthdayKey;
+        try {
+          const { checkAndBroadcastBossWarning } = require('../utils/dungeonBoss');
+          if (checkAndBroadcastBossWarning) await checkAndBroadcastBossWarning(client, 30);
+          console.log(`⏰ [Boss Raid Warning] Peringatan 30 menit menuju spawn berhasil disiarkan.`);
+        } catch (wErr) {
+          console.error('⚠️ [Boss Warning 30m Error]:', wErr.message);
+        }
+      }
+
+      if (currentHour === 20 && currentMinute === 45 && lastBossWarning15 !== birthdayKey) {
+        lastBossWarning15 = birthdayKey;
+        try {
+          const { checkAndBroadcastBossWarning } = require('../utils/dungeonBoss');
+          if (checkAndBroadcastBossWarning) await checkAndBroadcastBossWarning(client, 15);
+          console.log(`⏰ [Boss Raid Warning] Peringatan 15 menit menuju spawn berhasil disiarkan.`);
+        } catch (wErr) {
+          console.error('⚠️ [Boss Warning 15m Error]:', wErr.message);
+        }
+      }
+
+      // ====== 2.6. WORLD BOSS RAID SPAWN & AWAKEN (21:00 WIB) ======
+      if (currentHour === 21 && currentMinute === 0 && lastBossRaidSpawnCheck !== birthdayKey) {
+        lastBossRaidSpawnCheck = birthdayKey;
+        try {
+          const { checkAndBroadcastBossSpawn } = require('../utils/dungeonBoss');
+          if (checkAndBroadcastBossSpawn) {
+            await checkAndBroadcastBossSpawn(client);
+            console.log(`👹 [Boss Raid] Kemunculan World Boss jam 21:00 WIB berhasil disiarkan.`);
+          }
+        } catch (bossSpawnErr) {
+          console.error('⚠️ [Boss Raid Spawn Error]:', bossSpawnErr.message);
         }
       }
 

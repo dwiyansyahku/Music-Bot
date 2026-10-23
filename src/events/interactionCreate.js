@@ -422,7 +422,9 @@ module.exports = {
           return await executeGachaEquipPrompt(interaction);
         } else if (action === 'boss_lobby') {
           const { buildBossLobbyPayload } = require('../utils/dungeonBoss');
-          const payload = buildBossLobbyPayload(interaction.guildId);
+          const { isOwnerOrMod } = require('../utils/helpers');
+          const isAdmin = isOwnerOrMod(interaction.member) || interaction.member?.permissions?.has(PermissionFlagsBits.Administrator);
+          const payload = buildBossLobbyPayload(interaction.guildId, isAdmin);
           return await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
         } else if (action === 'inv') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -678,6 +680,24 @@ module.exports = {
           }
           return await interaction.editReply({
             content: `⚔️ **Pertarungan Dimulai!** Arena pertempuran telah dibuka di ${res.thread ? `<#${res.thread.id}>` : `<#${interaction.channelId}>`}. Segera pilih taktikmu!`
+          });
+        }
+
+        if (interaction.customId === 'boss_btn_admin_force_spawn') {
+          const { isOwnerOrMod } = require('../utils/helpers');
+          const isAdmin = isOwnerOrMod(interaction.member) || interaction.member?.permissions?.has(PermissionFlagsBits.Administrator);
+          if (!isAdmin) {
+            return await interaction.reply({ content: '❌ Hanya Admin/Owner server yang dapat membuka paksa raid.', flags: MessageFlags.Ephemeral });
+          }
+          const { toggleAdminForceBossRaid, buildBossLobbyPayload } = require('../utils/dungeonBoss');
+          const res = toggleAdminForceBossRaid(guildId);
+          const lobbyPayload = buildBossLobbyPayload(guildId, true);
+          if (interaction.message?.editable) {
+            await interaction.message.edit(lobbyPayload).catch(() => {});
+          }
+          return await interaction.reply({
+            content: res.isOpen ? '⚡ **[Admin] Boss Raid berhasil dibuka secara paksa!** Sekarang pemain dapat membuat party dan bertarung.' : '🔒 **[Admin] Boss Raid telah dikunci kembali.**',
+            flags: MessageFlags.Ephemeral
           });
         }
 
