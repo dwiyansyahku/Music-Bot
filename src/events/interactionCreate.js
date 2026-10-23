@@ -665,7 +665,16 @@ module.exports = {
             });
           }
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-          const res = await startPartyCombat(guildId, active.partyId, interaction.channel, client);
+          const storage = require('../utils/storage');
+          const settingsData = storage.read('settings') || {};
+          const gCh = settingsData[guildId]?.gachaChannels || {};
+          const duelChId = gCh.live_duel || gCh.duel || gCh.throne;
+          let targetCombatChannel = interaction.channel;
+          if (duelChId && client) {
+            const fetchedCh = await client.channels.fetch(duelChId).catch(() => null);
+            if (fetchedCh && fetchedCh.isTextBased()) targetCombatChannel = fetchedCh;
+          }
+          const res = await startPartyCombat(guildId, active.partyId, targetCombatChannel, client);
           if (!res.success) {
             return await interaction.editReply({ content: `❌ ${res.message}` });
           }
