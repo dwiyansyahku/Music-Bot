@@ -6449,109 +6449,59 @@ async function executeSeasonReset(guild, client, options = {}) {
   const championUser = userRankings.length > 0 ? userRankings[0] : null;
   const prevChampionId = seasonData[guildId]?.currentChampionId || seasonData[guildId]?.lastChampionId || null;
 
-  // 2. Transfer Role Juara Season (CHAMPION)
-  const championRoleId = settingsData[guildId]?.gachaRoles?.CHAMPION;
-  let roleTransferStatus = 'Role Juara belum diatur (Admin: /gacha setrole tier:CHAMPION)';
+  // 2. Cabut Seluruh Role Tahta Discord (MYTHIC, LEGENDARY, CHAMPION) dari Semua Member
+  const gachaRoles = settingsData[guildId]?.gachaRoles || {};
+  const rolesToRevoke = [
+    gachaRoles.MYTHIC,
+    gachaRoles.LEGENDARY,
+    gachaRoles.CHAMPION
+  ].filter(Boolean);
 
-  if (championRoleId) {
+  let revokedRolesCount = 0;
+  if (guild) {
     try {
-      // Cabut dari juara lama jika orangnya berbeda
-      if (prevChampionId && (!championUser || prevChampionId !== championUser.userId)) {
-        const prevMember = guild.members?.cache?.get(prevChampionId) ||
-          await guild.members?.fetch(prevChampionId).catch(() => null);
-        if (prevMember && prevMember.roles?.cache?.has(championRoleId)) {
-          await prevMember.roles.remove(championRoleId).catch(() => {});
-        }
-      }
-
-      // Pastikan member lain yang bukan juara baru tidak memegang role ini
-      if (guild.roles?.cache?.get) {
-        const champRoleObj = guild.roles.cache.get(championRoleId);
-        if (champRoleObj && champRoleObj.members) {
-          for (const [mId, mObj] of champRoleObj.members) {
-            if (!championUser || mId !== championUser.userId) {
-              await mObj.roles.remove(championRoleId).catch(() => {});
-            }
+      await guild.members.fetch().catch(() => {});
+      for (const roleId of rolesToRevoke) {
+        const roleObj = guild.roles?.cache?.get(roleId) || await guild.roles?.fetch(roleId).catch(() => null);
+        if (roleObj && roleObj.members) {
+          for (const [mId, mObj] of roleObj.members) {
+            await mObj.roles.remove(roleId, 'Reset Season Gacha (Wipe Tahta)').catch(() => {});
+            revokedRolesCount++;
           }
         }
       }
-
-      // Berikan ke juara baru
-      if (championUser) {
-        const newChampionMember = guild.members?.cache?.get(championUser.userId) ||
-          await guild.members?.fetch(championUser.userId).catch(() => null);
-        if (newChampionMember) {
-          await newChampionMember.roles.add(championRoleId).catch(() => {});
-          roleTransferStatus = `Role <@&${championRoleId}> berhasil dianugerahkan kepada <@${championUser.userId}>`;
-        }
-      }
     } catch (roleErr) {
-      console.error('[Season Reset Role Transfer Error]:', roleErr.message);
+      console.error('[Season Reset Role Revoke Error]:', roleErr.message);
     }
   }
 
-  // 3. Konversi Relik & Gelar untuk seluruh member
-  let totalRecycledRelics = 0;
-  let totalDistributedDust = 0;
-  let totalDistributedTickets = 0;
-  let totalTitleCashbackDust = 0;
-
-  const dustConversionValues = {
-    ANCIENT: 2000,
-    MYTHIC: 800,
-    LEGENDARY: 300,
-    EPIC: 100,
-    RARE: 35,
-    COMMON: 15
-  };
-
+  // 3. Reset Total: Relik, Stardust, Tiket, dan Status Seluruh Member Menjadi 0
+  let totalWipedRelics = 0;
   for (const [uId, uData] of Object.entries(guildUsers)) {
     const relicCount = (uData.inventory || []).length;
-    let memberDust = 0;
+    totalWipedRelics += relicCount;
 
-    for (const relicName of (uData.inventory || [])) {
-      const found = GACHA_ITEMS.find(g => g.name === relicName);
-      const tierVal = found ? (dustConversionValues[found.tier] || 15) : 15;
-      memberDust += tierVal;
-    }
-
-    // Cashback 50% untuk gelar yang dibeli dari toko (shopPurchases)
-    let memberTitleCashback = 0;
-    if (Array.isArray(uData.shopPurchases)) {
-      for (const purchase of uData.shopPurchases) {
-        const cashback = Math.floor((purchase.cost || 0) * 0.5);
-        memberTitleCashback += cashback;
-      }
-    }
-    memberDust += memberTitleCashback;
-    totalTitleCashbackDust += memberTitleCashback;
-
-    // Modal tiket musim baru: 1 tiket per 5 relik, +2 jika pulls >= 50, +3 starter pack jika aktif
-    let memberTickets = Math.floor(relicCount / 5);
-    if ((uData.pulls || 0) >= 50) memberTickets += 2;
-    if (relicCount > 0 || (uData.pulls || 0) > 0) memberTickets += 3;
-
-    totalRecycledRelics += relicCount;
-    totalDistributedDust += memberDust;
-    totalDistributedTickets += memberTickets;
-
-    // Tambahkan saldo konversi
-    uData.stardust = (uData.stardust || 0) + memberDust;
-    uData.tickets = (uData.tickets || 0) + memberTickets;
-
-    // Bersihkan inventaris, gelar, dan lencana
+    // Reset aset ke 0
+    uData.tickets = 0;
+    uData.stardust = 0;
     uData.inventory = [];
+    uData.equippedRelic = null;
     uData.badges = [];
     uData.titles = [];
     uData.shopPurchases = [];
     uData.equippedTitle = null;
+    uData.activeRole = null;
     uData.pityEpic = 0;
     uData.pityLegendary = 0;
     uData.pulls = 0;
-    uData.activeRole = null;
     uData.duelDefenseStreak = 0;
     uData.duelWins = 0;
     uData.duelLosses = 0;
+    uData.duelHistory = [];
+    uData.throneProtectedUntil = 0;
+    uData.challengeCooldownUntil = 0;
+    uData.luckyBuffPulls = 0;
+    uData.customTitleTokens = 0;
   }
   storage.write('gacha_data', gachaData);
 
@@ -6578,18 +6528,15 @@ async function executeSeasonReset(guild, client, options = {}) {
     championId: championUser ? championUser.userId : null,
     championScore: championUser ? championUser.score : 0,
     totalMembersParticipated: userRankings.length,
-    totalRecycledRelics,
-    totalDistributedDust,
-    totalDistributedTickets
+    totalWipedRelics
   });
   storage.write('season_data', seasonData);
 
   // 6. Buat pengumuman Season Reset
   const champText = championUser
-    ? `**Juara Musim (Top 1 Koleksi Relik & Gelar):** <@${championUser.userId}>\n` +
-      `• **Koleksi:** **${championUser.relicCount} Relik** dan **${championUser.titleCount} Gelar** (Total: **${championUser.totalCollection} Koleksi**)\n` +
-      `• **Skor Musim:** **${championUser.score.toLocaleString()} Poin**\n` +
-      `• **Status Role:** ${roleTransferStatus}`
+    ? `🏆 **Juara Musim Lalu (Top 1 Koleksi Season ${prevSeasonNum}):** <@${championUser.userId}>\n` +
+      `• **Koleksi:** **${championUser.relicCount} Relik** & **${championUser.titleCount} Gelar**\n` +
+      `• **Skor Akhir:** **${championUser.score.toLocaleString()} Poin**`
     : '_Tidak ada catatan juara pada musim lalu_';
 
   const resetEmbed = new EmbedBuilder()
@@ -6598,18 +6545,21 @@ async function executeSeasonReset(guild, client, options = {}) {
     .setDescription(
       `Musim baru **Season ${nextSeasonNum}** telah resmi dimulai!\n\n` +
       `${champText}\n\n` +
-      `**Rekapitulasi Konversi Musim Lalu:**\n` +
-      `• **Total Relik Dikonversi:** ${totalRecycledRelics.toLocaleString()} Relik\n` +
-      `• **Total Stardust Dibagikan:** +${totalDistributedDust.toLocaleString()} Dust` +
-      (totalTitleCashbackDust > 0 ? ` *(termasuk cashback gelar toko: +${totalTitleCashbackDust.toLocaleString()} Dust)*` : '') + `\n` +
-      `• **Total Tiket Modal Awal:** +${totalDistributedTickets.toLocaleString()} Tiket\n\n` +
-      `*Seluruh koleksi relik, gelar, dan kursi tahta telah direset bersih. Modal tiket dan stardust telah masuk ke akun masing-masing member untuk berjuang di Season ${nextSeasonNum}!*`
+      `**Pembersihan Musim Baru (Full Reset Ke 0):**\n` +
+      `• **Relik Koleksi:** Direset menjadi **0** (${totalWipedRelics.toLocaleString()} relik dibersihkan)\n` +
+      `• **Role Tahta Discord:** Seluruh role tahta (<@&${gachaRoles.MYTHIC || ''}> & <@&${gachaRoles.LEGENDARY || ''}>) dicabut & tahta dikosongkan\n` +
+      `• **Saldo Stardust:** Direset menjadi **0 Dust**\n` +
+      `• **Saldo Tiket Gacha:** Direset menjadi **0 Tiket**\n` +
+      `• **Pity Rate, Gelar, & Rekor Duel:** Direset kembali ke 0\n\n` +
+      `*Seluruh member memulai musim baru dari garis start yang sama (0 Relik, 0 Tiket, 0 Dust, 0 Tahta). Klaim hadiah harian di channel lounge untuk mengumpulkan kembali tiketmu dan rebut tahta di Season ${nextSeasonNum}!*`
     )
     .setFooter({ text: `${guild.name} • Season ${nextSeasonNum} Kickoff (WIB)` })
     .setTimestamp();
 
-  const targetChId = settingsData[guildId]?.gachaChannels?.broadcast ||
-                     settingsData[guildId]?.gachaChannels?.play;
+  const targetChId = settingsData[guildId]?.gachaChannels?.feed ||
+                     settingsData[guildId]?.gachaChannels?.broadcast ||
+                     settingsData[guildId]?.gachaChannels?.play ||
+                     settingsData[guildId]?.gachaChannels?.hub;
   if (targetChId) {
     const ch = guild.channels?.cache?.get(targetChId) ||
       (client?.channels?.fetch ? await client.channels.fetch(targetChId).catch(() => null) : null);
@@ -6622,13 +6572,12 @@ async function executeSeasonReset(guild, client, options = {}) {
   await sendModLog(guild, client, {
     action: 'GACHA_RESETSEASON',
     moderator: options.moderator || { id: client?.user?.id || 'system', username: client?.user?.username || 'Sistem Reset Season (WIB)' },
-    details: `Pergantian Musim ke Season ${nextSeasonNum} (WIB).\n` +
+    details: `Pergantian Musim ke Season ${nextSeasonNum} (WIB) — Full Wipe ke 0.\n` +
       `• Total Partisipan: ${userRankings.length} Member\n` +
-      `• Juara Baru: ${championUser ? `<@${championUser.userId}>` : 'None'}\n` +
-      `• Relik Dikonversi: ${totalRecycledRelics.toLocaleString()}\n` +
-      `• Total Stardust Dibagikan: ${totalDistributedDust.toLocaleString()} Dust` +
-      (totalTitleCashbackDust > 0 ? ` (Cashback Gelar Toko: ${totalTitleCashbackDust.toLocaleString()} Dust)` : '') + `\n` +
-      `• Total Tiket Dibagikan: ${totalDistributedTickets.toLocaleString()} Tiket`
+      `• Juara Musim Lalu: ${championUser ? `<@${championUser.userId}>` : 'None'}\n` +
+      `• Total Relik Dihapus: ${totalWipedRelics.toLocaleString()}\n` +
+      `• Role Tahta Dicabut: ${revokedRolesCount} Penugasan\n` +
+      `• Stardust & Tiket: Direset ke 0 untuk semua member`
   });
 
   return {
@@ -6636,10 +6585,7 @@ async function executeSeasonReset(guild, client, options = {}) {
     season: prevSeasonNum,
     nextSeason: nextSeasonNum,
     championUser,
-    totalRecycledRelics,
-    totalDistributedDust,
-    totalDistributedTickets,
-    totalTitleCashbackDust,
+    totalWipedRelics,
     embed: resetEmbed
   };
 }
