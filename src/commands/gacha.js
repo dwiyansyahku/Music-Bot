@@ -5235,62 +5235,11 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
     rows.push(new ActionRowBuilder().addComponents(row2Buttons));
   }
 
-  const gChannels = settingsData[guildId]?.gachaChannels || {};
-  const umumChannelId = gChannels.umum;
-
-  let sentInUmum = false;
-  let sentMessage = null;
-
-  if (umumChannelId && interaction.channelId !== umumChannelId && client) {
-    const umumChannel = await client.channels.fetch(umumChannelId).catch(() => null);
-    if (umumChannel && umumChannel.isTextBased()) {
-      sentMessage = await umumChannel.send({
-        content: `<@${user.id}>`,
-        embeds: [embed],
-        components: rows
-      }).catch(() => null);
-      if (sentMessage) sentInUmum = true;
-    }
-  }
-
-  if (sentInUmum && sentMessage) {
-    const targetChannel = interaction.guild?.channels?.cache?.get(umumChannelId);
-    const chName = targetChannel ? `#${targetChannel.name}` : 'Saluran Umum';
-    const msgUrl = `https://discord.com/channels/${guildId}/${umumChannelId}/${sentMessage.id}`;
-
-    const confirmEmbed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setTitle('Inventaris Terkirim ke Saluran Umum')
-      .setDescription(
-        `Inventaris milik <@${user.id}> telah dibagikan ke <#${umumChannelId}> agar dapat dilihat oleh member lainnya.\n\n` +
-        `Silakan klik tombol di bawah untuk melihat pesan inventarismu di ${chName}.`
-      );
-
-    const confirmRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel(`Lihat di ${chName}`.slice(0, 80))
-        .setStyle(ButtonStyle.Link)
-        .setURL(msgUrl),
-      new ButtonBuilder()
-        .setCustomId('gacha_btn_shop')
-        .setLabel('Toko Stardust')
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId('gacha_btn_album')
-        .setLabel('Cek Album')
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    if (interaction.replied || interaction.deferred) {
-      return interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
-    }
-    return interaction.reply({ embeds: [confirmEmbed], components: [confirmRow], flags: MessageFlags.Ephemeral });
-  }
-
+  // Inventory selalu ephemeral (privat) agar tidak mengganggu chat publik
   if (interaction.replied || interaction.deferred) {
-    return interaction.editReply({ content: `<@${user.id}>`, embeds: [embed], components: rows });
+    return interaction.editReply({ embeds: [embed], components: rows });
   }
-  return interaction.reply({ content: `<@${user.id}>`, embeds: [embed], components: rows });
+  return interaction.reply({ embeds: [embed], components: rows, flags: MessageFlags.Ephemeral });
 }
 
 /**
@@ -7987,9 +7936,7 @@ module.exports = {
     // === SUBCOMMAND: INVENTORY ===
     if (sub === 'inventory') {
       const targetUser = interaction.options.getUser('user') || interaction.user;
-      const umumChId = settingsData[guildId]?.gachaChannels?.umum;
-      const isCrossToUmum = umumChId && interaction.channelId !== umumChId;
-      await interaction.deferReply({ flags: isCrossToUmum ? MessageFlags.Ephemeral : undefined });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       return executeGachaInventory(interaction, targetUser, client);
     }
 

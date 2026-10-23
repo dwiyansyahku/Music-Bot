@@ -658,6 +658,22 @@ async function resolveCombatRound(guildId, partyId, client) {
 
     if (combatChannel) {
       await combatChannel.send({ embeds: [endEmbed] }).catch(() => {});
+
+      // Auto-hapus thread pertarungan setelah 60 detik agar channel tidak penuh
+      if (thread && thread.isThread()) {
+        await combatChannel.send({
+          content: '⏳ Thread pertarungan ini akan otomatis dihapus dalam **60 detik**. Silakan baca hasil pertarungan di atas.'
+        }).catch(() => {});
+        setTimeout(async () => {
+          try {
+            // Coba delete, fallback ke archive + lock
+            await thread.delete('Auto-cleanup setelah sesi pertarungan selesai').catch(async () => {
+              await thread.setArchived(true).catch(() => {});
+              await thread.setLocked(true).catch(() => {});
+            });
+          } catch (_) { /* ignore */ }
+        }, 60_000);
+      }
     }
 
     // Bersihkan sesi aktif

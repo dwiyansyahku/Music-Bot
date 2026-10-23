@@ -425,9 +425,7 @@ module.exports = {
           const payload = buildBossLobbyPayload(interaction.guildId);
           return await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
         } else if (action === 'inv') {
-          const isInHub = gChannels.hub && interaction.channelId === gChannels.hub;
-          const isCrossToUmum = gChannels.umum && interaction.channelId !== gChannels.umum;
-          await interaction.deferReply({ flags: (isInHub || isCrossToUmum) ? MessageFlags.Ephemeral : undefined });
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaInventory(interaction, interaction.user, client);
         } else if (action === 'shop') {
           const isInHub = gChannels.hub && interaction.channelId === gChannels.hub;
