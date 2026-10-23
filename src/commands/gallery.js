@@ -245,8 +245,8 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
 
   // Generate Submission ID
   const submissionId = 'GAL_' + Date.now().toString(36).toUpperCase();
-  const displayName = member?.displayName || user.username;
-  const avatarUrl = user.displayAvatarURL({ dynamic: true });
+  const displayName = member?.displayName || user?.username || 'Member';
+  const avatarUrl = user?.displayAvatarURL ? user.displayAvatarURL({ dynamic: true }) : (member?.displayAvatarURL ? member.displayAvatarURL({ dynamic: true }) : null);
   const imageCount = targetUrls.length;
 
   let postedMsg = null;
@@ -424,6 +424,8 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
 }
 
 module.exports = {
+  publishGalleryPost,
+  publishGalleryItem,
   data: new SlashCommandBuilder()
     .setName('gallery')
     .setDescription('Sistem Saluran Galeri Gambar Terkurasi Bot (2-Saluran: Upload & Output)')

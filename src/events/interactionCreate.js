@@ -399,14 +399,31 @@ module.exports = {
       } = require('../commands/gacha');
 
       try {
-        if (action === 'pull_1') {
+        if (action === 'pull_1' || action === 'pull_1_again') {
           const hasResultCh = !!settingsData[interaction.guildId]?.gachaChannels?.result || true;
           await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
           return await executeGachaPull(interaction, client, 1);
-        } else if (action === 'pull_10') {
+        } else if (action === 'pull_10' || action === 'pull_10_again') {
           const hasResultCh = !!settingsData[interaction.guildId]?.gachaChannels?.result || true;
           await interaction.deferReply({ flags: hasResultCh ? MessageFlags.Ephemeral : undefined });
           return await executeGachaPull(interaction, client, 10);
+        } else if (action === 'limiteds') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          const { executeGachaLimiteds } = require('../commands/gacha');
+          return await executeGachaLimiteds(interaction, client);
+        } else if (action.startsWith('lim:')) {
+          const relicKey = action.replace('lim:', '');
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          const { executeGachaLimiteds } = require('../commands/gacha');
+          return await executeGachaLimiteds(interaction, client, relicKey);
+        } else if (action === 'equip_relic') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          const { executeGachaEquipPrompt } = require('../commands/gacha');
+          return await executeGachaEquipPrompt(interaction);
+        } else if (action === 'boss_lobby') {
+          const { buildBossLobbyPayload } = require('../utils/dungeonBoss');
+          const payload = buildBossLobbyPayload(interaction.guildId);
+          return await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
         } else if (action === 'inv') {
           const isCrossToUmum = gChannels.umum && interaction.channelId !== gChannels.umum;
           await interaction.deferReply({ flags: isCrossToUmum ? MessageFlags.Ephemeral : undefined });
@@ -527,6 +544,145 @@ module.exports = {
       } catch (recErr) {
         return safeErrorReply(recErr, 'Gagal memproses daur ulang relik.');
       }
+    }
+
+    // ====== Select Menu Interaction (Equip Relik Senjata Raid Boss) ======
+    if (interaction.isStringSelectMenu() && interaction.customId === 'gacha_select_equip_relic') {
+      const relicName = interaction.values[0];
+      const storage = require('../utils/storage');
+      const { GACHA_ITEMS } = require('../commands/gacha');
+      const gachaData = storage.read('gacha_data') || {};
+      const guildUsers = gachaData[interaction.guildId] || {};
+      const userData = guildUsers[interaction.user.id];
+
+      if (!userData || !(userData.inventory || []).includes(relicName)) {
+        return interaction.reply({
+          content: `❌ Relik **"${relicName}"** tidak ditemukan di inventori kamu!`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const found = GACHA_ITEMS.find(g => g.name === relicName) || { name: relicName, tier: 'COMMON' };
+      userData.equippedRelic = found.name;
+      storage.write('gacha_data', gachaData);
+
+      const bonusMap = {
+        ANCIENT: { dmg: 50, hp: 30 },
+        MYTHIC: { dmg: 30, hp: 20 },
+        LEGENDARY: { dmg: 20, hp: 10 },
+        EPIC: { dmg: 10, hp: 0 },
+        RARE: { dmg: 5, hp: 0 },
+        COMMON: { dmg: 0, hp: 0 }
+      };
+      const b = bonusMap[found.tier] || { dmg: 0, hp: 0 };
+
+      return interaction.reply({
+        content: `✅ Senjata **${found.name}** [Tier ${found.tier}] berhasil dipasang sebagai senjata aktif Raid Boss!\n• **Bonus Serangan:** +${b.dmg}% ATK Multiplier\n• **Bonus Pertahanan:** +${b.hp} Max HP (Total: **${100 + b.hp} HP**)`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    // ====== Button Interaction (Multi-Party Boss Raid System) ======
+    if (
+      interaction.isButton() && (
+        interaction.customId.startsWith('boss_btn_') ||
+        interaction.customId.startsWith('boss_pick:')
+      )
+    ) {
+      const {
+        createBossParty,
+        quickJoinBossParty,
+        leaveBossParty,
+        getUserActiveParty,
+        startPartyCombat,
+        handlePlayerBossStance,
+        buildBossLobbyPayload
+      } = require('../utils/dungeonBoss');
+
+      const guildId = interaction.guildId;
+      const userId = interaction.user.id;
+
+      try {
+        if (interaction.customId === 'boss_btn_create_party') {
+          const res = createBossParty(guildId, userId, interaction.user.username);
+          if (!res.success) {
+            return await interaction.reply({ content: `❌ ${res.message}`, flags: MessageFlags.Ephemeral });
+          }
+          const lobbyPayload = buildBossLobbyPayload(guildId);
+          if (interaction.message?.editable) {
+            await interaction.message.edit(lobbyPayload).catch(() => {});
+          }
+          return await interaction.reply({
+            content: `✅ Party berhasil dibuat: **${res.party.name}**! Kamu dapat langsung menekan **[Mulai Raid]** secara solo (1 orang) atau menunggu rekan squad bergabung.`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        if (interaction.customId === 'boss_btn_quick_join') {
+          const res = quickJoinBossParty(guildId, userId, interaction.user.username);
+          if (!res.success) {
+            return await interaction.reply({ content: `❌ ${res.message}`, flags: MessageFlags.Ephemeral });
+          }
+          const lobbyPayload = buildBossLobbyPayload(guildId);
+          if (interaction.message?.editable) {
+            await interaction.message.edit(lobbyPayload).catch(() => {});
+          }
+          return await interaction.reply({
+            content: `✅ Kamu berhasil bergabung ke **${res.party.name}**! Bersiaplah menghadapi Boss Raid.`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        if (interaction.customId === 'boss_btn_leave_party') {
+          const res = leaveBossParty(guildId, userId);
+          if (!res.success) {
+            return await interaction.reply({ content: `❌ ${res.message}`, flags: MessageFlags.Ephemeral });
+          }
+          const lobbyPayload = buildBossLobbyPayload(guildId);
+          if (interaction.message?.editable) {
+            await interaction.message.edit(lobbyPayload).catch(() => {});
+          }
+          return await interaction.reply({
+            content: `✅ Kamu telah keluar dari party raid.`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        if (interaction.customId === 'boss_btn_start') {
+          const active = getUserActiveParty(guildId, userId);
+          if (!active) {
+            return await interaction.reply({
+              content: '❌ Kamu belum bergabung atau membuat party! Silakan tekan **[Buat Party]** atau **[Quick Join]** terlebih dahulu.',
+              flags: MessageFlags.Ephemeral
+            });
+          }
+          if (active.party.leaderId !== userId) {
+            return await interaction.reply({
+              content: `❌ Hanya pemimpin party (<@${active.party.leaderId}>) yang dapat memulai pertempuran!`,
+              flags: MessageFlags.Ephemeral
+            });
+          }
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+          const res = await startPartyCombat(guildId, active.partyId, interaction.channel, client);
+          if (!res.success) {
+            return await interaction.editReply({ content: `❌ ${res.message}` });
+          }
+          return await interaction.editReply({
+            content: `⚔️ **Pertarungan Dimulai!** Arena pertempuran telah dibuka di ${res.thread ? `<#${res.thread.id}>` : `<#${interaction.channelId}>`}. Segera pilih taktikmu!`
+          });
+        }
+
+        if (interaction.customId.startsWith('boss_pick:')) {
+          const parts = interaction.customId.split(':');
+          const stance = parts[1];
+          const partyId = parts[2];
+          const round = parts[3];
+          return await handlePlayerBossStance(interaction, client, stance, partyId, round);
+        }
+      } catch (bossErr) {
+        return safeErrorReply(bossErr, 'Gagal memproses aksi Boss Raid.');
+      }
+      return;
     }
 
     // ====== Button Interaction (Peta Member Hub & Navigasi Mandiri) ======

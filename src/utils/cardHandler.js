@@ -1,11 +1,13 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags
+  ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags,
+  AttachmentBuilder
 } = require('discord.js');
 const storage = require('./storage');
 const { getVoiceStats, getLiveVoiceInfo } = require('./voiceTracker');
 const { parseBirthdate, getZodiac } = require('./birthdayHelper');
 const { parseLocation } = require('./locationHelper');
+const { generateMemberCardCanvas } = require('./memberCardCanvas');
 
 function normalizeBannerUrl(url) {
   if (!url) return '';
@@ -202,8 +204,8 @@ function createCardHubPayload(guild) {
 /**
  * Helper to build interactive Like & Respect buttons for published cards in gallery
  */
-function createPublishedCardComponents(authorId, likesCount = 0, respectsCount = 0) {
-  const row = new ActionRowBuilder().addComponents(
+function createPublishedCardComponents(authorId, likesCount = 0, respectsCount = 0, linkUrl = null, linkTitle = null) {
+  const buttons = [
     new ButtonBuilder()
       .setCustomId(`card_btn_like_${authorId}`)
       .setLabel(`Like (${likesCount})`)
@@ -212,10 +214,20 @@ function createPublishedCardComponents(authorId, likesCount = 0, respectsCount =
     new ButtonBuilder()
       .setCustomId(`card_btn_respect_${authorId}`)
       .setLabel(`Respect (${respectsCount})`)
-      .setEmoji('⭐')
+      .setEmoji('🫡')
       .setStyle(ButtonStyle.Secondary)
-  );
+  ];
 
+  if (linkUrl && /^https?:\/\//i.test(linkUrl)) {
+    buttons.push(
+      new ButtonBuilder()
+        .setLabel(linkTitle ? `${linkTitle} ↗` : 'Visit Social Link ↗')
+        .setStyle(ButtonStyle.Link)
+        .setURL(linkUrl)
+    );
+  }
+
+  const row = new ActionRowBuilder().addComponents(buttons);
   return [row];
 }
 
@@ -241,136 +253,47 @@ async function getMemberJoinPosition(guild, member) {
 }
 
 /**
- * Build clean, aesthetic, and elegant Member Profile Card Embed
- * Includes: Live VC status, Birthday, Zodiac (auto-calculated), MBTI, Social Link, and Banner
+ * Build clean, aesthetic, and elegant Member Profile Card Embed powered by Canvas
+ * Generates an exclusive high-resolution glassmorphism identity card image.
  */
 async function buildMemberCardEmbed(guild, member) {
   const targetUser = member.user;
   const cardsData = storage.read('cards');
   const userCard = cardsData[guild.id]?.[targetUser.id] || {};
 
-  function formatDate(date) {
-    if (!date) return '-';
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-
-  const embedColor = member?.roles?.color?.hexColor || '#8B5CF6';
+  const embedColor = (member?.roles?.color?.hexColor && member.roles.color.hexColor !== '#000000')
+    ? member.roles.color.hexColor
+    : '#8B5CF6';
 
   // Ambil Gelar Utama (Equipped Title) dari sistem Gacha
   const gachaData = storage.read('gacha_data');
   const userGacha = gachaData[guild.id]?.[targetUser.id] || {};
-  const equippedTitleText = userGacha.equippedTitle ? ` • ✧ \`${userGacha.equippedTitle}\`` : '';
+  const equippedTitleText = userGacha.equippedTitle ? ` • 👑 \`${userGacha.equippedTitle}\`` : '';
 
   let description = `\`@${targetUser.username}\`${equippedTitleText}`;
-  if (userCard.bio) {
-    description += `\n\n*"${userCard.bio}"*`;
+  if (userCard.linkUrl && /^https?:\/\/[^\s]+$/i.test(userCard.linkUrl)) {
+    const linkTitle = userCard.linkTitle || 'Visit Link';
+    description += ` • [${linkTitle} ↗](${userCard.linkUrl})`;
   }
+
+  // Generate ultra-luxurious Canvas image
+  const canvasBuffer = await generateMemberCardCanvas(guild, member);
+  const attachment = new AttachmentBuilder(canvasBuffer, { name: 'member-card.png' });
 
   const embed = new EmbedBuilder()
     .setColor(embedColor)
     .setTitle(member.displayName)
-    .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
-    .setDescription(description);
-
-  // Row 1: Member # | Join Server | Live VC (3 Inline Columns)
-  const joinPos = await getMemberJoinPosition(guild, member);
-  if (joinPos) {
-    embed.addFields({ name: 'Member #', value: joinPos, inline: true });
-  }
-
-  if (member.joinedAt) {
-    embed.addFields({ name: 'Join Server', value: formatDate(member.joinedAt), inline: true });
-  }
-
-  // Column 3: Live VC Status (Clean & Minimalist)
-  let liveVcText = 'Inactive';
-  if (member.voice && member.voice.channel) {
-    const chName = member.voice.channel.name;
-    const liveInfo = getLiveVoiceInfo(guild.id, targetUser.id);
-    const durText = liveInfo.durationFormatted ? ` (${liveInfo.durationFormatted})` : '';
-    const displayCh = chName.length > 14 ? chName.substring(0, 12) + '..' : chName;
-    liveVcText = `#${displayCh}${durText}`;
-  }
-  embed.addFields({ name: 'Live VC', value: liveVcText, inline: true });
-
-  // Row 2: Voice Time | Location | Zodiac / MBTI (3 Balanced Inline Columns)
-  const voiceStats = getVoiceStats(guild.id, targetUser.id, guild);
-  embed.addFields({ name: 'Voice Time', value: voiceStats.formattedTime, inline: true });
-
-  // Location display (Smart normalized secara dinamis dari raw input atau data lama)
-  const rawLoc = userCard.asalRaw || userCard.asal || userCard.location?.display || '';
-  const parsedLoc = rawLoc ? parseLocation(rawLoc) : null;
-  const locDisplay = parsedLoc?.display || userCard.location?.display || userCard.asal || '-';
-  embed.addFields({ name: 'Location', value: locDisplay, inline: true });
-
-  // Zodiac / MBTI (Zodiak dihitung otomatis dari tanggal lahir yang tersimpan di sistem)
-  let zodiacSymbolAndName = null;
-  if (userCard.birthdate && userCard.birthdate.day && userCard.birthdate.month) {
-    const zodiacObj = getZodiac(userCard.birthdate.day, userCard.birthdate.month);
-    if (zodiacObj) zodiacSymbolAndName = zodiacObj.label;
-  }
-  const mbtiText = userCard.mbti ? userCard.mbti.toUpperCase() : null;
-
-  let zodiacMbtiDisplay = '-';
-  if (zodiacSymbolAndName && mbtiText) {
-    zodiacMbtiDisplay = `${zodiacSymbolAndName} • ${mbtiText}`;
-  } else if (zodiacSymbolAndName) {
-    zodiacMbtiDisplay = zodiacSymbolAndName;
-  } else if (mbtiText) {
-    zodiacMbtiDisplay = mbtiText;
-  }
-
-  embed.addFields({ name: 'Zodiac / MBTI', value: zodiacMbtiDisplay, inline: true });
-
-  // Row 3: Social Link (Elegan & rapi)
-  if (userCard.linkUrl && /^https?:\/\/[^\s]+$/i.test(userCard.linkUrl)) {
-    const linkTitle = userCard.linkTitle || 'Visit Link';
-    embed.addFields({
-      name: 'Social Link',
-      value: `[${linkTitle} ↗](${userCard.linkUrl})`,
-      inline: Boolean(zodiacMbtiDisplay)
-    });
-  }
-
-  // Row 4: Top Voice Companions (Full Width, Vertical List)
-  if (voiceStats.topCompanions && voiceStats.topCompanions.length > 0) {
-    const compText = voiceStats.topCompanions
-      .map((c, i) => `${i + 1}. **${c.name}** — ${c.timeFormatted}`)
-      .join('\n');
-    embed.addFields({ name: 'Top Voice Companions', value: compText, inline: false });
-  }
-
-  // Row 5: Badges & Recognition (Clean Minimalist Design)
-  try {
-    const { getUserAchievements } = require('./achievementHelper');
-    const achData = getUserAchievements(guild.id, member.id, member);
-    if (achData.unlocked.length > 0) {
-      let badgeList = achData.unlocked.map(a => `\`${a.tag} ${a.name}\``).join('  ');
-      if (badgeList.length > 1024) {
-        badgeList = badgeList.substring(0, 990) + ` ... *(+${achData.unlocked.length} badges)*`;
-      }
-      embed.addFields({
-        name: `Titles & Badges (${achData.unlocked.length})`,
-        value: badgeList,
-        inline: false
-      });
-    }
-  } catch (_) {}
-
-  // Banner image: Direct Image URL via Discord native proxy
-  if (userCard.bannerUrl && /^https?:\/\/.+/i.test(userCard.bannerUrl)) {
-    embed.setImage(userCard.bannerUrl);
-  }
-
-  embed
-    .setFooter({ text: `${guild.name} • Member Card` })
+    .setDescription(description)
+    .setImage('attachment://member-card.png')
+    .setFooter({ text: `${guild.name} • Official Member Identity Card` })
     .setTimestamp();
 
-  return { embed };
+  return { embed, attachment, files: [attachment] };
 }
 
 /**
- * Publish or update member card in #card-gallery (Pure JSON, 0 Multipart Uploads, 0 Socket Errors)
+ * Publish or update member card in #card-gallery with Canvas image
+ * Guaranteed: Exactly 1 record in database, edits existing messages in-place, zero duplicate posts.
  */
 async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   const guildId = guild.id;
@@ -395,21 +318,20 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   if (!cardsData[guildId][userId]) cardsData[guildId][userId] = {};
 
   const userCard = cardsData[guildId][userId];
-  const { embed } = await buildMemberCardEmbed(guild, member);
+  const { embed, files } = await buildMemberCardEmbed(guild, member);
 
   const likesCount = (userCard.likes || []).length;
   const respectsCount = (userCard.respects || []).length;
-  const components = createPublishedCardComponents(userId, likesCount, respectsCount);
+  const components = createPublishedCardComponents(userId, likesCount, respectsCount, userCard.linkUrl, userCard.linkTitle);
 
-  let publishedMsgId = userCard.publishedMessageId;
-
-  // CASE 1: Edit existing published message
+  // CASE 1: Edit existing published message in-place (No duplicate messages!)
   if (userCard.publishedMessageId) {
     try {
       const existingMessage = await publishChannel.messages.fetch(userCard.publishedMessageId).catch(() => null);
       if (existingMessage) {
         await existingMessage.edit({
           embeds: [embed],
+          files: files,
           components: components
         });
         const jumpUrl = `https://discord.com/channels/${guildId}/${targetChannelId}/${userCard.publishedMessageId}`;
@@ -430,6 +352,7 @@ async function publishCardToChannel(guild, member, client, isAutoSync = false) {
   try {
     const newMessage = await publishChannel.send({
       embeds: [embed],
+      files: files,
       components: components
     });
 
@@ -531,15 +454,16 @@ async function handleCardButton(interaction, client) {
     return interaction.showModal(modal);
   }
 
-  // 2. VIEW MY CARD (Ephemeral Preview — Pure JSON, 0 ms)
+  // 2. VIEW MY CARD (Ephemeral Preview)
   if (customId === 'card_btn_view_self') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const { embed } = await buildMemberCardEmbed(interaction.guild, interaction.member);
+      const { embed, files } = await buildMemberCardEmbed(interaction.guild, interaction.member);
       return await interaction.editReply({
         content: '*Your Member Card Preview:*',
-        embeds: [embed]
+        embeds: [embed],
+        files: files
       });
     } catch (err) {
       console.error('[ViewCard] Error:', err);
@@ -620,16 +544,19 @@ async function handleCardButton(interaction, client) {
       });
     }
 
-    const { embed: updatedEmbed } = await buildMemberCardEmbed(interaction.guild, authorMember);
+    const { embed: updatedEmbed, files: updatedFiles } = await buildMemberCardEmbed(interaction.guild, authorMember);
     const updatedComponents = createPublishedCardComponents(
       authorId,
       (targetCard.likes || []).length,
-      (targetCard.respects || []).length
+      (targetCard.respects || []).length,
+      targetCard.linkUrl,
+      targetCard.linkTitle
     );
 
     // Update the message instantly (real-time update)
     await interaction.update({
       embeds: [updatedEmbed],
+      files: updatedFiles,
       components: updatedComponents
     });
 
@@ -800,5 +727,6 @@ module.exports = {
   handleCardButton,
   handleCardModalSubmit,
   buildMemberCardEmbed,
-  publishCardToChannel
+  publishCardToChannel,
+  GALLERY_CHANNEL_ID
 };
