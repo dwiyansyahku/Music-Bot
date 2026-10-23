@@ -1,0 +1,643 @@
+{
+  "guild_duel_test_99": {
+    "user_king": {
+      "tickets": 5,
+      "stardust": 350,
+      "inventory": [
+        "Pedang Raja"
+      ],
+      "badges": [],
+      "titles": [],
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "duelHistory": [
+        {
+          "date": 1792381967535,
+          "tier": "MYTHIC",
+          "opponent": "user_challenger",
+          "result": "lose",
+          "role": "defender"
+        },
+        {
+          "opponent": "user_challenger",
+          "tier": "MYTHIC",
+          "result": "win",
+          "role": "defender",
+          "date": 1788925134140
+        }
+      ],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": null,
+      "duelWins": 0,
+      "duelLosses": 1,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 0,
+      "shopPurchases": []
+    },
+    "user_challenger": {
+      "tickets": 3,
+      "stardust": 50,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": [],
+      "shopPurchases": [],
+      "equippedTitle": null,
+      "activeRole": {
+        "tier": "MYTHIC",
+        "obtainedAt": 1792381967535
+      },
+      "duelDefenseStreak": 0,
+      "duelWins": 1,
+      "duelLosses": 0,
+      "duelHistory": [
+        {
+          "date": 1792381967535,
+          "tier": "MYTHIC",
+          "opponent": "user_king",
+          "result": "win",
+          "role": "challenger"
+        }
+      ],
+      "throneProtectedUntil": 1792385567535,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 0
+    }
+  },
+  "test_guild_inventory_public": {
+    "user_public": {
+      "tickets": 5,
+      "stardust": 120,
+      "streak": 2,
+      "pulls": 10,
+      "inventory": [
+        "Aura of the Celestial Dragon"
+      ],
+      "badges": [
+        "✦ Dragon Sovereign"
+      ],
+      "titles": [
+        "Cosmic Dragon"
+      ],
+      "equippedTitle": "Cosmic Dragon",
+      "pityEpic": 1,
+      "pityLegendary": 4,
+      "activeRole": null,
+      "duelDefenseStreak": 0
+    }
+  },
+  "test_guild_cross_post": {
+    "user_gacha_fanatic": {
+      "tickets": 8,
+      "stardust": 250,
+      "streak": 4,
+      "pulls": 40,
+      "inventory": [
+        "Cosmic Aegis of Infinity",
+        "Aura of the Celestial Dragon"
+      ],
+      "badges": [
+        "✦ Supreme Celestial"
+      ],
+      "titles": [
+        "Lord of Infinity"
+      ],
+      "equippedTitle": "Lord of Infinity",
+      "pityEpic": 1,
+      "pityLegendary": 3,
+      "activeRole": {
+        "tier": "MYTHIC",
+        "roleId": "role_mythic"
+      },
+      "duelDefenseStreak": 1
+    }
+  },
+  "test_guild_inventory_play_redirection": {
+    "user_tester": {
+      "tickets": 10,
+      "stardust": 500,
+      "streak": 3,
+      "pulls": 25,
+      "inventory": [
+        "Cosmic Aegis of Infinity"
+      ],
+      "badges": [
+        "[STREAK_7D]"
+      ],
+      "titles": [
+        "Lord of Infinity"
+      ],
+      "equippedTitle": "Lord of Infinity",
+      "pityEpic": 2,
+      "pityLegendary": 8,
+      "activeRole": {
+        "tier": "MYTHIC",
+        "roleId": "role_mythic_123"
+      },
+      "duelDefenseStreak": 2
+    }
+  },
+  "test_guild_jackpot_broadcast": {
+    "user_lucky_999": {
+      "tickets": 11,
+      "stardust": 310,
+      "inventory": [
+        "Excalibur of the Dawn",
+        "Crown of Destiny",
+        "Midnight Guardian Shield",
+        "Enchanted Bookmark",
+        "Shadow Assassin Cloak",
+        "Warm Green Tea Cup",
+        "Pocket Lint of Wisdom",
+        "Pixelated Battery"
+      ],
+      "badges": [
+        "✦ Dawnblade Master",
+        "✦ Sultan Mpruy",
+        "◈ Guardian Angel",
+        "◇ Lore Keeper",
+        "◈ Ghost Walker"
+      ],
+      "titles": [
+        "Blade of Light",
+        "Sovereign of Luck",
+        "Night Watcher",
+        "Scholar of Whispers",
+        "Silent Phantom"
+      ],
+      "pityEpic": 0,
+      "pityLegendary": 9,
+      "pulls": 25,
+      "lastDaily": 1788925284505,
+      "streak": 1,
+      "equippedTitle": null,
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "duelHistory": []
+    }
+  },
+  "test_guild_shop_999": {
+    "claimant_01": {
+      "stardust": 73,
+      "tickets": 0,
+      "titles": [],
+      "badges": [],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": null,
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 0,
+      "duelHistory": [],
+      "inventory": [],
+      "shopPurchases": []
+    },
+    "claimant_02": {
+      "stardust": 84,
+      "tickets": 0,
+      "titles": [],
+      "badges": [],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": null,
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 0,
+      "duelHistory": [],
+      "inventory": [],
+      "shopPurchases": []
+    },
+    "claimant_03": {
+      "stardust": 97,
+      "tickets": 0,
+      "titles": [],
+      "badges": [],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": null,
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 0,
+      "duelHistory": [],
+      "inventory": [],
+      "shopPurchases": []
+    },
+    "claimant_04": {
+      "stardust": 98,
+      "tickets": 0,
+      "titles": [],
+      "badges": [],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": null,
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 0,
+      "duelHistory": [],
+      "inventory": [],
+      "shopPurchases": []
+    },
+    "claimant_05": {
+      "stardust": 81,
+      "tickets": 0,
+      "titles": [],
+      "badges": [],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": null,
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 0,
+      "duelHistory": [],
+      "inventory": [],
+      "shopPurchases": []
+    },
+    "test_user_shop_001": {
+      "tickets": 1,
+      "stardust": 1850,
+      "titles": [
+        "Sang Penakluk Kosmos"
+      ],
+      "badges": [],
+      "shopPurchases": [],
+      "activeRole": {
+        "tier": "MYTHIC",
+        "roleId": "role_mythic_1"
+      },
+      "throneProtectedUntil": 1788954931491,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 3,
+      "customTitleTokens": 0,
+      "inventory": [],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": "Sang Penakluk Kosmos",
+      "duelDefenseStreak": 0,
+      "duelHistory": []
+    }
+  },
+  "guild_test": {
+    "user_tester": {
+      "inventory": [
+        "Cincin Keabadian Primordial",
+        "Aegis Pelindung Kosmik",
+        "Pedang Excalibur Suci",
+        "Sayap Valkyrie Emas"
+      ],
+      "badges": [
+        "Primordial Sovereign"
+      ],
+      "titles": [
+        "The Primordial God"
+      ],
+      "tickets": 10,
+      "stardust": 500,
+      "pulls": 30,
+      "pityEpic": 4,
+      "pityLegendary": 12,
+      "duelWins": 7,
+      "duelLosses": 3,
+      "duelDefenseStreak": 2,
+      "activeRole": {
+        "roleId": "role_mythic",
+        "tier": "MYTHIC"
+      }
+    },
+    "user_sultan": {
+      "stardust": 670,
+      "tickets": 15,
+      "titles": [],
+      "badges": [],
+      "shopPurchases": [],
+      "inventory": [
+        "Four-Leaf Clover Token"
+      ],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": null,
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "duelWins": 0,
+      "duelLosses": 0,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 1,
+      "duelHistory": []
+    }
+  },
+  "guild1": {
+    "user123": {
+      "stardust": 200,
+      "tickets": 2,
+      "titles": [],
+      "badges": [],
+      "shopPurchases": [],
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "equippedTitle": null,
+      "activeRole": null,
+      "duelDefenseStreak": 0,
+      "duelWins": 0,
+      "duelLosses": 0,
+      "throneProtectedUntil": 0,
+      "challengeCooldownUntil": 0,
+      "luckyBuffPulls": 0,
+      "customTitleTokens": 0,
+      "duelHistory": [],
+      "inventory": []
+    }
+  },
+  "test_guild_overflow_001": {
+    "user_overflow_1": {
+      "activeRole": {
+        "tier": "LEGENDARY",
+        "roleId": "role_legend_overflow",
+        "obtainedAt": 1100
+      },
+      "inventory": []
+    },
+    "user_overflow_2": {
+      "activeRole": {
+        "tier": "LEGENDARY",
+        "roleId": "role_legend_overflow",
+        "obtainedAt": 1200
+      },
+      "inventory": []
+    },
+    "user_overflow_3": {
+      "activeRole": {
+        "tier": "LEGENDARY",
+        "roleId": "role_legend_overflow",
+        "obtainedAt": 1300
+      },
+      "inventory": []
+    },
+    "user_overflow_4": {
+      "activeRole": {
+        "tier": "LEGENDARY",
+        "roleId": "role_legend_overflow",
+        "obtainedAt": 1400
+      },
+      "inventory": []
+    },
+    "user_overflow_5": {
+      "activeRole": {
+        "tier": "LEGENDARY",
+        "roleId": "role_legend_overflow",
+        "obtainedAt": 1500
+      },
+      "inventory": []
+    },
+    "user_overflow_6": {
+      "activeRole": null,
+      "inventory": []
+    },
+    "user_overflow_7": {
+      "activeRole": null,
+      "inventory": []
+    }
+  },
+  "test_guild_ghost_001": {
+    "ghost_user": {
+      "activeRole": null
+    }
+  },
+  "1396245234693963878": {
+    "1473440118470873118": {
+      "tickets": 19,
+      "stardust": 290,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "1527889898164453499": {
+      "tickets": 19,
+      "stardust": 290,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "536558583316480011": {
+      "tickets": 12,
+      "stardust": 185,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "755370884218224680": {
+      "tickets": 8,
+      "stardust": 125,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "1470018136655921326": {
+      "tickets": 20,
+      "stardust": 305,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "997976026292420608": {
+      "tickets": 18,
+      "stardust": 275,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "438949811408863243": {
+      "tickets": 17,
+      "stardust": 260,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "587949010329927701": {
+      "tickets": 17,
+      "stardust": 260,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "1058929956379443200": {
+      "tickets": 14,
+      "stardust": 215,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "851676596954726411": {
+      "tickets": 12,
+      "stardust": 185,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "630744301328138240": {
+      "tickets": 8,
+      "stardust": 125,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "709819210444046387": {
+      "tickets": 7,
+      "stardust": 110,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "568034632176500736": {
+      "tickets": 6,
+      "stardust": 95,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "1331570397019246614": {
+      "tickets": 6,
+      "stardust": 95,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "1541108080094220422": {
+      "tickets": 4,
+      "stardust": 65,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    },
+    "756907421292822559": {
+      "tickets": 5,
+      "stardust": 80,
+      "pulls": 0,
+      "pityEpic": 0,
+      "pityLegendary": 0,
+      "lastDaily": 0,
+      "streak": 0,
+      "inventory": [],
+      "badges": [],
+      "titles": []
+    }
+  }
+}

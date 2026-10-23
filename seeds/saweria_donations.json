@@ -1,0 +1,41 @@
+{
+  "donations": [
+    {
+      "id": "saweria_tx_001",
+      "donator_name": "Donatur Hebat",
+      "amount_raw": 100000,
+      "message": "Keren banget!",
+      "created_at": "2026-09-16T07:47:54.047Z",
+      "guild_id": "BROADCAST",
+      "is_test": false
+    },
+    {
+      "id": "saweria_tx_001",
+      "donator_name": "Donatur Hebat",
+      "amount_raw": 100000,
+      "message": "Keren banget!",
+      "created_at": "2026-09-16T07:33:11.609Z",
+      "guild_id": "BROADCAST",
+      "is_test": false
+    },
+    {
+      "id": "saweria_tx_001",
+      "donator_name": "Donatur Hebat",
+      "amount_raw": 100000,
+      "message": "Keren banget!",
+      "created_at": "2026-09-16T07:32:59.454Z",
+      "guild_id": "BROADCAST",
+      "is_test": false
+    },
+    {
+      "id": "saweria_tx_001",
+      "donator_name": "Donatur Hebat",
+      "amount_raw": 100000,
+      "message": "Keren banget!",
+      "created_at": "2026-09-16T07:32:44.129Z",
+      "guild_id": "BROADCAST",
+      "is_test": false
+    }
+  ],
+  "lastUpdated": "2026-09-16T07:47:54.047Z"
+}
