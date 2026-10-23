@@ -7,6 +7,7 @@ const {
   ChannelType
 } = require('discord.js');
 const storage = require('./storage');
+const { BOSS_VISUALS } = require('./visualEffects');
 
 /**
  * Konfigurasi Stance Segitiga Taktis
@@ -439,6 +440,7 @@ function buildCombatTurnPayload(boss, party) {
       `• ⚡ **Jurus** mengalahkan 🛡️ Bertahan\n\n` +
       `*Pilih taktikmu di bawah sebelum waktu habis! Pilihan bersifat rahasia.*`
     )
+    .setImage(BOSS_VISUALS.STANCE[boss.tier] || BOSS_VISUALS.STANCE.DAILY)
     .setFooter({ text: `${party.name} • Sisa Darah Boss tersimpan permanen` })
     .setTimestamp();
 
@@ -653,6 +655,7 @@ async function resolveCombatRound(guildId, partyId, client) {
         comboBonusText + '\n\n' +
         endDesc
       )
+      .setImage(isBossDefeated ? BOSS_VISUALS.VICTORY : isWipeout ? BOSS_VISUALS.WIPEOUT : (BOSS_VISUALS.CLASH[bossStance] || BOSS_VISUALS.CLASH.attack))
       .setFooter({ text: 'Sesi pertempuran party ini telah selesai' })
       .setTimestamp();
 
@@ -708,7 +711,8 @@ async function resolveCombatRound(guildId, partyId, client) {
         comboBonusText + `\n` +
         `• Damage Ronde Ini: **+${totalRoundDmg.toLocaleString('id-ID')} DMG**\n` +
         `• Sisa Darah Boss: **${boss.currentHp.toLocaleString('id-ID')} HP**`
-      );
+      )
+      .setImage(BOSS_VISUALS.CLASH[bossStance] || BOSS_VISUALS.CLASH.attack);
 
     await combatChannel.send({ embeds: [roundRecapEmbed] }).catch(() => {});
     const nextMsg = await combatChannel.send(nextTurnPayload).catch(() => null);
@@ -955,6 +959,7 @@ module.exports = {
   leaveBossParty,
   startPartyCombat,
   handlePlayerBossStance,
+  buildCombatTurnPayload,
   buildBossLobbyPayload,
   buildLiveLeaderboardEmbeds,
   updateLiveLeaderboardChannel

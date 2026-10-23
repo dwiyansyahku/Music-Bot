@@ -17,6 +17,7 @@ const {
 const storage = require('../utils/storage');
 const { isOwnerOrMod } = require('../utils/helpers');
 const { sendModLog } = require('../utils/modlog');
+const { GACHA_VISUALS, DUEL_VISUALS } = require('../utils/visualEffects');
 
 /**
  * Helper to get current Date in Western Indonesia Time (WIB / UTC+7)
@@ -1624,6 +1625,7 @@ function buildThroneDuelEmbed(duel, statusText = '') {
       `*(Jika pemegang tahta atau kedua pihak tidak merespon sama sekali dalam 12 jam, penantang otomatis merebut tahta)*` +
       (statusText ? `\n\n${statusText}` : '')
     )
+    .setImage(DUEL_VISUALS.CLASH_STANDOFF)
     .setFooter({ text: `Duel ID: ${duel.id} • Pilihan bersifat rahasia` })
     .setTimestamp();
 
@@ -1940,6 +1942,7 @@ async function executeInstantClash(duelId, client) {
         `**Rekapitulasi Ronde:**\n${roundsHistory}\n\n` +
         resultDesc
       )
+      .setImage(DUEL_VISUALS.VICTORY)
       .setFooter({ text: `Clash of Thrones • Duel ID: ${duel.id}` })
       .setTimestamp();
 
@@ -3921,6 +3924,7 @@ async function broadcastJackpot(guild, member, item, client, options = {}) {
         `\nGunakan \`/gacha pull\` atau \`/gacha daily\` untuk ikut berpartisipasi.`
       )
       .setThumbnail(avatar)
+      .setImage(GACHA_VISUALS.TIER_AURA[item.tier] || GACHA_VISUALS.PORTAL_SUMMON)
       .setFooter({ text: `${guild.name} • Koleksi Relik Server` })
       .setTimestamp();
 
@@ -4669,6 +4673,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
           inline: false
         }
       )
+      .setImage(GACHA_VISUALS.TIER_AURA[item.tier] || GACHA_VISUALS.PORTAL_SUMMON)
       .setFooter({ text: 'Gunakan tombol di bawah untuk menarik lagi atau membuka inventory' })
       .setTimestamp();
 
@@ -4785,6 +4790,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
         inline: true
       }
     )
+    .setImage(GACHA_VISUALS.MULTI_PULL)
     .setFooter({ text: 'Gunakan tombol di bawah untuk menarik lagi atau membuka inventory' })
     .setTimestamp();
 
