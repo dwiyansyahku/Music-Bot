@@ -77,7 +77,9 @@
         "display": "Bali 🇮🇩",
         "searchKey": "Bali"
       },
-      "asalRaw": "Bali"
+      "asalRaw": "Bali",
+      "mbti": "INFP",
+      "zodiacRaw": "♉ Taurus"
     },
     "630744301328138240": {
       "bio": "EVEN IF I DIE\nYOU KEEP LIVING\nSenDexler",
@@ -179,7 +181,8 @@
         "display": "Kalimantan Barat 🇮🇩",
         "searchKey": "Kalimantan Barat"
       },
-      "asalRaw": "Singkawang, Kalimantan Barat"
+      "asalRaw": "Singkawang, Kalimantan Barat",
+      "zodiacRaw": "♍ Virgo"
     },
     "804172254246076426": {
       "asal": "Kota Bengkulu, Bengkulu 🇮🇩",
@@ -230,7 +233,8 @@
         "display": "Jawa Tengah 🇮🇩",
         "searchKey": "Jawa Tengah"
       },
-      "asalRaw": "Jateng tengah"
+      "asalRaw": "Jateng tengah",
+      "zodiacRaw": "♉ Taurus"
     },
     "432838455827890186": {
       "bio": "Livaii Terlalu Tampan",
@@ -303,7 +307,8 @@
         "display": "Bogor, Jawa Barat 🇮🇩",
         "searchKey": "Bogor"
       },
-      "asalRaw": "bogor"
+      "asalRaw": "bogor",
+      "zodiacRaw": "♌ Leo"
     },
     "1527889898164453499": {
       "asal": "Jombang, Jawa Timur 🇮🇩",
@@ -317,7 +322,8 @@
         "display": "Jombang, Jawa Timur 🇮🇩",
         "searchKey": "Jombang"
       },
-      "asalRaw": "Jombang"
+      "asalRaw": "Jombang",
+      "zodiacRaw": "♎ Libra"
     },
     "1470018136655921326": {
       "bio": "-1 Lovers",
@@ -368,7 +374,8 @@
         "display": "Kota Jambi, Jambi 🇮🇩",
         "searchKey": "Kota Jambi"
       },
-      "asalRaw": "Jambi"
+      "asalRaw": "Jambi",
+      "zodiacRaw": "♈ Aries"
     },
     "1331570397019246614": {
       "bio": "Ordinary Random Shit Guy",
@@ -393,91 +400,188 @@
         "display": "Batam, Kepulauan Riau 🇮🇩",
         "searchKey": "Batam"
       },
-      "asalRaw": "Batam Riau Island"
+      "asalRaw": "Batam Riau Island",
+      "zodiacRaw": "♈ Aries"
     },
     "1154770520185774200": {
       "publishedMessageId": "1562853330064248915",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-22T15:41:10.298Z"
+      "createdAt": "2026-10-22T15:41:10.298Z",
+      "bio": "hidup harus gila\n-asa santan",
+      "asal": "Ginkrowhearted",
+      "asalRaw": "Ginkrowhearted 🇮🇩",
+      "location": {
+        "display": "Ginkrowhearted 🇮🇩"
+      },
+      "zodiacRaw": "♌ Leo"
     },
     "1240343583299469434": {
       "publishedMessageId": "1562706431885447319",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-22T05:57:27.043Z"
+      "createdAt": "2026-10-22T05:57:27.043Z",
+      "bio": "-",
+      "asal": "Bekasi, Jawa Barat",
+      "asalRaw": "Bekasi, Jawa Barat 🇮🇩",
+      "location": {
+        "display": "Bekasi, Jawa Barat 🇮🇩"
+      },
+      "mbti": "INFJ",
+      "zodiacRaw": "♉ Taurus"
     },
     "1218661694339813469": {
       "publishedMessageId": "1562440021246480395",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-21T12:18:49.797Z"
+      "createdAt": "2026-10-21T12:18:49.797Z",
+      "asal": "Bandung, Jawa Barat",
+      "asalRaw": "Bandung, Jawa Barat 🇮🇩",
+      "location": {
+        "display": "Bandung, Jawa Barat 🇮🇩"
+      },
+      "zodiacRaw": "♎ Libra"
     },
     "753254425207767071": {
       "publishedMessageId": "1560156009312288810",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-15T05:02:58.917Z"
+      "createdAt": "2026-10-15T05:02:58.917Z",
+      "asal": "Bandung, Jawa Barat",
+      "asalRaw": "Bandung, Jawa Barat 🇮🇩",
+      "location": {
+        "display": "Bandung, Jawa Barat 🇮🇩"
+      },
+      "mbti": "INFP",
+      "zodiacRaw": "♐ Sagittarius"
     },
     "1329412956693467221": {
       "publishedMessageId": "1558532010421526559",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-10T17:29:47.409Z"
+      "createdAt": "2026-10-10T17:29:47.409Z",
+      "bio": "Halo salken aku cloudy",
+      "asal": "Cirebon, Jawa Barat",
+      "asalRaw": "Cirebon, Jawa Barat 🇮🇩",
+      "location": {
+        "display": "Cirebon, Jawa Barat 🇮🇩"
+      },
+      "zodiacRaw": "♒ Aquarius"
     },
     "1499312728706387968": {
       "publishedMessageId": "1558531855437930659",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-10T17:29:10.458Z"
+      "createdAt": "2026-10-10T17:29:10.458Z",
+      "bio": "maybe we get married one day",
+      "asal": "Serang, Banten",
+      "asalRaw": "Serang, Banten 🇮🇩",
+      "location": {
+        "display": "Serang, Banten 🇮🇩"
+      },
+      "zodiacRaw": "♈ Aries"
     },
     "1417178907899334696": {
       "publishedMessageId": "1543969419871649794",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-06T06:09:02.270Z"
+      "createdAt": "2026-10-06T06:09:02.270Z",
+      "bio": "Idup pelenger dan kimpul",
+      "asal": "Kendari, Sulawesi Tenggara",
+      "asalRaw": "Kendari, Sulawesi Tenggara 🇮🇩",
+      "location": {
+        "display": "Kendari, Sulawesi Tenggara 🇮🇩"
+      },
+      "zodiacRaw": "♎ Libra  ENTF"
     },
     "1461347363900625037": {
       "publishedMessageId": "1556674249609969705",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-05T14:27:42.716Z"
+      "createdAt": "2026-10-05T14:27:42.716Z",
+      "bio": "Impossible is nothing 🍃",
+      "asal": "Malang, Jawa Timur",
+      "asalRaw": "Malang, Jawa Timur 🇮🇩",
+      "location": {
+        "display": "Malang, Jawa Timur 🇮🇩"
+      },
+      "zodiacRaw": "♋ Cancer"
     },
     "806948986010337300": {
       "publishedMessageId": "1555648645729099840",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-10-02T18:32:19.696Z"
+      "createdAt": "2026-10-02T18:32:19.696Z",
+      "asal": "Jakarta Barat, DKI Jakarta",
+      "asalRaw": "Jakarta Barat, DKI Jakarta 🇮🇩",
+      "location": {
+        "display": "Jakarta Barat, DKI Jakarta 🇮🇩"
+      },
+      "zodiacRaw": "♈ Aries"
     },
     "1550220299713122435": {
       "publishedMessageId": "1554485612931711131",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-29T13:30:51.069Z"
+      "createdAt": "2026-09-29T13:30:51.069Z",
+      "bio": "gorgeous women",
+      "asal": "Banjarbaru, Kalimantan Selatan",
+      "asalRaw": "Banjarbaru, Kalimantan Selatan 🇮🇩",
+      "location": {
+        "display": "Banjarbaru, Kalimantan Selatan 🇮🇩"
+      },
+      "zodiacRaw": "♋ Cancer"
     },
     "1528049334636118247": {
       "publishedMessageId": "1554123695621152779",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-28T13:32:43.258Z"
+      "createdAt": "2026-09-28T13:32:43.258Z",
+      "bio": "ciluy cuma mau imo",
+      "asal": "Bali",
+      "asalRaw": "Bali 🇮🇩",
+      "location": {
+        "display": "Bali 🇮🇩"
+      },
+      "mbti": "ISFP",
+      "zodiacRaw": "♏ Scorpio"
     },
     "1517393834538045538": {
       "publishedMessageId": "1554022706859614270",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-28T06:51:25.661Z"
+      "createdAt": "2026-09-28T06:51:25.661Z",
+      "asal": "Bandung, Jawa Barat",
+      "asalRaw": "Bandung, Jawa Barat 🇮🇩",
+      "location": {
+        "display": "Bandung, Jawa Barat 🇮🇩"
+      },
+      "zodiacRaw": "♍ Virgo"
     },
     "783810237248438312": {
       "publishedMessageId": "1553935966455078943",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-28T01:06:45.137Z"
+      "createdAt": "2026-09-28T01:06:45.137Z",
+      "asal": "Kanada",
+      "asalRaw": "Kanada 🇨🇦",
+      "location": {
+        "display": "Kanada 🇨🇦"
+      }
     },
     "1112358701043564656": {
       "publishedMessageId": "1553792716121444363",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-27T15:37:31.596Z"
+      "createdAt": "2026-09-27T15:37:31.596Z",
+      "bio": "I'm just a plain human.",
+      "asal": "Kota Jambi, Jambi",
+      "asalRaw": "Kota Jambi, Jambi 🇮🇩",
+      "location": {
+        "display": "Kota Jambi, Jambi 🇮🇩"
+      },
+      "mbti": "INFP",
+      "zodiacRaw": "♎ Libra"
     },
     "866326365141991424": {
       "publishedMessageId": "1552882478694400041",
@@ -489,37 +593,82 @@
       "publishedMessageId": "1552662018413174855",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-24T12:44:32.255Z"
+      "createdAt": "2026-09-24T12:44:32.255Z",
+      "bio": "A simple ☕️\nthat keeps life moving.",
+      "asal": "Home",
+      "asalRaw": "Home 🌌",
+      "location": {
+        "display": "Home 🌌"
+      },
+      "mbti": "INFJ",
+      "zodiacRaw": "♑ Capricorn"
     },
     "1358666754087325829": {
       "publishedMessageId": "1552661161454084167",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-24T12:41:07.940Z"
+      "createdAt": "2026-09-24T12:41:07.940Z",
+      "bio": "Akuh suka bermain game",
+      "asal": "Kuching, Sarawak, Malaysia",
+      "asalRaw": "Kuching, Sarawak, Malaysia 🇲🇾",
+      "location": {
+        "display": "Kuching, Sarawak, Malaysia 🇲🇾"
+      },
+      "zodiacRaw": "♌ Leo"
     },
     "1531768869394317463": {
       "publishedMessageId": "1551981976960106569",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-22T15:42:17.738Z"
+      "createdAt": "2026-09-22T15:42:17.738Z",
+      "bio": "stop fucking lying,i know i'm fucking ugly",
+      "asal": "Kembangan, DKI Jakarta",
+      "asalRaw": "Kembangan, DKI Jakarta 🇮🇩",
+      "location": {
+        "display": "Kembangan, DKI Jakarta 🇮🇩"
+      },
+      "mbti": "ENTJ",
+      "zodiacRaw": "♐ Sagittarius"
     },
     "626825231171846172": {
       "publishedMessageId": "1551938452348477522",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-22T12:49:20.662Z"
+      "createdAt": "2026-09-22T12:49:20.662Z",
+      "bio": "hallo guys salam kenal nama aku fluff/fly\ntegur aja ya ga gigit kok",
+      "asal": "Bandar Seri Begawan, Brunei-Muara, Brunei",
+      "asalRaw": "Bandar Seri Begawan, Brunei-Muara, Brunei 🇧🇳",
+      "location": {
+        "display": "Bandar Seri Begawan, Brunei-Muara, Brunei 🇧🇳"
+      },
+      "zodiacRaw": "♏ Scorpio"
     },
     "1418551454872113244": {
       "publishedMessageId": "1551933138563891251",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-22T12:28:13.757Z"
+      "createdAt": "2026-09-22T12:28:13.757Z",
+      "bio": "Ntah lah org plenger maybe / kadang² pendiam",
+      "asal": "Aceh",
+      "asalRaw": "Aceh 🇮🇩",
+      "location": {
+        "display": "Aceh 🇮🇩"
+      },
+      "zodiacRaw": "♋ Cancer"
     },
     "1144235761227534386": {
       "publishedMessageId": "1551932080932528241",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-22T12:24:01.598Z"
+      "createdAt": "2026-09-22T12:24:01.598Z",
+      "bio": "Just Chill NPC \n(Non Playable Cloud)",
+      "asal": "Bogor, Jawa Barat",
+      "asalRaw": "Bogor, Jawa Barat 🇮🇩",
+      "location": {
+        "display": "Bogor, Jawa Barat 🇮🇩"
+      },
+      "mbti": "INTP",
+      "zodiacRaw": "♊ Gemini"
     },
     "536558583316480011": {
       "publishedMessageId": "1550795879269802035",
@@ -531,25 +680,54 @@
       "publishedMessageId": "1543646846038183997",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-16T18:54:02.709Z"
+      "createdAt": "2026-09-16T18:54:02.709Z",
+      "bio": "Hallo aku Bebek yang bukan unggas",
+      "asal": "Gianyar, Bali",
+      "asalRaw": "Gianyar, Bali 🇮🇩",
+      "location": {
+        "display": "Gianyar, Bali 🇮🇩"
+      },
+      "zodiacRaw": "♒ Aquarius"
     },
     "1536424113051017268": {
       "publishedMessageId": "1548748169318506629",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-13T17:32:17.915Z"
+      "createdAt": "2026-09-13T17:32:17.915Z",
+      "bio": "hayoo",
+      "asal": "Sabah, Malaysia",
+      "asalRaw": "Sabah, Malaysia 🇲🇾",
+      "location": {
+        "display": "Sabah, Malaysia 🇲🇾"
+      },
+      "mbti": "INTP",
+      "zodiacRaw": "♒ Aquarius"
     },
     "1033527258549334086": {
       "publishedMessageId": "1548015281010380832",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-11T17:00:03.726Z"
+      "createdAt": "2026-09-11T17:00:03.726Z",
+      "bio": "Cuma orang biasa",
+      "asal": "Sarawak, Malaysia",
+      "asalRaw": "Sarawak, Malaysia 🇲🇾",
+      "location": {
+        "display": "Sarawak, Malaysia 🇲🇾"
+      },
+      "zodiacRaw": "♌ Leo"
     },
     "1129327862038675538": {
       "publishedMessageId": "1547963874068664423",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-11T13:35:47.356Z"
+      "createdAt": "2026-09-11T13:35:47.356Z",
+      "bio": "Aku bocil umur 13thn",
+      "asal": "Denpasar, Bali",
+      "asalRaw": "Denpasar, Bali 🇮🇩",
+      "location": {
+        "display": "Denpasar, Bali 🇮🇩"
+      },
+      "zodiacRaw": "♑ Capricorn"
     },
     "1541108080094220422": {
       "publishedMessageId": "1547963819173609483",
@@ -561,13 +739,26 @@
       "publishedMessageId": "1547623896612732990",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-10T15:04:50.414Z"
+      "createdAt": "2026-09-10T15:04:50.414Z",
+      "asal": "Isekai",
+      "asalRaw": "Isekai 🌌",
+      "location": {
+        "display": "Isekai 🌌"
+      },
+      "zodiacRaw": "♋ Cancer"
     },
     "1278190423772233740": {
       "publishedMessageId": "1547559317392326657",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-10T10:48:13.528Z"
+      "createdAt": "2026-09-10T10:48:13.528Z",
+      "bio": "your life is your choice",
+      "asal": "Pangkalpinang, Kepulauan Bangka Belitung",
+      "asalRaw": "Pangkalpinang, Kepulauan Bangka Belitung 🇮🇩",
+      "location": {
+        "display": "Pangkalpinang, Kepulauan Bangka Belitung 🇮🇩"
+      },
+      "zodiacRaw": "♓ Pisces"
     },
     "1511073202284134681": {
       "publishedMessageId": "1547272405339340936",
@@ -579,7 +770,14 @@
       "publishedMessageId": "1547271016471076875",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-09-09T15:42:37.232Z"
+      "createdAt": "2026-09-09T15:42:37.232Z",
+      "bio": "Hai hai, aku bachyy or u can call me bacici ^^",
+      "asal": "Bekasi, Jawa Barat",
+      "asalRaw": "Bekasi, Jawa Barat 🇮🇩",
+      "location": {
+        "display": "Bekasi, Jawa Barat 🇮🇩"
+      },
+      "zodiacRaw": "♈ Aries"
     },
     "1358832343573336084": {
       "publishedMessageId": "1545499687380066497",
@@ -591,37 +789,81 @@
       "publishedMessageId": "1543895004152594464",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-08-31T08:07:33.172Z"
+      "createdAt": "2026-08-31T08:07:33.172Z",
+      "bio": "hii... this is kai!! and I'm good thank you",
+      "asal": "Jakarta, DKI Jakarta",
+      "asalRaw": "Jakarta, DKI Jakarta 🇮🇩",
+      "location": {
+        "display": "Jakarta, DKI Jakarta 🇮🇩"
+      },
+      "mbti": "INTP",
+      "zodiacRaw": "♊ Gemini"
     },
     "1247281331277136053": {
       "publishedMessageId": "1543874474015850508",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-08-31T06:45:58.406Z"
+      "createdAt": "2026-08-31T06:45:58.406Z",
+      "bio": "Be Kind ☺️",
+      "asal": "Seattle, Washington, United States",
+      "asalRaw": "Seattle, Washington, United States 🇺🇸",
+      "location": {
+        "display": "Seattle, Washington, United States 🇺🇸"
+      },
+      "mbti": "ENFJ",
+      "zodiacRaw": "♑ Capricorn"
     },
     "1396473500486860980": {
       "publishedMessageId": "1543837875739566183",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-08-31T04:20:32.697Z"
+      "createdAt": "2026-08-31T04:20:32.697Z",
+      "bio": "sempol enak",
+      "asal": "Denpasar, Bali",
+      "asalRaw": "Denpasar, Bali 🇮🇩",
+      "location": {
+        "display": "Denpasar, Bali 🇮🇩"
+      },
+      "mbti": "ISFP",
+      "zodiacRaw": "♉ Taurus"
     },
     "1449942463551635498": {
       "publishedMessageId": "1543837763504308275",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-08-31T04:20:05.938Z"
+      "createdAt": "2026-08-31T04:20:05.938Z",
+      "bio": "jomblo",
+      "asal": "Kota Bengkulu, Bengkulu",
+      "asalRaw": "Kota Bengkulu, Bengkulu 🇮🇩",
+      "location": {
+        "display": "Kota Bengkulu, Bengkulu 🇮🇩"
+      }
     },
     "1481907391489380453": {
       "publishedMessageId": "1543625121590288385",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-08-30T14:15:08.155Z"
+      "createdAt": "2026-08-30T14:15:08.155Z",
+      "bio": "hidup harus gila",
+      "asal": "Kapuas, Kalimantan Tengah",
+      "asalRaw": "Kapuas, Kalimantan Tengah 🇮🇩",
+      "location": {
+        "display": "Kapuas, Kalimantan Tengah 🇮🇩"
+      },
+      "zodiacRaw": "♏ Scorpio"
     },
     "900355929042743337": {
       "publishedMessageId": "1543568450750910467",
       "likes": [],
       "respects": [],
-      "createdAt": "2026-08-30T10:29:56.774Z"
+      "createdAt": "2026-08-30T10:29:56.774Z",
+      "bio": "jungle idaman",
+      "asal": "Bandung, Jawa Barat",
+      "asalRaw": "Bandung, Jawa Barat 🇮🇩",
+      "location": {
+        "display": "Bandung, Jawa Barat 🇮🇩"
+      },
+      "zodiacRaw": "♍ Virgo"
     },
     "1058929956379443200": {
       "publishedMessageId": "1543372802839543831",
