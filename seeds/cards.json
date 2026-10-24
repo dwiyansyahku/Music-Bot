@@ -870,6 +870,27 @@
       "likes": [],
       "respects": [],
       "createdAt": "2026-08-29T21:32:30.677Z"
+    },
+    "1562773825756856414": {
+      "bio": "maklumi ya saya masih pemalu",
+      "asal": "Padang, Sumatera Barat 🇮🇩",
+      "asalRaw": "Padang",
+      "location": {
+        "isAnomaly": false,
+        "city": "Padang",
+        "stateOrProvince": "Sumatera Barat",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "display": "Padang, Sumatera Barat 🇮🇩",
+        "searchKey": "Padang"
+      },
+      "zodiac": "♉ Taurus",
+      "zodiacRaw": "♉ Taurus",
+      "mbti": "INTJ",
+      "likes": [],
+      "respects": [],
+      "publishedMessageId": "1563219036630945894",
+      "createdAt": "2026-10-23T18:31:10.979Z"
     }
   }
 }
