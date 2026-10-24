@@ -226,22 +226,34 @@ module.exports = {
 
     // ═══ 5. WHITELIST WORD ═══
     if (sub === 'whitelist') {
-      const word = interaction.options.getString('kata').toLowerCase().trim();
+      const input = interaction.options.getString('kata').toLowerCase().trim();
+      const words = input.split(/[\s,]+/).map(w => w.trim()).filter(Boolean);
       let whitelisted = allSettings[guildId].whitelistedWords || [];
+      const addedWords = [];
 
-      if (allSettings[guildId].customBadWords) {
-        allSettings[guildId].customBadWords = allSettings[guildId].customBadWords.filter(w => w !== word);
+      for (const word of words) {
+        if (allSettings[guildId].customBadWords) {
+          allSettings[guildId].customBadWords = allSettings[guildId].customBadWords.filter(w => w !== word);
+        }
+
+        if (!whitelisted.includes(word)) {
+          whitelisted.push(word);
+          addedWords.push(word);
+        }
       }
 
-      if (!whitelisted.includes(word)) {
-        whitelisted.push(word);
+      if (addedWords.length > 0) {
         allSettings[guildId].whitelistedWords = whitelisted;
         storage.write('settings', allSettings);
       }
 
+      const desc = words.length > 1
+        ? `**${addedWords.length} Kata Diizinkan (Whitelist).** Kata-kata berikut tidak akan pernah dideteksi/dihapus oleh bot:\n${addedWords.map(w => `• \`${w}\``).join('\n')}`
+        : `**Kata Diizinkan (Whitelist).** Kata \`${words[0]}\` tidak akan pernah dideteksi/dihapus oleh bot.`;
+
       const wlEmbed = new EmbedBuilder()
         .setColor(0x2B2D31)
-        .setDescription(`**Kata Diizinkan (Whitelist).** Kata \`${word}\` tidak akan pernah dideteksi/dihapus oleh bot.`);
+        .setDescription(desc);
 
       return interaction.reply({ embeds: [wlEmbed] });
     }

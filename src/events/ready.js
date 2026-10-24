@@ -20,6 +20,7 @@ module.exports = {
     // =============================================
     // LOAD SETTINGS & INIT VOICE TRACKER & INVITE TRACKER
     // =============================================
+    await storage.initCloudStorage();
     loadAllSettings(client);
     initVoiceTracker(client);
     initInviteTracker(client).catch(err => {

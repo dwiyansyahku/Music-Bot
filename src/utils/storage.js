@@ -17,6 +17,91 @@ const SEEDS_DIR = path.join(process.cwd(), 'seeds');
 // In-Memory Cache untuk performa super cepat (0ms disk I/O)
 const memoryCache = new Map();
 
+// Cloud Sync Configuration (Supabase REST API)
+const DEFAULT_SUPABASE_URL = 'https://kguskfklfrfoomsnxwkt.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtndXNrZmtsZnJmb29tc254d2t0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwOTg4MjYsImV4cCI6MjA4MzY3NDgyNn0.h5PvtHV7fUouV7W_MWZIFMq8mWaEV8Qma99VX8x-9Zg';
+
+const SUPABASE_URL = process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
+
+let cloudInitialized = false;
+const cloudSyncQueue = new Map();
+let syncTimer = null;
+
+/**
+ * Inisialisasi Cloud Storage dari Supabase saat startup.
+ * Mengunduh semua data JSON terbaru dari database cloud ke memori & disk lokal.
+ */
+async function initCloudStorage() {
+  if (cloudInitialized) return;
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.log('ℹ️ [Cloud Storage] Konfigurasi Supabase tidak tersedia. Menggunakan penyimpanan lokal.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/bot_storage?select=key,data`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+
+    if (res.ok) {
+      const records = await res.json();
+      for (const { key, data } of records) {
+        if (key && data) {
+          memoryCache.set(key, data);
+          try {
+            fs.writeFileSync(getFilePath(key), JSON.stringify(data, null, 2), 'utf8');
+          } catch (_) {}
+        }
+      }
+      cloudInitialized = true;
+      console.log(`☁️ [Cloud Storage] Berhasil sinkronisasi ${records.length} database dari Supabase Cloud!`);
+    } else {
+      console.warn(`⚠️ [Cloud Storage] Gagal sinkron cloud (${res.status}): ${await res.text()}`);
+    }
+  } catch (err) {
+    console.warn('⚠️ [Cloud Storage] Gagal terhubung ke Supabase:', err.message);
+  }
+}
+
+/**
+ * Kirim update data ke Supabase di background (debounced).
+ */
+function queueCloudSync(name, data) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  cloudSyncQueue.set(name, data);
+
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    const batch = Array.from(cloudSyncQueue.entries());
+    cloudSyncQueue.clear();
+
+    for (const [key, content] of batch) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/bot_storage`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({
+            key,
+            data: content,
+            updated_at: new Date().toISOString()
+          })
+        });
+      } catch (err) {
+        console.warn(`⚠️ [Cloud Sync] Gagal sync ${key} ke Supabase:`, err.message);
+      }
+    }
+  }, 1000);
+}
+
 /** Baca seluruh isi file JSON (dengan in-memory caching & auto-seed) */
 function read(name) {
   if (memoryCache.has(name)) {
@@ -24,7 +109,7 @@ function read(name) {
   }
   const fp = getFilePath(name);
   if (!fs.existsSync(fp)) {
-    // Auto-seed dari folder seeds/ jika data/ masih kosong (fresh deployment / volume baru)
+    // Auto-seed dari folder seeds/ jika data/ masih kosong
     const seedPath = path.join(SEEDS_DIR, `${name}.json`);
     if (fs.existsSync(seedPath)) {
       try {
@@ -53,6 +138,13 @@ function read(name) {
             if (target[key] === undefined || target[key] === null || target[key] === '') {
               target[key] = val;
               changed = true;
+            } else if (Array.isArray(val) && Array.isArray(target[key])) {
+              for (const item of val) {
+                if (!target[key].includes(item)) {
+                  target[key].push(item);
+                  changed = true;
+                }
+              }
             } else if (val !== null && typeof val === 'object' && !Array.isArray(val) && typeof target[key] === 'object' && !Array.isArray(target[key])) {
               if (recursiveMerge(target[key], val)) {
                 changed = true;
@@ -74,7 +166,7 @@ function read(name) {
   }
 }
 
-/** Tulis seluruh isi file JSON (update memory cache & disk secara atomik agar tahan crash) */
+/** Tulis seluruh isi file JSON (update memory cache, disk atomik, & cloud sync) */
 function write(name, data) {
   memoryCache.set(name, data);
   const targetPath = getFilePath(name);
@@ -88,6 +180,8 @@ function write(name, data) {
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
     } catch (_) {}
   }
+  // Sync otomatis ke Cloud Supabase
+  queueCloudSync(name, data);
 }
 
 /** Ambil satu key dari file JSON */
@@ -148,4 +242,14 @@ function saveGuildSetting(guildId, section, value) {
   write('settings', settings);
 }
 
-module.exports = { read, write, get, set, del, loadAllSettings, saveGuildSetting };
+module.exports = {
+  read,
+  write,
+  get,
+  set,
+  del,
+  loadAllSettings,
+  saveGuildSetting,
+  initCloudStorage
+};
+
