@@ -7,7 +7,8 @@ const {
   TextInputBuilder,
   TextInputStyle,
   MessageFlags,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  ChannelType
 } = require('discord.js');
 const storage = require('./storage');
 const { getModLogChannelId, sendModLog } = require('./modlog');
@@ -59,6 +60,224 @@ function getDeskReportChannelId(guildId, categoryType = 'all') {
     guildSettings.reportChannelId ||
     getModLogChannelId(guildId)
   );
+}
+
+/**
+ * Konfigurasi saluran khusus untuk masing-masing kategori pengaduan
+ */
+const DESK_CHANNEL_CONFIGS = {
+  report: {
+    key: 'report',
+    name: 'laporan-member',
+    topic: 'Tiket Laporan Pelanggaran Member (Rule Breaking / Toxic / Spam / Scam)'
+  },
+  content: {
+    key: 'content',
+    name: 'ide-kolaborasi',
+    topic: 'Tiket Usulan Ide Konten, Mabar, Podcast & Kolaborasi Kreatif'
+  },
+  feedback: {
+    key: 'feedback',
+    name: 'kritik-saran',
+    topic: 'Tiket Kritik, Evaluasi & Saran Pengembangan Server Komunitas'
+  },
+  other: {
+    key: 'other',
+    name: 'pesan-lainnya',
+    topic: 'Tiket Pesan Umum, Pertanyaan Khusus & Keperluan Warga untuk Staf'
+  }
+};
+
+/**
+ * Ambil atau otomatis buatkan saluran khusus tertutup untuk kategori tertentu (JANGAN DIGABUNG)
+ * @param {import('discord.js').Guild} guild
+ * @param {'report'|'content'|'feedback'|'other'} categoryType
+ * @returns {Promise<import('discord.js').TextChannel|null>}
+ */
+async function getOrCreateDedicatedDeskChannel(guild, categoryType) {
+  if (!guild) return null;
+  const settings = storage.read('settings') || {};
+  if (!settings[guild.id]) settings[guild.id] = {};
+  if (!settings[guild.id].deskChannels) settings[guild.id].deskChannels = {};
+  const deskChannels = settings[guild.id].deskChannels;
+
+  const catKey = (categoryType || 'report').toLowerCase();
+  const cfg = DESK_CHANNEL_CONFIGS[catKey] || DESK_CHANNEL_CONFIGS.report;
+
+  // 1. Cek apakah sudah disetel manual dan channelnya masih valid di server
+  if (deskChannels[catKey]) {
+    const existing = guild.channels.cache.get(deskChannels[catKey]);
+    if (existing) return existing;
+  }
+
+  // 2. Cek apakah ada channel dengan nama tersebut di guild
+  const existingByName = guild.channels.cache.find(c =>
+    c.type === ChannelType.GuildText && c.name.toLowerCase() === cfg.name.toLowerCase()
+  );
+  if (existingByName) {
+    deskChannels[catKey] = existingByName.id;
+    storage.write('settings', settings);
+    return existingByName;
+  }
+
+  // 3. Jika bot punya izin ManageChannels, buatkan otomatis di kategori "MODERATOR DESK"
+  if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageChannels)) {
+    // Fallback darurat jika bot tidak punya izin kelola saluran
+    const fallbackId = deskChannels.all || settings[guild.id].deskReportChannelId || settings[guild.id].reportChannelId || getModLogChannelId(guild.id);
+    return fallbackId ? guild.channels.cache.get(fallbackId) || null : null;
+  }
+
+  const MOD_ROLE_ID = '1396257049884622899';
+  const permissionOverwrites = [
+    {
+      id: guild.roles.everyone.id,
+      deny: [PermissionFlagsBits.ViewChannel]
+    },
+    {
+      id: guild.members.me.id,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.EmbedLinks,
+        PermissionFlagsBits.AttachFiles,
+        PermissionFlagsBits.ReadMessageHistory,
+        PermissionFlagsBits.ManageChannels
+      ]
+    }
+  ];
+
+  if (guild.roles.cache.has(MOD_ROLE_ID)) {
+    permissionOverwrites.push({
+      id: MOD_ROLE_ID,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ReadMessageHistory
+      ]
+    });
+  }
+
+  // Cari atau buat kategori "MODERATOR DESK"
+  let parentCategory = guild.channels.cache.find(c =>
+    c.type === ChannelType.GuildCategory && c.name.toUpperCase() === 'MODERATOR DESK'
+  );
+
+  if (!parentCategory) {
+    parentCategory = await guild.channels.create({
+      name: 'MODERATOR DESK',
+      type: ChannelType.GuildCategory,
+      permissionOverwrites
+    }).catch(() => null);
+  }
+
+  const newChannel = await guild.channels.create({
+    name: cfg.name,
+    type: ChannelType.GuildText,
+    parent: parentCategory?.id || null,
+    topic: cfg.topic,
+    permissionOverwrites
+  }).catch(() => null);
+
+  if (newChannel) {
+    deskChannels[catKey] = newChannel.id;
+    storage.write('settings', settings);
+    return newChannel;
+  }
+
+  const fallbackId = deskChannels.all || settings[guild.id].deskReportChannelId || settings[guild.id].reportChannelId || getModLogChannelId(guild.id);
+  return fallbackId ? guild.channels.cache.get(fallbackId) || null : null;
+}
+
+/**
+ * Otomatis buat kategori privat "MODERATOR DESK" dan 4 channel khusus untuk masing-masing menu
+ * @param {import('discord.js').Guild} guild
+ */
+async function createDedicatedDeskChannels(guild) {
+  if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageChannels)) {
+    throw new Error('Bot membutuhkan izin Manage Channels (Kelola Saluran) untuk membuat kategori dan channel khusus.');
+  }
+
+  const settings = storage.read('settings') || {};
+  if (!settings[guild.id]) settings[guild.id] = {};
+  if (!settings[guild.id].deskChannels) settings[guild.id].deskChannels = {};
+  const deskChannels = settings[guild.id].deskChannels;
+
+  const MOD_ROLE_ID = '1396257049884622899';
+  const permissionOverwrites = [
+    {
+      id: guild.roles.everyone.id,
+      deny: [PermissionFlagsBits.ViewChannel]
+    },
+    {
+      id: guild.members.me.id,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.EmbedLinks,
+        PermissionFlagsBits.AttachFiles,
+        PermissionFlagsBits.ReadMessageHistory,
+        PermissionFlagsBits.ManageChannels
+      ]
+    }
+  ];
+
+  if (guild.roles.cache.has(MOD_ROLE_ID)) {
+    permissionOverwrites.push({
+      id: MOD_ROLE_ID,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ReadMessageHistory
+      ]
+    });
+  }
+
+  // 1. Kategori MODERATOR DESK
+  let parentCategory = guild.channels.cache.find(c =>
+    c.type === ChannelType.GuildCategory && c.name.toUpperCase() === 'MODERATOR DESK'
+  );
+  let categoryCreated = false;
+  if (!parentCategory) {
+    parentCategory = await guild.channels.create({
+      name: 'MODERATOR DESK',
+      type: ChannelType.GuildCategory,
+      permissionOverwrites
+    });
+    categoryCreated = true;
+  }
+
+  const results = {};
+
+  for (const cfg of Object.values(DESK_CHANNEL_CONFIGS)) {
+    let ch = null;
+    let isNew = false;
+    if (deskChannels[cfg.key]) {
+      ch = guild.channels.cache.get(deskChannels[cfg.key]);
+    }
+    if (!ch) {
+      ch = guild.channels.cache.find(c =>
+        c.type === ChannelType.GuildText && c.name.toLowerCase() === cfg.name.toLowerCase()
+      );
+    }
+    if (!ch) {
+      ch = await guild.channels.create({
+        name: cfg.name,
+        type: ChannelType.GuildText,
+        parent: parentCategory.id,
+        topic: cfg.topic,
+        permissionOverwrites
+      });
+      isNew = true;
+    } else if (parentCategory && ch.parentId !== parentCategory.id) {
+      await ch.setParent(parentCategory.id, { lockPermissions: false }).catch(() => {});
+    }
+
+    deskChannels[cfg.key] = ch.id;
+    results[cfg.key] = { channel: ch, created: isNew };
+  }
+
+  storage.write('settings', settings);
+  return { parentCategory, categoryCreated, results };
 }
 
 /**
@@ -304,21 +523,18 @@ async function handleDeskModalSubmit(interaction, client) {
   const customId = interaction.customId;
 
   // Tentukan jenis kategori tiket
-  let categoryType = 'all';
+  let categoryType = 'report';
   if (customId === 'cdesk_modal_report') categoryType = 'report';
   else if (customId === 'cdesk_modal_content') categoryType = 'content';
   else if (customId === 'cdesk_modal_feedback') categoryType = 'feedback';
   else if (customId === 'cdesk_modal_other') categoryType = 'other';
 
-  // Tentukan channel tujuan pengiriman tiket staf berdasarkan kategori
-  const reportChannelId = getDeskReportChannelId(guild.id, categoryType);
-  const targetChannel = reportChannelId
-    ? (guild.channels.cache.get(reportChannelId) || await client.channels.fetch(reportChannelId).catch(() => null))
-    : null;
+  // Ambil atau otomatis buatkan saluran khusus terpisah untuk kategori ini (JANGAN DIGABUNG)
+  const targetChannel = await getOrCreateDedicatedDeskChannel(guild, categoryType);
 
   if (!targetChannel) {
     return interaction.reply({
-      content: 'Saluran penerimaan tiket untuk kategori ini belum diatur oleh admin server. Silakan hubungi staf/pengelola.',
+      content: 'Saluran khusus penerimaan tiket untuk kategori ini belum tersedia dan bot tidak memiliki izin untuk membuatnya secara otomatis. Silakan hubungi admin server.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -888,11 +1104,14 @@ async function handleDeskModReplySubmit(interaction, client) {
 
 module.exports = {
   DESK_COLORS,
+  DESK_CHANNEL_CONFIGS,
   buildDeskPanelEmbed,
   buildDeskPanelButtons,
   handleDeskButton,
   handleDeskModalSubmit,
   handleDeskAction,
   handleDeskModReplySubmit,
-  getDeskReportChannelId
+  getDeskReportChannelId,
+  getOrCreateDedicatedDeskChannel,
+  createDedicatedDeskChannels
 };
