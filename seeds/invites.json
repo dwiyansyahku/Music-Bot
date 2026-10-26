@@ -1,0 +1,664 @@
+{
+  "1396245234693963878": {
+    "members": {
+      "658193579570888714": {
+        "code": "wSnpEwNYn",
+        "fake": false,
+        "joinedAt": 1792798488811,
+        "inviterId": "1358832343573336084",
+        "inviteType": "regular"
+      },
+      "675528431315845131": {
+        "inviterId": "866326365141991424",
+        "inviteType": "regular",
+        "code": "Bt3XAT8vx",
+        "joinedAt": 1792932171000,
+        "fake": false
+      },
+      "831140416312180756": {
+        "inviterId": "1331570397019246614",
+        "inviteType": "regular",
+        "code": null,
+        "joinedAt": 1792826208000,
+        "fake": false
+      },
+      "876664474143178822": {
+        "inviterId": "1470018136655921326",
+        "inviteType": "regular",
+        "code": "NT7zzcy62",
+        "joinedAt": 1792906315000,
+        "fake": false
+      },
+      "1413508694297280746": {
+        "code": "wSnpEwNYn",
+        "fake": false,
+        "joinedAt": 1792783392663,
+        "inviterId": "1358832343573336084",
+        "inviteType": "regular"
+      },
+      "1452619344721743914": {
+        "inviterId": "804172254246076426",
+        "inviteType": "regular",
+        "code": "WvKABsJpf",
+        "joinedAt": 1792751173000,
+        "fake": false
+      },
+      "1515925909352485055": {
+        "inviterId": "1473440118470873118",
+        "inviteType": "regular",
+        "code": "jwERAw3np",
+        "joinedAt": 1792925428000,
+        "fake": false
+      },
+      "1318957895534116974": {
+        "inviterId": "1418200753234907238",
+        "inviteType": "regular",
+        "code": "8TaaBK3hm",
+        "joinedAt": 1792676309000,
+        "fake": false
+      },
+      "1562773825756856414": {
+        "inviterId": "1473440118470873118",
+        "inviteType": "regular",
+        "code": "zFU6TN7dk",
+        "joinedAt": 1792665357000,
+        "fake": false
+      },
+      "1422933397277245497": {
+        "inviterId": "1417101098618982494",
+        "inviteType": "regular",
+        "code": "kneS6G8YW",
+        "joinedAt": 1792646474000,
+        "fake": false
+      },
+      "1211920609404129293": {
+        "inviterId": "1417101098618982494",
+        "inviteType": "regular",
+        "code": "KwnVt43t3",
+        "joinedAt": 1792646253000,
+        "fake": false
+      },
+      "1178925060514381906": {
+        "inviterId": "1417101098618982494",
+        "inviteType": "regular",
+        "code": "KwnVt43t3",
+        "joinedAt": 1792645998000,
+        "fake": false
+      },
+      "1516128576066289676": {
+        "inviterId": "1449942463551635498",
+        "inviteType": "regular",
+        "code": "GWeQTrKhR",
+        "joinedAt": 1792592694000,
+        "fake": false
+      },
+      "1361350628785393808": {
+        "inviterId": "1358832343573336084",
+        "inviteType": "regular",
+        "code": "czHTxndgt",
+        "joinedAt": 1792580313000,
+        "fake": false
+      },
+      "1417101098618982494": {
+        "inviterId": "1358832343573336084",
+        "inviteType": "regular",
+        "code": "ms3de9Hzr",
+        "joinedAt": 1792579904000,
+        "fake": false
+      },
+      "1468875872986464400": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "sknzkEsJUD",
+        "joinedAt": 1792496935000,
+        "fake": false
+      },
+      "756907421292822559": {
+        "inviterId": "694389440923041905",
+        "inviteType": "regular",
+        "code": "z5A7zUA6W",
+        "joinedAt": 1792353571000,
+        "fake": false
+      },
+      "868015237029302323": {
+        "inviterId": "1368518418386653248",
+        "inviteType": "regular",
+        "code": "MzZbtncyt",
+        "joinedAt": 1792344794000,
+        "fake": false
+      },
+      "1079709108455886868": {
+        "inviterId": "755370884218224680",
+        "inviteType": "regular",
+        "code": "kYHGfnW8h",
+        "joinedAt": 1792237566000,
+        "fake": false
+      },
+      "551771361513701380": {
+        "inviterId": "1331570397019246614",
+        "inviteType": "regular",
+        "code": "wfK2eASwT",
+        "joinedAt": 1791890692000,
+        "fake": false
+      },
+      "1504668917342404616": {
+        "inviterId": "856548403689553951",
+        "inviteType": "regular",
+        "code": "AtAkPsqRs",
+        "joinedAt": 1791813635000,
+        "fake": false
+      },
+      "1495257954222477482": {
+        "inviterId": "1385998846047424672",
+        "inviteType": "regular",
+        "code": "njyn4mpdB",
+        "joinedAt": 1791812814000,
+        "fake": false
+      },
+      "1557173958636212228": {
+        "inviterId": "755370884218224680",
+        "inviteType": "regular",
+        "code": "UqP8e83eQ",
+        "joinedAt": 1791805313000,
+        "fake": false
+      },
+      "1240343583299469434": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "sknzkEsJUD",
+        "joinedAt": 1791790812000,
+        "fake": false
+      },
+      "753254425207767071": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1791784739000,
+        "fake": false
+      },
+      "1531223299697152017": {
+        "inviterId": "1267621678536462389",
+        "inviteType": "regular",
+        "code": "fnG2AfMeH",
+        "joinedAt": 1791736561000,
+        "fake": false
+      },
+      "1418200753234907238": {
+        "inviterId": "1537113980965888182",
+        "inviteType": "regular",
+        "code": "Uc6fVm94g",
+        "joinedAt": 1791709484000,
+        "fake": false
+      },
+      "1422889784753520650": {
+        "inviterId": "1528049334636118247",
+        "inviteType": "regular",
+        "code": "fUqYcJBPD",
+        "joinedAt": 1791699636000,
+        "fake": false
+      },
+      "1550853119863427162": {
+        "inviterId": "755370884218224680",
+        "inviteType": "regular",
+        "code": "DJREePaFX",
+        "joinedAt": 1791653715000,
+        "fake": false
+      },
+      "1499312728706387968": {
+        "inviterId": "1385998846047424672",
+        "inviteType": "regular",
+        "code": "Z4zDaGXFU",
+        "joinedAt": 1791569939000,
+        "fake": false
+      },
+      "1354800180037423128": {
+        "inviterId": "1541774102568771698",
+        "inviteType": "regular",
+        "code": "RncsUdBtn",
+        "joinedAt": 1791551345000,
+        "fake": false
+      },
+      "949771604068544523": {
+        "inviterId": "755370884218224680",
+        "inviteType": "regular",
+        "code": "DJREePaFX",
+        "joinedAt": 1791514925000,
+        "fake": false
+      },
+      "1410592313960435866": {
+        "inviterId": "1358832343573336084",
+        "inviteType": "regular",
+        "code": "rRXmkaCjA",
+        "joinedAt": 1791472416000,
+        "fake": false
+      },
+      "378957706699997186": {
+        "inviterId": "806948986010337300",
+        "inviteType": "regular",
+        "code": "D2D3jkudE",
+        "joinedAt": 1791467043000,
+        "fake": false
+      },
+      "1554788018500673597": {
+        "inviterId": "1358832343573336084",
+        "inviteType": "regular",
+        "code": "geYgpW5Ey",
+        "joinedAt": 1790760903000,
+        "fake": false
+      },
+      "1506696102001508352": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "SnJZREMqQc",
+        "joinedAt": 1791209413000,
+        "fake": false
+      },
+      "851676596954726411": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "SnJZREMqQc",
+        "joinedAt": 1791209409000,
+        "fake": false
+      },
+      "1449413365599440989": {
+        "inviterId": "1425568608389431397",
+        "inviteType": "regular",
+        "code": "PDXqxSzh4",
+        "joinedAt": 1791209396000,
+        "fake": false
+      },
+      "755370884218224680": {
+        "inviterId": "1329412956693467221",
+        "inviteType": "regular",
+        "code": "YEVN4kJz5",
+        "joinedAt": 1791205015000,
+        "fake": false
+      },
+      "1479832857475023008": {
+        "inviterId": "665157264985817089",
+        "inviteType": "regular",
+        "code": "nVUnh8huh",
+        "joinedAt": 1791137526000,
+        "fake": false
+      },
+      "1453387458334032086": {
+        "inviterId": "1418200753234907238",
+        "inviteType": "regular",
+        "code": "8TaaBK3hm",
+        "joinedAt": 1791124366000,
+        "fake": false
+      },
+      "1512763807670210688": {
+        "inviterId": "786444309732917328",
+        "inviteType": "regular",
+        "code": "59wRNSa68",
+        "joinedAt": 1791044385000,
+        "fake": false
+      },
+      "1547593447983288351": {
+        "inviterId": "786444309732917328",
+        "inviteType": "regular",
+        "code": "59wRNSa68",
+        "joinedAt": 1791032064000,
+        "fake": false
+      },
+      "742918850240053319": {
+        "inviterId": "1024681480930201610",
+        "inviteType": "regular",
+        "code": "s9GFbvBhP",
+        "joinedAt": 1790948633000,
+        "fake": false
+      },
+      "767530809946800218": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1790780658000,
+        "fake": false
+      },
+      "1404391633612570687": {
+        "inviterId": "665157264985817089",
+        "inviteType": "regular",
+        "code": "TrtAxM4JY",
+        "joinedAt": 1790807737000,
+        "fake": false
+      },
+      "1041160505701703790": {
+        "inviterId": "709819210444046387",
+        "inviteType": "regular",
+        "code": "UDtMDHU4Z",
+        "joinedAt": 1790790434000,
+        "fake": false
+      },
+      "1424969954209566902": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1790784874000,
+        "fake": false
+      },
+      "1534127967892930575": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1790769619000,
+        "fake": false
+      },
+      "1176296085795389470": {
+        "inviterId": "1358832343573336084",
+        "inviteType": "regular",
+        "code": "czHTxndgt",
+        "joinedAt": 1790750603000,
+        "fake": false
+      },
+      "1206136881226580008": {
+        "inviterId": "1470018136655921326",
+        "inviteType": "regular",
+        "code": "pAC7Y4Md2",
+        "joinedAt": 1790698092000,
+        "fake": false
+      },
+      "1416392284148203652": {
+        "inviterId": "1527889898164453499",
+        "inviteType": "regular",
+        "code": "7TKqCegfH",
+        "joinedAt": 1790689453000,
+        "fake": false
+      },
+      "1550220299713122435": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1790687047000,
+        "fake": false
+      },
+      "1554027468527108189": {
+        "inviterId": "1470018136655921326",
+        "inviteType": "regular",
+        "code": "H3T2cQZAm",
+        "joinedAt": 1790580437000,
+        "fake": false
+      },
+      "1374905197897449555": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1790666636000,
+        "fake": false
+      },
+      "1429386125428129822": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1790661172000,
+        "fake": false
+      },
+      "1368773932659900500": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1790658793000,
+        "fake": false
+      },
+      "1392440312085086259": {
+        "inviterId": "705082046992613436",
+        "inviteType": "regular",
+        "code": "RWDqexyTN",
+        "joinedAt": 1790612715000,
+        "fake": false
+      },
+      "1425443356753788930": {
+        "inviterId": "665157264985817089",
+        "inviteType": "regular",
+        "code": "UfaHq7Qmn",
+        "joinedAt": 1790607819000,
+        "fake": false
+      },
+      "1517393834538045538": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": "pWaRwKsKR",
+        "joinedAt": 1790577354000,
+        "fake": false
+      },
+      "783810237248438312": {
+        "inviterId": "1470018136655921326",
+        "inviteType": "regular",
+        "code": "f4bT6fgcm",
+        "joinedAt": 1790555082000,
+        "fake": false
+      },
+      "1266685228668293184": {
+        "inviterId": "1370683164925755484",
+        "inviteType": "regular",
+        "code": "WjP7NuH39",
+        "joinedAt": 1790436041000,
+        "fake": false
+      },
+      "972418181731848242": {
+        "inviterId": "1267621678536462389",
+        "inviteType": "regular",
+        "code": "tXgSBeHzC",
+        "joinedAt": 1790352872000,
+        "fake": false
+      },
+      "673138932724269056": {
+        "inviterId": "1331570397019246614",
+        "inviteType": "regular",
+        "code": "jhrPKNGAB",
+        "joinedAt": 1790340949000,
+        "fake": false
+      },
+      "866326365141991424": {
+        "inviterId": "1358832343573336084",
+        "inviteType": "regular",
+        "code": "gbjhhqCjv",
+        "joinedAt": 1790304599000,
+        "fake": false
+      },
+      "1390779041975635979": {
+        "inviterId": null,
+        "inviteType": "vanity",
+        "code": null,
+        "joinedAt": 1790265245000,
+        "fake": false
+      },
+      "1358666754087325829": {
+        "inviterId": "1033527258549334086",
+        "inviteType": "regular",
+        "code": "zvNuQcMf4",
+        "joinedAt": 1790252304000,
+        "fake": false
+      },
+      "451379187031343104": {
+        "inviterId": "438949811408863243",
+        "inviteType": "regular",
+        "code": null,
+        "joinedAt": 1790131169000,
+        "fake": false
+      }
+    },
+    "inviters": {
+      "804172254246076426": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "866326365141991424": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1358832343573336084": {
+        "regular": 8,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1470018136655921326": {
+        "regular": 4,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1473440118470873118": {
+        "regular": 2,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1331570397019246614": {
+        "regular": 3,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1418200753234907238": {
+        "regular": 2,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1417101098618982494": {
+        "regular": 3,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1449942463551635498": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "438949811408863243": {
+        "regular": 14,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "694389440923041905": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1368518418386653248": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "755370884218224680": {
+        "regular": 4,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "856548403689553951": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1385998846047424672": {
+        "regular": 2,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1267621678536462389": {
+        "regular": 2,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1537113980965888182": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1528049334636118247": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1541774102568771698": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "806948986010337300": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1425568608389431397": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1329412956693467221": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "665157264985817089": {
+        "regular": 3,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "786444309732917328": {
+        "regular": 2,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1024681480930201610": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "709819210444046387": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1527889898164453499": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "705082046992613436": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1370683164925755484": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1033527258549334086": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      }
+    }
+  }
+}

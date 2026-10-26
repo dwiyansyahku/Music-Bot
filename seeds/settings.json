@@ -1,4 +1,14 @@
 {
+  "guild_gal": {
+    "galleryChannel": "output_ch_2",
+    "galleryUploadChannel": "upload_ch_1"
+  },
+  "guild_test": {
+    "galleryChannel": "ch_gallery_123"
+  },
+  "test_guild_modlog": {
+    "modLogChannel": "mock_modlog_ch"
+  },
   "guild_duel_test_99": {
     "gachaRoles": {
       "MYTHIC": "role_mythic_99",
@@ -7,103 +17,108 @@
     "gachaChannels": {
       "duel": "ch_duel_arena_99",
       "play": "ch_main_play_99",
-      "result": null,
-      "pull": null,
-      "daily": null
-    }
-  },
-  "test_guild_inventory_public": {
-    "gachaRoles": {},
-    "gachaChannels": {
-      "play": "main_gacha_channel"
-    }
-  },
-  "test_guild_cross_post": {
-    "gachaRoles": {},
-    "gachaChannels": {
-      "play": null,
-      "daily": "ch_daily_rewards_456",
-      "result": null,
-      "pull": null
-    }
-  },
-  "test_guild_inventory_play_redirection": {
-    "gachaRoles": {},
-    "gachaChannels": {
-      "play": "main_gacha_umum_channel",
-      "pull": "specific_pull_channel",
-      "daily": "specific_daily_channel",
-      "duel": "arena_duel_channel",
-      "result": "result_feed_channel",
-      "broadcast": "announce_jackpot_channel"
-    }
-  },
-  "test_guild_jackpot_broadcast": {
-    "gachaChannels": {
-      "play": "play_99999",
       "pull": null,
       "daily": null,
-      "result": null,
-      "duel": null,
-      "broadcast": "announce_12345"
+      "result": null
     }
-  },
-  "test_guild_shop_999": {
-    "gachaRoles": {},
-    "gachaChannels": {
-      "play": null,
-      "pull": null,
-      "daily": null,
-      "result": null,
-      "tactics": null,
-      "duel": null,
-      "broadcast": null,
-      "throne": null,
-      "duel_mythic": null,
-      "duel_legendary": null
-    }
-  },
-  "guild_test": {
-    "galleryChannel": "ch_gallery_123"
-  },
-  "guild_gal": {
-    "galleryUploadChannel": "upload_ch_1",
-    "galleryChannel": "output_ch_2"
   },
   "1396245234693963878": {
-    "rulesChannelId": "1396254677930082344",
-    "rulesUrl": "https://discord.com/channels/1396245234693963878/1396254677930082344",
-    "rolesChannelId": "1490660628849889431",
-    "rolesUrl": "https://discord.com/channels/1396245234693963878/1490660628849889431",
-    "welcome": {
-      "enabled": true,
-      "channelId": "1396428142972899349"
-    },
-    "inviteTracking": {
-      "enabled": true,
-      "channelId": "1551970316438343761"
-    },
-    "cardHubChannelId": "1532222435250929735",
-    "cardHubMessageId": "1536363763245121707",
-    "cardResultChannel": "1532290934396555354",
     "jail": {
       "roleId": "1524880481211125840",
       "channelId": "1524893405212180580",
       "voiceChannelId": "1524884294575591546"
     },
-    "birthday": {
-      "channelId": "1396428545684672542"
+    "socmed": {
+      "feeds": [],
+      "roleId": "1396396538686607410",
+      "tiktok": [
+        {
+          "lastLive": false,
+          "username": "qumpruy",
+          "lastRoomId": null
+        },
+        {
+          "username": "qumpruy",
+          "lastLive": false,
+          "lastRoomId": null
+        }
+      ],
+      "enabled": true,
+      "channelId": null,
+      "tiktokChannelId": "1561593548888084560",
+      "instagramChannelId": "1561593592428892240"
+    },
+    "automod": {
+      "logChannelId": "1546472050867175444"
     },
     "morning": {
-      "enabled": true,
-      "channelId": "1396428545684672542",
       "hour": 7,
-      "minute": 0
+      "minute": 0,
+      "enabled": true,
+      "channelId": "1396428545684672542"
+    },
+    "saweria": {
+      "enabled": true,
+      "channelId": "1549685313939574814",
+      "minAmount": 0
+    },
+    "stay247": {
+      "enabled": true,
+      "channelId": "1544162509060055120",
+      "channelName": "YOUNGSKUY"
+    },
+    "welcome": {
+      "enabled": true,
+      "channelId": "1396428545684672542"
+    },
+    "birthday": {
+      "enabled": true,
+      "channelId": "1543314142600106196"
+    },
+    "rolesUrl": "https://discord.com/channels/1396245234693963878/1490660628849889431",
+    "rulesUrl": "https://discord.com/channels/1396245234693963878/1396254677930082344",
+    "gachaRoles": {
+      "LEGENDARY": "1546144295575232652",
+      "MYTHIC": "1546143532253970522",
+      "CHAMPION": "1547139921595203616"
+    },
+    "deskChannels": {
+      "other": "1562627833174425600",
+      "report": "1561988578119254077",
+      "content": "1562627353161760898",
+      "feedback": "1562627749112315985"
+    },
+    "gachaChannels": {
+      "duel": null,
+      "play": null,
+      "pull": null,
+      "umum": null,
+      "daily": null,
+      "result": null,
+      "throne": null,
+      "tactics": null,
+      "announce": null,
+      "broadcast": null,
+      "live_duel": null,
+      "duel_mythic": null,
+      "duel_legendary": null
+    },
+    "modLogChannel": "1546472050867175444",
+    "customBadWords": [],
+    "galleryChannel": "1547122406936543303",
+    "inviteTracking": {
+      "enabled": true,
+      "channelId": "1551970316438343761"
     },
     "memberMapPanel": {
       "channelId": "1543365099480158318",
       "messageId": "1543367808501547171"
     },
+    "rolesChannelId": "1490660628849889431",
+    "rulesChannelId": "1396254677930082344",
+    "modLogChannelId": "1546472050867175444",
+    "cardHubChannelId": "1532222435250929735",
+    "cardHubMessageId": "1536363763245121707",
     "whitelistedWords": [
       "kurang",
       "kirim",
@@ -156,35 +171,89 @@
       "sakadung",
       "london",
       "bomat",
-      "ngeh"
+      "ngeh",
+      "staying",
+      "keren",
+      "jujur",
+      "ning",
+      "turuu",
+      "annoying",
+      "kangkung",
+      "titip",
+      "turun",
+      "lanjut",
+      "kabau",
+      "temee",
+      "jelek",
+      "budeg",
+      "nenek",
+      "antek",
+      "cambuk",
+      "munding",
+      "bnget",
+      "banget",
+      "bangt"
     ],
-    "socmed": {
-      "enabled": true,
-      "channelId": null,
-      "tiktokChannelId": "1561593548888084560",
-      "instagramChannelId": "1561593592428892240",
-      "roleId": "1396396538686607410",
-      "tiktok": [
-        {
-          "username": "qumpruy",
-          "lastLive": false,
-          "lastRoomId": null
-        }
-      ],
-      "feeds": []
-    },
-    "stay247": {
-      "enabled": true,
-      "channelId": "1544162509060055120",
-      "channelName": "YOUNGSKUY"
+    "cardResultChannel": "1532290934396555354",
+    "helpPanelChannelId": "1563232526766571640",
+    "helpPanelMessageId": "1563232573080211537",
+    "galleryPanelChannel": "1396428608968589332",
+    "galleryUploadChannel": "1396428608968589332"
+  },
+  "test_guild_shop_999": {
+    "gachaRoles": {},
+    "gachaChannels": {
+      "duel": null,
+      "play": null,
+      "pull": null,
+      "daily": null,
+      "result": null,
+      "throne": null,
+      "tactics": null,
+      "broadcast": null,
+      "duel_mythic": null,
+      "duel_legendary": null
     }
   },
-  "test_guild_modlog": {
-    "modLogChannel": "mock_modlog_ch"
+  "test_guild_cross_post": {
+    "gachaRoles": {},
+    "gachaChannels": {
+      "play": null,
+      "pull": null,
+      "daily": "ch_daily_rewards_456",
+      "result": null
+    }
   },
   "test_guild_overflow_001": {
     "gachaRoles": {
       "LEGENDARY": "role_legend_overflow"
+    }
+  },
+  "test_guild_inventory_public": {
+    "gachaRoles": {},
+    "gachaChannels": {
+      "play": "main_gacha_channel"
+    }
+  },
+  "test_guild_jackpot_broadcast": {
+    "gachaChannels": {
+      "duel": null,
+      "play": "play_99999",
+      "pull": null,
+      "daily": null,
+      "result": null,
+      "broadcast": "announce_12345"
+    }
+  },
+  "test_guild_inventory_play_redirection": {
+    "gachaRoles": {},
+    "gachaChannels": {
+      "duel": "arena_duel_channel",
+      "play": "main_gacha_umum_channel",
+      "pull": "specific_pull_channel",
+      "daily": "specific_daily_channel",
+      "result": "result_feed_channel",
+      "broadcast": "announce_jackpot_channel"
     }
   }
 }

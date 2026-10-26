@@ -132,8 +132,8 @@ module.exports = {
     let lastBirthdayCheck = ''; // "DD-MM" string
     let lastVoiceNightReminder = ''; // "DD-MM" string
     let lastBossRaidSpawnCheck = ''; // "DD-MM" string
-    let lastBossWarning30 = ''; // "DD-MM" string
-    let lastBossWarning15 = ''; // "DD-MM" string
+    let lastBossWarning10 = ''; // "DD-MM" string (10 menit sebelum spawn)
+    let lastBossDespawnCheck = ''; // "DD-MM" string (1 jam pasca spawn)
 
     setInterval(async () => {
       // ====== Hitung waktu WIB sekarang ======
@@ -216,30 +216,19 @@ module.exports = {
         }
       }
 
-      // ====== 2.6. WORLD BOSS PRE-SPAWN COUNTDOWN WARNINGS (20:30 & 20:45 WIB) ======
-      if (currentHour === 20 && currentMinute === 30 && lastBossWarning30 !== birthdayKey) {
-        lastBossWarning30 = birthdayKey;
+      // ====== 2.6. WORLD BOSS PRE-SPAWN COUNTDOWN WARNING (20:50 WIB - 10 MENIT SEBELUM SPAWN) ======
+      if (currentHour === 20 && currentMinute === 50 && lastBossWarning10 !== birthdayKey) {
+        lastBossWarning10 = birthdayKey;
         try {
           const { checkAndBroadcastBossWarning } = require('../utils/dungeonBoss');
-          if (checkAndBroadcastBossWarning) await checkAndBroadcastBossWarning(client, 30);
-          console.log(`⏰ [Boss Raid Warning] Peringatan 30 menit menuju spawn berhasil disiarkan.`);
+          if (checkAndBroadcastBossWarning) await checkAndBroadcastBossWarning(client, 10);
+          console.log(`⏰ [Boss Raid Warning] Peringatan 10 menit menuju spawn berhasil disiarkan.`);
         } catch (wErr) {
-          console.error('⚠️ [Boss Warning 30m Error]:', wErr.message);
+          console.error('⚠️ [Boss Warning 10m Error]:', wErr.message);
         }
       }
 
-      if (currentHour === 20 && currentMinute === 45 && lastBossWarning15 !== birthdayKey) {
-        lastBossWarning15 = birthdayKey;
-        try {
-          const { checkAndBroadcastBossWarning } = require('../utils/dungeonBoss');
-          if (checkAndBroadcastBossWarning) await checkAndBroadcastBossWarning(client, 15);
-          console.log(`⏰ [Boss Raid Warning] Peringatan 15 menit menuju spawn berhasil disiarkan.`);
-        } catch (wErr) {
-          console.error('⚠️ [Boss Warning 15m Error]:', wErr.message);
-        }
-      }
-
-      // ====== 2.6. WORLD BOSS RAID SPAWN & AWAKEN (21:00 WIB) ======
+      // ====== 2.7. WORLD BOSS RAID SPAWN & AWAKEN (21:00 WIB) ======
       if (currentHour === 21 && currentMinute === 0 && lastBossRaidSpawnCheck !== birthdayKey) {
         lastBossRaidSpawnCheck = birthdayKey;
         try {
@@ -250,6 +239,20 @@ module.exports = {
           }
         } catch (bossSpawnErr) {
           console.error('⚠️ [Boss Raid Spawn Error]:', bossSpawnErr.message);
+        }
+      }
+
+      // ====== 2.8. WORLD BOSS DESPAWN (22:00 WIB - 1 JAM PASCA SPAWN) ======
+      if (currentHour === 22 && currentMinute === 0 && lastBossDespawnCheck !== birthdayKey) {
+        lastBossDespawnCheck = birthdayKey;
+        try {
+          const { checkAndDespawnBoss } = require('../utils/dungeonBoss');
+          if (checkAndDespawnBoss) {
+            await checkAndDespawnBoss(client);
+            console.log(`🌑 [Boss Raid] Cek despawn World Boss jam 22:00 WIB selesai.`);
+          }
+        } catch (bossDespawnErr) {
+          console.error('⚠️ [Boss Raid Despawn Error]:', bossDespawnErr.message);
         }
       }
 

@@ -1,16 +1,16 @@
 {
   "guild_duel_test_99": {
-    "activeDuels": {},
     "queues": {
       "MYTHIC": [],
       "LEGENDARY": []
-    }
+    },
+    "activeDuels": {}
   },
   "test_guild_split_tiers_001": {
-    "activeDuels": {},
     "queues": {
       "MYTHIC": [],
       "LEGENDARY": []
-    }
+    },
+    "activeDuels": {}
   }
 }

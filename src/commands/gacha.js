@@ -971,6 +971,41 @@ const TIER_RANK = {
 };
 
 /**
+ * Ambil ID Role Tahta terkonfigurasi dengan auto-discovery cerdas:
+ * - LEGENDARY: Paladin (ID: 1546144295575232652)
+ * - MYTHIC: Musketeer (ID: 1546143532253970522)
+ * - CHAMPION: God of QUMPRUY (ID: 1547139921595203616)
+ */
+function getConfiguredThroneRole(guild, tier) {
+  if (!guild) return null;
+  const settingsData = storage.read('settings') || {};
+  let roleId = settingsData[guild.id]?.gachaRoles?.[tier];
+  if (roleId && guild.roles?.cache?.has(roleId)) return roleId;
+
+  // Auto-discovery berdasarkan nama role server
+  if (guild.roles?.cache) {
+    if (tier === 'LEGENDARY') {
+      const r = guild.roles.cache.find(x => x.name.toLowerCase() === 'paladin') || guild.roles.cache.get('1546144295575232652');
+      if (r) roleId = r.id;
+    } else if (tier === 'MYTHIC') {
+      const r = guild.roles.cache.find(x => x.name.toLowerCase().includes('musketeer') || x.name.toLowerCase().includes('musketir')) || guild.roles.cache.get('1546143532253970522');
+      if (r) roleId = r.id;
+    } else if (tier === 'CHAMPION') {
+      const r = guild.roles.cache.find(x => x.name.toLowerCase().includes('god of qumpruy') || x.name.toLowerCase().includes('qumpruy champion')) || guild.roles.cache.get('1547139921595203616');
+      if (r) roleId = r.id;
+    }
+  }
+
+  if (roleId) {
+    if (!settingsData[guild.id]) settingsData[guild.id] = {};
+    if (!settingsData[guild.id].gachaRoles) settingsData[guild.id].gachaRoles = {};
+    settingsData[guild.id].gachaRoles[tier] = roleId;
+    storage.write('settings', settingsData);
+  }
+  return roleId || null;
+}
+
+/**
  * Gacha Shop Catalog (Stardust Exchange)
  */
 const GACHA_SHOP_ITEMS = [
@@ -1278,8 +1313,7 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
   if (!config) return ''; // Hanya Mythic dan Legendary yang mendapatkan Role
 
   const guildId = guild.id;
-  const settingsData = storage.read('settings');
-  const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
+  const configuredRoleId = getConfiguredThroneRole(guild, itemTier);
   if (!configuredRoleId) return '';
 
   if (guild && client) {
@@ -2751,8 +2785,7 @@ async function processDuelButton(interaction, client) {
     }
 
     const targetDefender = availableHolders[Math.floor(Math.random() * availableHolders.length)];
-    const settingsData = storage.read('settings');
-    const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
+    const configuredRoleId = getConfiguredThroneRole(interaction.guild, itemTier);
     const tacticsTargetChannel = await resolveDuelChannel(guildId, itemTier, client, interaction.channel);
 
     const duelResult = await initiateThroneDuel({
@@ -2836,8 +2869,7 @@ async function processDuelButton(interaction, client) {
     const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
     const busyUserIds = getBusyDuelUserIds(guildId);
 
-    const settingsData = storage.read('settings');
-    const configuredRoleId = settingsData[guildId]?.gachaRoles?.[itemTier];
+    const configuredRoleId = getConfiguredThroneRole(interaction.guild, itemTier);
 
     if (busyUserIds.has(selectedUserId)) {
       const existingQueueIdx = throneGuild.queues[itemTier].findIndex(q => q.challengerId === challengerId);
@@ -4044,8 +4076,7 @@ async function executeGachaChallenge(interaction, client) {
     });
   }
 
-  const settingsData = storage.read('settings');
-  const configuredRoleId = settingsData[guildId]?.gachaRoles?.[tier];
+  const configuredRoleId = getConfiguredThroneRole(interaction.guild, tier);
   if (!configuredRoleId) {
     return interaction.reply({
       content: `Role Discord untuk **Tahta ${tier}** belum dikonfigurasi oleh Admin. Gunakan \`/gacha setrole\` terlebih dahulu.`,
@@ -4312,8 +4343,7 @@ async function executeGachaChallengePrompt(interaction, client, challengeTier) {
     return interaction.reply({ content, flags: MessageFlags.Ephemeral });
   }
 
-  const settingsData = storage.read('settings');
-  const configuredRoleId = settingsData[guildId]?.gachaRoles?.[tier];
+  const configuredRoleId = getConfiguredThroneRole(interaction.guild, tier);
   if (!configuredRoleId) {
     const content = `Role Discord untuk **Tahta ${tier}** belum dikonfigurasi oleh Admin. Gunakan \`/gacha setrole\` terlebih dahulu.`;
     if (interaction.deferred || interaction.replied) return interaction.editReply({ content });

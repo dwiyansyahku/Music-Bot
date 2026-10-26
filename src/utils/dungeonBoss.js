@@ -136,7 +136,7 @@ function getNextBossSpawnTime() {
 
 /**
  * Cek apakah jendela Boss Raid sedang dibuka saat ini
- * - Jam 21:00 WIB s/d 23:59 WIB
+ * - Jam 21:00 WIB s/d 22:00 WIB (1 Jam setelah spawn)
  * - Atau jika status forceSpawned aktif (Bypass Admin)
  */
 function isBossRaidOpen(guildId) {
@@ -144,16 +144,20 @@ function isBossRaidOpen(guildId) {
   const activeBoss = allBoss[guildId]?.activeBoss;
   if (activeBoss?.forceSpawned) return true;
 
+  if (!activeBoss || activeBoss.status !== 'ACTIVE' || activeBoss.currentHp <= 0) {
+    return false;
+  }
+
   const wib = getWIBDate();
   const hour = wib.getHours();
-  // Jendela Raid dibuka mulai pukul 21:00 WIB
-  return hour >= 21;
+  // Jendela Raid dibuka tepat jam 21:00 WIB dan berlangsung selama 1 jam (berakhir pukul 22:00 WIB)
+  return hour === 21;
 }
 
 /**
  * Tentukan tier boss yang terjadwal
- * - Minggu Terakhir Tiap Bulan: MONTHLY
- * - Sabtu: WEEKLY
+ * - Malam Akhir Bulan (Last Day of Month): MONTHLY
+ * - Malam Minggu (Sabtu Malam): WEEKLY
  * - Hari Lain: DAILY
  */
 function getScheduledBossTier() {
@@ -164,10 +168,11 @@ function getScheduledBossTier() {
   const year = wib.getFullYear();
 
   const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-  const isLastSunday = dayOfWeek === 0 && (lastDayOfMonth - date < 7);
+  const isLastDay = date === lastDayOfMonth; // Malam akhir bulan
+  const isSaturdayNight = dayOfWeek === 6;    // Malming (Malam Minggu)
 
-  if (isLastSunday) return 'MONTHLY';
-  if (dayOfWeek === 6) return 'WEEKLY';
+  if (isLastDay) return 'MONTHLY';
+  if (isSaturdayNight) return 'WEEKLY';
   return 'DAILY';
 }
 
@@ -215,6 +220,8 @@ function getGuildBossState(guildId, tier = 'DAILY') {
       defeatedAt: null,
       forceSpawned: false,
       parties: {}, // partyId -> PartyObject
+      createdPartiesBy: {}, // userId -> boolean (Limit 1x per sesi)
+      partyHistory: [], // Rekap seluruh party yang telah selesai bertarung
       playerStats: {}, // userId -> PlayerStat
       activeCombat: null, // Combat state
       history: []
@@ -273,7 +280,7 @@ function getUserActiveParty(guildId, userId) {
 }
 
 /**
- * Buat Party Baru (1 Player = Max 1 Party)
+ * Buat Party Baru (1 Player = Max 1 Party per Sesi)
  */
 function createBossParty(guildId, userId, username) {
   // Guard: Cek apakah waktu raid sedang dibuka (21:00 WIB)
@@ -287,13 +294,24 @@ function createBossParty(guildId, userId, username) {
 
   const { allData, boss } = getGuildBossState(guildId);
 
-  // Guard: Cek apakah user sudah punya party
+  // Guard: Limit 1 orang hanya bisa membuat party 1x per sesi raid boss
+  if (boss.createdPartiesBy && boss.createdPartiesBy[userId]) {
+    return {
+      success: false,
+      message: 'Kamu sudah pernah membuat party pada sesi Raid Boss ini. Setiap member hanya dapat membuat party sebanyak 1 kali per sesi!'
+    };
+  }
+
+  // Guard: Cek apakah user sudah punya party aktif
   const existing = getUserActiveParty(guildId, userId);
   if (existing) {
     return { success: false, message: 'Kamu sudah terdaftar di party lain. Keluar terlebih dahulu untuk membuat party baru.' };
   }
 
-  const partyCount = Object.keys(boss.parties || {}).length + 1;
+  if (!boss.createdPartiesBy) boss.createdPartiesBy = {};
+  boss.createdPartiesBy[userId] = true;
+
+  const partyCount = (boss.partyHistory?.length || 0) + Object.keys(boss.parties || {}).length + 1;
   const partyId = `party_${Date.now()}_${userId.slice(-4)}`;
   const partyName = `Party #${partyCount} (${username})`;
 
@@ -859,7 +877,20 @@ async function resolveCombatRound(guildId, partyId, client) {
       }
     }
 
-    // Bersihkan sesi aktif
+    // Simpan data akumulasi pertempuran party ke partyHistory
+    if (!boss.partyHistory) boss.partyHistory = [];
+    boss.partyHistory.push({
+      partyId,
+      name: party.name,
+      leaderId: party.leaderId,
+      totalDamage: party.totalDamage || 0,
+      status: party.status,
+      members: [...party.members],
+      finishedAt: Date.now()
+    });
+
+    // Auto-hapus party secara otomatis setelah selesai bertarung
+    delete boss.parties[partyId];
     boss.activeCombat = null;
     saveBossStorage(allData);
 
@@ -1048,8 +1079,12 @@ function buildLiveLeaderboardEmbeds(guildId) {
   const hpBar = generateHpBar(boss.currentHp, boss.maxHp, 14);
   const hpPercent = Math.max(0, Math.round((boss.currentHp / boss.maxHp) * 100));
 
-  // Top Parties by Damage
-  const sortedParties = Object.values(boss.parties || {})
+  // Top Parties by Damage (Akumulasi seluruh party yang pernah bertarung di sesi ini)
+  const allParties = [
+    ...Object.values(boss.parties || {}),
+    ...(boss.partyHistory || [])
+  ];
+  const sortedParties = allParties
     .filter(p => (p.totalDamage || 0) > 0)
     .sort((a, b) => (b.totalDamage || 0) - (a.totalDamage || 0))
     .slice(0, 5);
@@ -1077,6 +1112,12 @@ function buildLiveLeaderboardEmbeds(guildId) {
     }).join('\n');
   }
 
+  const statusText = boss.status === 'DEFEATED'
+    ? '🏆 **TELAH TERKALAHKAN**'
+    : boss.status === 'FLED'
+    ? '🌑 **TELAH MENGHILANG (WAKTU HABIS)**'
+    : '⚔️ **AKTIF SEDANG DISERANG**';
+
   const raidEmbed = new EmbedBuilder()
     .setColor(boss.color || 0x9B59B6)
     .setTitle(`LIVE RAID BOSS STATUS • ${boss.name}`)
@@ -1084,7 +1125,7 @@ function buildLiveLeaderboardEmbeds(guildId) {
       `> **${boss.name}** [${boss.tier} RAID]\n` +
       `> *${boss.title}*\n\n` +
       `**Darah Boss:** \`[${hpBar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${hpPercent}%)\n` +
-      `**Status:** ${boss.status === 'ACTIVE' ? '⚔️ **AKTIF SEDANG DISERANG**' : '🏆 **TELAH TERKALAHKAN**'}\n\n` +
+      `**Status:** ${statusText}\n\n` +
       `**🏆 Klasemen Top Damage Party:**\n${topPartiesText}\n\n` +
       `**💥 Top Damager Individu:**\n${topPlayersText}`
     )
@@ -1096,23 +1137,28 @@ function buildLiveLeaderboardEmbeds(guildId) {
   const guildUsers = Object.entries(gachaData[guildId] || {});
   const { GACHA_ITEMS } = require('../commands/gacha');
 
-  // Top Limited Holders (Ancient & Mythic)
+  // Top Relic Holders (Ranked by limited relics Ancient & Mythic, then total inventory)
   const topLimitedUsers = [...guildUsers]
     .map(([uId, data]) => {
-      const ancients = (data.inventory || []).filter(name => {
+      const limiteds = (data.inventory || []).filter(name => {
         const item = GACHA_ITEMS.find(g => g.name === name);
         return item && (item.tier === 'ANCIENT' || item.tier === 'MYTHIC');
       });
-      return { uId, count: ancients.length, list: ancients };
+      return { uId, count: limiteds.length, totalInv: (data.inventory || []).length, list: limiteds };
     })
-    .filter(x => x.count > 0)
-    .sort((a, b) => b.count - a.count)
+    .filter(x => x.count > 0 || x.totalInv > 0)
+    .sort((a, b) => b.count - a.count || b.totalInv - a.totalInv)
     .slice(0, 5);
 
-  let topLimitedText = '_Belum ada pemilik relik Ancient/Mythic_';
+  const settingsData = storage.read('settings') || {};
+  const specialRoleId = settingsData[guildId]?.gachaRoles?.CHAMPION || '1547139921595203616';
+  const roleTag = specialRoleId ? ` (<@&${specialRoleId}>)` : '';
+
+  let topLimitedText = '_Belum ada pemilik relik di server_';
   if (topLimitedUsers.length > 0) {
     topLimitedText = topLimitedUsers.map((x, i) => {
-      return `${i + 1}. <@${x.uId}> — **${x.count} Relik Limited** (${x.list.slice(0, 2).join(', ')}${x.list.length > 2 ? '...' : ''})`;
+      const crown = i === 0 ? '👑 [Top 1 Tahta]' : `${i + 1}.`;
+      return `${crown} <@${x.uId}> — **${x.count} Relik Limited** (${x.totalInv} Total Relik)`;
     }).join('\n');
   }
 
@@ -1135,7 +1181,7 @@ function buildLiveLeaderboardEmbeds(guildId) {
     .setTitle('HALL OF FAME • KLASEMEN GACHA & TAHTA')
     .setDescription(
       `Papan peringkat kasta tertinggi dan rekor pertempuran tahta server:\n\n` +
-      `**👑 Top Pemilik Relik Limited (Ancient & Mythic):**\n${topLimitedText}\n\n` +
+      `**👑 Top Pemilik Relik Terbanyak${roleTag}:**\n${topLimitedText}\n\n` +
       `**🛡️ Top Pertahanan Tahta (Duel Defense Streak):**\n${topDefenseText}`
     )
     .setFooter({ text: 'Hall of Fame Server • Terupdate Otomatis' })
@@ -1145,7 +1191,7 @@ function buildLiveLeaderboardEmbeds(guildId) {
 }
 
 /**
- * Perbarui Live Embed di Channel #papan-klasemen
+ * Perbarui Live Embed di Channel #papan-klasemen & Sinkronisasi Role Top Relik
  */
 async function updateLiveLeaderboardChannel(guild, client) {
   try {
@@ -1153,6 +1199,48 @@ async function updateLiveLeaderboardChannel(guild, client) {
     const settingsData = storage.read('settings') || {};
     const leaderboardChId = settingsData[guild.id]?.gachaChannels?.leaderboard;
     if (!leaderboardChId) return;
+
+    // Sinkronisasi Role Khusus untuk Peringkat #1 Relik Terbanyak secara realtime
+    try {
+      const gachaData = storage.read('gacha_data') || {};
+      const guildUsers = Object.entries(gachaData[guild.id] || {});
+      const { GACHA_ITEMS } = require('../commands/gacha');
+
+      const topRelicUsers = [...guildUsers]
+        .map(([uId, data]) => {
+          const limiteds = (data.inventory || []).filter(name => {
+            const item = GACHA_ITEMS.find(g => g.name === name);
+            return item && (item.tier === 'ANCIENT' || item.tier === 'MYTHIC');
+          });
+          return { uId, count: limiteds.length, totalInv: (data.inventory || []).length };
+        })
+        .filter(x => x.count > 0 || x.totalInv > 0)
+        .sort((a, b) => b.count - a.count || b.totalInv - a.totalInv);
+
+      if (topRelicUsers.length > 0) {
+        const top1Id = topRelicUsers[0].uId;
+        const specialRoleId = settingsData[guild.id]?.gachaRoles?.CHAMPION ||
+          guild.roles.cache.find(r => r.name.toLowerCase().includes('god of qumpruy') || r.name.toLowerCase().includes('qumpruy champion'))?.id ||
+          '1547139921595203616';
+
+        if (specialRoleId && guild.roles.cache.has(specialRoleId)) {
+          const top1Member = guild.members.cache.get(top1Id) || await guild.members.fetch(top1Id).catch(() => null);
+          if (top1Member && !top1Member.roles.cache.has(specialRoleId)) {
+            await top1Member.roles.add(specialRoleId, 'Peringkat #1 Pemilik Relik Terbanyak').catch(() => {});
+          }
+          const roleObj = guild.roles.cache.get(specialRoleId);
+          if (roleObj) {
+            for (const [mId, mObj] of roleObj.members) {
+              if (mId !== top1Id) {
+                await mObj.roles.remove(specialRoleId, 'Tergeser dari Peringkat #1 Pemilik Relik').catch(() => {});
+              }
+            }
+          }
+        }
+      }
+    } catch (rErr) {
+      console.warn('[Leaderboard Role Sync Warning]:', rErr.message);
+    }
 
     const channel = guild.channels?.cache?.get(leaderboardChId) ||
       await client.channels.fetch(leaderboardChId).catch(() => null);
@@ -1302,6 +1390,63 @@ async function checkAndBroadcastBossWarning(client, minutesLeft = 15) {
   }
 }
 
+/**
+ * Cek apakah batas waktu 1 jam pasca spawn (pukul 22:00 WIB ke atas) telah tercapai.
+ * Jika boss belum dikalahkan, dia akan melarikan diri / menghilang otomatis.
+ */
+async function checkAndDespawnBoss(client) {
+  if (!client) return;
+  const allBoss = getBossStorage();
+  let changed = false;
+
+  for (const guild of client.guilds.cache.values()) {
+    try {
+      if (!allBoss[guild.id]) continue;
+      const boss = allBoss[guild.id].activeBoss;
+      if (!boss || boss.status !== 'ACTIVE' || boss.currentHp <= 0 || boss.forceSpawned) continue;
+
+      const wib = getWIBDate();
+      const hour = wib.getHours();
+      // Jam 22:00 WIB ke atas (1 jam setelah spawn jam 21:00 WIB)
+      if (hour >= 22) {
+        boss.status = 'FLED';
+        boss.fledAt = Date.now();
+        changed = true;
+        console.log(`[Boss Raid] ${boss.name} melarikan diri karena batas 1 jam telah habis.`);
+
+        const settingsData = storage.read('settings') || {};
+        const gCh = settingsData[guild.id]?.gachaChannels || {};
+        const targetChannelId = gCh.feed || gCh.announce || gCh.hub || gCh.play || gCh.broadcast;
+        if (targetChannelId) {
+          const targetChannel = await client.channels.fetch(targetChannelId).catch(() => null);
+          if (targetChannel && targetChannel.isTextBased()) {
+            const fledEmbed = new EmbedBuilder()
+              .setColor(0x747F8D)
+              .setTitle(`🌑 WORLD BOSS TELAH MENGHILANG (WAKTU 1 JAM HABIS)`)
+              .setDescription(
+                `Waktu 1 jam pertempuran telah habis! **${boss.name}** [${boss.tier} RAID] telah melarikan diri ke kedalaman alam bayangan.\n\n` +
+                `• **Sisa Darah Boss:** **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP**\n` +
+                `• Boss tidak berhasil ditaklukkan malam ini dan telah menghilang.\n\n` +
+                `*Nantikan kebangkitan boss raid berikutnya tepat pukul 21:00 WIB!*`
+              )
+              .setFooter({ text: `${guild.name} • World Boss Despawn` })
+              .setTimestamp();
+            await targetChannel.send({ embeds: [fledEmbed] }).catch(() => {});
+          }
+        }
+
+        await updateLiveLeaderboardChannel(guild, client).catch(() => {});
+      }
+    } catch (err) {
+      console.warn(`[Boss Despawn Error] Guild ${guild.name}:`, err.message);
+    }
+  }
+
+  if (changed) {
+    saveBossStorage(allBoss);
+  }
+}
+
 module.exports = {
   BOSS_CONFIGS,
   STANCES,
@@ -1312,6 +1457,7 @@ module.exports = {
   toggleAdminForceBossRaid,
   checkAndBroadcastBossSpawn,
   checkAndBroadcastBossWarning,
+  checkAndDespawnBoss,
   getGuildBossState,
   getPlayerRelicBonus,
   getUserActiveParty,

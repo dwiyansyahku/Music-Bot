@@ -90,7 +90,7 @@ const DEFAULT_BAD_WORDS = [
 
   // ─── 12. INTERNASIONAL: SPANYOL, RUSIA, TAGALOG, ARAB & MANDARIN ───
   'puta', 'puto', 'mierda', 'pendejo', 'pendeja', 'cabron', 'coño', 'verga', 'maricon', 'culiao', 'chupa',
-  'suka', 'blyat', 'cyka', 'nahui', 'pizdetz', 'debil', 'mudak',
+  'blyat', 'cyka', 'suka blyat', 'nahui', 'pizdetz', 'debil', 'mudak',
   'putangina', 'tangina', 'gago', 'tarantado', 'ulol', 'leche',
   'sharmouta', 'kuss emmak', 'hayawan', 'kalb', 'khara', 'conima',
   'caonima', 'chao ni ma', 'wangba dan', 'hundan', 'tamade'
@@ -98,11 +98,19 @@ const DEFAULT_BAD_WORDS = [
 
 // Kata-kata resmi / aman yang mirip agar tidak salah dideteksi (Innocent Words)
 const INNOCENT_WORDS = [
-  'kontrol', 'kontrak', 'konten', 'kontak', 'kantor', 'kental', 'kancing',
-  'bantal', 'banteng', 'memantau', 'mementingkan', 'membeli', 'meminta', 'memang',
-  'pohon', 'kucing', 'kelinci', 'teman', 'nanti', 'bisa', 'pasti', 'bintang',
-  'kabar', 'sabang', 'pasar', 'kapal', 'tidur', 'makar', 'siapa', 'kemarin',
-  'kamu', 'kami', 'mereka', 'makan', 'minum', 'jalan', 'bukan', 'sudah', 'sedang'
+  // Makanan, Sayuran, Benda & Hewan
+  'kangkung', 'bangkai', 'bangku', 'bangkit', 'bangkalan', 'tulang', 'tukang', 'tupai',
+  'bunga', 'warna', 'buku', 'piring', 'sendok', 'garpu', 'meja', 'kursi', 'kancing',
+  'kental', 'bantal', 'banteng', 'pohon', 'kucing', 'kelinci', 'kapal', 'pasar',
+  // Istilah Gaul, Aktivitas, Kata Harian & Bahasa Daerah
+  'suka', 'turu', 'turun', 'turunan', 'tidur', 'paling', 'palingan', 'pantang', 'pantas', 'panjang',
+  'kurang', 'kirim', 'bngt', 'banget', 'bgt', 'kadang', 'kalau', 'kalo', 'kembali',
+  'koleksi', 'kolaborasi', 'komputer', 'kontrol', 'kontrak', 'konten', 'kontak', 'kantor',
+  'teman', 'mabar', 'game', 'musik', 'lagu', 'tolong', 'admin', 'halo', 'malam', 'pagi',
+  'siang', 'sore', 'terima', 'kasih', 'makasih', 'makasi', 'kuy', 'gass', 'gas', 'gasken',
+  'ayok', 'ayo', 'bisa', 'pasti', 'semangat', 'minum', 'makan', 'jalan', 'bukan', 'sudah',
+  'sedang', 'sering', 'selalu', 'sekarang', 'semua', 'sekali', 'kemarin', 'siapa', 'kamu',
+  'kami', 'mereka', 'kabar', 'sabang', 'memantau', 'mementingkan', 'membeli', 'meminta', 'memang'
 ];
 
 // Domain resmi Discord, Steam, YouTube, Google (Whitelisted)
@@ -245,42 +253,37 @@ function checkBadWords(content, customBadWords = [], whitelistedWords = []) {
     .map(w => w.toLowerCase().trim())
     .filter(w => w && !allWhitelisted.includes(w));
 
-  // 1. TAHAP PERTAMA: EXACT & SUBSTRING MATCHING
+  // 1. TAHAP PERTAMA: EXACT WORD MATCHING (Batas Kata Pasti, Bukan Substring Liar)
   for (const badWord of combinedBadWords) {
-    if (badWord.length <= 4) {
-      if (wordsInRaw.includes(badWord) || wordsInNormalized.includes(badWord)) {
-        return { found: true, word: badWord, isFuzzy: false };
-      }
-      continue;
-    }
-
     if (wordsInRaw.includes(badWord) || wordsInNormalized.includes(badWord)) {
       return { found: true, word: badWord, isFuzzy: false };
     }
 
-    const regex = new RegExp(`\\b${badWord}\\b`, 'i');
-    if (regex.test(rawLower) || regex.test(normalized) || normalized.includes(badWord)) {
+    // Gunakan regex boundary \b agar tidak memicu false positive di dalam kata lain (misal: kangkung)
+    const regex = new RegExp(`(^|\\s|[^a-zA-Z0-9])${badWord}($|\\s|[^a-zA-Z0-9])`, 'i');
+    if (regex.test(rawLower) || regex.test(normalized)) {
       return { found: true, word: badWord, isFuzzy: false };
     }
   }
 
   // 2. TAHAP KEDUA: FUZZY SIMILARITY MATCHING (Deteksi Typo & Disguised Bad Words)
   const candidateWords = Array.from(new Set([...wordsInRaw, ...wordsInNormalized]))
-    .filter(w => w.length >= 4 && !allWhitelisted.includes(w));
+    .filter(w => w.length >= 6 && !allWhitelisted.includes(w));
 
   for (const userWord of candidateWords) {
     for (const badWord of combinedBadWords) {
-      if (badWord.length < 4) continue;
-      if (Math.abs(userWord.length - badWord.length) > 2) continue;
+      // Kata pendek (< 6 huruf) tidak boleh fuzzy agar tidak salah deteksi (misal: turu vs turuk)
+      if (badWord.length < 6) continue;
+      // Huruf pertama harus sama persis (mencegah kangkung vs bangkung)
+      if (userWord[0] !== badWord[0]) continue;
+      if (Math.abs(userWord.length - badWord.length) > 1) continue;
 
       const dist = getLevenshteinDistance(userWord, badWord);
       const maxLen = Math.max(userWord.length, badWord.length);
       const similarity = 1 - (dist / maxLen);
 
-      if (
-        (maxLen <= 5 && dist === 1 && similarity >= 0.80) ||
-        (maxLen >= 6 && dist <= 2 && similarity >= 0.75)
-      ) {
+      // Hanya izinkan 1 typo dengan kemiripan tinggi >= 85%
+      if (dist === 1 && similarity >= 0.85) {
         return { found: true, word: `${userWord} (mirip: ${badWord})`, isFuzzy: true };
       }
     }

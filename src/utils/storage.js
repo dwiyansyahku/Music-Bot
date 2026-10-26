@@ -68,6 +68,54 @@ async function initCloudStorage() {
 }
 
 /**
+ * Flush antrean cloud sync secara instan (berguna saat bot shutdown atau write kritis)
+ */
+async function flushCloudSync() {
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+  if (!SUPABASE_URL || !SUPABASE_KEY || cloudSyncQueue.size === 0) return;
+  const batch = Array.from(cloudSyncQueue.entries());
+  cloudSyncQueue.clear();
+
+  for (const [key, content] of batch) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/bot_storage`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          key,
+          data: content,
+          updated_at: new Date().toISOString()
+        })
+      });
+      console.log(`☁️ [Cloud Sync] Berhasil flush ${key} ke Supabase.`);
+    } catch (err) {
+      console.warn(`⚠️ [Cloud Sync] Gagal flush ${key} ke Supabase:`, err.message);
+    }
+  }
+}
+
+// Tangani shutdown aman agar tidak ada data tertinggal di queue
+process.on('SIGINT', async () => {
+  await flushCloudSync();
+  process.exit(0);
+});
+process.on('SIGTERM', async () => {
+  await flushCloudSync();
+  process.exit(0);
+});
+process.on('beforeExit', async () => {
+  await flushCloudSync();
+});
+
+/**
  * Kirim update data ke Supabase di background (debounced).
  */
 function queueCloudSync(name, data) {
@@ -76,29 +124,7 @@ function queueCloudSync(name, data) {
 
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
-    const batch = Array.from(cloudSyncQueue.entries());
-    cloudSyncQueue.clear();
-
-    for (const [key, content] of batch) {
-      try {
-        await fetch(`${SUPABASE_URL}/rest/v1/bot_storage`, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
-          },
-          body: JSON.stringify({
-            key,
-            data: content,
-            updated_at: new Date().toISOString()
-          })
-        });
-      } catch (err) {
-        console.warn(`⚠️ [Cloud Sync] Gagal sync ${key} ke Supabase:`, err.message);
-      }
-    }
+    await flushCloudSync();
   }, 1000);
 }
 
@@ -250,6 +276,7 @@ module.exports = {
   del,
   loadAllSettings,
   saveGuildSetting,
-  initCloudStorage
+  initCloudStorage,
+  flushCloudSync
 };
 

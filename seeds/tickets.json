@@ -1,0 +1,34 @@
+{
+  "1396245234693963878": {
+    "TKT-6957": {
+      "id": "TKT-6957",
+      "type": "FEEDBACK",
+      "topic": "konten",
+      "status": "OPEN",
+      "details": "jangan konten roblox joget2 terus",
+      "solution": "sesekali main game horor roblox yang seru gak sih",
+      "channelId": "1562627749112315985",
+      "createdAt": 1792832274943,
+      "messageId": "1563476623716519967",
+      "reporterId": "630744301328138240",
+      "resolvedBy": null,
+      "reporterTag": "sendexler01"
+    },
+    "TKT-9950": {
+      "id": "TKT-9950",
+      "type": "REPORT",
+      "status": "OPEN",
+      "details": "Gini tah",
+      "category": "I don't know",
+      "evidence": "",
+      "targetId": "hj.saiyan",
+      "channelId": "1546472050867175444",
+      "createdAt": 1792770609299,
+      "messageId": "1563217979343380551",
+      "targetTag": "hj.saiyan",
+      "reporterId": "1267621678536462389",
+      "resolvedBy": null,
+      "reporterTag": "kuuvhaki_"
+    }
+  }
+}

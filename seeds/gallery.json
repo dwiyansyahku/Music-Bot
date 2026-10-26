@@ -1,104 +1,104 @@
 {
-  "test_guild_gal": {
-    "submissions": [
-      {
-        "id": "GAL_MTTPA1G2",
-        "messageId": "msg_gal_1",
-        "channelId": "out_ch",
-        "userId": "u1",
-        "imageUrl": "https://example.com/art.png",
-        "caption": "My Great Art",
-        "createdAt": 1788934275799
-      }
-    ],
-    "dailyUsage": {
-      "u1_2026-09-09": 1
-    }
-  },
   "guild_test": {
+    "dailyUsage": {
+      "user_test_2026-09-09": 2
+    },
     "submissions": [
       {
         "id": "GAL_MTU0CFB1",
-        "messageId": "msg_posted_999",
-        "channelId": "ch_gallery_123",
         "userId": "user_test",
-        "imageUrl": "https://picsum.photos/200/300",
         "caption": "Test Caption",
-        "createdAt": 1788952862847
+        "imageUrl": "https://picsum.photos/200/300",
+        "channelId": "ch_gallery_123",
+        "createdAt": 1788952862847,
+        "messageId": "msg_posted_999"
       },
       {
         "id": "GAL_MTU15MCK",
-        "messageId": "msg_posted_999",
-        "channelId": "ch_gallery_123",
         "userId": "user_test",
-        "imageUrl": "https://picsum.photos/200/300",
         "caption": "Test Caption",
-        "createdAt": 1788954224998
+        "imageUrl": "https://picsum.photos/200/300",
+        "channelId": "ch_gallery_123",
+        "createdAt": 1788954224998,
+        "messageId": "msg_posted_999"
       }
-    ],
+    ]
+  },
+  "test_guild_gal": {
     "dailyUsage": {
-      "user_test_2026-09-09": 2
-    }
+      "u1_2026-09-09": 1
+    },
+    "submissions": [
+      {
+        "id": "GAL_MTTPA1G2",
+        "userId": "u1",
+        "caption": "My Great Art",
+        "imageUrl": "https://example.com/art.png",
+        "channelId": "out_ch",
+        "createdAt": 1788934275799,
+        "messageId": "msg_gal_1"
+      }
+    ]
   },
   "test_guild_gal_pub": {
+    "dailyUsage": {
+      "u_artist_1_2026-10-23": 6
+    },
     "submissions": [
       {
         "id": "GAL_MVKF86E5",
-        "messageId": "msg_gal_published_999",
-        "channelId": "out_ch_123",
         "userId": "u_artist_1",
+        "caption": "My latest digital artwork",
         "imageUrl": "https://example.com/art.png",
+        "channelId": "out_ch_123",
+        "createdAt": 1792726761829,
         "imageUrls": [
           "https://example.com/art.png"
         ],
-        "imageCount": 1,
-        "caption": "My latest digital artwork",
-        "createdAt": 1792726761829
+        "messageId": "msg_gal_published_999",
+        "imageCount": 1
       },
       {
         "id": "GAL_MVKF86EH",
-        "messageId": "msg_gal_published_999",
-        "channelId": "out_ch_123",
         "userId": "u_artist_1",
+        "caption": "Artwork pair",
         "imageUrl": "https://example.com/art1.png",
+        "channelId": "out_ch_123",
+        "createdAt": 1792726761834,
         "imageUrls": [
           "https://example.com/art1.png",
           "https://example.com/art2.png"
         ],
-        "imageCount": 2,
-        "caption": "Artwork pair",
-        "createdAt": 1792726761834
+        "messageId": "msg_gal_published_999",
+        "imageCount": 2
       },
       {
         "id": "GAL_MVKF8KT9",
-        "messageId": "msg_gal_published_999",
-        "channelId": "out_ch_123",
         "userId": "u_artist_1",
+        "caption": "My latest digital artwork",
         "imageUrl": "https://example.com/art.png",
+        "channelId": "out_ch_123",
+        "createdAt": 1792726780513,
         "imageUrls": [
           "https://example.com/art.png"
         ],
-        "imageCount": 1,
-        "caption": "My latest digital artwork",
-        "createdAt": 1792726780513
+        "messageId": "msg_gal_published_999",
+        "imageCount": 1
       },
       {
         "id": "GAL_MVKF8KTF",
-        "messageId": "msg_gal_published_999",
-        "channelId": "out_ch_123",
         "userId": "u_artist_1",
+        "caption": "Artwork pair",
         "imageUrl": "https://example.com/art1.png",
+        "channelId": "out_ch_123",
+        "createdAt": 1792726780515,
         "imageUrls": [
           "https://example.com/art1.png",
           "https://example.com/art2.png"
         ],
-        "imageCount": 2,
-        "caption": "Artwork pair",
-        "createdAt": 1792726780515
+        "messageId": "msg_gal_published_999",
+        "imageCount": 2
       }
-    ],
-    "dailyUsage": {
-      "u_artist_1_2026-10-23": 6
-    }
+    ]
   }
 }

@@ -1,0 +1,91 @@
+{
+  "1396245234693963878": {
+    "activeBoss": {
+      "id": "boss_1792850451881_g4i7d",
+      "name": "Colossal Titan of Oblivion",
+      "tier": "WEEKLY",
+      "color": 15105570,
+      "maxHp": 80000,
+      "title": "Raksasa Kehancuran Dimensi",
+      "status": "ACTIVE",
+      "guildId": "1396245234693963878",
+      "history": [],
+      "parties": {
+        "party_1792855949999_2389": {
+          "id": "party_1792855949999_2389",
+          "name": "Party #1 (kuuvhaki_)",
+          "status": "IN_COMBAT",
+          "members": [
+            "1267621678536462389"
+          ],
+          "leaderId": "1267621678536462389",
+          "createdAt": 1792855949999,
+          "totalDamage": 6130
+        }
+      },
+      "currentHp": 73870,
+      "spawnedAt": 1792850451881,
+      "defeatedAt": null,
+      "playerStats": {
+        "1267621678536462389": {
+          "maxHp": 100,
+          "userId": "1267621678536462389",
+          "username": "kuuvhaki_",
+          "currentHp": 39,
+          "relicName": null,
+          "relicTier": "NONE",
+          "totalDamage": 6130,
+          "isKnockedOut": false
+        },
+        "1396473500486860980": {
+          "maxHp": 100,
+          "userId": "1396473500486860980",
+          "username": "nebulkyeopta",
+          "currentHp": 100,
+          "relicName": null,
+          "relicTier": "NONE",
+          "totalDamage": 0,
+          "isKnockedOut": false
+        }
+      },
+      "activeCombat": {
+        "round": 4,
+        "partyId": "party_1792855949999_2389",
+        "threadId": "1563575956948521010",
+        "maxRounds": 5,
+        "messageId": "1563576130781581353",
+        "roundLogs": [
+          {
+            "logs": [
+              "• <@1267621678536462389> [Serang vs Jurus]: **Menang Taktik!** Critical Strike (3.419 DMG)"
+            ],
+            "round": 1,
+            "bossStance": "special",
+            "totalRoundDmg": 3419
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Jurus vs Serang]: **Kalah Taktik!** Serangan dipatahkan (500 DMG, -46 HP)"
+            ],
+            "round": 2,
+            "bossStance": "attack",
+            "totalRoundDmg": 500
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Jurus vs Jurus]: **Seri Stance!** Saling beradu (2.211 DMG, -15 HP)"
+            ],
+            "round": 3,
+            "bossStance": "special",
+            "totalRoundDmg": 2211
+          }
+        ],
+        "bossStance": "attack",
+        "roundDamages": {},
+        "playerStances": {},
+        "parentChannelId": "1563045395372703765"
+      },
+      "forceSpawned": false
+    }
+  }
+}
