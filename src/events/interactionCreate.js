@@ -430,9 +430,7 @@ module.exports = {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaInventory(interaction, interaction.user, client);
         } else if (action === 'shop') {
-          const isInHub = gChannels.hub && interaction.channelId === gChannels.hub;
-          const isCrossToUmum = gChannels.umum && interaction.channelId !== gChannels.umum;
-          await interaction.deferReply({ flags: (isInHub || isCrossToUmum) ? MessageFlags.Ephemeral : undefined });
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
           return await executeGachaShop(interaction, client);
         } else if (action.startsWith('shop_buy:')) {
           const itemId = action.replace('shop_buy:', '');
@@ -1073,6 +1071,37 @@ module.exports = {
         await handleVoiceLoungeModalSubmit(interaction, client);
       } catch (err) {
         await safeErrorReply(err, 'Gagal memproses pengaturan ruang suara.');
+      }
+      return;
+    }
+
+    // ====== Admin Control Hub & Operations ======
+    if (interaction.isButton() && interaction.customId.startsWith('admin_btn_')) {
+      try {
+        const { handleAdminButton } = require('../utils/adminHelper');
+        await handleAdminButton(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memproses tindakan operasional admin.');
+      }
+      return;
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'admin_select_guide_category') {
+      try {
+        const { handleAdminSelectCategory } = require('../utils/adminHelper');
+        await handleAdminSelectCategory(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal memuat panduan fitur admin.');
+      }
+      return;
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === 'admin_modal_broadcast') {
+      try {
+        const { handleAdminBroadcastModal } = require('../utils/adminHelper');
+        await handleAdminBroadcastModal(interaction, client);
+      } catch (err) {
+        await safeErrorReply(err, 'Gagal menyiarkan pengumuman resmi.');
       }
       return;
     }

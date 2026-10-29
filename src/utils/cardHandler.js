@@ -671,30 +671,43 @@ async function handleCardModalSubmit(interaction, client) {
 
   try {
     const result = await publishCardToChannel(interaction.guild, interaction.member, client);
-    const jumpUrl = result?.jumpUrl || (userCard.publishedMessageId ? `https://discord.com/channels/${guildId}/${targetChannelId}/${userCard.publishedMessageId}` : null);
+    const publishedId = result?.messageId || userCard.publishedMessageId;
+    const targetChObj = interaction.guild?.channels?.cache?.get(targetChannelId);
+    const targetChName = targetChObj ? `#${targetChObj.name}` : `<#${targetChannelId}>`;
 
-    if (jumpUrl) {
-      const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel('Lihat Kartu Profil ↗')
-          .setStyle(ButtonStyle.Link)
-          .setURL(jumpUrl)
-      );
+    const jumpUrl = publishedId
+      ? `https://discord.com/channels/${guildId}/${targetChannelId}/${publishedId}`
+      : `https://discord.com/channels/${guildId}/${targetChannelId}`;
 
-      await interaction.editReply({
-        content: `✅ **Profil berhasil disimpan & diperbarui di <#${targetChannelId}>!**\nKlik tombol di bawah untuk langsung menuju ke kartumu:`,
-        components: [row]
-      }).catch(() => {});
-    } else {
-      await interaction.editReply({
-        content: `✅ **Profil berhasil disimpan & dipublikasikan di <#${targetChannelId}>!**`
-      }).catch(() => {});
-    }
+    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel('Buka Kartu Profil ↗')
+        .setStyle(ButtonStyle.Link)
+        .setURL(jumpUrl)
+    );
+
+    await interaction.editReply({
+      content: `✅ **Profil berhasil disimpan & dipublikasikan di <#${targetChannelId}>!**\n\n` +
+        `🔗 **Tautan Langsung:** [Klik di Sini untuk Membuka Kartumu di ${targetChName} ↗](${jumpUrl})\n` +
+        `Atau tekan tombol di bawah untuk langsung menuju ke kartumu:`,
+      components: [row]
+    }).catch(() => {});
   } catch (err) {
     console.error('[CardHandler] Publish failed:', err.message);
+    const fallbackUrl = userCard.publishedMessageId
+      ? `https://discord.com/channels/${guildId}/${targetChannelId}/${userCard.publishedMessageId}`
+      : `https://discord.com/channels/${guildId}/${targetChannelId}`;
+    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel('Buka Galeri Card ↗')
+        .setStyle(ButtonStyle.Link)
+        .setURL(fallbackUrl)
+    );
     await interaction.editReply({
-      content: `**Profile saved!** Card published to <#${targetChannelId}>.`
+      content: `✅ **Profil berhasil disimpan!**\n\n🔗 **Tautan:** [Buka Kartu Profil di <#${targetChannelId}> ↗](${fallbackUrl})`,
+      components: [row]
     }).catch(() => {});
   }
 }

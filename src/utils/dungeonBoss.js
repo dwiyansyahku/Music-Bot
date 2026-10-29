@@ -894,11 +894,15 @@ async function resolveCombatRound(guildId, partyId, client) {
     boss.activeCombat = null;
     saveBossStorage(allData);
 
-    // Auto-update Papan Klasemen Live di channel #papan-klasemen!
+    // Auto-update Papan Klasemen Live di channel #papan-klasemen dan Lounge Hub!
     if (client) {
       const guild = client.guilds.cache.get(guildId);
       if (guild) {
         updateLiveLeaderboardChannel(guild, client).catch(() => {});
+        try {
+          const { updateHubPanelIfExists } = require('../commands/gacha');
+          if (updateHubPanelIfExists) updateHubPanelIfExists(guild, client).catch(() => {});
+        } catch (_) {}
       }
     }
 
@@ -910,6 +914,18 @@ async function resolveCombatRound(guildId, partyId, client) {
   combat.bossStance = pickRandomBossStance();
   combat.playerStances = {}; // Reset pilihan ronde baru
   saveBossStorage(allData);
+
+  // Update realtime status HP ke Papan Klasemen & Hub
+  if (client) {
+    const guild = client.guilds.cache.get(guildId);
+    if (guild) {
+      updateLiveLeaderboardChannel(guild, client).catch(() => {});
+      try {
+        const { updateHubPanelIfExists } = require('../commands/gacha');
+        if (updateHubPanelIfExists) updateHubPanelIfExists(guild, client).catch(() => {});
+      } catch (_) {}
+    }
+  }
 
   const nextTurnPayload = buildCombatTurnPayload(boss, party);
   if (combatChannel) {
@@ -1072,126 +1088,160 @@ function buildBossLobbyPayload(guildId, isOwnerOrAdmin = false) {
 }
 
 /**
- * Buat 2 Embed Live Klasemen untuk #papan-klasemen
+ * Buat 1 Embed Live Klasemen Terpadu untuk #papan-klasemen (Top Global Dashboard)
+ * Menggabungkan status Boss Raid realtime, Top 1 Sovereign ber-role eksklusif,
+ * dan klasemen 10 besar berdasarkan Kelengkapan Relik & Damage Boss.
  */
-function buildLiveLeaderboardEmbeds(guildId) {
+function buildLiveLeaderboardEmbeds(guildId, guild = null) {
   const { boss } = getGuildBossState(guildId);
-  const hpBar = generateHpBar(boss.currentHp, boss.maxHp, 14);
+  const hpBar = generateHpBar(boss.currentHp, boss.maxHp, 12);
   const hpPercent = Math.max(0, Math.round((boss.currentHp / boss.maxHp) * 100));
 
-  // Top Parties by Damage (Akumulasi seluruh party yang pernah bertarung di sesi ini)
-  const allParties = [
-    ...Object.values(boss.parties || {}),
-    ...(boss.partyHistory || [])
-  ];
-  const sortedParties = allParties
-    .filter(p => (p.totalDamage || 0) > 0)
-    .sort((a, b) => (b.totalDamage || 0) - (a.totalDamage || 0))
-    .slice(0, 5);
+  const settingsData = storage.read('settings') || {};
+  const gCh = settingsData[guildId]?.gachaChannels || {};
+  const duelChId = gCh.duel || gCh.live_duel || gCh.throne;
 
-  let topPartiesText = '_Belum ada damage party yang masuk_';
-  if (sortedParties.length > 0) {
-    topPartiesText = sortedParties.map((p, i) => {
-      const medals = ['🥇', '🥈', '🥉', '4.', '5.'];
-      const pct = boss.maxHp > 0 ? ((p.totalDamage / boss.maxHp) * 100).toFixed(1) : '0';
-      return `${medals[i]} **${p.name}** — **${p.totalDamage.toLocaleString('id-ID')} DMG** (${pct}%)`;
-    }).join('\n');
+  // 1. Status Boss Raid Realtime Line
+  let bossStatusLine = '';
+  const nextSpawn = getNextBossSpawnTime();
+
+  let spawnLinkText = '';
+  if (boss.spawnChannelId && boss.spawnMessageId) {
+    spawnLinkText = `\n  🔗 [Buka Pesan Spawn Boss di Arena Duel ↗](https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId})`;
+  } else if (duelChId) {
+    spawnLinkText = `\n  📍 **Arena Duel:** <#${duelChId}>`;
   }
 
-  // Top Solo Players by Damage
-  const sortedPlayers = Object.values(boss.playerStats || {})
-    .filter(p => (p.totalDamage || 0) > 0)
-    .sort((a, b) => (b.totalDamage || 0) - (a.totalDamage || 0))
-    .slice(0, 5);
-
-  let topPlayersText = '_Belum ada kontribusi damage individu_';
-  if (sortedPlayers.length > 0) {
-    topPlayersText = sortedPlayers.map((p, i) => {
-      const relicInfo = p.relicName ? ` *(Equip: ${p.relicName})*` : '';
-      return `${i + 1}. <@${p.userId}> — **${p.totalDamage.toLocaleString('id-ID')} DMG**${relicInfo}`;
-    }).join('\n');
+  if (boss.status === 'ACTIVE' && boss.currentHp > 0) {
+    bossStatusLine = `⚔️ **SEDANG BANGKIT & DISERANG**\n` +
+      `• **Nama:** **${boss.name}** [Tier ${boss.tier}]\n` +
+      `• **HP:** \`[${hpBar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${hpPercent}%)${spawnLinkText}`;
+  } else if (boss.status === 'DEFEATED') {
+    bossStatusLine = `🏆 **TELAH TERKALAHKAN HARI INI**\n` +
+      `• Bangkit kembali besok malam pukul **21:00 WIB** (<t:${nextSpawn.unix}:R>).`;
+  } else {
+    bossStatusLine = `⏳ **BELUM BANGKIT (ISTIRAHAT)**\n` +
+      `• Jadwal spawn: Pukul **21:00 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
   }
 
-  const statusText = boss.status === 'DEFEATED'
-    ? '🏆 **TELAH TERKALAHKAN**'
-    : boss.status === 'FLED'
-    ? '🌑 **TELAH MENGHILANG (WAKTU HABIS)**'
-    : '⚔️ **AKTIF SEDANG DISERANG**';
-
-  const raidEmbed = new EmbedBuilder()
-    .setColor(boss.color || 0x9B59B6)
-    .setTitle(`LIVE RAID BOSS STATUS • ${boss.name}`)
-    .setDescription(
-      `> **${boss.name}** [${boss.tier} RAID]\n` +
-      `> *${boss.title}*\n\n` +
-      `**Darah Boss:** \`[${hpBar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${hpPercent}%)\n` +
-      `**Status:** ${statusText}\n\n` +
-      `**🏆 Klasemen Top Damage Party:**\n${topPartiesText}\n\n` +
-      `**💥 Top Damager Individu:**\n${topPlayersText}`
-    )
-    .setFooter({ text: 'Papan skor terupdate otomatis secara real-time' })
-    .setTimestamp();
-
-  // Embed 2: Hall of Fame Gacha & Musim
+  // 2. Evaluasi Data Member untuk Top Global (Kelengkapan Relik + Damage Boss)
   const gachaData = storage.read('gacha_data') || {};
   const guildUsers = Object.entries(gachaData[guildId] || {});
   const { GACHA_ITEMS } = require('../commands/gacha');
 
-  // Top Relic Holders (Ranked by limited relics Ancient & Mythic, then total inventory)
-  const topLimitedUsers = [...guildUsers]
-    .map(([uId, data]) => {
-      const limiteds = (data.inventory || []).filter(name => {
-        const item = GACHA_ITEMS.find(g => g.name === name);
-        return item && (item.tier === 'ANCIENT' || item.tier === 'MYTHIC');
+  const tierWeights = {
+    ANCIENT: 5000,
+    MYTHIC: 2500,
+    LEGENDARY: 1000,
+    EPIC: 300,
+    RARE: 100,
+    COMMON: 25
+  };
+
+  const candidateUsers = [];
+
+  for (const [uId, uData] of guildUsers) {
+    const inv = uData.inventory || [];
+    let relicScore = 0;
+    let ancientCount = 0;
+    let mythicCount = 0;
+    let legCount = 0;
+
+    for (const relicName of inv) {
+      const item = GACHA_ITEMS.find(g => g.name === relicName);
+      if (item) {
+        relicScore += (tierWeights[item.tier] || 25);
+        if (item.tier === 'ANCIENT') ancientCount++;
+        else if (item.tier === 'MYTHIC') mythicCount++;
+        else if (item.tier === 'LEGENDARY') legCount++;
+      }
+    }
+
+    const bossDamage = boss.playerStats?.[uId]?.totalDamage || (uData.bossDamageLifetime || 0);
+    const defenseBonus = (uData.duelDefenseStreak || 0) * 100;
+    const totalScore = relicScore + bossDamage + defenseBonus;
+    const limitedCount = ancientCount + mythicCount + legCount;
+
+    if (totalScore > 0 || inv.length > 0 || bossDamage > 0) {
+      candidateUsers.push({
+        uId,
+        relicCount: inv.length,
+        ancientCount,
+        mythicCount,
+        legCount,
+        limitedCount,
+        bossDamage,
+        relicScore,
+        defenseStreak: uData.duelDefenseStreak || 0,
+        totalScore
       });
-      return { uId, count: limiteds.length, totalInv: (data.inventory || []).length, list: limiteds };
-    })
-    .filter(x => x.count > 0 || x.totalInv > 0)
-    .sort((a, b) => b.count - a.count || b.totalInv - a.totalInv)
-    .slice(0, 5);
+    }
+  }
 
-  const settingsData = storage.read('settings') || {};
-  const specialRoleId = settingsData[guildId]?.gachaRoles?.CHAMPION || '1547139921595203616';
-  const roleTag = specialRoleId ? ` (<@&${specialRoleId}>)` : '';
+  // Urutkan berdasarkan Total Skor (Gabungan Relik + Damage), lalu kelengkapan relik, lalu damage
+  candidateUsers.sort((a, b) => b.totalScore - a.totalScore || b.relicCount - a.relicCount || b.bossDamage - a.bossDamage);
 
-  let topLimitedText = '_Belum ada pemilik relik di server_';
-  if (topLimitedUsers.length > 0) {
-    topLimitedText = topLimitedUsers.map((x, i) => {
-      const crown = i === 0 ? '👑 [Top 1 Tahta]' : `${i + 1}.`;
-      return `${crown} <@${x.uId}> — **${x.count} Relik Limited** (${x.totalInv} Total Relik)`;
+  const top1 = candidateUsers.length > 0 ? candidateUsers[0] : null;
+
+  // Ambil Role Exclusive
+  const specialRoleId = settingsData[guildId]?.gachaRoles?.CHAMPION ||
+    guild?.roles?.cache?.find(r => r.name.toLowerCase().includes('god of qumpruy') || r.name.toLowerCase().includes('champion'))?.id ||
+    '1547139921595203616';
+  const roleTag = specialRoleId ? `<@&${specialRoleId}>` : '`[Role Juara Belum Diatur]`';
+
+  let top1Display = '_Belum ada data pejuang terdaftar_';
+  if (top1) {
+    top1Display = `👑 **Top 1 Sovereign:** <@${top1.uId}> — Role: ${roleTag}\n` +
+      `• **Total Skor Global:** **${top1.totalScore.toLocaleString('id-ID')} Poin**\n` +
+      `• **Kelengkapan Relik:** **${top1.relicCount} Item** (${top1.limitedCount} Relik Langka: ${top1.ancientCount} Ancient, ${top1.mythicCount} Mythic, ${top1.legCount} Leg)\n` +
+      `• **Akumulasi Damage Boss:** **${top1.bossDamage.toLocaleString('id-ID')} DMG**` +
+      (top1.defenseStreak > 0 ? ` • 🛡️ ${top1.defenseStreak}x Bertahan` : '');
+  }
+
+  // Top 10 List
+  const medals = ['🥇', '🥈', '🥉', '4.', '5.', '6.', '7.', '8.', '9.', '10.'];
+  const top10 = candidateUsers.slice(0, 10);
+  let top10Text = '_Belum ada pejuang di leaderboard_';
+  if (top10.length > 0) {
+    top10Text = top10.map((u, idx) => {
+      const medal = medals[idx] || `${idx + 1}.`;
+      return `${medal} <@${u.uId}> — **${u.totalScore.toLocaleString('id-ID')} Poin**\n  ↳ 📦 **${u.relicCount} Relik** (${u.limitedCount} Langka) • 💥 **${u.bossDamage.toLocaleString('id-ID')} DMG**`;
     }).join('\n');
   }
 
-  // Top Defense Streak Tahta
-  const topDefenders = [...guildUsers]
-    .filter(([_, d]) => (d.duelDefenseStreak || 0) > 0)
-    .sort((a, b) => (b[1].duelDefenseStreak || 0) - (a[1].duelDefenseStreak || 0))
-    .slice(0, 5);
+  // Sorotan Terbaik
+  const topDamager = [...candidateUsers].sort((a, b) => b.bossDamage - a.bossDamage)[0];
+  const topCollector = [...candidateUsers].sort((a, b) => b.relicCount - a.relicCount)[0];
 
-  let topDefenseText = '_Belum ada rekor pertahanan tahta_';
-  if (topDefenders.length > 0) {
-    topDefenseText = topDefenders.map(([uId, d], i) => {
-      const tierTag = d.activeRole?.tier ? ` [${d.activeRole.tier}]` : '';
-      return `${i + 1}. <@${uId}> — **${d.duelDefenseStreak}x Pertahanan Beruntun**${tierTag}`;
-    }).join('\n');
-  }
+  const highlightsText =
+    `• 💥 **Top Damager:** ${topDamager && topDamager.bossDamage > 0 ? `<@${topDamager.uId}> (${topDamager.bossDamage.toLocaleString('id-ID')} DMG)` : '_Belum ada_'}\n` +
+    `• 📦 **Top Kolektor:** ${topCollector && topCollector.relicCount > 0 ? `<@${topCollector.uId}> (${topCollector.relicCount} Relik)` : '_Belum ada_'}`;
 
-  const fameEmbed = new EmbedBuilder()
+  const unifiedEmbed = new EmbedBuilder()
     .setColor(0xFEE75C)
-    .setTitle('HALL OF FAME • KLASEMEN GACHA & TAHTA')
+    .setTitle(`🏆 PAPAN KLASEMEN TOP GLOBAL & WORLD BOSS`)
     .setDescription(
-      `Papan peringkat kasta tertinggi dan rekor pertempuran tahta server:\n\n` +
-      `**👑 Top Pemilik Relik Terbanyak${roleTag}:**\n${topLimitedText}\n\n` +
-      `**🛡️ Top Pertahanan Tahta (Duel Defense Streak):**\n${topDefenseText}`
+      `Papan peringkat kasta tertinggi server berdasarkan **Kelengkapan Relik** dan **Damage ke World Boss**.\n` +
+      `Pemain di peringkat **Top 1** secara otomatis dianugerahi **Role Eksklusif Server**!\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `**👹 STATUS WORLD BOSS (REALTIME):**\n` +
+      `${bossStatusLine}\n\n` +
+      `**👑 PEMEGANG GELAR TOP 1 GLOBAL:**\n` +
+      `${top1Display}\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `**📊 KLASEMEN 10 BESAR TOP GLOBAL:**\n` +
+      `${top10Text}\n\n` +
+      `**✨ SOROTAN PRESTASI:**\n` +
+      `${highlightsText}`
     )
-    .setFooter({ text: 'Hall of Fame Server • Terupdate Otomatis' })
+    .setFooter({ text: 'Top Global Dashboard • Terupdate Otomatis Realtime • Top 1 Memperoleh Role Eksklusif' })
     .setTimestamp();
 
-  return [raidEmbed, fameEmbed];
+  return [unifiedEmbed];
 }
 
 /**
- * Perbarui Live Embed di Channel #papan-klasemen & Sinkronisasi Role Top Relik
+ * Perbarui Live Embed di Channel #papan-klasemen & Sinkronisasi Role Top 1 Global
  */
 async function updateLiveLeaderboardChannel(guild, client) {
   try {
@@ -1200,39 +1250,50 @@ async function updateLiveLeaderboardChannel(guild, client) {
     const leaderboardChId = settingsData[guild.id]?.gachaChannels?.leaderboard;
     if (!leaderboardChId) return;
 
-    // Sinkronisasi Role Khusus untuk Peringkat #1 Relik Terbanyak secara realtime
+    // Sinkronisasi Role Khusus untuk Peringkat #1 Top Global (Kelengkapan Relik + Damage Boss)
     try {
       const gachaData = storage.read('gacha_data') || {};
       const guildUsers = Object.entries(gachaData[guild.id] || {});
       const { GACHA_ITEMS } = require('../commands/gacha');
+      const { boss } = getGuildBossState(guild.id);
 
-      const topRelicUsers = [...guildUsers]
-        .map(([uId, data]) => {
-          const limiteds = (data.inventory || []).filter(name => {
-            const item = GACHA_ITEMS.find(g => g.name === name);
-            return item && (item.tier === 'ANCIENT' || item.tier === 'MYTHIC');
-          });
-          return { uId, count: limiteds.length, totalInv: (data.inventory || []).length };
-        })
-        .filter(x => x.count > 0 || x.totalInv > 0)
-        .sort((a, b) => b.count - a.count || b.totalInv - a.totalInv);
+      const tierWeights = { ANCIENT: 5000, MYTHIC: 2500, LEGENDARY: 1000, EPIC: 300, RARE: 100, COMMON: 25 };
+      const candidateUsers = [];
 
-      if (topRelicUsers.length > 0) {
-        const top1Id = topRelicUsers[0].uId;
+      for (const [uId, uData] of guildUsers) {
+        const inv = uData.inventory || [];
+        let relicScore = 0;
+        for (const relicName of inv) {
+          const item = GACHA_ITEMS.find(g => g.name === relicName);
+          if (item) relicScore += (tierWeights[item.tier] || 25);
+        }
+        const bossDamage = boss.playerStats?.[uId]?.totalDamage || (uData.bossDamageLifetime || 0);
+        const defenseBonus = (uData.duelDefenseStreak || 0) * 100;
+        const totalScore = relicScore + bossDamage + defenseBonus;
+
+        if (totalScore > 0 || inv.length > 0 || bossDamage > 0) {
+          candidateUsers.push({ uId, totalScore, relicCount: inv.length, bossDamage });
+        }
+      }
+
+      candidateUsers.sort((a, b) => b.totalScore - a.totalScore || b.relicCount - a.relicCount || b.bossDamage - a.bossDamage);
+
+      if (candidateUsers.length > 0) {
+        const top1Id = candidateUsers[0].uId;
         const specialRoleId = settingsData[guild.id]?.gachaRoles?.CHAMPION ||
-          guild.roles.cache.find(r => r.name.toLowerCase().includes('god of qumpruy') || r.name.toLowerCase().includes('qumpruy champion'))?.id ||
+          guild.roles?.cache?.find(r => r.name.toLowerCase().includes('god of qumpruy') || r.name.toLowerCase().includes('champion'))?.id ||
           '1547139921595203616';
 
-        if (specialRoleId && guild.roles.cache.has(specialRoleId)) {
-          const top1Member = guild.members.cache.get(top1Id) || await guild.members.fetch(top1Id).catch(() => null);
+        if (specialRoleId && guild.roles?.cache?.has(specialRoleId)) {
+          const top1Member = guild.members?.cache?.get(top1Id) || await guild.members?.fetch(top1Id).catch(() => null);
           if (top1Member && !top1Member.roles.cache.has(specialRoleId)) {
-            await top1Member.roles.add(specialRoleId, 'Peringkat #1 Pemilik Relik Terbanyak').catch(() => {});
+            await top1Member.roles.add(specialRoleId, 'Peringkat #1 Top Global (Relik + Damage Boss)').catch(() => {});
           }
           const roleObj = guild.roles.cache.get(specialRoleId);
           if (roleObj) {
             for (const [mId, mObj] of roleObj.members) {
               if (mId !== top1Id) {
-                await mObj.roles.remove(specialRoleId, 'Tergeser dari Peringkat #1 Pemilik Relik').catch(() => {});
+                await mObj.roles.remove(specialRoleId, 'Tergeser dari Peringkat #1 Top Global').catch(() => {});
               }
             }
           }
@@ -1246,7 +1307,7 @@ async function updateLiveLeaderboardChannel(guild, client) {
       await client.channels.fetch(leaderboardChId).catch(() => null);
     if (!channel || !channel.isTextBased() || channel.isThread()) return;
 
-    const embeds = buildLiveLeaderboardEmbeds(guild.id);
+    const embeds = buildLiveLeaderboardEmbeds(guild.id, guild);
     const existingMsgId = settingsData[guild.id]?.gachaPanels?.leaderboard_msg;
 
     if (existingMsgId) {
@@ -1309,10 +1370,10 @@ async function checkAndBroadcastBossSpawn(client) {
         saveBossStorage(allBoss);
       }
 
-      // Ambil channel pengumuman
+      // Ambil channel Arena Duel untuk spawn World Boss
       const settingsData = storage.read('settings') || {};
       const gCh = settingsData[guild.id]?.gachaChannels || {};
-      const targetChannelId = gCh.feed || gCh.announce || gCh.hub || gCh.play || gCh.broadcast;
+      const targetChannelId = gCh.duel || gCh.live_duel || gCh.throne || gCh.feed || gCh.announce || gCh.hub || gCh.play || gCh.broadcast;
       if (!targetChannelId) continue;
 
       const targetChannel = await client.channels.fetch(targetChannelId).catch(() => null);
@@ -1329,17 +1390,27 @@ async function checkAndBroadcastBossSpawn(client) {
           `> *“${boss.title}”*\n\n` +
           `• **Kasta Boss:** \`${boss.tier}\`\n` +
           `• **Darah Boss:** **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP**\n` +
-          `• **Waktu Tempur:** Pukul **21:00 WIB - 23:59 WIB**\n\n` +
+          `• **Waktu Tempur:** Pukul **21:00 WIB - 23:59 WIB**\n` +
+          `• **Arena Pertarungan:** <#${targetChannel.id}>\n\n` +
           `⚔️ Segera bentuk partymu di ${loungeText} dan serang bersama seluruh squad server!`
         )
         .setImage(BOSS_VISUALS.STANCE[boss.tier] || BOSS_VISUALS.STANCE.DAILY)
         .setFooter({ text: `${guild.name} • World Boss Raid 21:00 WIB` })
         .setTimestamp();
 
-      await targetChannel.send({ embeds: [spawnEmbed] }).catch(() => {});
+      const spawnMsg = await targetChannel.send({ embeds: [spawnEmbed] }).catch(() => null);
+      if (spawnMsg) {
+        boss.spawnChannelId = targetChannel.id;
+        boss.spawnMessageId = spawnMsg.id;
+        saveBossStorage(allBoss);
+      }
 
-      // Auto update live leaderboard di #papan-klasemen
+      // Auto update live leaderboard di #papan-klasemen dan panel lounge
       await updateLiveLeaderboardChannel(guild, client).catch(() => {});
+      try {
+        const { updateHubPanelIfExists } = require('../commands/gacha');
+        if (updateHubPanelIfExists) updateHubPanelIfExists(guild, client).catch(() => {});
+      } catch (_) {}
     } catch (gErr) {
       console.warn(`[Boss Spawn Broadcast] Guild ${guild.name} error:`, gErr.message);
     }

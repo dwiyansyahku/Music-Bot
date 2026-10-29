@@ -2805,9 +2805,20 @@ async function processDuelButton(interaction, client) {
       });
     }
 
+    const duelJumpUrl = `https://discord.com/channels/${guildId}/${tacticsTargetChannel.id}/${duelResult.messageId}`;
+    const jumpRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel('Buka Arena Duel ↗')
+        .setStyle(ButtonStyle.Link)
+        .setURL(duelJumpUrl)
+    );
+
     return interaction.update({
-      content: `Lawan terpilih secara acak: <@${targetDefender.userId}>!\nTantangan perebutan **Tahta ${itemTier}** telah dikirim ke <#${tacticsTargetChannel.id}>. Silakan pasang taktikmu di sana.`,
-      components: []
+      content: `⚔️ **Lawan Terpilih Secara Acak:** <@${targetDefender.userId}>!\n\n` +
+        `Kartu tantangan perebutan **Tahta ${itemTier}** telah resmi dikirim ke <#${tacticsTargetChannel.id}>.\n` +
+        `🔗 **Tautan Langsung:** [Buka Kartu Pertarungan di Arena Duel ↗](${duelJumpUrl})\n\n` +
+        `Silakan menuju ke Arena Duel dan tekan tombol **[Pasang Taktik]** sebelum waktu 12 jam habis.`,
+      components: [jumpRow]
     });
   }
 
@@ -2915,9 +2926,20 @@ async function processDuelButton(interaction, client) {
       });
     }
 
+    const duelJumpUrl = `https://discord.com/channels/${guildId}/${tacticsTargetChannel.id}/${duelResult.messageId}`;
+    const jumpRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel('Buka Arena Duel ↗')
+        .setStyle(ButtonStyle.Link)
+        .setURL(duelJumpUrl)
+    );
+
     return interaction.update({
-      content: `Kamu telah memilih <@${selectedUserId}> sebagai lawanmu!\nTantangan perebutan **Tahta ${itemTier}** telah dikirim ke <#${tacticsTargetChannel.id}>. Silakan pasang taktikmu di sana.`,
-      components: []
+      content: `⚔️ **Kamu telah memilih <@${selectedUserId}> sebagai lawanmu!**\n\n` +
+        `Kartu tantangan perebutan **Tahta ${itemTier}** telah resmi dikirim ke <#${tacticsTargetChannel.id}>.\n` +
+        `🔗 **Tautan Langsung:** [Buka Kartu Pertarungan di Arena Duel ↗](${duelJumpUrl})\n\n` +
+        `Silakan menuju ke Arena Duel dan tekan tombol **[Pasang Taktik]** sebelum waktu 12 jam habis.`,
+      components: [jumpRow]
     });
   }
 
@@ -3534,52 +3556,73 @@ function createPullPanelPayload(guild) {
 
 /**
  * Create Payload for Gacha & Adventure Hub Panel (#gacha-lounge)
+ * Relevan, Simpel, Real-time World Boss HP, Status Tahta & Navigasi Arena Duel
  */
 function createHubPanelPayload(guild) {
   const guildId = guild?.id;
   const settingsData = storage.read('settings') || {};
   const leaderboardChId = settingsData[guildId]?.gachaChannels?.leaderboard;
   const feedChId = settingsData[guildId]?.gachaChannels?.feed || settingsData[guildId]?.gachaChannels?.announce;
+  const duelChId = settingsData[guildId]?.gachaChannels?.duel || settingsData[guildId]?.gachaChannels?.live_duel || settingsData[guildId]?.gachaChannels?.throne;
 
   let bossStatusLine = '• **Raid Boss:** _Belum ada boss aktif saat ini_';
   try {
-    const { getGuildBossState } = require('../utils/dungeonBoss');
+    const { getGuildBossState, getNextBossSpawnTime } = require('../utils/dungeonBoss');
     const { boss } = getGuildBossState(guildId);
-    if (boss && boss.status === 'ACTIVE') {
+    const nextSpawn = getNextBossSpawnTime();
+
+    if (boss && boss.status === 'ACTIVE' && boss.currentHp > 0) {
       const ratio = Math.max(0, Math.min(1, boss.currentHp / boss.maxHp));
       const filled = Math.round(ratio * 10);
       const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
       const pct = Math.round(ratio * 100);
-      bossStatusLine = `• **Raid Boss Aktif:** **${boss.name}** [${boss.tier}]\n  HP: \`[${bar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${pct}%)`;
+
+      let spawnLinkText = '';
+      if (boss.spawnChannelId && boss.spawnMessageId) {
+        spawnLinkText = `\n  🔗 [Buka Pesan Spawn Boss di Arena Duel ↗](https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId})`;
+      } else if (duelChId) {
+        spawnLinkText = `\n  📍 **Arena Duel:** <#${duelChId}>`;
+      }
+
+      bossStatusLine = `• 👹 **World Boss Sedang Bangkit:** **${boss.name}** [Tier ${boss.tier}]\n` +
+        `  ↳ **HP:** \`[${bar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${pct}%)` +
+        spawnLinkText;
+    } else if (boss && boss.status === 'DEFEATED') {
+      bossStatusLine = `• 🏆 **Raid Boss Hari Ini Telah Ditaklukkan!**\n  ↳ Bangkit kembali besok malam pukul **21:00 WIB** (<t:${nextSpawn.unix}:R>).`;
+    } else {
+      bossStatusLine = `• ⏳ **Raid Boss:** Belum bangkit.\n  ↳ Jadwal spawn: Pukul **21:00 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
     }
   } catch (_) {}
 
-  const leaderboardNotice = leaderboardChId
-    ? `\n• **Papan Klasemen Real-Time:** <#${leaderboardChId}> (Live Scoreboard)`
-    : '';
-
-  const feedNotice = feedChId
-    ? `\n• **Saluran Berita & Jackpot:** <#${feedChId}>`
-    : '';
+  // Hitung status tahta Mythic & Legendary
+  const gachaData = storage.read('gacha_data') || {};
+  const guildUsers = gachaData[guildId] || {};
+  let mythicCount = 0;
+  let legCount = 0;
+  for (const u of Object.values(guildUsers)) {
+    if (u?.activeRole?.roleId) {
+      if (u.activeRole.tier === 'MYTHIC') mythicCount++;
+      else if (u.activeRole.tier === 'LEGENDARY') legCount++;
+    }
+  }
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle(`🌟 GACHA & ADVENTURE HUB — ${guild ? guild.name : 'SERVER'}`)
+    .setTitle(`🌟 GACHA & ADVENTURE LOUNGE • ${guild ? guild.name : 'SERVER'}`)
     .setDescription(
-      `Selamat datang di **Pusat Petualangan Gacha & Boss Raid**!\n\n` +
-      `Buka kotak misteri, kumpulkan relik legenda, pasang equipment terkuat, dan bekerja sama menumbangkan Boss Raid server!\n\n` +
-      `**Status Dunia & Petualangan:**\n` +
-      `${bossStatusLine}` +
-      leaderboardNotice +
-      feedNotice + '\n\n' +
-      `**Pilihan Menu Cepat:**\n` +
-      `• **Tarik 1x / 10x**: Buka peti misteri gacha (Privat & Tanpa Spam).\n` +
-      `• **Buka Inventory**: Cek relik, equip senjata raid, & gelar.\n` +
-      `• **Lobi Boss Raid**: Bentuk atau gabung party menghadapi Boss!\n` +
-      `• **Tantang Tahta**: Perebutan Tahta Mythic & Legendary di arena duel.\n\n` +
-      `Tekan tombol di bawah untuk mulai berpetualang:`
+      `Pusat terpadu petualangan gacha, pembukaan kotak misteri, klaim harian, toko stardust, dan Boss Raid server.\n\n` +
+      `**👹 STATUS WORLD BOSS RAID (REALTIME):**\n` +
+      `${bossStatusLine}\n\n` +
+      `**👑 STATUS KURSI TAHTA SERVER:**\n` +
+      `• **Tahta Mythic:** **${mythicCount}/3 Kursi** Terisi\n` +
+      `• **Tahta Legendary:** **${legCount}/5 Kursi** Terisi\n` +
+      `• **Arena Duel:** ${duelChId ? `<#${duelChId}>` : '_Belum diatur (Admin: /gacha setchannel type:duel)_'}\n\n` +
+      `**📌 SALURAN RESMI:**\n` +
+      `• **Papan Klasemen:** ${leaderboardChId ? `<#${leaderboardChId}>` : '_Belum diatur_'}\n` +
+      `• **Saluran Berita & Jackpot:** ${feedChId ? `<#${feedChId}>` : '_Belum diatur_'}\n\n` +
+      `*Pilih tombol di bawah untuk berpetualang:*`
     )
-    .setFooter({ text: 'Gacha Hub 2.0 • Semua interaksi tombol bersifat privat & anti-spam' })
+    .setFooter({ text: 'Gacha Lounge • Interaksi tombol bersifat privat (ephemeral) & anti-spam' })
     .setTimestamp();
 
   const row1 = new ActionRowBuilder().addComponents(
@@ -3596,11 +3639,49 @@ function createHubPanelPayload(guild) {
     new ButtonBuilder().setCustomId('gacha_btn_boss_lobby').setLabel('Lobi Boss Raid').setStyle(ButtonStyle.Danger)
   );
 
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('gacha_btn_duel_start').setLabel('Tantang Tahta (Clash of Thrones)').setStyle(ButtonStyle.Danger)
-  );
+  const row3Buttons = [
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_duel_start')
+      .setLabel('Tantang Tahta (Clash of Thrones)')
+      .setStyle(ButtonStyle.Danger)
+  ];
+
+  if (duelChId) {
+    row3Buttons.push(
+      new ButtonBuilder()
+        .setLabel('Buka Arena Duel ↗')
+        .setStyle(ButtonStyle.Link)
+        .setURL(`https://discord.com/channels/${guildId}/${duelChId}`)
+    );
+  }
+
+  const row3 = new ActionRowBuilder().addComponents(row3Buttons);
 
   return { embeds: [embed], components: [row1, row2, row3] };
+}
+
+/**
+ * Sinkronkan Panel Hub Gacha Lounge secara realtime
+ */
+async function updateHubPanelIfExists(guild, client) {
+  if (!guild || !client) return;
+  try {
+    const settingsData = storage.read('settings') || {};
+    const hubChId = settingsData[guild.id]?.gachaChannels?.hub || settingsData[guild.id]?.gachaChannels?.play;
+    const hubMsgId = settingsData[guild.id]?.gachaPanels?.hub_msg;
+    if (!hubChId || !hubMsgId) return;
+
+    const channel = guild.channels?.cache?.get(hubChId) || await client.channels.fetch(hubChId).catch(() => null);
+    if (!channel || !channel.isTextBased()) return;
+
+    const msg = await channel.messages.fetch(hubMsgId).catch(() => null);
+    if (!msg) return;
+
+    const payload = createHubPanelPayload(guild);
+    await msg.edit(payload).catch(() => {});
+  } catch (err) {
+    console.warn('[updateHubPanelIfExists] Warning:', err.message);
+  }
 }
 
 /**
@@ -5364,129 +5445,21 @@ function buildShopPayload(guild, user, userData) {
 
 /**
  * Handle Stardust Shop Display Logic
- * Routes output to #umum mentioning the user
- * Auto-cleanup: disables components after 15 minutes
+ * Dibuat selalu INVISIBLE / EPHEMERAL untuk orang lain
  */
 async function executeGachaShop(interaction, client = null) {
   const guildId = interaction.guild.id;
   const user = interaction.user;
-
-  const settingsData = storage.read('settings') || {};
-  const gChannels = settingsData[guildId]?.gachaChannels || {};
-  const umumChannelId = gChannels.umum;
 
   const gachaData = storage.read('gacha_data') || {};
   const userData = getOrInitUserData(gachaData, guildId, user.id);
 
   const shopPayload = buildShopPayload(interaction.guild, user, userData);
 
-  let sentInUmum = false;
-  let sentMessage = null;
-
-  if (umumChannelId && interaction.channelId !== umumChannelId && client) {
-    const umumChannel = await client.channels.fetch(umumChannelId).catch(() => null);
-    if (umumChannel && umumChannel.isTextBased()) {
-      sentMessage = await umumChannel.send({
-        content: `<@${user.id}>`,
-        ...shopPayload
-      }).catch(() => null);
-      if (sentMessage) {
-        sentInUmum = true;
-
-        // Auto-cleanup timer: 15 menit (900.000 ms)
-        const sentMsgId = sentMessage.id;
-        const cleanupTimer = setTimeout(async () => {
-          try {
-            const fetchedMsg = await umumChannel.messages.fetch(sentMsgId).catch(() => null);
-            if (fetchedMsg && fetchedMsg.components.length > 0) {
-              const disabledRows = fetchedMsg.components.map(row => {
-                const r = ActionRowBuilder.from(row);
-                r.components.forEach(c => c.setDisabled(true));
-                return r;
-              });
-              const originalEmbed = fetchedMsg.embeds[0];
-              const expiredEmbed = originalEmbed
-                ? EmbedBuilder.from(originalEmbed).setFooter({ text: 'Sesi Toko Telah Berakhir (15 Menit) • Buka toko baru untuk berbelanja' })
-                : null;
-              await fetchedMsg.edit({
-                embeds: expiredEmbed ? [expiredEmbed] : fetchedMsg.embeds,
-                components: disabledRows
-              }).catch(() => {});
-            }
-          } catch (_) {}
-        }, 15 * 60 * 1000);
-        if (cleanupTimer.unref) cleanupTimer.unref();
-      }
-    }
-  }
-
-  if (sentInUmum && sentMessage) {
-    const targetChannel = interaction.guild?.channels?.cache?.get(umumChannelId);
-    const chName = targetChannel ? `#${targetChannel.name}` : 'Saluran Umum';
-    const msgUrl = `https://discord.com/channels/${guildId}/${umumChannelId}/${sentMessage.id}`;
-
-    const confirmEmbed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setTitle('Toko Stardust Terbuka di Saluran Umum')
-      .setDescription(
-        `Katalog Toko Stardust untuk <@${user.id}> telah dibuka di <#${umumChannelId}>.\n\n` +
-        `Silakan pilih barang yang ingin kamu beli langsung melalui menu dropdown tanpa perlu mengetik perintah!\n` +
-        `*(Sesi katalog aktif selama 15 menit)*`
-      );
-
-    const confirmRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel(`Buka Toko di ${chName}`.slice(0, 80))
-        .setStyle(ButtonStyle.Link)
-        .setURL(msgUrl),
-      new ButtonBuilder()
-        .setCustomId('gacha_btn_album')
-        .setLabel('Cek Album')
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    if (interaction.replied || interaction.deferred) {
-      return interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
-    }
-    return interaction.reply({ embeds: [confirmEmbed], components: [confirmRow], flags: MessageFlags.Ephemeral });
-  }
-
-  let localReply = null;
   if (interaction.replied || interaction.deferred) {
-    localReply = await interaction.editReply({ content: `<@${user.id}>`, ...shopPayload }).catch(() => null);
-  } else {
-    localReply = await interaction.reply({ content: `<@${user.id}>`, ...shopPayload }).catch(() => null);
+    return await interaction.editReply(shopPayload).catch(() => null);
   }
-
-  // Auto-cleanup timer jika toko dibuka langsung di channel saat ini (15 menit)
-  const sentMsg = localReply || (interaction.fetchReply ? await interaction.fetchReply().catch(() => null) : null);
-  if (sentMsg && sentMsg.id && interaction.channel) {
-    const ch = interaction.channel;
-    const sentMsgId = sentMsg.id;
-    const cleanupTimer = setTimeout(async () => {
-      try {
-        const fetchedMsg = await ch.messages.fetch(sentMsgId).catch(() => null);
-        if (fetchedMsg && fetchedMsg.components.length > 0) {
-          const disabledRows = fetchedMsg.components.map(row => {
-            const r = ActionRowBuilder.from(row);
-            r.components.forEach(c => c.setDisabled(true));
-            return r;
-          });
-          const originalEmbed = fetchedMsg.embeds[0];
-          const expiredEmbed = originalEmbed
-            ? EmbedBuilder.from(originalEmbed).setFooter({ text: 'Sesi Toko Telah Berakhir (15 Menit) • Buka toko baru untuk berbelanja' })
-            : null;
-          await fetchedMsg.edit({
-            embeds: expiredEmbed ? [expiredEmbed] : fetchedMsg.embeds,
-            components: disabledRows
-          }).catch(() => {});
-        }
-      } catch (_) {}
-    }, 15 * 60 * 1000);
-    if (cleanupTimer.unref) cleanupTimer.unref();
-  }
-
-  return localReply;
+  return await interaction.reply({ ...shopPayload, flags: MessageFlags.Ephemeral }).catch(() => null);
 }
 
 /**
@@ -6411,35 +6384,44 @@ async function executeGachaEquipPrompt(interaction) {
  * Calculate Season Performance Score for Leaderboard & Champion Determination
  * Berdasarkan aturan: Member yang paling banyak mengoleksikan relik dan gelar berhak mendapatkan Role Season!
  */
-function calculateSeasonScore(userData) {
+function calculateSeasonScore(userData, userId = null, guildId = null) {
   if (!userData) return 0;
-  const relicCount = (userData.inventory || []).length;
-  const titleCount = (userData.titles || []).length;
-
-  // Bobot utama: Total Relik + Total Gelar yang dikoleksi (1000 poin per koleksi)
-  let score = (relicCount + titleCount) * 1000;
-
-  // Nilai kelangkaan relik sebagai nilai tambah
+  // Bobot tier kelengkapan relik (konsisten dengan Top Global Dashboard)
   const tierScores = {
-    ANCIENT: 500,
-    MYTHIC: 200,
-    LEGENDARY: 80,
-    EPIC: 20,
-    RARE: 5,
-    COMMON: 1
+    ANCIENT: 5000,
+    MYTHIC: 2500,
+    LEGENDARY: 1000,
+    EPIC: 300,
+    RARE: 100,
+    COMMON: 25
   };
 
+  let relicScore = 0;
   for (const itemName of (userData.inventory || [])) {
     const found = GACHA_ITEMS.find(g => g.name === itemName);
     if (found && tierScores[found.tier]) {
-      score += tierScores[found.tier];
+      relicScore += tierScores[found.tier];
+    } else {
+      relicScore += 25;
     }
   }
 
-  score += (userData.pulls || 0);
-  score += (userData.duelDefenseStreak || 0) * 10;
-  score += Math.floor((userData.stardust || 0) / 50);
-  return score;
+  // Damage Boss Raid (dari boss_state realtime atau lifetime)
+  let bossDamage = userData.bossDamageLifetime || 0;
+  if (guildId && userId) {
+    try {
+      const bossData = storage.read('boss_state') || {};
+      const guildBoss = bossData[guildId]?.boss;
+      if (guildBoss?.playerStats?.[userId]?.totalDamage) {
+        bossDamage = Math.max(bossDamage, guildBoss.playerStats[userId].totalDamage);
+      }
+    } catch (_) {}
+  }
+
+  const defenseBonus = (userData.duelDefenseStreak || 0) * 100;
+  const pullsBonus = (userData.pulls || 0);
+
+  return relicScore + bossDamage + defenseBonus + pullsBonus;
 }
 
 /**
@@ -6477,9 +6459,9 @@ async function executeSeasonReset(guild, client, options = {}) {
     const relicCount = (uData.inventory || []).length;
     const titleCount = (uData.titles || []).length;
     const totalCollection = relicCount + titleCount;
-    const score = calculateSeasonScore(uData);
+    const score = calculateSeasonScore(uData, uId, guildId);
 
-    if (totalCollection > 0 || (uData.pulls || 0) > 0) {
+    if (totalCollection > 0 || (uData.pulls || 0) > 0 || score > 0) {
       userRankings.push({
         userId: uId,
         userData: uData,
@@ -6491,12 +6473,12 @@ async function executeSeasonReset(guild, client, options = {}) {
     }
   }
 
-  // Pengurutan: Koleksi terbanyak (Relik + Gelar), disusul skor bobot kualitas
+  // Pengurutan: Total Skor Tertinggi (Relik + Damage Boss + Defense), lalu total koleksi
   userRankings.sort((a, b) => {
-    if (b.totalCollection !== a.totalCollection) {
-      return b.totalCollection - a.totalCollection;
+    if (b.score !== a.score) {
+      return b.score - a.score;
     }
-    return b.score - a.score;
+    return b.totalCollection - a.totalCollection;
   });
 
   const championUser = userRankings.length > 0 ? userRankings[0] : null;
@@ -7123,6 +7105,7 @@ module.exports = {
   executeGachaLimiteds,
   executeGachaEquipPrompt,
   createHubPanelPayload,
+  updateHubPanelIfExists,
 
   async execute(interaction, client) {
     const sub = interaction.options.getSubcommand();
@@ -7286,8 +7269,13 @@ module.exports = {
           desc = `Command \`/gacha pull\` dan penarikan relik kini dikhususkan di <#${channel.id}>. Panel Tarik Gacha interaktif (dengan tombol Tarik 1x, 10x, Cek Inventory, & Info Pity) otomatis dipasang.`;
           await deployGachaPanel(interaction.guild, channel, 'pull', client);
         } else if (type === 'duel') {
+          settingsData[guildId].gachaChannels.duel = channel.id;
           settingsData[guildId].gachaChannels.throne = channel.id;
-          desc = `Panel informasi tahta server dipasang di <#${channel.id}>. Menyediakan 1 tombol utama [Tantang Tahta].`;
+          settingsData[guildId].gachaChannels.live_duel = channel.id;
+          settingsData[guildId].gachaChannels.duel_mythic = channel.id;
+          settingsData[guildId].gachaChannels.duel_legendary = channel.id;
+          settingsData[guildId].gachaChannels.tactics = channel.id;
+          desc = `Arena Duel server terpadu diatur di <#${channel.id}>. Saluran ini menjadi pusat pertarungan Boss Raid, tempat pesan spawn World Boss muncul secara publik, dan arena kartu duel perebutan tahta server.`;
           await deployGachaPanel(interaction.guild, channel, 'duel', client);
         } else if (type === 'announce') {
           settingsData[guildId].gachaChannels.result = channel.id;
@@ -7325,7 +7313,14 @@ module.exports = {
       } else {
         settingsData[guildId].gachaChannels[type] = null;
         if (type === 'play') settingsData[guildId].gachaChannels.pull = null;
-        if (type === 'duel') settingsData[guildId].gachaChannels.throne = null;
+        if (type === 'duel') {
+          settingsData[guildId].gachaChannels.duel = null;
+          settingsData[guildId].gachaChannels.throne = null;
+          settingsData[guildId].gachaChannels.live_duel = null;
+          settingsData[guildId].gachaChannels.duel_mythic = null;
+          settingsData[guildId].gachaChannels.duel_legendary = null;
+          settingsData[guildId].gachaChannels.tactics = null;
+        }
         if (type === 'announce') {
           settingsData[guildId].gachaChannels.result = null;
           settingsData[guildId].gachaChannels.broadcast = null;
@@ -8145,11 +8140,9 @@ module.exports = {
       return await executeGachaAlbum(interaction);
     }
 
-    // === SUBCOMMAND: SHOP ===
+    // === SUBCOMMAND: SHOP (Selalu Ephemeral / Invisible) ===
     if (sub === 'shop') {
-      const gChannels = settingsData[guildId]?.gachaChannels || {};
-      const isCrossToUmum = gChannels.umum && interaction.channelId !== gChannels.umum;
-      await interaction.deferReply({ flags: isCrossToUmum ? MessageFlags.Ephemeral : undefined });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       return await executeGachaShop(interaction, client);
     }
 
@@ -8377,5 +8370,11 @@ module.exports = {
 
       return interaction.reply({ embeds: [embed] });
     }
-  }
+  },
+  GACHA_ITEMS,
+  updateHubPanelIfExists,
+  createHubPanelPayload,
+  createDuelPanelPayload,
+  reconcileThroneHolders,
+  deployGachaPanel
 };
