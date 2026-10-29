@@ -476,6 +476,55 @@
         "code": null,
         "joinedAt": 1790131169000,
         "fake": false
+      },
+      "1412051464796241971": {
+        "inviterId": "1331570397019246614",
+        "inviteType": "regular",
+        "code": null,
+        "joinedAt": 1793248592114,
+        "fake": false
+      },
+      "1421855451221463210": {
+        "inviterId": "599061232779001924",
+        "inviteType": "regular",
+        "code": "286K5uaSK",
+        "joinedAt": 1793194912697,
+        "fake": false
+      },
+      "604971101285515281": {
+        "inviterId": "467848871234764800",
+        "inviteType": "regular",
+        "code": "CaYHDNW8b",
+        "joinedAt": 1793092782592,
+        "fake": false
+      },
+      "458302301187342336": {
+        "inviterId": "1331570397019246614",
+        "inviteType": "regular",
+        "code": null,
+        "joinedAt": 1793092510821,
+        "fake": false
+      },
+      "758295357976477700": {
+        "inviterId": "745208856837226528",
+        "inviteType": "regular",
+        "code": "H8kVwt3cR",
+        "joinedAt": 1793080656488,
+        "fake": false
+      },
+      "1564245610649878588": {
+        "inviterId": "1110547271365447861",
+        "inviteType": "regular",
+        "code": "QA9jzUZBy",
+        "joinedAt": 1793022571414,
+        "fake": false
+      },
+      "438949811408863243": {
+        "inviterId": "1404788879059324948",
+        "inviteType": "regular",
+        "code": "qumpruy",
+        "joinedAt": 1790136515460,
+        "fake": false
       }
     },
     "inviters": {
@@ -493,25 +542,25 @@
       },
       "1358832343573336084": {
         "regular": 8,
-        "leaves": 0,
+        "leaves": 2,
         "fake": 0,
         "bonus": 0
       },
       "1470018136655921326": {
         "regular": 4,
-        "leaves": 0,
+        "leaves": 3,
         "fake": 0,
         "bonus": 0
       },
       "1473440118470873118": {
         "regular": 2,
-        "leaves": 0,
+        "leaves": 1,
         "fake": 0,
         "bonus": 0
       },
       "1331570397019246614": {
-        "regular": 3,
-        "leaves": 0,
+        "regular": 5,
+        "leaves": 1,
         "fake": 0,
         "bonus": 0
       },
@@ -535,7 +584,7 @@
       },
       "438949811408863243": {
         "regular": 14,
-        "leaves": 0,
+        "leaves": 4,
         "fake": 0,
         "bonus": 0
       },
@@ -619,13 +668,13 @@
       },
       "786444309732917328": {
         "regular": 2,
-        "leaves": 0,
+        "leaves": 1,
         "fake": 0,
         "bonus": 0
       },
       "1024681480930201610": {
         "regular": 1,
-        "leaves": 0,
+        "leaves": 1,
         "fake": 0,
         "bonus": 0
       },
@@ -637,7 +686,7 @@
       },
       "1527889898164453499": {
         "regular": 1,
-        "leaves": 0,
+        "leaves": 1,
         "fake": 0,
         "bonus": 0
       },
@@ -654,6 +703,36 @@
         "bonus": 0
       },
       "1033527258549334086": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "599061232779001924": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "467848871234764800": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "745208856837226528": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1110547271365447861": {
+        "regular": 1,
+        "leaves": 0,
+        "fake": 0,
+        "bonus": 0
+      },
+      "1404788879059324948": {
         "regular": 1,
         "leaves": 0,
         "fake": 0,
