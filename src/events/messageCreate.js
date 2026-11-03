@@ -121,7 +121,7 @@ module.exports = {
           if (imageAttachments.size > 0) {
             const { publishGalleryPost } = require('../commands/gallery');
             const urls = Array.from(imageAttachments.values()).map(att => att.url);
-            const res = await publishGalleryPost(message.guild, message.author, message.member, urls, caption, client);
+            const res = await publishGalleryPost(message.guild, message.author, message.member, urls, caption, client, message);
 
             if (res.success) {
               postedPhotoSuccess = true;
@@ -140,7 +140,7 @@ module.exports = {
               name: att.name,
               size: att.size
             }));
-            const res = await publishGalleryVideoPost(message.guild, message.author, message.member, mediaItems, caption, client);
+            const res = await publishGalleryVideoPost(message.guild, message.author, message.member, mediaItems, caption, client, message);
 
             if (res.success) {
               postedVideoSuccess = true;
@@ -175,7 +175,7 @@ module.exports = {
             const caption = message.content?.trim() || '';
             const { publishGalleryPost } = require('../commands/gallery');
             const urls = Array.from(imageAttachments.values()).map(att => att.url);
-            await publishGalleryPost(message.guild, message.author, message.member, urls, caption, client);
+            await publishGalleryPost(message.guild, message.author, message.member, urls, caption, client, message);
             // Hapus pesan asli user HANYA setelah postingan bot berhasil diproses
             await message.delete().catch(() => {});
             return;
@@ -213,7 +213,7 @@ module.exports = {
               name: att.name,
               size: att.size
             }));
-            await publishGalleryVideoPost(message.guild, message.author, message.member, mediaItems, caption, client);
+            await publishGalleryVideoPost(message.guild, message.author, message.member, mediaItems, caption, client, message);
             // Hapus pesan asli user setelah postingan bot berhasil diproses
             await message.delete().catch(() => {});
             return;

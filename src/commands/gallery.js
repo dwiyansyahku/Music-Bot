@@ -205,13 +205,12 @@ function isDiscordCdnUrl(url) {
 
 /**
  * Fungsi utama untuk mempublikasikan 1 atau banyak gambar ke Saluran Output Galeri.
- * TAMPILAN:
- * - 1 Foto: Dikirim sebagai Embed elegan dengan author, caption & footer.
- * - Multi Foto (>= 2): Dikirim sebagai file lampiran langsung (Native Discord Mosaic Grid).
- *   Discord otomatis merender kolase mosaic (1 besar + 2 kecil, atau 2x2) seperti di Gambar 2,
- *   dan saat diklik oleh user bisa dilihat & di-slide satu per satu full screen!
+ * TAMPILAN: Embed besar (full-width) dengan profil pengirim, caption, dan link ke pesan asli.
+ * - 1 Foto: Embed tunggal dengan setImage (ukuran penuh).
+ * - Multi Foto (>= 2): Mosaic Grid Discord native (Same URL trick).
+ * Tidak menyimpan ke database — langsung kirim saja.
  */
-async function publishGalleryPost(guild, user, member, inputUrls, caption, client) {
+async function publishGalleryPost(guild, user, member, inputUrls, caption, client, sourceMessage) {
   const guildId = guild.id;
   const settings = storage.read('settings') || {};
   const guildSettings = settings[guildId] || {};
@@ -245,56 +244,61 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
 
   // Batasi maksimal 10 foto per pesan
   const targetUrls = urlList.slice(0, 10);
-
-  // Generate Submission ID
-  const submissionId = 'GAL_' + Date.now().toString(36).toUpperCase();
   const displayName = member?.displayName || user?.username || 'Member';
-  const avatarUrl = user?.displayAvatarURL ? user.displayAvatarURL({ dynamic: true }) : (member?.displayAvatarURL ? member.displayAvatarURL({ dynamic: true }) : null);
+  const avatarUrl = user?.displayAvatarURL ? user.displayAvatarURL({ dynamic: true, size: 256 }) : (member?.displayAvatarURL ? member.displayAvatarURL({ dynamic: true, size: 256 }) : null);
   const imageCount = targetUrls.length;
+
+  // Link ke pesan asli di channel upload (jika tersedia)
+  const sourceJumpUrl = sourceMessage
+    ? `https://discord.com/channels/${guildId}/${sourceMessage.channel.id}/${sourceMessage.id}`
+    : null;
+
+  const row = sourceJumpUrl
+    ? new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Lihat Pesan Asli')
+          .setStyle(ButtonStyle.Link)
+          .setURL(sourceJumpUrl)
+      )
+    : null;
 
   let postedMsg = null;
   let sendError = null;
 
   // ============================================================
-  // STRATEGI UTAMA: URL-based Embed Mosaic (Same URL trick)
-  // - 0% transfer file (0 bytes upload), 0% timeout, anti 'other side closed'
-  // - Discord otomatis menggabungkan embeds dengan URL sama jadi 1 layout MOSAIC GRID
-  // - Saat diklik oleh user, modal viewer/carousel Discord terbuka dan bisa di-slide satu per satu
+  // STRATEGI UTAMA: URL-based Embed Mosaic (full-width image)
   // ============================================================
   try {
     if (imageCount === 1) {
+      // Embed tunggal dengan gambar ukuran penuh (setImage = full-width)
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
-        .setAuthor({ name: displayName, iconURL: avatarUrl })
+        .setAuthor({ name: displayName, iconURL: avatarUrl, url: sourceJumpUrl || undefined })
         .setImage(targetUrls[0])
-        .setFooter({ text: `Galeri Server • ${submissionId}` })
         .setTimestamp();
 
       if (caption) embed.setDescription(caption);
 
-      postedMsg = await galleryChannel.send({ embeds: [embed] });
+      postedMsg = await galleryChannel.send({
+        embeds: [embed],
+        components: row ? [row] : []
+      });
 
     } else {
-      // Multi-image: Gunakan URL pengait bersama yang sama di semua embed (Same URL trick)
-      // Ini memberitahu Discord untuk merender gambar-gambar tersebut ke dalam 1 kotak Mosaic Grid!
+      // Multi-image: Same URL trick → Discord Mosaic Grid
       const embeds = [];
 
-      // Discord menggabungkan per grup 4 embed dengan shared URL yang sama
       for (let i = 0; i < targetUrls.length; i++) {
-        // Kelompokkan per 4 gambar: grup 0 (indeks 0-3), grup 1 (indeks 4-7)
         const groupIndex = Math.floor(i / 4);
-        const sharedGroupUrl = targetUrls[groupIndex * 4];
+        const sharedGroupUrl = sourceJumpUrl || targetUrls[groupIndex * 4];
 
         const embed = new EmbedBuilder()
           .setURL(sharedGroupUrl)
           .setImage(targetUrls[i]);
 
-        // HANYA embed pertama yang memiliki metadata (author, deskripsi, footer, warna)
-        // Embed berikutnya HANYA berisi URL dan Gambar agar Discord menggabungkannya
         if (i === 0) {
           embed.setColor(0x2B2D31)
-            .setAuthor({ name: displayName, iconURL: avatarUrl })
-            .setFooter({ text: `Galeri Server • ${submissionId} • ${imageCount} Foto` })
+            .setAuthor({ name: displayName, iconURL: avatarUrl, url: sourceJumpUrl || undefined })
             .setTimestamp();
 
           if (caption) embed.setDescription(caption);
@@ -303,10 +307,13 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
         embeds.push(embed);
       }
 
-      postedMsg = await galleryChannel.send({ embeds });
+      postedMsg = await galleryChannel.send({
+        embeds,
+        components: row ? [row] : []
+      });
     }
 
-    console.log(`[Gallery] URL-based Embed Mosaic berhasil diposting (${imageCount} foto).`);
+    console.log(`[Gallery] Embed berhasil diposting (${imageCount} foto).`);
 
   } catch (urlErr) {
     console.warn(`[Gallery] URL-based gagal (${urlErr.message}), mencoba fallback upload file...`);
@@ -324,7 +331,7 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
         try {
           const dl = await resolveAndDownloadImage(targetUrls[idx]);
           const opt = await optimizeImageBuffer(dl.buffer, dl.ext, true);
-          const fileName = `gallery_${submissionId}_${idx + 1}.${opt.ext}`;
+          const fileName = `gallery_${Date.now()}_${idx + 1}.${opt.ext}`;
           downloadedFiles.push({
             attachment: new AttachmentBuilder(opt.buffer, { name: fileName }),
             fileName
@@ -337,12 +344,13 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
       if (downloadedFiles.length > 0) {
         const attachments = downloadedFiles.map(df => df.attachment);
         const contentText = caption
-          ? `📸 **${displayName}** membagikan ${downloadedFiles.length} foto:\n> ${caption}\n*ID: \`${submissionId}\`*`
-          : `📸 **${displayName}** membagikan ${downloadedFiles.length} foto ke galeri • *ID: \`${submissionId}\`*`;
+          ? `📸 **${displayName}** membagikan ${downloadedFiles.length} foto:\n> ${caption}`
+          : `📸 **${displayName}** membagikan ${downloadedFiles.length} foto ke galeri`;
 
         postedMsg = await galleryChannel.send({
           content: contentText,
-          files: attachments
+          files: attachments,
+          components: row ? [row] : []
         });
         sendError = null;
         console.log(`[Gallery] File upload fallback berhasil (${downloadedFiles.length} foto).`);
@@ -369,47 +377,6 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
     await postedMsg.react(em).catch(() => {});
   }
 
-  // Pencatatan Statistik Harian & Simpan ke Storage
-  const galleryData = storage.read('gallery') || {};
-  if (!galleryData[guildId]) {
-    galleryData[guildId] = {
-      submissions: [],
-      dailyUsage: {}
-    };
-  }
-
-  const todayStr = getWIBDateString();
-  const userDayKey = `${user.id}_${todayStr}`;
-  const userTodayCount = galleryData[guildId].dailyUsage?.[userDayKey] || 0;
-  galleryData[guildId].dailyUsage[userDayKey] = userTodayCount + imageCount;
-
-  const finalAttachments = postedMsg.attachments ? Array.from(postedMsg.attachments.values()) : [];
-  const primaryImageUrl = finalAttachments[0]?.url || targetUrls[0];
-  const allImageUrls = finalAttachments.length > 0 ? finalAttachments.map(a => a.url) : targetUrls;
-
-  galleryData[guildId].submissions.push({
-    id: submissionId,
-    messageId: postedMsg.id,
-    channelId: galleryChannel.id,
-    userId: user.id,
-    imageUrl: primaryImageUrl,
-    imageUrls: allImageUrls,
-    imageCount: imageCount,
-    caption: caption || null,
-    createdAt: Date.now()
-  });
-  storage.write('gallery', galleryData);
-
-  // Mod Log
-  await sendModLog(guild, client, {
-    action: 'GALLERY_POST',
-    moderator: user,
-    details: `Gambar (${imageCount} foto) berhasil diposting ke <#${galleryChannel.id}>.\n` +
-      `• ID Pesan: \`${postedMsg.id}\`\n` +
-      `• Total Kiriman Hari Ini: **${userTodayCount + imageCount} Foto**\n` +
-      (caption ? `• Caption: *${caption}*` : '')
-  });
-
   const jumpUrl = `https://discord.com/channels/${guildId}/${galleryChannel.id}/${postedMsg.id}`;
   return {
     success: true,
@@ -422,16 +389,18 @@ async function publishGalleryPost(guild, user, member, inputUrls, caption, clien
 }
 
 // Wrapper untuk kompatibilitas ke belakang
-async function publishGalleryItem(guild, user, member, imageUrl, caption, client) {
-  return publishGalleryPost(guild, user, member, imageUrl, caption, client);
+async function publishGalleryItem(guild, user, member, imageUrl, caption, client, sourceMessage) {
+  return publishGalleryPost(guild, user, member, imageUrl, caption, client, sourceMessage);
 }
 
 /**
  * Fungsi untuk mempublikasikan video ke Saluran Output Galeri Video.
- * Mendukung pengiriman attachment video native (MP4, WEBM, MOV, dll.)
- * Dilengkapi fallback ke link langsung jika ukuran video melebihi batas upload bot Discord.
+ * Sistem ringan & cepat — sama seperti photo-dump:
+ * - Kirim embed dengan profil pengirim, caption, link ke pesan asli
+ * - Video langsung dilampirkan sebagai file native (Discord auto-render player)
+ * - TIDAK menyimpan ke database / gallery.json — murni fire & forget
  */
-async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, client) {
+async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, client, sourceMessage) {
   const guildId = guild.id;
   const settings = storage.read('settings') || {};
   const guildSettings = settings[guildId] || {};
@@ -470,60 +439,69 @@ async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, 
     };
   }
 
-  // Batasi maksimal 5 video per pengiriman
   const targetMedia = mediaList.slice(0, 5);
   const targetUrls = targetMedia.map(m => m.url);
-  const submissionId = 'VID_' + Date.now().toString(36).toUpperCase();
   const displayName = member?.displayName || user?.username || 'Member';
+  const avatarUrl = user?.displayAvatarURL ? user.displayAvatarURL({ dynamic: true, size: 256 }) : (member?.displayAvatarURL ? member.displayAvatarURL({ dynamic: true, size: 256 }) : null);
   const videoCount = targetMedia.length;
+
+  // Link ke pesan asli di channel upload (jika tersedia)
+  const sourceJumpUrl = sourceMessage
+    ? `https://discord.com/channels/${guildId}/${sourceMessage.channel.id}/${sourceMessage.id}`
+    : null;
+
+  const row = sourceJumpUrl
+    ? new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Lihat Pesan Asli')
+          .setStyle(ButtonStyle.Link)
+          .setURL(sourceJumpUrl)
+      )
+    : null;
 
   let postedMsg = null;
   let sendError = null;
 
-  // Cek apakah ada file yang melebihi batas upload bot Discord (20MB)
-  // Jika > 20MB, lewati upload attachment agar tidak timeout/abort dan langsung kirim link native player
+  // Cek apakah ada file besar (> 20MB) → langsung kirim link saja agar instan
   const hasLargeFile = targetMedia.some(m => m.size > 20 * 1024 * 1024);
 
-  // 1. Upload sebagai file attachment jika ukuran file <= 20MB
+  // Buat embed info pengirim (ditampilkan di atas video)
+  const infoEmbed = new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setAuthor({ name: displayName, iconURL: avatarUrl, url: sourceJumpUrl || undefined })
+    .setTimestamp();
+
+  if (caption) infoEmbed.setDescription(caption);
+
+  // 1. Upload video sebagai attachment jika ukuran <= 20MB
   if (!hasLargeFile) {
     try {
       const files = targetMedia.map((m, idx) => {
-        let fileName = m.name || `gallery_video_${submissionId}_${idx + 1}.mp4`;
-        try {
-          const parsed = new URL(m.url);
-          const base = parsed.pathname.split('/').pop();
-          if (base && /\.(mp4|mov|webm|mkv|avi|flv|wmv|m4v)$/i.test(base)) {
-            fileName = base;
-          }
-        } catch (_) {}
+        let fileName = m.name || `video_${Date.now()}_${idx + 1}.mp4`;
         return { attachment: m.url, name: fileName };
       });
 
-      const contentText = caption
-        ? `🎬 **${displayName}** membagikan ${videoCount > 1 ? `${videoCount} video` : 'video'}:\n> ${caption}\n*ID: \`${submissionId}\`*`
-        : `🎬 **${displayName}** membagikan video ke galeri • *ID: \`${submissionId}\`*`;
-
       postedMsg = await galleryVideoChannel.send({
-        content: contentText,
-        files: files
+        embeds: [infoEmbed],
+        files: files,
+        components: row ? [row] : []
       });
     } catch (err) {
-      console.warn(`[Gallery Video] Direct attachment upload gagal (${err.message}), mencoba link fallback...`);
+      console.warn(`[Gallery Video] Attachment upload gagal (${err.message}), fallback ke link...`);
       sendError = err;
       postedMsg = null;
     }
   }
 
-  // 2. Kirim link langsung jika file > 20MB atau upload attachment gagal (Discord otomatis merender inline video player)
+  // 2. Kirim link video langsung (Discord merender native video player dari CDN link)
   if (!postedMsg) {
     try {
       const linksText = targetUrls.join('\n');
-      const contentText = caption
-        ? `🎬 **${displayName}** membagikan video:\n> ${caption}\n*ID: \`${submissionId}\`*\n${linksText}`
-        : `🎬 **${displayName}** membagikan video ke galeri • *ID: \`${submissionId}\`*\n${linksText}`;
 
       postedMsg = await galleryVideoChannel.send({
-        content: contentText
+        content: linksText,
+        embeds: [infoEmbed],
+        components: row ? [row] : []
       });
       sendError = null;
     } catch (fbErr) {
@@ -540,54 +518,12 @@ async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, 
     };
   }
 
-  // Reaksi apresiasi emoji
+  // Reaksi apresiasi
   const RANDOM_VIDEO_EMOJIS = ['🎬', '🔥', '✨', '👏', '🍿', '⭐', '💖', '🎉'];
   const chosenEmojis = [...RANDOM_VIDEO_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 2);
   for (const em of chosenEmojis) {
     await postedMsg.react(em).catch(() => {});
   }
-
-  // Catat ke storage gallery.json
-  const galleryData = storage.read('gallery') || {};
-  if (!galleryData[guildId]) {
-    galleryData[guildId] = {
-      submissions: [],
-      dailyUsage: {}
-    };
-  }
-
-  const todayStr = getWIBDateString();
-  const userDayKey = `${user.id}_${todayStr}`;
-  const userTodayCount = galleryData[guildId].dailyUsage?.[userDayKey] || 0;
-  galleryData[guildId].dailyUsage[userDayKey] = userTodayCount + videoCount;
-
-  const finalAttachments = postedMsg.attachments ? Array.from(postedMsg.attachments.values()) : [];
-  const primaryVideoUrl = finalAttachments[0]?.url || targetUrls[0];
-  const allVideoUrls = finalAttachments.length > 0 ? finalAttachments.map(a => a.url) : targetUrls;
-
-  galleryData[guildId].submissions.push({
-    id: submissionId,
-    type: 'video',
-    messageId: postedMsg.id,
-    channelId: galleryVideoChannel.id,
-    userId: user.id,
-    videoUrl: primaryVideoUrl,
-    videoUrls: allVideoUrls,
-    videoCount: videoCount,
-    caption: caption || null,
-    createdAt: Date.now()
-  });
-  storage.write('gallery', galleryData);
-
-  // Kirim Mod Log
-  await sendModLog(guild, client, {
-    action: 'GALLERY_VIDEO_POST',
-    moderator: user,
-    details: `Video (${videoCount} video) berhasil diposting ke <#${galleryVideoChannel.id}>.\n` +
-      `• ID Pesan: \`${postedMsg.id}\`\n` +
-      `• Total Kiriman Hari Ini: **${userTodayCount + videoCount} Media**\n` +
-      (caption ? `• Caption: *${caption}*` : '')
-  });
 
   const jumpUrl = `https://discord.com/channels/${guildId}/${galleryVideoChannel.id}/${postedMsg.id}`;
   return {
@@ -844,24 +780,10 @@ module.exports = {
       const galleryChannelId = guildSettings.galleryChannel;
       const galleryVideoChannelId = guildSettings.galleryVideoChannel;
       const uploadChannelId = guildSettings.galleryUploadChannel || guildSettings.galleryPanelChannel;
-      const galleryData = storage.read('gallery') || {};
-      const guildGallery = galleryData[guildId] || { submissions: [], dailyUsage: {} };
-
-      const allSubmissions = guildGallery.submissions || [];
-      const photoCount = allSubmissions.filter(s => s.type !== 'video').length;
-      const videoCount = allSubmissions.filter(s => s.type === 'video').length;
-
-      const todayStr = getWIBDateString();
-      let todayCount = 0;
-      for (const [key, count] of Object.entries(guildGallery.dailyUsage || {})) {
-        if (key.endsWith(`_${todayStr}`)) {
-          todayCount += count;
-        }
-      }
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle('Konfigurasi & Statistik Saluran Galeri')
+        .setTitle('Konfigurasi Saluran Galeri')
         .addFields(
           {
             name: 'Channel 1 (Upload Foto & Video)',
@@ -879,23 +801,13 @@ module.exports = {
             inline: true
           },
           {
-            name: 'Batas Kuota Harian',
+            name: 'Sistem Pengiriman',
+            value: '**Instan & Cepat (Direct Post)**',
+            inline: true
+          },
+          {
+            name: 'Batas Kuota',
             value: '**Tanpa Batas (Unlimited)**',
-            inline: true
-          },
-          {
-            name: 'Total Foto Dipajang',
-            value: `**${photoCount.toLocaleString()} Foto**`,
-            inline: true
-          },
-          {
-            name: 'Total Video Dipajang',
-            value: `**${videoCount.toLocaleString()} Video**`,
-            inline: true
-          },
-          {
-            name: 'Kiriman Hari Ini (WIB)',
-            value: `**${todayCount.toLocaleString()} Media**`,
             inline: true
           }
         )
