@@ -1,1 +1,19 @@
-{}
+{
+  "1396245234693963878": {
+    "history": [
+      {
+        "season": 1,
+        "resetAt": 1793466036392,
+        "yearMonth": "2026-11",
+        "championId": "1473440118470873118",
+        "championScore": 29980,
+        "totalWipedRelics": 490,
+        "totalMembersParticipated": 18
+      }
+    ],
+    "currentSeason": 2,
+    "lastChampionId": "1473440118470873118",
+    "currentChampionId": "1473440118470873118",
+    "lastResetYearMonth": "2026-11"
+  }
+}

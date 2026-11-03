@@ -7,7 +7,8 @@
       "color": 15105570,
       "maxHp": 80000,
       "title": "Raksasa Kehancuran Dimensi",
-      "status": "ACTIVE",
+      "fledAt": 1793631620275,
+      "status": "FLED",
       "guildId": "1396245234693963878",
       "history": [],
       "parties": {
@@ -21,12 +22,34 @@
           "leaderId": "1267621678536462389",
           "createdAt": 1792855949999,
           "totalDamage": 6130
+        },
+        "party_1793282617061_3243": {
+          "id": "party_1793282617061_3243",
+          "name": "Party #2 (hj.saiyan)",
+          "status": "WAITING",
+          "members": [
+            "1396473500486860980",
+            "438949811408863243"
+          ],
+          "leaderId": "1396473500486860980",
+          "createdAt": 1793282617061,
+          "totalDamage": 0
         }
       },
       "currentHp": 73870,
       "spawnedAt": 1792850451881,
       "defeatedAt": null,
       "playerStats": {
+        "438949811408863243": {
+          "maxHp": 100,
+          "userId": "438949811408863243",
+          "username": "hj.saiyan",
+          "currentHp": 100,
+          "relicName": null,
+          "relicTier": "NONE",
+          "totalDamage": 0,
+          "isKnockedOut": false
+        },
         "1267621678536462389": {
           "maxHp": 100,
           "userId": "1267621678536462389",
@@ -78,6 +101,78 @@
             "round": 3,
             "bossStance": "special",
             "totalRoundDmg": 2211
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Serang vs Jurus]: **Menang Taktik!** Critical Strike (3.419 DMG)"
+            ],
+            "round": 1,
+            "bossStance": "special",
+            "totalRoundDmg": 3419
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Jurus vs Serang]: **Kalah Taktik!** Serangan dipatahkan (500 DMG, -46 HP)"
+            ],
+            "round": 2,
+            "bossStance": "attack",
+            "totalRoundDmg": 500
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Jurus vs Jurus]: **Seri Stance!** Saling beradu (2.211 DMG, -15 HP)"
+            ],
+            "round": 3,
+            "bossStance": "special",
+            "totalRoundDmg": 2211
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Serang vs Jurus]: **Menang Taktik!** Critical Strike (3.419 DMG)"
+            ],
+            "round": 1,
+            "bossStance": "special",
+            "totalRoundDmg": 3419
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Jurus vs Serang]: **Kalah Taktik!** Serangan dipatahkan (500 DMG, -46 HP)"
+            ],
+            "round": 2,
+            "bossStance": "attack",
+            "totalRoundDmg": 500
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Jurus vs Jurus]: **Seri Stance!** Saling beradu (2.211 DMG, -15 HP)"
+            ],
+            "round": 3,
+            "bossStance": "special",
+            "totalRoundDmg": 2211
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Serang vs Jurus]: **Menang Taktik!** Critical Strike (3.419 DMG)"
+            ],
+            "round": 1,
+            "bossStance": "special",
+            "totalRoundDmg": 3419
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Jurus vs Serang]: **Kalah Taktik!** Serangan dipatahkan (500 DMG, -46 HP)"
+            ],
+            "round": 2,
+            "bossStance": "attack",
+            "totalRoundDmg": 500
+          },
+          {
+            "logs": [
+              "• <@1267621678536462389> [Jurus vs Jurus]: **Seri Stance!** Saling beradu (2.211 DMG, -15 HP)"
+            ],
+            "round": 3,
+            "bossStance": "special",
+            "totalRoundDmg": 2211
           }
         ],
         "bossStance": "attack",
@@ -85,7 +180,82 @@
         "playerStances": {},
         "parentChannelId": "1563045395372703765"
       },
-      "forceSpawned": false
+      "forceSpawned": false,
+      "spawnChannelId": "1563138112882999418",
+      "spawnMessageId": "1566814154269130768",
+      "createdPartiesBy": {
+        "438949811408863243": true
+      }
+    }
+  },
+  "test_guild_boss_suite_01": {
+    "activeBoss": {
+      "id": "boss_1793023953469_gftib",
+      "name": "Ancient Void Devourer",
+      "tier": "DAILY",
+      "color": 10181046,
+      "maxHp": 25000,
+      "title": "Penelan Kegelapan Semesta",
+      "status": "ACTIVE",
+      "guildId": "test_guild_boss_suite_01",
+      "history": [],
+      "parties": {
+        "party_1793023953471_r_01": {
+          "id": "party_1793023953471_r_01",
+          "name": "Party #1 (LeaderOne)",
+          "status": "WAITING",
+          "members": [
+            "user_leader_01"
+          ],
+          "leaderId": "user_leader_01",
+          "createdAt": 1793023953476,
+          "totalDamage": 0
+        }
+      },
+      "currentHp": 21122,
+      "spawnedAt": 1793023953469,
+      "defeatedAt": null,
+      "playerStats": {
+        "user_leader_01": {
+          "maxHp": 100,
+          "userId": "user_leader_01",
+          "username": "LeaderOne",
+          "currentHp": 100,
+          "relicName": null,
+          "relicTier": "NONE",
+          "totalDamage": 0,
+          "isKnockedOut": false
+        },
+        "leader_1793024078404": {
+          "maxHp": 100,
+          "userId": "leader_1793024078404",
+          "username": "LeaderOne",
+          "currentHp": 100,
+          "relicName": null,
+          "relicTier": "NONE",
+          "totalDamage": 3878,
+          "isKnockedOut": false
+        }
+      },
+      "activeCombat": null,
+      "forceSpawned": true,
+      "partyHistory": [
+        {
+          "name": "Party #2 (LeaderOne)",
+          "status": "SURVIVED",
+          "members": [
+            "leader_1793024078404"
+          ],
+          "partyId": "party_1793024078405_8404",
+          "leaderId": "leader_1793024078404",
+          "finishedAt": 1793024078431,
+          "totalDamage": 3878
+        }
+      ],
+      "createdPartiesBy": {
+        "user_leader_01": true,
+        "leader_1793024078404": true
+      }
     }
   }
 }

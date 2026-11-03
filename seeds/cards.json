@@ -81,9 +81,32 @@
       "publishedMessageId": "1543162062316904492"
     },
     "536558583316480011": {
+      "bio": "idk",
+      "asal": "Kuningan, Jawa Barat 🇮🇩",
       "likes": [],
+      "zodiac": "♏ Scorpio",
+      "asalRaw": "Kuningan",
+      "location": {
+        "city": "Kuningan",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Kuningan, Jawa Barat 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Kuningan",
+        "stateOrProvince": "Jawa Barat"
+      },
       "respects": [],
+      "birthdate": {
+        "age": 5,
+        "day": 28,
+        "raw": "28 Oktober 2021",
+        "year": 2021,
+        "month": 10,
+        "formatted": "28 Oktober 2021",
+        "shortFormatted": "28 Okt 2021"
+      },
       "createdAt": "2026-09-19T09:09:10.012Z",
+      "birthdateRaw": "28 Oktober 2021",
       "publishedMessageId": "1550795879269802035"
     },
     "567344718682259458": {
@@ -116,20 +139,30 @@
       "publishedMessageId": "1539848214528794676"
     },
     "568034632176500736": {
-      "bio": "Be kind to yourself. \nPerfection isn't the goal, growth",
-      "asal": "Jawa Barat 🇮🇩",
+      "bio": "Soft heart, quiet mind",
+      "asal": "Jawa 🇮🇩",
       "mbti": "INFJ",
-      "asalRaw": "Indramayu, Jawa Barat",
+      "zodiac": "♈ Aries",
+      "asalRaw": "Jawa Selatan",
       "location": {
-        "city": "Jawa Barat",
+        "city": "Jawa",
         "flag": "🇮🇩",
         "country": "Indonesia",
-        "display": "Jawa Barat 🇮🇩",
+        "display": "Jawa 🇮🇩",
         "isAnomaly": false,
-        "searchKey": "Jawa Barat",
-        "stateOrProvince": "Jawa Barat"
+        "searchKey": "Jawa",
+        "stateOrProvince": "Pulau Jawa"
       },
-      "bannerUrl": "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3ZDFuNWpobXFxenQ0MGpvbnA0MGVuYXZuajJ4dnRhaDczZnFvMW1jdiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/rQm6ZtTwfmYEiJqBU5/giphy.gif",
+      "birthdate": {
+        "age": 23,
+        "day": 23,
+        "raw": "23 Maret 2003",
+        "year": 2003,
+        "month": 3,
+        "formatted": "23 Maret 2003",
+        "shortFormatted": "23 Mar 2003"
+      },
+      "birthdateRaw": "23 Maret 2003",
       "publishedMessageId": "1537836365633290315"
     },
     "599061232779001924": {
@@ -247,6 +280,7 @@
       "likes": [
         "1368585823750197308"
       ],
+      "zodiac": "♋ Cancer",
       "asalRaw": "Solo",
       "location": {
         "city": "Solo",
@@ -260,6 +294,16 @@
       "respects": [
         "1368585823750197308"
       ],
+      "birthdate": {
+        "age": 23,
+        "day": 11,
+        "raw": "11-07-2003",
+        "year": 2003,
+        "month": 7,
+        "formatted": "11 Juli 2003",
+        "shortFormatted": "11 Jul 2003"
+      },
+      "birthdateRaw": "11-07-2003",
       "publishedMessageId": "1538212390552993883"
     },
     "707183524742037506": {
@@ -329,19 +373,6 @@
       "zodiacRaw": "♈ Aries",
       "publishedMessageId": "1555648645729099840"
     },
-    "808642319125315614": {
-      "bio": "Hai hai, aku bachyy or u can call me bacici ^^",
-      "asal": "Bekasi, Jawa Barat",
-      "likes": [],
-      "asalRaw": "Bekasi, Jawa Barat 🇮🇩",
-      "location": {
-        "display": "Bekasi, Jawa Barat 🇮🇩"
-      },
-      "respects": [],
-      "createdAt": "2026-09-09T15:42:37.232Z",
-      "zodiacRaw": "♈ Aries",
-      "publishedMessageId": "1547271016471076875"
-    },
     "866326365141991424": {
       "bio": "part time story teller and roblox enjoyer",
       "asal": "Banjarmasin, Kalimantan Selatan 🇮🇩",
@@ -387,17 +418,34 @@
       "publishedMessageId": "1543568450750910467"
     },
     "943506386468343838": {
-      "bio": "A simple ☕️\nthat keeps life moving.",
-      "asal": "Home",
-      "mbti": "INFJ",
+      "bio": "Soft heart, quiet mind",
+      "asal": "Jawa 🇮🇩",
+      "mbti": "ENFJ",
       "likes": [],
-      "asalRaw": "Home 🌌",
+      "zodiac": "♈ Aries",
+      "asalRaw": "Jawa Selatan",
       "location": {
-        "display": "Home 🌌"
+        "city": "Jawa",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Jawa 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Jawa",
+        "stateOrProvince": "Pulau Jawa"
       },
       "respects": [],
+      "birthdate": {
+        "age": 23,
+        "day": 23,
+        "raw": "23 maret 2003",
+        "year": 2003,
+        "month": 3,
+        "formatted": "23 Maret 2003",
+        "shortFormatted": "23 Mar 2003"
+      },
       "createdAt": "2026-09-24T12:44:32.255Z",
       "zodiacRaw": "♑ Capricorn",
+      "birthdateRaw": "23 maret 2003",
       "publishedMessageId": "1552662018413174855"
     },
     "955309170658263050": {
@@ -427,9 +475,32 @@
       "publishedMessageId": "1548015281010380832"
     },
     "1058929956379443200": {
+      "asal": "Depok, Jawa Barat 🇮🇩",
+      "mbti": "ESFP",
       "likes": [],
+      "zodiac": "♑ Capricorn",
+      "asalRaw": "Depok, Jawa Barat",
+      "location": {
+        "city": "Depok",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Depok, Jawa Barat 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Depok",
+        "stateOrProvince": "Jawa Barat"
+      },
       "respects": [],
+      "birthdate": {
+        "age": 23,
+        "day": 2,
+        "raw": "02-01-2003",
+        "year": 2003,
+        "month": 1,
+        "formatted": "2 Januari 2003",
+        "shortFormatted": "2 Jan 2003"
+      },
       "createdAt": "2026-08-29T21:32:30.677Z",
+      "birthdateRaw": "02-01-2003",
       "publishedMessageId": "1543372802839543831"
     },
     "1110547271365447861": {
@@ -603,6 +674,7 @@
       "likes": [
         "1331570397019246614"
       ],
+      "zodiac": "♈ Aries",
       "asalRaw": "Batam Riau Island",
       "linkUrl": "https://instagram.com/akbarfalepii",
       "location": {
@@ -617,9 +689,18 @@
       "respects": [
         "1331570397019246614"
       ],
-      "bannerUrl": "https://cdn.discordapp.com/attachments/1516817884343439391/1543235146281648248/image.png?ex=6a94213a&is=6a92cfba&hm=cb46791ba0e09367f6907616e426a3d7ee63cac75174ec23cd813eb946cdf8fc&",
+      "birthdate": {
+        "age": 21,
+        "day": 2,
+        "raw": "02-04-2005",
+        "year": 2005,
+        "month": 4,
+        "formatted": "2 April 2005",
+        "shortFormatted": "2 Apr 2005"
+      },
       "linkTitle": "Instagram",
       "zodiacRaw": "♈ Aries",
+      "birthdateRaw": "02-04-2005",
       "publishedMessageId": "1543249913263947838"
     },
     "1358666754087325829": {
@@ -885,10 +966,32 @@
       "publishedMessageId": "1558531855437930659"
     },
     "1511073202284134681": {
-      "likes": [],
-      "respects": [],
-      "createdAt": "2026-09-09T15:48:08.364Z",
-      "publishedMessageId": "1547272405339340936"
+      "bio": "kadang extrovert, kadang introvert",
+      "asal": "Sulawesi Selatan 🇮🇩",
+      "zodiac": "♋ Cancer",
+      "asalRaw": "sulawesi selatan",
+      "linkUrl": "https://www.instagram.com/febyyagus?cplk=MWNwMDUxbmJlNno5dQ%3D%3D&utm_source=qr",
+      "location": {
+        "city": "Sulawesi Selatan",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Sulawesi Selatan 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Sulawesi Selatan",
+        "stateOrProvince": "Sulawesi Selatan"
+      },
+      "birthdate": {
+        "age": 18,
+        "day": 21,
+        "raw": "21-07-2008",
+        "year": 2008,
+        "month": 7,
+        "formatted": "21 Juli 2008",
+        "shortFormatted": "21 Jul 2008"
+      },
+      "linkTitle": "Instagram",
+      "birthdateRaw": "21-07-2008",
+      "publishedMessageId": "1566043379584991295"
     },
     "1517393834538045538": {
       "asal": "Bandung, Jawa Barat",
@@ -960,9 +1063,35 @@
       "publishedMessageId": "1548748169318506629"
     },
     "1541108080094220422": {
+      "bio": "\"Kamu terlahir untuk nya jadi nyata bukan sempurna\"",
+      "asal": "Pagar Alam, Sumatera Selatan 🇮🇩",
+      "mbti": "ENTP",
       "likes": [],
+      "zodiac": "♌ Leo",
+      "asalRaw": "Pagaralam Sumatra Selatan",
+      "linkUrl": "https://www.instagram.com/k.rnndaa?dlrf=MXY5eDExdGJhOXE3bA==",
+      "location": {
+        "city": "Pagar Alam",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Pagar Alam, Sumatera Selatan 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Pagar Alam",
+        "stateOrProvince": "Sumatera Selatan"
+      },
       "respects": [],
+      "birthdate": {
+        "age": 21,
+        "day": 3,
+        "raw": "03-08-2005",
+        "year": 2005,
+        "month": 8,
+        "formatted": "3 Agustus 2005",
+        "shortFormatted": "3 Agu 2005"
+      },
       "createdAt": "2026-09-11T13:35:34.268Z",
+      "linkTitle": "Instagram",
+      "birthdateRaw": "03-08-2005",
       "publishedMessageId": "1547963819173609483"
     },
     "1550220299713122435": {
@@ -994,7 +1123,9 @@
         "searchKey": "Padang",
         "stateOrProvince": "Sumatera Barat"
       },
-      "respects": [],
+      "respects": [
+        "1413508694297280746"
+      ],
       "createdAt": "2026-10-23T18:31:10.979Z",
       "zodiacRaw": "♉ Taurus",
       "publishedMessageId": "1563219036630945894"

@@ -100,5 +100,85 @@
         "imageCount": 2
       }
     ]
+  },
+  "1396245234693963878": {
+    "dailyUsage": {
+      "694389440923041905_2026-11-01": 1,
+      "1331570397019246614_2026-11-02": 1,
+      "1331570397019246614_2026-11-03": 1,
+      "1369274019836071946_2026-10-29": 3,
+      "1396474476413325393_2026-11-02": 3
+    },
+    "submissions": [
+      {
+        "id": "GAL_MVTLZC26",
+        "userId": "1369274019836071946",
+        "caption": null,
+        "imageUrl": "https://cdn.discordapp.com/attachments/1396428608968589332/1565364171342876804/IMG_5878.jpg?ex=6ae4a27d&is=6ae350fd&hm=6a9f452362a48aefe4fdeb9096923ef9f0b644185132390bbc421495be12d056&",
+        "channelId": "1547122406936543303",
+        "createdAt": 1793282303624,
+        "imageUrls": [
+          "https://cdn.discordapp.com/attachments/1396428608968589332/1565364171342876804/IMG_5878.jpg?ex=6ae4a27d&is=6ae350fd&hm=6a9f452362a48aefe4fdeb9096923ef9f0b644185132390bbc421495be12d056&",
+          "https://cdn.discordapp.com/attachments/1396428608968589332/1565364171682349106/IMG_8240.jpg?ex=6ae4a27d&is=6ae350fd&hm=7e1ff2a18d210b25f9db4af3790c1d8d42b17086bfefdc2e01f39886f11fab8b&",
+          "https://cdn.discordapp.com/attachments/1396428608968589332/1565364172005441727/IMG_5925.jpg?ex=6ae4a27d&is=6ae350fd&hm=ae40e00234c1eda4f7bbdbcc874a26efbe3986129031e4363d32f543c594d802&"
+        ],
+        "messageId": "1565364174874480673",
+        "imageCount": 3
+      },
+      {
+        "id": "GAL_MVXZAA1C",
+        "userId": "694389440923041905",
+        "caption": null,
+        "imageUrl": "https://cdn.discordapp.com/attachments/1396428608968589332/1566472349799161906/IMG_20261101222122417.jpg?ex=6ae8aa8f&is=6ae7590f&hm=761490a5c9c54e806016589a0aeae24d996e4e2ccd8832c1b3e90b2de995419e&",
+        "channelId": "1547122406936543303",
+        "createdAt": 1793546513496,
+        "imageUrls": [
+          "https://cdn.discordapp.com/attachments/1396428608968589332/1566472349799161906/IMG_20261101222122417.jpg?ex=6ae8aa8f&is=6ae7590f&hm=761490a5c9c54e806016589a0aeae24d996e4e2ccd8832c1b3e90b2de995419e&"
+        ],
+        "messageId": "1566472352982761504",
+        "imageCount": 1
+      },
+      {
+        "id": "GAL_MVZ3DFA0",
+        "userId": "1331570397019246614",
+        "caption": "<@665157264985817089> 🤭😹",
+        "imageUrl": "https://cdn.discordapp.com/attachments/1396428608968589332/1566754758805561445/Screenshot_2026-11-02-17-02-38-028_com.instagram.android-edit.jpg?ex=6ae9b193&is=6ae86013&hm=2ff67fbcfa4752b45a2b58902a4bb66c21e654118348a2c9b7e31569269066e8&",
+        "channelId": "1547122406936543303",
+        "createdAt": 1793613844953,
+        "imageUrls": [
+          "https://cdn.discordapp.com/attachments/1396428608968589332/1566754758805561445/Screenshot_2026-11-02-17-02-38-028_com.instagram.android-edit.jpg?ex=6ae9b193&is=6ae86013&hm=2ff67fbcfa4752b45a2b58902a4bb66c21e654118348a2c9b7e31569269066e8&"
+        ],
+        "messageId": "1566754761322004514",
+        "imageCount": 1
+      },
+      {
+        "id": "GAL_MVZEAATS",
+        "userId": "1396474476413325393",
+        "caption": null,
+        "imageUrl": "https://cdn.discordapp.com/attachments/1547122406936543303/1566831636270547014/7351295264_114854973427213_1793632029822.png?ex=6ae9f92c&is=6ae8a7ac&hm=becafeec58b2d529e7721e511b216c353130796c361f7e81ead9278a08420074&",
+        "channelId": "1547122406936543303",
+        "createdAt": 1793632175196,
+        "imageUrls": [
+          "https://cdn.discordapp.com/attachments/1547122406936543303/1566831636270547014/7351295264_114854973427213_1793632029822.png?ex=6ae9f92c&is=6ae8a7ac&hm=becafeec58b2d529e7721e511b216c353130796c361f7e81ead9278a08420074&",
+          "https://cdn.discordapp.com/attachments/1547122406936543303/1566831636878852196/7351295264_74517078661502_1793630426651.png?ex=6ae9f92c&is=6ae8a7ac&hm=f83b97e5b316bb016dbda54ec01d29e23d2d86cde7536da699ac2573d43d270a&",
+          "https://cdn.discordapp.com/attachments/1547122406936543303/1566831637403271298/7351295264_74517078661502_1793629559346.png?ex=6ae9f92c&is=6ae8a7ac&hm=e2127d4f5cb7c81865b98423f8521df7abd58f71b03e2b7145439ce57bac0926&"
+        ],
+        "messageId": "1566831643094814793",
+        "imageCount": 3
+      },
+      {
+        "id": "GAL_MVZIVXJC",
+        "userId": "1331570397019246614",
+        "caption": null,
+        "imageUrl": "https://cdn.discordapp.com/attachments/1396428608968589332/1566864052557320412/Screenshot_2026-11-03-00-08-56-886_com.instagram.android-edit.jpg?ex=6aea175d&is=6ae8c5dd&hm=c50e6ba1b6d8636989687e6a6afea41f8131c5802ab8a6712cbf68d66a721fbf&",
+        "channelId": "1547122406936543303",
+        "createdAt": 1793639902771,
+        "imageUrls": [
+          "https://cdn.discordapp.com/attachments/1396428608968589332/1566864052557320412/Screenshot_2026-11-03-00-08-56-886_com.instagram.android-edit.jpg?ex=6aea175d&is=6ae8c5dd&hm=c50e6ba1b6d8636989687e6a6afea41f8131c5802ab8a6712cbf68d66a721fbf&"
+        ],
+        "messageId": "1566864055304716349",
+        "imageCount": 1
+      }
+    ]
   }
 }

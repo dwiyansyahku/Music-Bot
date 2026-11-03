@@ -38,8 +38,8 @@
           "lastRoomId": null
         },
         {
-          "username": "qumpruy",
           "lastLive": false,
+          "username": "qumpruy",
           "lastRoomId": null
         }
       ],
@@ -78,9 +78,16 @@
     "rolesUrl": "https://discord.com/channels/1396245234693963878/1490660628849889431",
     "rulesUrl": "https://discord.com/channels/1396245234693963878/1396254677930082344",
     "gachaRoles": {
-      "LEGENDARY": "1546144295575232652",
       "MYTHIC": "1546143532253970522",
-      "CHAMPION": "1547139921595203616"
+      "CHAMPION": "1547139921595203616",
+      "LEGENDARY": "1546144295575232652"
+    },
+    "gachaPanels": {
+      "hub": "1565361885388345415",
+      "boss": "1564657045125202002",
+      "duel": "1564657185307365377",
+      "tactics": "1565360944257962078",
+      "leaderboard_msg": "1566451886708621554"
     },
     "deskChannels": {
       "other": "1562627833174425600",
@@ -88,20 +95,24 @@
       "content": "1562627353161760898",
       "feedback": "1562627749112315985"
     },
+    "gachaChannel": "1563045618107289690",
     "gachaChannels": {
+      "hub": "1563045395372703765",
       "duel": null,
-      "play": null,
-      "pull": null,
+      "feed": "1563045618107289690",
+      "play": "1563045395372703765",
+      "pull": "1563045395372703765",
       "umum": null,
-      "daily": null,
-      "result": null,
+      "daily": "1563045395372703765",
+      "result": "1563045618107289690",
       "throne": null,
-      "tactics": null,
+      "tactics": "1563138112882999418",
       "announce": null,
-      "broadcast": null,
-      "live_duel": null,
-      "duel_mythic": null,
-      "duel_legendary": null
+      "broadcast": "1563045618107289690",
+      "live_duel": "1563138112882999418",
+      "duel_mythic": "1563138112882999418",
+      "leaderboard": "1563045564021608548",
+      "duel_legendary": "1563138112882999418"
     },
     "modLogChannel": "1546472050867175444",
     "customBadWords": [],
@@ -192,11 +203,13 @@
       "munding",
       "bnget",
       "banget",
-      "bangt"
+      "bangt",
+      "anjir",
+      "damn"
     ],
     "cardResultChannel": "1532290934396555354",
-    "helpPanelChannelId": "1563232526766571640",
-    "helpPanelMessageId": "1563232573080211537",
+    "helpPanelChannelId": "1543563384262361088",
+    "helpPanelMessageId": "1543600355475062897",
     "galleryPanelChannel": "1396428608968589332",
     "galleryUploadChannel": "1396428608968589332"
   },
