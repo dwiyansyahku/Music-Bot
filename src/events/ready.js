@@ -488,6 +488,18 @@ module.exports = {
         console.error('[Gacha Role/Duel/Season Expiry Error]:', gachaExpErr.message);
       }
 
+      // ====== 8. REALTIME LIVE PANELS AUTO-SYNC (LEADERBOARD & GACHA LOUNGE HUB) ======
+      try {
+        const { updateLiveLeaderboardChannel } = require('../utils/dungeonBoss');
+        const { updateHubPanelIfExists } = require('../commands/gacha');
+        for (const guild of client.guilds.cache.values()) {
+          updateLiveLeaderboardChannel(guild, client).catch(() => {});
+          updateHubPanelIfExists(guild, client).catch(() => {});
+        }
+      } catch (liveSyncErr) {
+        console.error('[Live Panels Auto-Sync Error]:', liveSyncErr.message);
+      }
+
     }, 60 * 1000); // cek setiap 60 detik
 
     console.log('✅ [Schedulers] Morning, Night, Announce, Birthday, Event, Time Capsule, Gacha Role Expiry schedulers aktif!');

@@ -1309,7 +1309,8 @@ async function buildDefenderChallengeComponents(guild, itemTier, challengerId, a
  * Sistem Tahta Terbatas & Kudeta (Throne Usurpation) — Role Permanen & Pilihan Tantangan
  */
 async function applySmartGachaRole(guild, member, itemTier, userData, gachaData, channel = null, client = null) {
-  const targetTier = itemTier === 'ANCIENT' ? 'MYTHIC' : itemTier;
+  if (itemTier !== 'MYTHIC' && itemTier !== 'LEGENDARY') return '';
+  const targetTier = itemTier;
   const config = THRONE_CONFIG[targetTier];
   if (!config) return ''; // Hanya Mythic dan Legendary yang mendapatkan Role
 
@@ -3670,20 +3671,55 @@ async function updateHubPanelIfExists(guild, client) {
   try {
     const settingsData = storage.read('settings') || {};
     const hubChId = settingsData[guild.id]?.gachaChannels?.hub || settingsData[guild.id]?.gachaChannels?.play;
-    const hubMsgId = settingsData[guild.id]?.gachaPanels?.hub_msg;
-    if (!hubChId || !hubMsgId) return;
+    if (!hubChId) return;
 
     const channel = guild.channels?.cache?.get(hubChId) || await client.channels.fetch(hubChId).catch(() => null);
-    if (!channel || !channel.isTextBased()) return;
-
-    const msg = await channel.messages.fetch(hubMsgId).catch(() => null);
-    if (!msg) return;
+    if (!channel || !channel.isTextBased() || channel.isThread()) return;
 
     const payload = createHubPanelPayload(guild);
-    await msg.edit(payload).catch(() => {});
+    const hubMsgId = settingsData[guild.id]?.gachaPanels?.hub_msg;
+
+    if (hubMsgId) {
+      const msg = await channel.messages.fetch(hubMsgId).catch(() => null);
+      if (msg) {
+        await msg.edit(payload).catch(() => {});
+        return;
+      }
+    }
+
+    const newMsg = await channel.send(payload).catch(() => null);
+    if (newMsg) {
+      if (!settingsData[guild.id].gachaPanels) settingsData[guild.id].gachaPanels = {};
+      settingsData[guild.id].gachaPanels.hub_msg = newMsg.id;
+      storage.write('settings', settingsData);
+    }
   } catch (err) {
     console.warn('[updateHubPanelIfExists] Warning:', err.message);
   }
+}
+
+/**
+ * Sinkronisasi Realtime Otomatis untuk:
+ * 1. #papan-klasemen (Live Leaderboard Embed - Gambar 1)
+ * 2. #gacha-lounge (Gacha Hub Panel & Status Kursi Tahta - Gambar 2)
+ * 3. #arena-duel (Arena Duel Panel)
+ */
+let realtimeSyncDebounceTimer = null;
+function triggerRealtimeSync(guild, client) {
+  if (!guild || !client) return;
+  if (realtimeSyncDebounceTimer) clearTimeout(realtimeSyncDebounceTimer);
+  realtimeSyncDebounceTimer = setTimeout(async () => {
+    try {
+      const { updateLiveLeaderboardChannel } = require('../utils/dungeonBoss');
+      await Promise.allSettled([
+        updateLiveLeaderboardChannel(guild, client),
+        updateHubPanelIfExists(guild, client),
+        updateDuelPanelIfExists(guild, client)
+      ]);
+    } catch (err) {
+      console.warn('[triggerRealtimeSync] Warning:', err.message);
+    }
+  }, 1000);
 }
 
 /**
@@ -4737,8 +4773,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
     const roleResultText = roleResult ? (roleResult.text || String(roleResult)) : '';
     const challengeRows = (roleResult && roleResult.challengeRows) || [];
     storage.write('gacha_data', gachaData);
-
-    // Broadcast if Ancient, Mythic, or Legendary
+    triggerRealtimeSync(interaction.guild, client);
     if (item.tier === 'ANCIENT' || item.tier === 'MYTHIC' || item.tier === 'LEGENDARY') {
       broadcastJackpot(interaction.guild, member, item, client);
     }
@@ -4858,6 +4893,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
   }
 
   storage.write('gacha_data', gachaData);
+  triggerRealtimeSync(interaction.guild, client);
 
   // Broadcast every jackpot item (Ancient, Mythic & Legendary) pulled
   const jackpotPulls = results.filter(r => r.item.tier === 'ANCIENT' || r.item.tier === 'MYTHIC' || r.item.tier === 'LEGENDARY');
@@ -5333,11 +5369,10 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
         .setStyle(ButtonStyle.Secondary)
     ];
 
-    const hasAncient = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'ANCIENT');
     const hasMythic = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'MYTHIC');
     const hasLegendary = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'LEGENDARY');
     let challengeTier = null;
-    if ((hasAncient || hasMythic) && targetData.activeRole?.tier !== 'MYTHIC') {
+    if (hasMythic && targetData.activeRole?.tier !== 'MYTHIC') {
       challengeTier = 'MYTHIC';
     } else if (hasLegendary && !targetData.activeRole) {
       challengeTier = 'LEGENDARY';
@@ -6388,28 +6423,8 @@ async function executeGachaEquipPrompt(interaction) {
  * Berdasarkan aturan: Member yang paling banyak mengoleksikan relik dan gelar berhak mendapatkan Role Season!
  */
 function calculateSeasonScore(userData, userId = null, guildId = null) {
-  if (!userData) return 0;
-  // Bobot tier kelengkapan relik (konsisten dengan Top Global Dashboard)
-  const tierScores = {
-    ANCIENT: 5000,
-    MYTHIC: 2500,
-    LEGENDARY: 1000,
-    EPIC: 300,
-    RARE: 100,
-    COMMON: 25
-  };
-
-  let relicScore = 0;
-  for (const itemName of (userData.inventory || [])) {
-    const found = GACHA_ITEMS.find(g => g.name === itemName);
-    if (found && tierScores[found.tier]) {
-      relicScore += tierScores[found.tier];
-    } else {
-      relicScore += 25;
-    }
-  }
-
-  // Damage Boss Raid (dari boss_state realtime atau lifetime)
+  if (!userData) return { relicCount: 0, bossDamage: 0 };
+  const relicCount = (userData.inventory || []).length;
   let bossDamage = userData.bossDamageLifetime || 0;
   if (guildId && userId) {
     try {
@@ -6420,11 +6435,7 @@ function calculateSeasonScore(userData, userId = null, guildId = null) {
       }
     } catch (_) {}
   }
-
-  const defenseBonus = (userData.duelDefenseStreak || 0) * 100;
-  const pullsBonus = (userData.pulls || 0);
-
-  return relicScore + bossDamage + defenseBonus + pullsBonus;
+  return { relicCount, bossDamage };
 }
 
 /**
@@ -6456,33 +6467,31 @@ async function executeSeasonReset(guild, client, options = {}) {
   const prevSeasonNum = seasonData[guildId].currentSeason || 1;
   const nextSeasonNum = prevSeasonNum + 1;
 
-  // 1. Tentukan Top 1 Champion: member dengan koleksi relik dan gelar terbanyak
+  // 1. Tentukan Top 1 Champion: member dengan relik terbanyak dan damage boss tertinggi
   const userRankings = [];
   for (const [uId, uData] of Object.entries(guildUsers)) {
     const relicCount = (uData.inventory || []).length;
-    const titleCount = (uData.titles || []).length;
-    const totalCollection = relicCount + titleCount;
-    const score = calculateSeasonScore(uData, uId, guildId);
+    let bossDamage = uData.bossDamageLifetime || 0;
+    try {
+      const bossData = storage.read('boss_state') || {};
+      const guildBoss = bossData[guildId]?.boss;
+      if (guildBoss?.playerStats?.[uId]?.totalDamage) {
+        bossDamage = Math.max(bossDamage, guildBoss.playerStats[uId].totalDamage);
+      }
+    } catch (_) {}
 
-    if (totalCollection > 0 || (uData.pulls || 0) > 0 || score > 0) {
+    if (relicCount > 0 || bossDamage > 0) {
       userRankings.push({
         userId: uId,
         userData: uData,
         relicCount,
-        titleCount,
-        totalCollection,
-        score
+        bossDamage
       });
     }
   }
 
-  // Pengurutan: Total Skor Tertinggi (Relik + Damage Boss + Defense), lalu total koleksi
-  userRankings.sort((a, b) => {
-    if (b.score !== a.score) {
-      return b.score - a.score;
-    }
-    return b.totalCollection - a.totalCollection;
-  });
+  // Pengurutan: Relik Terbanyak, lalu Damage Boss tertinggi (persis sama dengan Top Leaderboard)
+  userRankings.sort((a, b) => b.relicCount - a.relicCount || b.bossDamage - a.bossDamage);
 
   const championUser = userRankings.length > 0 ? userRankings[0] : null;
   const prevChampionId = seasonData[guildId]?.currentChampionId || seasonData[guildId]?.lastChampionId || null;
@@ -8375,7 +8384,9 @@ module.exports = {
     }
   },
   GACHA_ITEMS,
+  applySmartGachaRole,
   updateHubPanelIfExists,
+  triggerRealtimeSync,
   createHubPanelPayload,
   createDuelPanelPayload,
   reconcileThroneHolders,

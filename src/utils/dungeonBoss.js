@@ -1273,62 +1273,27 @@ function buildLiveLeaderboardEmbeds(guildId, guild = null) {
       `• Jadwal spawn: Setiap hari **Sabtu pukul 19:00 - 23:59 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
   }
 
-  // 2. Evaluasi Data Member untuk Top Global (Kelengkapan Relik + Damage Boss)
+  // 2. Evaluasi Data Member untuk Top Global (Hanya Relik Terbanyak + Damage ke Boss)
   const gachaData = storage.read('gacha_data') || {};
   const guildUsers = Object.entries(gachaData[guildId] || {});
-  const { GACHA_ITEMS } = require('../commands/gacha');
-
-  const tierWeights = {
-    ANCIENT: 5000,
-    MYTHIC: 2500,
-    LEGENDARY: 1000,
-    EPIC: 300,
-    RARE: 100,
-    COMMON: 25
-  };
 
   const candidateUsers = [];
 
   for (const [uId, uData] of guildUsers) {
-    const inv = uData.inventory || [];
-    let relicScore = 0;
-    let ancientCount = 0;
-    let mythicCount = 0;
-    let legCount = 0;
-
-    for (const relicName of inv) {
-      const item = GACHA_ITEMS.find(g => g.name === relicName);
-      if (item) {
-        relicScore += (tierWeights[item.tier] || 25);
-        if (item.tier === 'ANCIENT') ancientCount++;
-        else if (item.tier === 'MYTHIC') mythicCount++;
-        else if (item.tier === 'LEGENDARY') legCount++;
-      }
-    }
-
+    const relicCount = (uData.inventory || []).length;
     const bossDamage = boss.playerStats?.[uId]?.totalDamage || (uData.bossDamageLifetime || 0);
-    const defenseBonus = (uData.duelDefenseStreak || 0) * 100;
-    const totalScore = relicScore + bossDamage + defenseBonus;
-    const limitedCount = ancientCount + mythicCount + legCount;
 
-    if (totalScore > 0 || inv.length > 0 || bossDamage > 0) {
+    if (relicCount > 0 || bossDamage > 0) {
       candidateUsers.push({
         uId,
-        relicCount: inv.length,
-        ancientCount,
-        mythicCount,
-        legCount,
-        limitedCount,
-        bossDamage,
-        relicScore,
-        defenseStreak: uData.duelDefenseStreak || 0,
-        totalScore
+        relicCount,
+        bossDamage
       });
     }
   }
 
-  // Urutkan berdasarkan Total Skor (Gabungan Relik + Damage), lalu kelengkapan relik, lalu damage
-  candidateUsers.sort((a, b) => b.totalScore - a.totalScore || b.relicCount - a.relicCount || b.bossDamage - a.bossDamage);
+  // Urutkan berdasarkan Relik terbanyak, jika sama urutkan berdasarkan Damage Boss tertinggi
+  candidateUsers.sort((a, b) => b.relicCount - a.relicCount || b.bossDamage - a.bossDamage);
 
   const top1 = candidateUsers.length > 0 ? candidateUsers[0] : null;
 
@@ -1336,7 +1301,7 @@ function buildLiveLeaderboardEmbeds(guildId, guild = null) {
   const specialRoleId = settingsData[guildId]?.gachaRoles?.CHAMPION ||
     guild?.roles?.cache?.find(r => r.name.toLowerCase().includes('god of qumpruy') || r.name.toLowerCase().includes('champion'))?.id ||
     '1547139921595203616';
-  const roleTag = specialRoleId ? `<@&${specialRoleId}>` : '`[Role Juara Belum Diatur]`';
+  const roleTag = specialRoleId ? `<@&${specialRoleId}>` : '`[Role God of Qumpruy]`';
 
   const seasonData = storage.read('season_data') || {};
   const currentSeason = seasonData[guildId]?.currentSeason || 1;
@@ -1344,50 +1309,37 @@ function buildLiveLeaderboardEmbeds(guildId, guild = null) {
 
   let top1Display = '_Belum ada data pejuang terdaftar_';
   if (top1) {
-    top1Display = `👑 **Kandidat Juara Season ${currentSeason}:** <@${top1.uId}>\n` +
-      `• **Status Gelar:** Calon Penyandang ${roleTag} *(Hanya dianugerahkan jika bertahan di Top 1 saat Season Reset)*\n` +
-      `• **Total Skor Global:** **${top1.totalScore.toLocaleString('id-ID')} Poin**\n` +
-      `• **Kelengkapan Relik:** **${top1.relicCount} Item** (${top1.limitedCount} Relik Langka: ${top1.ancientCount} Ancient, ${top1.mythicCount} Mythic, ${top1.legCount} Leg)\n` +
-      `• **Akumulasi Damage Boss:** **${top1.bossDamage.toLocaleString('id-ID')} DMG**` +
-      (top1.defenseStreak > 0 ? ` • 🛡️ ${top1.defenseStreak}x Bertahan` : '') +
-      (currentChampionId ? `\n• 🎖️ **Juara Bertahan Saat Ini:** <@${currentChampionId}>` : '');
+    top1Display = `**Kandidat Juara Season ${currentSeason}:** <@${top1.uId}>\n` +
+      `• Koleksi Relik: **${top1.relicCount} Item**\n` +
+      `• Damage Boss: **${top1.bossDamage.toLocaleString('id-ID')} DMG**\n` +
+      `• Calon Penyandang: ${roleTag} *(Diberikan jika bertahan di Top 1 saat Season Reset)*` +
+      (currentChampionId ? `\n• Juara Bertahan: <@${currentChampionId}>` : '');
   }
 
-  // Top 10 List
-  const medals = ['🥇', '🥈', '🥉', '4.', '5.', '6.', '7.', '8.', '9.', '10.'];
+  // Top 10 List - Tampilan simpel & rapi tanpa emoji berlebih
   const top10 = candidateUsers.slice(0, 10);
-  let top10Text = '_Belum ada pejuang di leaderboard_';
+  let top10Text = '_Belum ada pejuang di klasemen_';
   if (top10.length > 0) {
     top10Text = top10.map((u, idx) => {
-      const medal = medals[idx] || `${idx + 1}.`;
-      return `${medal} <@${u.uId}> — **${u.totalScore.toLocaleString('id-ID')} Poin**\n  ↳ 📦 **${u.relicCount} Relik** (${u.limitedCount} Langka) • 💥 **${u.bossDamage.toLocaleString('id-ID')} DMG**`;
+      return `**${idx + 1}.** <@${u.uId}> — **${u.relicCount}** Relik • **${u.bossDamage.toLocaleString('id-ID')}** Damage Boss`;
     }).join('\n');
   }
 
-  // Sorotan Terbaik
-  const topDamager = [...candidateUsers].sort((a, b) => b.bossDamage - a.bossDamage)[0];
-  const topCollector = [...candidateUsers].sort((a, b) => b.relicCount - a.relicCount)[0];
-
-  const highlightsText =
-    `• 💥 **Top Damager:** ${topDamager && topDamager.bossDamage > 0 ? `<@${topDamager.uId}> (${topDamager.bossDamage.toLocaleString('id-ID')} DMG)` : '_Belum ada_'}\n` +
-    `• 📦 **Top Kolektor:** ${topCollector && topCollector.relicCount > 0 ? `<@${topCollector.uId}> (${topCollector.relicCount} Relik)` : '_Belum ada_'}`;
-
   const unifiedEmbed = new EmbedBuilder()
     .setColor(0xFEE75C)
-    .setTitle(`🏆 PAPAN KLASEMEN TOP GLOBAL & WORLD BOSS`)
+    .setTitle('🏆 PAPAN KLASEMEN TOP GLOBAL & WORLD BOSS')
     .setDescription(
-      `Papan peringkat kasta tertinggi server berdasarkan **Kelengkapan Relik** dan **Damage ke World Boss**.\n` +
+      `Papan peringkat kasta tertinggi server berdasarkan **Koleksi Relik** dan **Damage ke World Boss**.\n` +
       `Member yang berhasil mempertahankan peringkat **Top 1 saat Season Reset bulanan** dinobatkan meraih **Role Eksklusif God of QUMPRUY**!\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `**👹 STATUS WORLD BOSS (REALTIME):**\n` +
+      `**STATUS WORLD BOSS (REALTIME):**\n` +
       `${bossStatusLine}\n\n` +
-      `**👑 PEMEGANG GELAR TOP 1 GLOBAL:**\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `**PEMEGANG GELAR TOP 1 GLOBAL:**\n` +
       `${top1Display}\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `**📊 KLASEMEN 10 BESAR TOP GLOBAL:**\n` +
-      `${top10Text}\n\n` +
-      `**✨ SOROTAN PRESTASI:**\n` +
-      `${highlightsText}`
+      `**KLASEMEN 10 BESAR TOP GLOBAL:**\n` +
+      `${top10Text}`
     )
     .setFooter({ text: 'Top Global Dashboard • Terupdate Otomatis Realtime • Juara Season Reset Memperoleh Role God of Qumpruy' })
     .setTimestamp();
