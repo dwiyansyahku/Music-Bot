@@ -3677,19 +3677,47 @@ async function updateHubPanelIfExists(guild, client) {
     if (!channel || !channel.isTextBased() || channel.isThread()) return;
 
     const payload = createHubPanelPayload(guild);
-    const hubMsgId = settingsData[guild.id]?.gachaPanels?.hub_msg;
+    const hubMsgId = settingsData[guild.id]?.gachaPanels?.hub || settingsData[guild.id]?.gachaPanels?.hub_msg;
 
+    let targetMsg = null;
     if (hubMsgId) {
-      const msg = await channel.messages.fetch(hubMsgId).catch(() => null);
-      if (msg) {
-        await msg.edit(payload).catch(() => {});
-        return;
+      targetMsg = await channel.messages.fetch(hubMsgId).catch(() => null);
+    }
+
+    // Cari pesan-pesan bot di channel untuk mendeteksi panel lama dan mencegah pesan ganda
+    const recentMessages = await channel.messages.fetch({ limit: 15 }).catch(() => null);
+    if (recentMessages) {
+      const botPanels = recentMessages.filter(m =>
+        m.author.id === client.user.id &&
+        m.embeds.some(e => e.title && e.title.includes('GACHA & ADVENTURE LOUNGE'))
+      );
+
+      if (botPanels.size > 1) {
+        // Ada lebih dari 1 panel ganda di channel: hapus pesan lama yang duplikat
+        const sorted = Array.from(botPanels.values()).sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+        targetMsg = sorted[0]; // Simpan panel terbaru
+        for (const duplicateMsg of sorted.slice(1)) {
+          await duplicateMsg.delete().catch(() => {});
+        }
+      } else if (botPanels.size === 1 && !targetMsg) {
+        targetMsg = botPanels.first();
       }
     }
 
+    if (targetMsg) {
+      await targetMsg.edit(payload).catch(() => {});
+      if (!settingsData[guild.id].gachaPanels) settingsData[guild.id].gachaPanels = {};
+      settingsData[guild.id].gachaPanels.hub = targetMsg.id;
+      settingsData[guild.id].gachaPanels.hub_msg = targetMsg.id;
+      storage.write('settings', settingsData);
+      return;
+    }
+
+    // Hanya kirim baru jika benar-benar belum ada panel sama sekali di channel
     const newMsg = await channel.send(payload).catch(() => null);
     if (newMsg) {
       if (!settingsData[guild.id].gachaPanels) settingsData[guild.id].gachaPanels = {};
+      settingsData[guild.id].gachaPanels.hub = newMsg.id;
       settingsData[guild.id].gachaPanels.hub_msg = newMsg.id;
       storage.write('settings', settingsData);
     }
@@ -3904,16 +3932,44 @@ async function deployGachaPanel(guild, channel, type, client) {
     if (!settingsData[guild.id].gachaPanels) settingsData[guild.id].gachaPanels = {};
 
     const panelKey = type === 'throne' ? 'duel' : type;
-    const existingMsgId = settingsData[guild.id].gachaPanels[panelKey];
+    const existingMsgId = settingsData[guild.id].gachaPanels[panelKey] || settingsData[guild.id].gachaPanels[`${panelKey}_msg`];
 
+    let targetMsg = null;
     if (existingMsgId) {
       try {
-        const existingMsg = await channel.messages.fetch(existingMsgId).catch(() => null);
-        if (existingMsg) {
-          await existingMsg.edit(payload).catch(() => {});
-          return existingMsg;
-        }
+        targetMsg = await channel.messages.fetch(existingMsgId).catch(() => null);
       } catch (_) {}
+    }
+
+    // Jika belum ketemu dari ID, cari panel bot yang sudah ada di channel untuk menghindari pesan duplikat
+    const recentMessages = await channel.messages.fetch({ limit: 15 }).catch(() => null);
+    if (recentMessages) {
+      const botPanels = recentMessages.filter(m =>
+        m.author.id === client?.user?.id &&
+        m.embeds.some(e => e.title && (
+          (type === 'hub' && e.title.includes('GACHA & ADVENTURE LOUNGE')) ||
+          ((type === 'duel' || type === 'throne') && e.title.includes('ARENA DUEL TAHTA')) ||
+          (type === 'boss' && e.title.includes('LOBI'))
+        ))
+      );
+
+      if (botPanels.size > 1) {
+        const sorted = Array.from(botPanels.values()).sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+        targetMsg = sorted[0];
+        for (const duplicateMsg of sorted.slice(1)) {
+          await duplicateMsg.delete().catch(() => {});
+        }
+      } else if (botPanels.size === 1 && !targetMsg) {
+        targetMsg = botPanels.first();
+      }
+    }
+
+    if (targetMsg) {
+      await targetMsg.edit(payload).catch(() => {});
+      settingsData[guild.id].gachaPanels[panelKey] = targetMsg.id;
+      settingsData[guild.id].gachaPanels[`${panelKey}_msg`] = targetMsg.id;
+      storage.write('settings', settingsData);
+      return targetMsg;
     }
 
     const newMsg = await channel.send(payload).catch(e => {
@@ -3923,6 +3979,7 @@ async function deployGachaPanel(guild, channel, type, client) {
 
     if (newMsg) {
       settingsData[guild.id].gachaPanels[panelKey] = newMsg.id;
+      settingsData[guild.id].gachaPanels[`${panelKey}_msg`] = newMsg.id;
       storage.write('settings', settingsData);
       return newMsg;
     }

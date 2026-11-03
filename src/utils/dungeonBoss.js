@@ -1362,20 +1362,47 @@ async function updateLiveLeaderboardChannel(guild, client) {
     if (!channel || !channel.isTextBased() || channel.isThread()) return;
 
     const embeds = buildLiveLeaderboardEmbeds(guild.id, guild);
-    const existingMsgId = settingsData[guild.id]?.gachaPanels?.leaderboard_msg;
+    const existingMsgId = settingsData[guild.id]?.gachaPanels?.leaderboard_msg || settingsData[guild.id]?.gachaPanels?.leaderboard;
 
+    let targetMsg = null;
     if (existingMsgId) {
-      const msg = await channel.messages.fetch(existingMsgId).catch(() => null);
-      if (msg) {
-        await msg.edit({ embeds }).catch(() => {});
-        return;
+      targetMsg = await channel.messages.fetch(existingMsgId).catch(() => null);
+    }
+
+    // Cari pesan-pesan bot di channel untuk mendeteksi panel lama dan mencegah pesan ganda
+    const recentMessages = await channel.messages.fetch({ limit: 15 }).catch(() => null);
+    if (recentMessages) {
+      const botPanels = recentMessages.filter(m =>
+        m.author.id === client.user.id &&
+        m.embeds.some(e => e.title && e.title.includes('PAPAN KLASEMEN TOP GLOBAL'))
+      );
+
+      if (botPanels.size > 1) {
+        // Ada lebih dari 1 panel ganda: simpan yang terbaru, hapus yang lama
+        const sorted = Array.from(botPanels.values()).sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+        targetMsg = sorted[0];
+        for (const duplicateMsg of sorted.slice(1)) {
+          await duplicateMsg.delete().catch(() => {});
+        }
+      } else if (botPanels.size === 1 && !targetMsg) {
+        targetMsg = botPanels.first();
       }
+    }
+
+    if (targetMsg) {
+      await targetMsg.edit({ embeds }).catch(() => {});
+      if (!settingsData[guild.id].gachaPanels) settingsData[guild.id].gachaPanels = {};
+      settingsData[guild.id].gachaPanels.leaderboard_msg = targetMsg.id;
+      settingsData[guild.id].gachaPanels.leaderboard = targetMsg.id;
+      storage.write('settings', settingsData);
+      return;
     }
 
     const newMsg = await channel.send({ embeds }).catch(() => null);
     if (newMsg) {
       if (!settingsData[guild.id].gachaPanels) settingsData[guild.id].gachaPanels = {};
       settingsData[guild.id].gachaPanels.leaderboard_msg = newMsg.id;
+      settingsData[guild.id].gachaPanels.leaderboard = newMsg.id;
       storage.write('settings', settingsData);
     }
   } catch (err) {
