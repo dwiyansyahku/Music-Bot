@@ -92,14 +92,15 @@ module.exports = {
       }
     }
 
-    // ====== CURATED GALLERY SYSTEM: 2-SALURAN (CHANNEL 1: UPLOAD & CHANNEL 2: OUTPUT) ======
+    // ====== CURATED GALLERY SYSTEM: MULTI-SALURAN (INPUT 1 CHANNEL: FOTO & VIDEO, OUTPUT TERPISAH) ======
     try {
       const gallerySettings = storage.read('settings') || {};
       const gSettings = gallerySettings[guildId] || {};
-      const galleryOutputId = gSettings.galleryChannel; // Channel 2: Output
-      const galleryUploadId = gSettings.galleryUploadChannel || gSettings.galleryPanelChannel; // Channel 1: Upload
+      const galleryOutputId = gSettings.galleryChannel; // Channel 2: Output Foto
+      const galleryVideoOutputId = gSettings.galleryVideoChannel; // Channel 3: Output Video
+      const galleryUploadId = gSettings.galleryUploadChannel || gSettings.galleryPanelChannel; // Channel 1: Upload (Input)
 
-      // 1. Channel 1: Saluran Khusus Upload Gambar dari Device
+      // 1. Channel 1: Saluran Khusus Upload dari Device (Input Foto & Video tetap 1 channel)
       if (galleryUploadId && message.channel.id === galleryUploadId) {
         if (!message.author.bot) {
           const imageAttachments = message.attachments.filter(att => {
@@ -107,24 +108,56 @@ module.exports = {
             return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) || att.contentType?.startsWith('image/');
           });
 
+          const videoAttachments = message.attachments.filter(att => {
+            const ext = (att.name?.split('.').pop() || '').toLowerCase();
+            return ['mp4', 'mov', 'webm', 'mkv', 'avi', 'flv', 'wmv', 'm4v'].includes(ext) || att.contentType?.startsWith('video/');
+          });
+
+          const caption = message.content?.trim() || '';
+          let postedPhotoSuccess = false;
+          let postedVideoSuccess = false;
+
+          // Proses Foto -> Masuk ke Channel Galeri Foto
           if (imageAttachments.size > 0) {
-            const caption = message.content?.trim() || '';
             const { publishGalleryPost } = require('../commands/gallery');
             const urls = Array.from(imageAttachments.values()).map(att => att.url);
             const res = await publishGalleryPost(message.guild, message.author, message.member, urls, caption, client);
 
             if (res.success) {
-              await message.react('🖼️').catch(() => {});
+              postedPhotoSuccess = true;
             } else if (res.error) {
               message.reply({
-                content: `Gagal memposting gambar ke galeri: ${res.error}`
+                content: `Gagal memposting foto ke galeri: ${res.error}`
               }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
             }
+          }
+
+          // Proses Video -> Masuk ke Channel Galeri Video
+          if (videoAttachments.size > 0) {
+            const { publishGalleryVideoPost } = require('../commands/gallery');
+            const urls = Array.from(videoAttachments.values()).map(att => att.url);
+            const res = await publishGalleryVideoPost(message.guild, message.author, message.member, urls, caption, client);
+
+            if (res.success) {
+              postedVideoSuccess = true;
+            } else if (res.error) {
+              message.reply({
+                content: `Gagal memposting video ke galeri: ${res.error}`
+              }).then(m => setTimeout(() => m.delete().catch(() => {}), 6000)).catch(() => {});
+            }
+          }
+
+          // Berikan reaksi apresiasi pada pesan upload member
+          if (postedPhotoSuccess) {
+            await message.react('🖼️').catch(() => {});
+          }
+          if (postedVideoSuccess) {
+            await message.react('🎬').catch(() => {});
           }
         }
       }
 
-      // 2. Channel 2: Saluran Output Galeri
+      // 2. Channel 2: Saluran Output Galeri Foto
       // Jika ada member kirim gambar langsung ke sini, bot mengubahnya jadi postingan resmi terkurasi
       // Jika hanya chat teks biasa tanpa gambar, langsung dihapus karena dilarang chat langsung
       if (galleryOutputId && message.channel.id === galleryOutputId) {
@@ -147,8 +180,42 @@ module.exports = {
             await message.delete().catch(() => {});
 
             const warningContent = galleryUploadId
-              ? `<@${message.author.id}>, saluran ini khusus pameran galeri foto (tidak bisa chat langsung).\n• Untuk upload gambar: silakan kirim di <#${galleryUploadId}>.`
+              ? `<@${message.author.id}>, saluran ini khusus pameran galeri foto (tidak bisa chat langsung).\n• Untuk upload gambar atau video: silakan kirim di <#${galleryUploadId}>.`
               : `<@${message.author.id}>, saluran ini khusus pameran foto (tidak bisa chat langsung).`;
+
+            message.channel.send({ content: warningContent })
+              .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+              .catch(() => {});
+            return;
+          }
+        }
+      }
+
+      // 3. Channel 3: Saluran Output Galeri Video
+      // Jika ada member kirim video langsung ke sini, bot mengubahnya jadi postingan resmi terkurasi
+      // Jika hanya chat teks biasa tanpa video, langsung dihapus karena dilarang chat langsung
+      if (galleryVideoOutputId && message.channel.id === galleryVideoOutputId) {
+        if (!message.author.bot) {
+          const videoAttachments = message.attachments.filter(att => {
+            const ext = (att.name?.split('.').pop() || '').toLowerCase();
+            return ['mp4', 'mov', 'webm', 'mkv', 'avi', 'flv', 'wmv', 'm4v'].includes(ext) || att.contentType?.startsWith('video/');
+          });
+
+          if (videoAttachments.size > 0) {
+            const caption = message.content?.trim() || '';
+            const { publishGalleryVideoPost } = require('../commands/gallery');
+            const urls = Array.from(videoAttachments.values()).map(att => att.url);
+            await publishGalleryVideoPost(message.guild, message.author, message.member, urls, caption, client);
+            // Hapus pesan asli user setelah postingan bot berhasil diproses
+            await message.delete().catch(() => {});
+            return;
+          } else {
+            // Hapus chat teks biasa
+            await message.delete().catch(() => {});
+
+            const warningContent = galleryUploadId
+              ? `<@${message.author.id}>, saluran ini khusus pameran galeri video (tidak bisa chat langsung).\n• Untuk upload video atau foto: silakan kirim di <#${galleryUploadId}>.`
+              : `<@${message.author.id}>, saluran ini khusus pameran video (tidak bisa chat langsung).`;
 
             message.channel.send({ content: warningContent })
               .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))

@@ -15,7 +15,10 @@ const { sendModLog } = require('../utils/modlog');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+const ALLOWED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+const ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'mov', 'webm', 'mkv', 'avi', 'flv', 'wmv', 'm4v'];
 const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+const MAX_VIDEO_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 /**
  * Get date string in YYYY-MM-DD for WIB
@@ -423,27 +426,187 @@ async function publishGalleryItem(guild, user, member, imageUrl, caption, client
   return publishGalleryPost(guild, user, member, imageUrl, caption, client);
 }
 
+/**
+ * Fungsi untuk mempublikasikan video ke Saluran Output Galeri Video.
+ * Mendukung pengiriman attachment video native (MP4, WEBM, MOV, dll.)
+ * Dilengkapi fallback ke link langsung jika ukuran video melebihi batas upload bot Discord.
+ */
+async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, client) {
+  const guildId = guild.id;
+  const settings = storage.read('settings') || {};
+  const guildSettings = settings[guildId] || {};
+  const galleryVideoChannelId = guildSettings.galleryVideoChannel;
+
+  if (!galleryVideoChannelId) {
+    return {
+      success: false,
+      error: 'Saluran Galeri Video Output belum dikonfigurasi. Hubungi Admin untuk mengatur dengan `/gallery setchannel video:#channel`.'
+    };
+  }
+
+  const galleryVideoChannel = (guild.channels?.cache ? guild.channels.cache.get(galleryVideoChannelId) : null) ||
+    await guild.channels?.fetch?.(galleryVideoChannelId).catch(() => null) ||
+    await client?.channels?.fetch?.(galleryVideoChannelId).catch(() => null);
+
+  if (!galleryVideoChannel) {
+    return {
+      success: false,
+      error: 'Saluran Galeri Video Output tidak ditemukan. Hubungi Admin.'
+    };
+  }
+
+  const urlList = (Array.isArray(inputUrls) ? inputUrls : [inputUrls]).filter(u => typeof u === 'string' && u.trim().length > 0);
+  if (urlList.length === 0) {
+    return {
+      success: false,
+      error: 'Tidak ada video yang valid untuk diposting ke galeri video.'
+    };
+  }
+
+  // Batasi maksimal 5 video per pengiriman
+  const targetUrls = urlList.slice(0, 5);
+  const submissionId = 'VID_' + Date.now().toString(36).toUpperCase();
+  const displayName = member?.displayName || user?.username || 'Member';
+  const videoCount = targetUrls.length;
+
+  let postedMsg = null;
+  let sendError = null;
+
+  // 1. Coba upload langsung sebagai file attachment agar video di-host di Discord channel galeri
+  try {
+    const files = targetUrls.map((url, idx) => {
+      let fileName = `gallery_video_${submissionId}_${idx + 1}.mp4`;
+      try {
+        const parsed = new URL(url);
+        const base = parsed.pathname.split('/').pop();
+        if (base && /\.(mp4|mov|webm|mkv|avi|flv|wmv|m4v)$/i.test(base)) {
+          fileName = base;
+        }
+      } catch (_) {}
+      return { attachment: url, name: fileName };
+    });
+
+    const contentText = caption
+      ? `🎬 **${displayName}** membagikan ${videoCount > 1 ? `${videoCount} video` : 'video'}:\n> ${caption}\n*ID: \`${submissionId}\`*`
+      : `🎬 **${displayName}** membagikan video ke galeri • *ID: \`${submissionId}\`*`;
+
+    postedMsg = await galleryVideoChannel.send({
+      content: contentText,
+      files: files
+    });
+  } catch (err) {
+    console.warn(`[Gallery Video] Direct attachment upload gagal (${err.message}), mencoba link fallback...`);
+    sendError = err;
+    postedMsg = null;
+  }
+
+  // 2. Fallback jika upload file gagal (misal ukuran file > 25MB): kirim URL video langsung di pesan sehingga Discord merender video player
+  if (!postedMsg) {
+    try {
+      const linksText = targetUrls.join('\n');
+      const contentText = caption
+        ? `🎬 **${displayName}** membagikan video:\n> ${caption}\n*ID: \`${submissionId}\`*\n${linksText}`
+        : `🎬 **${displayName}** membagikan video ke galeri • *ID: \`${submissionId}\`*\n${linksText}`;
+
+      postedMsg = await galleryVideoChannel.send({
+        content: contentText
+      });
+      sendError = null;
+    } catch (fbErr) {
+      console.error('[Gallery Video] Fallback link post juga gagal:', fbErr.message);
+      sendError = fbErr;
+      postedMsg = null;
+    }
+  }
+
+  if (!postedMsg) {
+    return {
+      success: false,
+      error: `Gagal mengirim video ke saluran <#${galleryVideoChannelId}>: ${sendError?.message || 'Network / Upload Error'}`
+    };
+  }
+
+  // Reaksi apresiasi emoji
+  const RANDOM_VIDEO_EMOJIS = ['🎬', '🔥', '✨', '👏', '🍿', '⭐', '💖', '🎉'];
+  const chosenEmojis = [...RANDOM_VIDEO_EMOJIS].sort(() => 0.5 - Math.random()).slice(0, 2);
+  for (const em of chosenEmojis) {
+    await postedMsg.react(em).catch(() => {});
+  }
+
+  // Catat ke storage gallery.json
+  const galleryData = storage.read('gallery') || {};
+  if (!galleryData[guildId]) {
+    galleryData[guildId] = {
+      submissions: [],
+      dailyUsage: {}
+    };
+  }
+
+  const todayStr = getWIBDateString();
+  const userDayKey = `${user.id}_${todayStr}`;
+  const userTodayCount = galleryData[guildId].dailyUsage?.[userDayKey] || 0;
+  galleryData[guildId].dailyUsage[userDayKey] = userTodayCount + videoCount;
+
+  const finalAttachments = postedMsg.attachments ? Array.from(postedMsg.attachments.values()) : [];
+  const primaryVideoUrl = finalAttachments[0]?.url || targetUrls[0];
+  const allVideoUrls = finalAttachments.length > 0 ? finalAttachments.map(a => a.url) : targetUrls;
+
+  galleryData[guildId].submissions.push({
+    id: submissionId,
+    type: 'video',
+    messageId: postedMsg.id,
+    channelId: galleryVideoChannel.id,
+    userId: user.id,
+    videoUrl: primaryVideoUrl,
+    videoUrls: allVideoUrls,
+    videoCount: videoCount,
+    caption: caption || null,
+    createdAt: Date.now()
+  });
+  storage.write('gallery', galleryData);
+
+  // Kirim Mod Log
+  await sendModLog(guild, client, {
+    action: 'GALLERY_VIDEO_POST',
+    moderator: user,
+    details: `Video (${videoCount} video) berhasil diposting ke <#${galleryVideoChannel.id}>.\n` +
+      `• ID Pesan: \`${postedMsg.id}\`\n` +
+      `• Total Kiriman Hari Ini: **${userTodayCount + videoCount} Media**\n` +
+      (caption ? `• Caption: *${caption}*` : '')
+  });
+
+  const jumpUrl = `https://discord.com/channels/${guildId}/${galleryVideoChannel.id}/${postedMsg.id}`;
+  return {
+    success: true,
+    messageId: postedMsg.id,
+    channelId: galleryVideoChannel.id,
+    jumpUrl,
+    videoCount
+  };
+}
+
 module.exports = {
   publishGalleryPost,
   publishGalleryItem,
+  publishGalleryVideoPost,
   data: new SlashCommandBuilder()
     .setName('gallery')
-    .setDescription('Sistem Saluran Galeri Gambar Terkurasi Bot (2-Saluran: Upload & Output)')
+    .setDescription('Sistem Saluran Galeri Foto & Video (1 Saluran Input & 2 Saluran Output)')
     // Subcommand: submit
     .addSubcommand(sub =>
       sub
         .setName('submit')
-        .setDescription('Kirim gambar/foto/karya ke saluran galeri server')
+        .setDescription('Kirim foto atau video ke saluran galeri server')
         .addAttachmentOption(opt =>
           opt
-            .setName('image')
-            .setDescription('File gambar yang ingin dipajang (PNG, JPG, GIF, WEBP)')
+            .setName('file')
+            .setDescription('File foto (PNG/JPG/GIF) atau video (MP4/MOV/WEBM) yang ingin dipajang')
             .setRequired(true)
         )
         .addStringOption(opt =>
           opt
             .setName('caption')
-            .setDescription('Judul atau caption pelengkap gambar')
+            .setDescription('Judul atau caption pelengkap')
             .setRequired(false)
             .setMaxLength(500)
         )
@@ -452,18 +615,25 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('setchannel')
-        .setDescription('Atur konfigurasi 2-saluran galeri (Channel 1: Upload & Channel 2: Output)')
+        .setDescription('Atur saluran galeri (Channel 1: Upload, Channel 2: Foto, Channel 3: Video)')
         .addChannelOption(opt =>
           opt
             .setName('output')
             .setDescription('Channel 2: Saluran output pameran foto (anti-chat langsung, hanya reaksi)')
             .addChannelTypes(ChannelType.GuildText)
-            .setRequired(true)
+            .setRequired(false)
+        )
+        .addChannelOption(opt =>
+          opt
+            .setName('video')
+            .setDescription('Channel 3: Saluran output galeri khusus video (anti-chat langsung, hanya reaksi)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
         )
         .addChannelOption(opt =>
           opt
             .setName('upload')
-            .setDescription('Channel 1: Saluran upload gambar (bebas chat, bot otomatis mendeteksi & memindahkan gambar)')
+            .setDescription('Channel 1: Saluran upload foto & video (1 channel input untuk semua media)')
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
@@ -472,29 +642,30 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('config')
-        .setDescription('Lihat status konfigurasi 2-saluran dan statistik galeri')
+        .setDescription('Lihat status saluran galeri (Upload, Foto, Video) dan statistik')
     )
     // Subcommand: delete (Admin only)
     .addSubcommand(sub =>
       sub
         .setName('delete')
-        .setDescription('Hapus kiriman gambar dari galeri berdasarkan ID pesan (Admin only)')
+        .setDescription('Hapus kiriman foto/video dari galeri berdasarkan ID pesan (Admin only)')
         .addStringOption(opt =>
           opt
             .setName('message_id')
-            .setDescription('ID pesan Discord gambar galeri yang ingin dihapus')
+            .setDescription('ID pesan Discord gambar/video galeri yang ingin dihapus')
             .setRequired(true)
         )
         .addStringOption(opt =>
           opt
             .setName('alasan')
-            .setDescription('Alasan penghapusan gambar')
+            .setDescription('Alasan penghapusan media')
             .setRequired(false)
         )
     ),
 
   publishGalleryPost,
   publishGalleryItem,
+  publishGalleryVideoPost,
 
   async execute(interaction, client) {
     const sub = interaction.options.getSubcommand();
@@ -506,39 +677,61 @@ module.exports = {
     // 1. SUBCOMMAND: SUBMIT (Semua Member)
     // ==========================================
     if (sub === 'submit') {
-      const attachment = interaction.options.getAttachment('image');
+      const attachment = interaction.options.getAttachment('file') || interaction.options.getAttachment('image');
       const caption = interaction.options.getString('caption')?.trim() || '';
+
+      if (!attachment) {
+        return interaction.reply({
+          content: '❌ Harap lampirkan file foto atau video yang ingin dikirim ke galeri.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
 
       // Validasi Ekstensi / Format File
       const fileExt = (attachment.name?.split('.').pop() || '').toLowerCase();
       const contentType = attachment.contentType || '';
-      const isImage = ALLOWED_EXTENSIONS.includes(fileExt) || contentType.startsWith('image/');
+      const isImage = ALLOWED_IMAGE_EXTENSIONS.includes(fileExt) || contentType.startsWith('image/');
+      const isVideo = ALLOWED_VIDEO_EXTENSIONS.includes(fileExt) || contentType.startsWith('video/');
 
-      if (!isImage) {
+      if (!isImage && !isVideo) {
         return interaction.reply({
-          content: `❌ Format file tidak didukung! Harap unggah file gambar dengan format: \`${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}\`.`,
+          content: `❌ Format file tidak didukung! Format yang didukung:\n• **Foto/Gambar:** \`${ALLOWED_IMAGE_EXTENSIONS.join(', ').toUpperCase()}\`\n• **Video:** \`${ALLOWED_VIDEO_EXTENSIONS.join(', ').toUpperCase()}\``,
           flags: MessageFlags.Ephemeral
         });
       }
 
       // Validasi Ukuran File
-      if (attachment.size > MAX_FILE_SIZE) {
+      const maxSize = isVideo ? MAX_VIDEO_FILE_SIZE : MAX_FILE_SIZE;
+      const maxSizeMb = isVideo ? '50MB' : '8MB';
+      if (attachment.size > maxSize) {
         return interaction.reply({
-          content: `❌ Ukuran gambar terlalu besar (${(attachment.size / (1024 * 1024)).toFixed(1)}MB)! Batas maksimal adalah **8MB**.`,
+          content: `❌ Ukuran ${isVideo ? 'video' : 'gambar'} terlalu besar (${(attachment.size / (1024 * 1024)).toFixed(1)}MB)! Batas maksimal adalah **${maxSizeMb}**.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const res = await publishGalleryItem(
-        interaction.guild,
-        interaction.user,
-        interaction.member,
-        attachment.url,
-        caption,
-        client
-      );
+      let res = null;
+      if (isVideo) {
+        res = await publishGalleryVideoPost(
+          interaction.guild,
+          interaction.user,
+          interaction.member,
+          attachment.url,
+          caption,
+          client
+        );
+      } else {
+        res = await publishGalleryItem(
+          interaction.guild,
+          interaction.user,
+          interaction.member,
+          attachment.url,
+          caption,
+          client
+        );
+      }
 
       if (!res.success) {
         return interaction.editReply({ content: `❌ ${res.error}` });
@@ -552,7 +745,7 @@ module.exports = {
       );
 
       return interaction.editReply({
-        content: `✨ Gambar karyamu berhasil dipajang di <#${res.channelId}>!`,
+        content: `✨ ${isVideo ? 'Video' : 'Gambar'} karyamu berhasil dipajang di <#${res.channelId}>!`,
         components: [replyRow]
       });
     }
@@ -570,37 +763,52 @@ module.exports = {
       }
 
       const outputChannel = interaction.options.getChannel('output') || interaction.options.getChannel('channel');
+      const videoChannel = interaction.options.getChannel('video');
       const uploadChannel = interaction.options.getChannel('upload') || interaction.options.getChannel('panel');
+
+      if (!outputChannel && !videoChannel && !uploadChannel) {
+        return interaction.reply({
+          content: '❌ Harap tentukan minimal salah satu saluran yang ingin diatur (`output`, `video`, atau `upload`).',
+          flags: MessageFlags.Ephemeral
+        });
+      }
 
       if (!settings[guildId]) settings[guildId] = {};
       if (outputChannel) settings[guildId].galleryChannel = outputChannel.id;
+      if (videoChannel) settings[guildId].galleryVideoChannel = videoChannel.id;
       if (uploadChannel) {
         settings[guildId].galleryUploadChannel = uploadChannel.id;
         settings[guildId].galleryPanelChannel = uploadChannel.id;
       }
       storage.write('settings', settings);
 
-      let detailsText = `Channel 2 (Output Galeri): <#${outputChannel?.id || settings[guildId].galleryChannel}>`;
-      if (uploadChannel) {
-        detailsText += `\nChannel 1 (Upload Gambar): <#${uploadChannel.id}>`;
-      }
+      let detailsText = '';
+      if (uploadChannel) detailsText += `• Channel 1 (Upload Foto & Video): <#${uploadChannel.id}>\n`;
+      if (outputChannel) detailsText += `• Channel 2 (Output Galeri Foto): <#${outputChannel.id}>\n`;
+      if (videoChannel) detailsText += `• Channel 3 (Output Galeri Video): <#${videoChannel.id}>\n`;
 
       await sendModLog(interaction.guild, client, {
         action: 'SETCHANNEL',
         moderator: interaction.user,
-        details: detailsText
+        details: `Pengaturan Saluran Galeri diperbarui:\n${detailsText}`
       });
+
+      const currentUploadId = settings[guildId].galleryUploadChannel || settings[guildId].galleryPanelChannel;
+      const currentPhotoId = settings[guildId].galleryChannel;
+      const currentVideoId = settings[guildId].galleryVideoChannel;
 
       const embed = new EmbedBuilder()
         .setColor(0x57F287)
-        .setTitle('Konfigurasi 2-Saluran Galeri Berhasil')
+        .setTitle('Konfigurasi Saluran Galeri Berhasil')
         .setDescription(
           `Pengaturan saluran galeri server telah berhasil diperbarui:\n\n` +
-          `• **Channel 1 (Upload Gambar)**: ${uploadChannel?.id || settings[guildId].galleryUploadChannel || settings[guildId].galleryPanelChannel ? `<#${uploadChannel?.id || settings[guildId].galleryUploadChannel || settings[guildId].galleryPanelChannel}>` : '_Belum diatur_'}\n` +
-          `  *(Member bebas chat di sini. Bot hanya mendeteksi gambar dan otomatis meneruskannya ke Channel 2)*\n\n` +
-          `• **Channel 2 (Output Galeri)**: <#${outputChannel?.id || settings[guildId].galleryChannel}>\n` +
+          `• **Channel 1 (Upload Foto & Video)**: ${currentUploadId ? `<#${currentUploadId}>` : '_Belum diatur_'}\n` +
+          `  *(1 Saluran input terpadu. Member bebas chat & kirim foto/video di sini)*\n\n` +
+          `• **Channel 2 (Output Galeri Foto)**: ${currentPhotoId ? `<#${currentPhotoId}>` : '_Belum diatur_'}\n` +
           `  *(Saluran pameran foto terkurasi. Anti-chat langsung, khusus pameran foto & reaksi)*\n\n` +
-          `💡 **Tips**: Member cukup mengirimkan file foto di Channel 1, dan foto akan langsung dipajang secara otomatis di Channel 2!`
+          `• **Channel 3 (Output Galeri Video)**: ${currentVideoId ? `<#${currentVideoId}>` : '_Belum diatur_'}\n` +
+          `  *(Saluran pameran galeri video terkurasi. Anti-chat langsung, khusus video & reaksi)*\n\n` +
+          `💡 **Alur Kerja**: Member cukup mengirim foto atau video di Channel 1, dan bot akan otomatis memilahnya ke Channel 2 (Foto) atau Channel 3 (Video)!`
         )
         .setTimestamp();
 
@@ -620,11 +828,15 @@ module.exports = {
       }
 
       const galleryChannelId = guildSettings.galleryChannel;
+      const galleryVideoChannelId = guildSettings.galleryVideoChannel;
       const uploadChannelId = guildSettings.galleryUploadChannel || guildSettings.galleryPanelChannel;
       const galleryData = storage.read('gallery') || {};
       const guildGallery = galleryData[guildId] || { submissions: [], dailyUsage: {} };
 
-      const totalSubmissions = guildGallery.submissions?.length || 0;
+      const allSubmissions = guildGallery.submissions || [];
+      const photoCount = allSubmissions.filter(s => s.type !== 'video').length;
+      const videoCount = allSubmissions.filter(s => s.type === 'video').length;
+
       const todayStr = getWIBDateString();
       let todayCount = 0;
       for (const [key, count] of Object.entries(guildGallery.dailyUsage || {})) {
@@ -635,36 +847,41 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle('Konfigurasi 2-Saluran & Statistik Galeri')
+        .setTitle('Konfigurasi & Statistik Saluran Galeri')
         .addFields(
           {
-            name: 'Channel 1 (Upload Gambar)',
-            value: uploadChannelId ? `<#${uploadChannelId}>\n_(Bebas chat, bot mendeteksi gambar)_` : '_Belum diatur (`/gallery setchannel upload:#channel`)_',
+            name: 'Channel 1 (Upload Foto & Video)',
+            value: uploadChannelId ? `<#${uploadChannelId}>\n_(1 Saluran input terpadu)_` : '_Belum diatur (`/gallery setchannel upload:#channel`)_',
             inline: false
           },
           {
-            name: 'Channel 2 (Output Galeri)',
-            value: galleryChannelId ? `<#${galleryChannelId}>\n_(Terkurasi, anti-chat, hanya reaksi)_` : '_Belum dikonfigurasi (`/gallery setchannel output:#channel`)_',
-            inline: false
-          },
-          {
-            name: 'Batas Harian / Member',
-            value: '**Tanpa Batas Kuota (Unlimited)**',
+            name: 'Channel 2 (Output Galeri Foto)',
+            value: galleryChannelId ? `<#${galleryChannelId}>\n_(Terkurasi, khusus foto & reaksi)_` : '_Belum dikonfigurasi (`/gallery setchannel output:#channel`)_',
             inline: true
           },
           {
-            name: 'Batas Ukuran File',
-            value: `**8MB (PNG, JPG, GIF, WEBP)**`,
+            name: 'Channel 3 (Output Galeri Video)',
+            value: galleryVideoChannelId ? `<#${galleryVideoChannelId}>\n_(Terkurasi, khusus video & reaksi)_` : '_Belum dikonfigurasi (`/gallery setchannel video:#channel`)_',
             inline: true
           },
           {
-            name: 'Total Gambar Dipajang',
-            value: `**${totalSubmissions.toLocaleString()} Gambar**`,
+            name: 'Batas Kuota Harian',
+            value: '**Tanpa Batas (Unlimited)**',
+            inline: true
+          },
+          {
+            name: 'Total Foto Dipajang',
+            value: `**${photoCount.toLocaleString()} Foto**`,
+            inline: true
+          },
+          {
+            name: 'Total Video Dipajang',
+            value: `**${videoCount.toLocaleString()} Video**`,
             inline: true
           },
           {
             name: 'Kiriman Hari Ini (WIB)',
-            value: `**${todayCount.toLocaleString()} Gambar**`,
+            value: `**${todayCount.toLocaleString()} Media**`,
             inline: true
           }
         )
@@ -673,8 +890,6 @@ module.exports = {
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
-
-
 
     // ==========================================
     // 5. SUBCOMMAND: DELETE (Admin Only)
@@ -692,28 +907,34 @@ module.exports = {
       const alasan = interaction.options.getString('alasan') || 'Dihapus oleh Moderator';
 
       const galleryChannelId = guildSettings.galleryChannel;
-      const targetChannel = galleryChannelId
-        ? (interaction.guild.channels.cache.get(galleryChannelId) || await interaction.guild.channels.fetch(galleryChannelId).catch(() => null))
-        : interaction.channel;
-
-      if (!targetChannel) {
-        return interaction.reply({
-          content: '❌ Saluran galeri output tidak ditemukan.',
-          flags: MessageFlags.Ephemeral
-        });
-      }
+      const galleryVideoChannelId = guildSettings.galleryVideoChannel;
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       try {
-        const msgToDelete = await targetChannel.messages.fetch(messageId).catch(() => null);
-        if (!msgToDelete) {
+        let foundMsg = null;
+        let foundChannel = null;
+
+        const channelsToCheck = [galleryChannelId, galleryVideoChannelId, interaction.channelId].filter(Boolean);
+        for (const chId of channelsToCheck) {
+          const ch = interaction.guild.channels.cache.get(chId) || await interaction.guild.channels.fetch(chId).catch(() => null);
+          if (ch) {
+            const msg = await ch.messages.fetch(messageId).catch(() => null);
+            if (msg) {
+              foundMsg = msg;
+              foundChannel = ch;
+              break;
+            }
+          }
+        }
+
+        if (!foundMsg) {
           return interaction.editReply({
-            content: `❌ Pesan dengan ID \`${messageId}\` tidak ditemukan di saluran <#${targetChannel.id}>.`
+            content: `❌ Pesan dengan ID \`${messageId}\` tidak ditemukan di saluran galeri foto maupun video.`
           });
         }
 
-        await msgToDelete.delete();
+        await foundMsg.delete();
 
         // Hapus dari data gallery jika tercatat
         const galleryData = storage.read('gallery') || {};
@@ -729,15 +950,15 @@ module.exports = {
           action: 'GALLERY_DELETE',
           moderator: interaction.user,
           reason: alasan,
-          details: `Gambar di <#${targetChannel.id}> dengan ID Pesan \`${messageId}\` telah dihapus.`
+          details: `Kiriman galeri di <#${foundChannel.id}> dengan ID Pesan \`${messageId}\` telah dihapus.`
         });
 
         return interaction.editReply({
-          content: `✅ Postingan gambar dengan ID \`${messageId}\` berhasil dihapus dari galeri.`
+          content: `✅ Postingan galeri dengan ID \`${messageId}\` di <#${foundChannel.id}> berhasil dihapus.`
         });
       } catch (err) {
         return interaction.editReply({
-          content: `❌ Gagal menghapus gambar: ${err.message}`
+          content: `❌ Gagal menghapus postingan: ${err.message}`
         });
       }
     }

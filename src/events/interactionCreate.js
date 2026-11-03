@@ -782,22 +782,25 @@ module.exports = {
     )) {
       const storage = require('../utils/storage');
       const settings = storage.read('settings') || {};
-      const galleryChId = settings[interaction.guild?.id]?.galleryChannel;
-      const targetText = galleryChId ? `di saluran <#${galleryChId}>` : 'di Saluran Galeri';
+      const guildSettings = settings[interaction.guild?.id] || {};
+      const galleryPhotoChId = guildSettings.galleryChannel;
+      const galleryVideoChId = guildSettings.galleryVideoChannel;
+      const uploadChId = guildSettings.galleryUploadChannel || guildSettings.galleryPanelChannel;
+      const uploadChText = uploadChId ? `<#${uploadChId}>` : 'Channel 1 (Upload)';
+      const photoChText = galleryPhotoChId ? `<#${galleryPhotoChId}>` : 'Channel Output Foto';
+      const videoChText = galleryVideoChId ? `<#${galleryVideoChId}>` : 'Channel Output Video';
 
-      // 1. Klik Tombol Panduan / Unggah Gambar
+      // 1. Klik Tombol Panduan / Unggah Gambar & Video
       if (interaction.customId === 'gallery_btn_submit' || interaction.customId === 'gallery_btn_upload_file') {
-        const uploadChId = settings[interaction.guild?.id]?.galleryUploadChannel || settings[interaction.guild?.id]?.galleryPanelChannel;
-        const uploadChText = uploadChId ? `<#${uploadChId}>` : 'Channel 1 (Upload)';
-
         return interaction.reply({
-          content: `📸 **Panduan Pengiriman Gambar Galeri (Sistem 2-Saluran):**\n\n` +
-            `1. **Kirim Gambar di Channel 1 (${uploadChText})**:\n` +
-            `   • Cukup lampirkan/kirim file foto langsung dari galeri HP atau folder laptop Anda.\n` +
-            `   • Anda bisa mengobrol santai atau mengetik teks caption bersamaan dengan foto (obrolan chat biasa di sana tetap normal dan tidak akan terganggu).\n\n` +
-            `2. **Otomatis Masuk ke Channel 2 (${targetText})**:\n` +
-            `   • Bot akan otomatis mendeteksi file gambar dan memajangnya secara rapi di galeri terkurasi.\n` +
-            `   • Lengkap dengan reaksi emoji apresiasi di bawah foto!`,
+          content: `📸 **Panduan Pengiriman Galeri Server (Input 1 Saluran):**\n\n` +
+            `1. **Kirim di Channel Input (${uploadChText})**:\n` +
+            `   • Cukup kirim/lampirkan file **foto** atau **video** langsung dari HP / PC Anda.\n` +
+            `   • Input tetap 1 channel! Anda bisa menyertakan teks caption atau mengobrol santai tanpa kendala.\n\n` +
+            `2. **Otomatis Dipilah oleh Bot**:\n` +
+            `   • File **Foto/Gambar** otomatis masuk ke ${photoChText}.\n` +
+            `   • File **Video** otomatis masuk ke ${videoChText}.\n` +
+            `   • Setiap kiriman otomatis mendapatkan reaksi emoji apresiasi!`,
           flags: MessageFlags.Ephemeral
         });
       }
@@ -808,11 +811,12 @@ module.exports = {
           .setColor(0x2B2D31)
           .setTitle('Ketentuan & Pedoman Galeri Komunitas')
           .setDescription(
-            `• **Konten yang Diizinkan:** Fotografi, ilustrasi, screenshot game, fan art, meme original bermutu, dan momen server.\n` +
-            `• **Larangan Keras:** Dilarang konten NSFW/18+, gore, kebencian, pelecehan, atau hak cipta orang lain tanpa izin.\n` +
-            `• **Format & Ukuran:** PNG, JPG, JPEG, GIF, WEBP (maksimal 8MB).\n` +
-            `• **Batas Harian:** Tanpa batasan kuota (bebas berbagi karya kapan saja untuk meramaikan galeri server).\n` +
-            `• **Interaksi:** Berikan apresiasi menggunakan reaksi emoji pada foto yang Anda sukai.`
+            `• **Konten yang Diizinkan:** Fotografi, karya seni, klip video server, screenshot game, fan art, meme bermutu, dan momen kebersamaan.\n` +
+            `• **Larangan Keras:** Dilarang konten NSFW/18+, gore, kebencian, pelecehan, atau hak cipta pihak lain tanpa izin.\n` +
+            `• **Format & Ukuran Foto:** PNG, JPG, JPEG, GIF, WEBP (maksimal 8MB).\n` +
+            `• **Format & Ukuran Video:** MP4, MOV, WEBM, MKV (maksimal 50MB).\n` +
+            `• **Batas Harian:** Tanpa batasan kuota (bebas berbagi karya kapan saja).\n` +
+            `• **Interaksi:** Berikan apresiasi menggunakan reaksi emoji pada foto dan video yang Anda sukai.`
           );
 
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
