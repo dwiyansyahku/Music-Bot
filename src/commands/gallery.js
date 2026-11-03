@@ -455,8 +455,15 @@ async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, 
     };
   }
 
-  const urlList = (Array.isArray(inputUrls) ? inputUrls : [inputUrls]).filter(u => typeof u === 'string' && u.trim().length > 0);
-  if (urlList.length === 0) {
+  const mediaList = (Array.isArray(inputUrls) ? inputUrls : [inputUrls])
+    .map(item => {
+      if (typeof item === 'string') return { url: item.trim(), size: 0, name: '' };
+      if (item && typeof item === 'object') return { url: (item.url || '').trim(), size: item.size || 0, name: item.name || '' };
+      return null;
+    })
+    .filter(item => item && item.url.length > 0);
+
+  if (mediaList.length === 0) {
     return {
       success: false,
       error: 'Tidak ada video yang valid untuk diposting ke galeri video.'
@@ -464,43 +471,50 @@ async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, 
   }
 
   // Batasi maksimal 5 video per pengiriman
-  const targetUrls = urlList.slice(0, 5);
+  const targetMedia = mediaList.slice(0, 5);
+  const targetUrls = targetMedia.map(m => m.url);
   const submissionId = 'VID_' + Date.now().toString(36).toUpperCase();
   const displayName = member?.displayName || user?.username || 'Member';
-  const videoCount = targetUrls.length;
+  const videoCount = targetMedia.length;
 
   let postedMsg = null;
   let sendError = null;
 
-  // 1. Coba upload langsung sebagai file attachment agar video di-host di Discord channel galeri
-  try {
-    const files = targetUrls.map((url, idx) => {
-      let fileName = `gallery_video_${submissionId}_${idx + 1}.mp4`;
-      try {
-        const parsed = new URL(url);
-        const base = parsed.pathname.split('/').pop();
-        if (base && /\.(mp4|mov|webm|mkv|avi|flv|wmv|m4v)$/i.test(base)) {
-          fileName = base;
-        }
-      } catch (_) {}
-      return { attachment: url, name: fileName };
-    });
+  // Cek apakah ada file yang melebihi batas upload bot Discord (20MB)
+  // Jika > 20MB, lewati upload attachment agar tidak timeout/abort dan langsung kirim link native player
+  const hasLargeFile = targetMedia.some(m => m.size > 20 * 1024 * 1024);
 
-    const contentText = caption
-      ? `🎬 **${displayName}** membagikan ${videoCount > 1 ? `${videoCount} video` : 'video'}:\n> ${caption}\n*ID: \`${submissionId}\`*`
-      : `🎬 **${displayName}** membagikan video ke galeri • *ID: \`${submissionId}\`*`;
+  // 1. Upload sebagai file attachment jika ukuran file <= 20MB
+  if (!hasLargeFile) {
+    try {
+      const files = targetMedia.map((m, idx) => {
+        let fileName = m.name || `gallery_video_${submissionId}_${idx + 1}.mp4`;
+        try {
+          const parsed = new URL(m.url);
+          const base = parsed.pathname.split('/').pop();
+          if (base && /\.(mp4|mov|webm|mkv|avi|flv|wmv|m4v)$/i.test(base)) {
+            fileName = base;
+          }
+        } catch (_) {}
+        return { attachment: m.url, name: fileName };
+      });
 
-    postedMsg = await galleryVideoChannel.send({
-      content: contentText,
-      files: files
-    });
-  } catch (err) {
-    console.warn(`[Gallery Video] Direct attachment upload gagal (${err.message}), mencoba link fallback...`);
-    sendError = err;
-    postedMsg = null;
+      const contentText = caption
+        ? `🎬 **${displayName}** membagikan ${videoCount > 1 ? `${videoCount} video` : 'video'}:\n> ${caption}\n*ID: \`${submissionId}\`*`
+        : `🎬 **${displayName}** membagikan video ke galeri • *ID: \`${submissionId}\`*`;
+
+      postedMsg = await galleryVideoChannel.send({
+        content: contentText,
+        files: files
+      });
+    } catch (err) {
+      console.warn(`[Gallery Video] Direct attachment upload gagal (${err.message}), mencoba link fallback...`);
+      sendError = err;
+      postedMsg = null;
+    }
   }
 
-  // 2. Fallback jika upload file gagal (misal ukuran file > 25MB): kirim URL video langsung di pesan sehingga Discord merender video player
+  // 2. Kirim link langsung jika file > 20MB atau upload attachment gagal (Discord otomatis merender inline video player)
   if (!postedMsg) {
     try {
       const linksText = targetUrls.join('\n');

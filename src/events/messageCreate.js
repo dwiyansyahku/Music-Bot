@@ -135,8 +135,12 @@ module.exports = {
           // Proses Video -> Masuk ke Channel Galeri Video
           if (videoAttachments.size > 0) {
             const { publishGalleryVideoPost } = require('../commands/gallery');
-            const urls = Array.from(videoAttachments.values()).map(att => att.url);
-            const res = await publishGalleryVideoPost(message.guild, message.author, message.member, urls, caption, client);
+            const mediaItems = Array.from(videoAttachments.values()).map(att => ({
+              url: att.url,
+              name: att.name,
+              size: att.size
+            }));
+            const res = await publishGalleryVideoPost(message.guild, message.author, message.member, mediaItems, caption, client);
 
             if (res.success) {
               postedVideoSuccess = true;
@@ -204,8 +208,12 @@ module.exports = {
           if (videoAttachments.size > 0) {
             const caption = message.content?.trim() || '';
             const { publishGalleryVideoPost } = require('../commands/gallery');
-            const urls = Array.from(videoAttachments.values()).map(att => att.url);
-            await publishGalleryVideoPost(message.guild, message.author, message.member, urls, caption, client);
+            const mediaItems = Array.from(videoAttachments.values()).map(att => ({
+              url: att.url,
+              name: att.name,
+              size: att.size
+            }));
+            await publishGalleryVideoPost(message.guild, message.author, message.member, mediaItems, caption, client);
             // Hapus pesan asli user setelah postingan bot berhasil diproses
             await message.delete().catch(() => {});
             return;
