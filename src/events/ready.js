@@ -132,8 +132,9 @@ module.exports = {
     let lastBirthdayCheck = ''; // "DD-MM" string
     let lastVoiceNightReminder = ''; // "DD-MM" string
     let lastBossRaidSpawnCheck = ''; // "DD-MM" string
+    let lastBossWarning30 = ''; // "DD-MM" string (30 menit sebelum spawn)
     let lastBossWarning10 = ''; // "DD-MM" string (10 menit sebelum spawn)
-    let lastBossDespawnCheck = ''; // "DD-MM" string (1 jam pasca spawn)
+    let lastBossDespawnCheck = ''; // "DD-MM" string (akhir sesi spawn)
 
     setInterval(async () => {
       // ====== Hitung waktu WIB sekarang ======
@@ -143,6 +144,7 @@ module.exports = {
       const currentHour = nowWIB.getUTCHours();
       const currentMinute = nowWIB.getUTCMinutes();
       const currentDay = nowWIB.getUTCDate();
+      const currentDayOfWeek = nowWIB.getUTCDay(); // 0 = Minggu, 6 = Sabtu
       const currentMonth = nowWIB.getUTCMonth() + 1;
       const currentYear = nowWIB.getUTCFullYear();
       // Key menyertakan tanggal agar setiap hari dianggap unik (bukan hanya jam:menit)
@@ -216,8 +218,19 @@ module.exports = {
         }
       }
 
-      // ====== 2.6. WORLD BOSS PRE-SPAWN COUNTDOWN WARNING (20:50 WIB - 10 MENIT SEBELUM SPAWN) ======
-      if (currentHour === 20 && currentMinute === 50 && lastBossWarning10 !== birthdayKey) {
+      // ====== 2.6. WORLD BOSS PRE-SPAWN COUNTDOWN WARNING (SABTU 18:30 & 18:50 WIB) ======
+      if (currentDayOfWeek === 6 && currentHour === 18 && currentMinute === 30 && lastBossWarning30 !== birthdayKey) {
+        lastBossWarning30 = birthdayKey;
+        try {
+          const { checkAndBroadcastBossWarning } = require('../utils/dungeonBoss');
+          if (checkAndBroadcastBossWarning) await checkAndBroadcastBossWarning(client, 30);
+          console.log(`⏰ [Boss Raid Warning] Peringatan 30 menit menuju spawn berhasil disiarkan.`);
+        } catch (wErr) {
+          console.error('⚠️ [Boss Warning 30m Error]:', wErr.message);
+        }
+      }
+
+      if (currentDayOfWeek === 6 && currentHour === 18 && currentMinute === 50 && lastBossWarning10 !== birthdayKey) {
         lastBossWarning10 = birthdayKey;
         try {
           const { checkAndBroadcastBossWarning } = require('../utils/dungeonBoss');
@@ -228,28 +241,28 @@ module.exports = {
         }
       }
 
-      // ====== 2.7. WORLD BOSS RAID SPAWN & AWAKEN (21:00 WIB) ======
-      if (currentHour === 21 && currentMinute === 0 && lastBossRaidSpawnCheck !== birthdayKey) {
+      // ====== 2.7. WORLD BOSS RAID SPAWN & AWAKEN (SABTU 19:00 WIB) ======
+      if (currentDayOfWeek === 6 && currentHour === 19 && currentMinute === 0 && lastBossRaidSpawnCheck !== birthdayKey) {
         lastBossRaidSpawnCheck = birthdayKey;
         try {
           const { checkAndBroadcastBossSpawn } = require('../utils/dungeonBoss');
           if (checkAndBroadcastBossSpawn) {
             await checkAndBroadcastBossSpawn(client);
-            console.log(`👹 [Boss Raid] Kemunculan World Boss jam 21:00 WIB berhasil disiarkan.`);
+            console.log(`👹 [Boss Raid] Kemunculan World Boss hari Sabtu jam 19:00 WIB berhasil disiarkan.`);
           }
         } catch (bossSpawnErr) {
           console.error('⚠️ [Boss Raid Spawn Error]:', bossSpawnErr.message);
         }
       }
 
-      // ====== 2.8. WORLD BOSS DESPAWN (22:00 WIB - 1 JAM PASCA SPAWN) ======
-      if (currentHour === 22 && currentMinute === 0 && lastBossDespawnCheck !== birthdayKey) {
+      // ====== 2.8. WORLD BOSS DESPAWN (SABTU 23:59 WIB - AKHIR JENDELA RAID) ======
+      if (currentDayOfWeek === 6 && currentHour === 23 && currentMinute === 59 && lastBossDespawnCheck !== birthdayKey) {
         lastBossDespawnCheck = birthdayKey;
         try {
           const { checkAndDespawnBoss } = require('../utils/dungeonBoss');
           if (checkAndDespawnBoss) {
             await checkAndDespawnBoss(client);
-            console.log(`🌑 [Boss Raid] Cek despawn World Boss jam 22:00 WIB selesai.`);
+            console.log(`🌑 [Boss Raid] Cek despawn World Boss jam 23:59 WIB selesai.`);
           }
         } catch (bossDespawnErr) {
           console.error('⚠️ [Boss Raid Despawn Error]:', bossDespawnErr.message);

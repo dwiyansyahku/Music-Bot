@@ -47,19 +47,19 @@ const ADMIN_GUIDE_DATA = {
     emoji: '👹',
     title: 'PANDUAN ADMIN: WORLD BOSS RAID MULTI-PARTY',
     color: 0x9B59B6,
-    summary: 'Pertempuran monster kolosal terjadwal setiap malam pukul 21:00 WIB berhadiah tiket gacha dan stardust berlimpah.',
+    summary: 'Pertempuran monster kolosal terjadwal setiap Sabtu pukul 19:00 - 23:59 WIB berhadiah tiket gacha dan stardust berlimpah.',
     commands: [
       '`Tombol [Lobi Boss Raid]` di Lounge — Membuka panel lobi pembentukan party tempur.',
       '`Tombol [Buka/Kunci Boss Raid]` — Fitur admin untuk membuka atau mengunci paksa boss raid saat pengujian.',
       '`/gacha equiprelic relic:<nama>` — Memasang relik koleksi sebagai senjata raid (Ancient +50% ATK, Mythic +30%, Leg +20%).'
     ],
     setupSteps: [
-      '**Jadwal Otomatis (WIB):** Bot otomatis membunyikan alarm peringatan 10 menit (20:50 WIB) dan memunculkan World Boss di Arena Duel tepat jam 21:00 WIB.',
-      '**Tipe Monster Terjadwal:** Hari biasa (DAILY Boss: 25.000 HP), Malam Minggu (WEEKLY Boss: 80.000 HP), Malam Akhir Bulan (MONTHLY Boss: 250.000 HP).',
+      '**Jadwal Otomatis (WIB):** Bot otomatis membunyikan alarm peringatan 30 menit (18:30 WIB) & 10 menit (18:50 WIB) dan memunculkan World Boss di Arena Duel tepat jam 19:00 WIB setiap Sabtu.',
+      '**Tipe Monster Terjadwal:** Sabtu Mingguan (WEEKLY Boss: 80.000 HP), Sabtu Akhir Bulan (MONTHLY Boss: 250.000 HP).',
       '**Pusat Pertempuran:** Kemunculan Boss dan sesi combat multi-party berlangsung di saluran **Arena Duel** (`#arena-duel`).',
       '**Papan Skor Real-Time:** Papan klasemen `#papan-klasemen` otomatis memperbarui darah HP dan akumulasi damage setiap kali pemain menyerang.'
     ],
-    tips: 'Admin dapat menekan tombol [Buka/Kunci Boss Raid] di panel lobi kapan saja untuk demonstrasi atau event spesial di luar jam 21:00 WIB.'
+    tips: 'Admin dapat menekan tombol [Buka/Kunci Boss Raid] di panel lobi kapan saja untuk demonstrasi atau event spesial di luar jadwal Sabtu 19:00 WIB.'
   },
 
   card: {
@@ -133,7 +133,7 @@ const ADMIN_GUIDE_DATA = {
       '`/musicquiz [rounds:N]` — Mulai kuis tebak lagu seru berhadiah tiket gacha dan stardust.'
     ],
     setupSteps: [
-      '**Voice Reward Pasif:** Member yang mengobrol di Voice Channel aktif mendapatkan **1 Tiket Gacha & 15 Stardust setiap 15 menit**.',
+      '**Voice Reward Pasif:** Member yang mengobrol di Voice Channel aktif mendapatkan **1 Tiket Gacha & 15 Stardust setiap 5 menit**.',
       '**Anti-AFK Smart Filter:** Bot secara cerdas tidak memberikan reward jika member mute mic, deafen, atau sendirian di channel.'
     ],
     tips: 'Aktifkan `/q247` pada voice room santai komunitas agar musik tidak pernah berhenti meskipun antrean kosong.'
@@ -540,7 +540,7 @@ async function handleAdminButton(interaction, client) {
 
       const statusText = boss.forceSpawned
         ? '🔓 **DIBUKA PAKSA (Test Mode Aktif)**\nMonster World Boss telah bangkit di Arena Duel dan siap diserang oleh party pejuang!'
-        : '🔒 **DIKUNCI KEMBALI**\nBoss Raid dikembalikan ke mode jadwal reguler (Hanya buka pukul 21:00 WIB).';
+        : '🔒 **DIKUNCI KEMBALI**\nBoss Raid dikembalikan ke mode jadwal reguler (Hanya buka Sabtu pukul 19:00 - 23:59 WIB).';
 
       const embed = new EmbedBuilder()
         .setColor(boss.forceSpawned ? 0xED4245 : 0x57F287)

@@ -24,7 +24,7 @@ function formatDuration(ms) {
 
 let botClient = null;
 
-const VOICE_REWARD_INTERVAL_MS = 15 * 60 * 1000; // 15 menit
+const VOICE_REWARD_INTERVAL_MS = 5 * 60 * 1000; // 5 menit
 const VOICE_REWARD_DUST = 15;
 const VOICE_REWARD_TICKETS = 1;
 

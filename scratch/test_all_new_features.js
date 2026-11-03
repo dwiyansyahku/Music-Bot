@@ -55,7 +55,7 @@ async function runAllTests() {
   assert(nextSpawn.timestamp > Date.now() || nextSpawn.unix > 0, 'Next spawn time must be computed');
 
   // Test party creation limit
-  const testGuildId = 'test_guild_boss_suite_01';
+  const testGuildId = `test_guild_${Date.now()}`;
   dungeonBoss.toggleAdminForceBossRaid(testGuildId); // Open raid for test
 
   const uniqueLeaderId = `leader_${Date.now()}`;
@@ -116,9 +116,8 @@ async function runAllTests() {
   // -------------------------------------------------------------------
   console.log('--- Test 5: Live Leaderboard Embeds ---');
   const embeds = dungeonBoss.buildLiveLeaderboardEmbeds('1396245234693963878');
-  assert.strictEqual(embeds.length, 2, 'Should generate 2 embeds (Raid Status and Hall of Fame)');
-  assert(embeds[0].data.title.includes('LIVE RAID BOSS STATUS'), 'First embed must be Live Raid Boss Status');
-  assert(embeds[1].data.title.includes('HALL OF FAME'), 'Second embed must be Hall of Fame');
+  assert.strictEqual(embeds.length, 1, 'Should generate unified embed');
+  assert(embeds[0].data.title.includes('PAPAN KLASEMEN TOP GLOBAL'), 'Embed must be Top Global Leaderboard');
   console.log('✅ Test 5 Passed: Realtime Live Leaderboard generated properly!\n');
 
   console.log('🎉 ALL TESTS PASSED SUCCESSFULLY!');

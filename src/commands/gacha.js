@@ -1309,15 +1309,16 @@ async function buildDefenderChallengeComponents(guild, itemTier, challengerId, a
  * Sistem Tahta Terbatas & Kudeta (Throne Usurpation) — Role Permanen & Pilihan Tantangan
  */
 async function applySmartGachaRole(guild, member, itemTier, userData, gachaData, channel = null, client = null) {
-  const config = THRONE_CONFIG[itemTier];
+  const targetTier = itemTier === 'ANCIENT' ? 'MYTHIC' : itemTier;
+  const config = THRONE_CONFIG[targetTier];
   if (!config) return ''; // Hanya Mythic dan Legendary yang mendapatkan Role
 
   const guildId = guild.id;
-  const configuredRoleId = getConfiguredThroneRole(guild, itemTier);
+  const configuredRoleId = getConfiguredThroneRole(guild, targetTier);
   if (!configuredRoleId) return '';
 
   if (guild && client) {
-    await reconcileThroneHolders(guild, client, itemTier);
+    await reconcileThroneHolders(guild, client, targetTier);
     gachaData = storage.read('gacha_data') || {};
   }
 
@@ -1328,7 +1329,7 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
   const activeHolders = [];
 
   for (const [uId, uData] of Object.entries(guildUsers)) {
-    if (uData.activeRole && uData.activeRole.tier === itemTier) {
+    if (uData.activeRole && uData.activeRole.tier === targetTier) {
       activeHolders.push({
         userId: uId,
         userData: uData,
@@ -1338,14 +1339,14 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
   }
 
   // Case A: Member ini SUDAH memegang tahta tier ini -> PERTAHANKAN
-  if (userData.activeRole && userData.activeRole.tier === itemTier) {
+  if (userData.activeRole && userData.activeRole.tier === targetTier) {
     try {
       if (!member.roles.cache.has(configuredRoleId)) {
         await member.roles.add(configuredRoleId);
       }
     } catch (_) {}
     return {
-      text: `\n• **Tahta ${itemTier} Dipertahankan**\nKamu sudah menduduki tahta <@&${configuredRoleId}> (Permanen).`,
+      text: `\n• **Tahta ${targetTier} Dipertahankan**\nKamu sudah menduduki tahta <@&${configuredRoleId}> (Permanen).`,
       challengeRows: [],
       toString() { return this.text; }
     };
@@ -1361,17 +1362,17 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
     };
   }
 
-  // Lepas role lama jika sebelumnya punya role tier lebih rendah (misal sebelumnya punya Legendary, sekarang dapat Mythic)
-  if (userData.activeRole && userData.activeRole.roleId && member.roles.cache.has(userData.activeRole.roleId)) {
-    await member.roles.remove(userData.activeRole.roleId).catch(() => {});
-  }
-
   // Case C: Kursi tahta masih TERSEDIA (< Quota)
   if (activeHolders.length < config.quota) {
+    // Lepas role lama jika sebelumnya punya role tier lebih rendah (misal sebelumnya punya Legendary, sekarang dapat Mythic)
+    if (userData.activeRole && userData.activeRole.roleId && member.roles.cache.has(userData.activeRole.roleId)) {
+      await member.roles.remove(userData.activeRole.roleId).catch(() => {});
+    }
+
     try {
       await member.roles.add(configuredRoleId);
       userData.activeRole = {
-        tier: itemTier,
+        tier: targetTier,
         roleId: configuredRoleId,
         obtainedAt: now
       };
@@ -1380,7 +1381,7 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
       }
       const seatsUsed = activeHolders.length + 1;
       return {
-        text: `\n• **Tahta ${itemTier} Diperoleh (${seatsUsed}/${config.quota} Kursi Terisi)**\nRole <@&${configuredRoleId}> aktif secara **Permanen**.`,
+        text: `\n• **Tahta ${targetTier} Diperoleh (${seatsUsed}/${config.quota} Kursi Terisi)**\nRole <@&${configuredRoleId}> aktif secara **Permanen**.`,
         challengeRows: [],
         toString() { return this.text; }
       };
@@ -1391,13 +1392,14 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
   }
 
   // Case D: KURSI TAHTA PENUH! (>= Quota) -> Tampilkan 2 Opsi Tantangan (Acak & Dipilih)
+  // CATATAN: Role lama pemain TIDAK dicopot di sini agar tetap memegang rolenya sampai menang duel.
   const { allData: throneAll, guildData: throneGuild } = getGuildThroneData(guildId);
 
   // Jika penantang saat ini sedang berada dalam duel aktif lain (sebagai penantang atau bertahan)
   if (isUserInActiveDuel(guildId, member.id)) {
     return {
       text: (
-        `\n• **Kursi Tahta ${itemTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
+        `\n• **Kursi Tahta ${targetTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
         `Sebagai pemilik relik ${itemTier}, kamu berhak menantang pemegang tahta. Namun, saat ini **kamu masih berada dalam duel aktif yang belum selesai**.\n` +
         `Selesaikan duelmu yang sedang berlangsung terlebih dahulu sebelum menantang tahta kembali!`
       ),
@@ -1407,11 +1409,11 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
   }
 
   // Jika penantang sudah berada di antrean duel untuk tier ini
-  const existingQIdx = (throneGuild.queues[itemTier] || []).findIndex(q => q.challengerId === member.id);
+  const existingQIdx = (throneGuild.queues[targetTier] || []).findIndex(q => q.challengerId === member.id);
   if (existingQIdx !== -1) {
     return {
       text: (
-        `\n• **Kursi Tahta ${itemTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
+        `\n• **Kursi Tahta ${targetTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
         `Sebagai pemilik relik ${itemTier}, kamu sudah terdaftar pada **antrean penantang (Posisi: #${existingQIdx + 1})**.\n` +
         `Tantanganmu akan dimulai secara otomatis saat giliranmu tiba!`
       ),
@@ -1422,10 +1424,10 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
 
   const busyUserIds = getBusyDuelUserIds(guildId);
   const candidateHolders = activeHolders.filter(h => h.userId !== member.id);
-  const challengeRows = await buildDefenderChallengeComponents(guild, itemTier, member.id, candidateHolders, busyUserIds);
+  const challengeRows = await buildDefenderChallengeComponents(guild, targetTier, member.id, candidateHolders, busyUserIds);
 
   const text = (
-    `\n• **Kursi Tahta ${itemTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
+    `\n• **Kursi Tahta ${targetTier} Penuh (${activeHolders.length}/${config.quota} Terisi)**\n` +
     `Sebagai pemilik relik ${itemTier}, kamu berhak menantang pemegang tahta untuk merebut role <@&${configuredRoleId}>!\n` +
     `Pilih lawanmu: gunakan tombol **Acak Lawan** atau **Pilih dari Menu** di bawah.`
   );
@@ -3588,9 +3590,9 @@ function createHubPanelPayload(guild) {
         `  ↳ **HP:** \`[${bar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${pct}%)` +
         spawnLinkText;
     } else if (boss && boss.status === 'DEFEATED') {
-      bossStatusLine = `• 🏆 **Raid Boss Hari Ini Telah Ditaklukkan!**\n  ↳ Bangkit kembali besok malam pukul **21:00 WIB** (<t:${nextSpawn.unix}:R>).`;
+      bossStatusLine = `• 🏆 **Raid Boss Minggu Ini Telah Ditaklukkan!**\n  ↳ Bangkit kembali Sabtu depan pukul **19:00 WIB** (<t:${nextSpawn.unix}:R>).`;
     } else {
-      bossStatusLine = `• ⏳ **Raid Boss:** Belum bangkit.\n  ↳ Jadwal spawn: Pukul **21:00 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
+      bossStatusLine = `• ⏳ **Raid Boss:** Belum bangkit.\n  ↳ Jadwal spawn: Setiap Sabtu pukul **19:00 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
     }
   } catch (_) {}
 
@@ -5331,10 +5333,11 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
         .setStyle(ButtonStyle.Secondary)
     ];
 
+    const hasAncient = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'ANCIENT');
     const hasMythic = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'MYTHIC');
     const hasLegendary = (targetData.inventory || []).some(n => GACHA_ITEMS.find(g => g.name === n)?.tier === 'LEGENDARY');
     let challengeTier = null;
-    if (hasMythic && targetData.activeRole?.tier !== 'MYTHIC') {
+    if ((hasAncient || hasMythic) && targetData.activeRole?.tier !== 'MYTHIC') {
       challengeTier = 'MYTHIC';
     } else if (hasLegendary && !targetData.activeRole) {
       challengeTier = 'LEGENDARY';
@@ -5979,7 +5982,7 @@ async function executeGachaRates(interaction) {
       `• Member dengan koleksi **Relik & Gelar terbanyak** dinobatkan menyandang **Role Juara Season** eksklusif yang berpindah setiap musim!\n\n` +
       `**Sumber Stardust (Dust):**\n` +
       `• **Daur Ulang Duplikat:** Otomatis +15 s/d +1,500 Dust setiap dapat relik kembar.\n` +
-      `• **Aktif Voice Channel:** Otomatis dapat **+15 Stardust & +1 Tiket** setiap **15 menit** nongkrong di Voice!\n` +
+      `• **Aktif Voice Channel:** Otomatis dapat **+15 Stardust & +1 Tiket** setiap **5 menit** nongkrong di Voice!\n` +
       `• **Klaim Harian (/gacha daily):** +50 s/d +350 Dust & bonus tiket gratis setiap hari.\n` +
       `• **Clash of Thrones:** Kompensasi kekalahan duel tahta sebesar +250 Dust.\n\n` +
       `**Garansi Pity System:**\n` +
