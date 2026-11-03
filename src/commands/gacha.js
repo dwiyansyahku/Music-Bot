@@ -3582,18 +3582,18 @@ function createHubPanelPayload(guild) {
 
       let spawnLinkText = '';
       if (boss.spawnChannelId && boss.spawnMessageId) {
-        spawnLinkText = `\n  🔗 [Buka Pesan Spawn Boss di Arena Duel ↗](https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId})`;
+        spawnLinkText = `\n  [Buka Pesan Spawn Boss di Arena Duel ↗](https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId})`;
       } else if (duelChId) {
-        spawnLinkText = `\n  📍 **Arena Duel:** <#${duelChId}>`;
+        spawnLinkText = `\n  **Arena Duel:** <#${duelChId}>`;
       }
 
-      bossStatusLine = `• 👹 **World Boss Sedang Bangkit:** **${boss.name}** [Tier ${boss.tier}]\n` +
+      bossStatusLine = `• **World Boss Sedang Bangkit:** **${boss.name}** [Tier ${boss.tier}]\n` +
         `  ↳ **HP:** \`[${bar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${pct}%)` +
         spawnLinkText;
     } else if (boss && boss.status === 'DEFEATED') {
-      bossStatusLine = `• 🏆 **Raid Boss Minggu Ini Telah Ditaklukkan!**\n  ↳ Bangkit kembali Sabtu depan pukul **19:00 WIB** (<t:${nextSpawn.unix}:R>).`;
+      bossStatusLine = `• **Raid Boss Minggu Ini Telah Ditaklukkan!**\n  ↳ Bangkit kembali Sabtu depan pukul **19:00 WIB** (<t:${nextSpawn.unix}:R>).`;
     } else {
-      bossStatusLine = `• ⏳ **Raid Boss:** Belum bangkit.\n  ↳ Jadwal spawn: Setiap Sabtu pukul **19:00 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
+      bossStatusLine = `• **Raid Boss:** Belum bangkit.\n  ↳ Jadwal spawn: Setiap Sabtu pukul **19:00 - 23:59 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
     }
   } catch (_) {}
 
@@ -3611,16 +3611,16 @@ function createHubPanelPayload(guild) {
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle(`🌟 GACHA & ADVENTURE LOUNGE • ${guild ? guild.name : 'SERVER'}`)
+    .setTitle(`GACHA & ADVENTURE LOUNGE • ${guild ? guild.name : 'SERVER'}`)
     .setDescription(
       `Pusat terpadu petualangan gacha, pembukaan kotak misteri, klaim harian, toko stardust, dan Boss Raid server.\n\n` +
-      `**👹 STATUS WORLD BOSS RAID (REALTIME):**\n` +
+      `**STATUS WORLD BOSS RAID (REALTIME):**\n` +
       `${bossStatusLine}\n\n` +
-      `**👑 STATUS KURSI TAHTA SERVER:**\n` +
+      `**STATUS KURSI TAHTA SERVER:**\n` +
       `• **Tahta Mythic:** **${mythicCount}/3 Kursi** Terisi\n` +
       `• **Tahta Legendary:** **${legCount}/5 Kursi** Terisi\n` +
       `• **Arena Duel:** ${duelChId ? `<#${duelChId}>` : '_Belum diatur (Admin: /gacha setchannel type:duel)_'}\n\n` +
-      `**📌 SALURAN RESMI:**\n` +
+      `**SALURAN RESMI:**\n` +
       `• **Papan Klasemen:** ${leaderboardChId ? `<#${leaderboardChId}>` : '_Belum diatur_'}\n` +
       `• **Saluran Berita & Jackpot:** ${feedChId ? `<#${feedChId}>` : '_Belum diatur_'}\n\n` +
       `*Pilih tombol di bawah untuk berpetualang:*`

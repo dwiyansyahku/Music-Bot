@@ -1256,20 +1256,20 @@ function buildLiveLeaderboardEmbeds(guildId, guild = null) {
 
   let spawnLinkText = '';
   if (boss.spawnChannelId && boss.spawnMessageId) {
-    spawnLinkText = `\n  🔗 [Buka Pesan Spawn Boss di Arena Duel ↗](https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId})`;
+    spawnLinkText = `\n  [Buka Pesan Spawn Boss di Arena Duel ↗](https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId})`;
   } else if (duelChId) {
-    spawnLinkText = `\n  📍 **Arena Duel:** <#${duelChId}>`;
+    spawnLinkText = `\n  **Arena Duel:** <#${duelChId}>`;
   }
 
   if (boss.status === 'ACTIVE' && boss.currentHp > 0) {
-    bossStatusLine = `⚔️ **SEDANG BANGKIT & DISERANG**\n` +
+    bossStatusLine = `**SEDANG BANGKIT & DISERANG**\n` +
       `• **Nama:** **${boss.name}** [Tier ${boss.tier}]\n` +
       `• **HP:** \`[${hpBar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${hpPercent}%)${spawnLinkText}`;
   } else if (boss.status === 'DEFEATED') {
-    bossStatusLine = `🏆 **TELAH TERKALAHKAN PADA SESI INI**\n` +
+    bossStatusLine = `**TELAH TERKALAHKAN PADA SESI INI**\n` +
       `• Bangkit kembali hari **Sabtu pukul 19:00 WIB** (<t:${nextSpawn.unix}:R>).`;
   } else {
-    bossStatusLine = `⏳ **BELUM BANGKIT (ISTIRAHAT)**\n` +
+    bossStatusLine = `**BELUM BANGKIT (ISTIRAHAT)**\n` +
       `• Jadwal spawn: Setiap hari **Sabtu pukul 19:00 - 23:59 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
   }
 
@@ -1327,7 +1327,7 @@ function buildLiveLeaderboardEmbeds(guildId, guild = null) {
 
   const unifiedEmbed = new EmbedBuilder()
     .setColor(0xFEE75C)
-    .setTitle('🏆 PAPAN KLASEMEN TOP GLOBAL & WORLD BOSS')
+    .setTitle('PAPAN KLASEMEN TOP GLOBAL & WORLD BOSS')
     .setDescription(
       `Papan peringkat kasta tertinggi server berdasarkan **Koleksi Relik** dan **Damage ke World Boss**.\n` +
       `Member yang berhasil mempertahankan peringkat **Top 1 saat Season Reset bulanan** dinobatkan meraih **Role Eksklusif God of QUMPRUY**!\n\n` +
