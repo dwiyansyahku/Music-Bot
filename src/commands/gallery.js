@@ -465,13 +465,10 @@ async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, 
   // Cek apakah ada file besar (> 20MB) → langsung kirim link saja agar instan
   const hasLargeFile = targetMedia.some(m => m.size > 20 * 1024 * 1024);
 
-  // Buat embed info pengirim (ditampilkan di atas video)
-  const infoEmbed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setAuthor({ name: displayName, iconURL: avatarUrl, url: sourceJumpUrl || undefined })
-    .setTimestamp();
-
-  if (caption) infoEmbed.setDescription(caption);
+  // Buat content text info pengirim (TANPA embed agar Discord render video inline)
+  // Jika pakai embed + file attachment, Discord render video sbg link download
+  let contentHeader = `🎬 **${displayName}** membagikan video`;
+  if (caption) contentHeader += `\n> ${caption.split('\n').join('\n> ')}`;
 
   // 1. Upload video sebagai attachment jika ukuran <= 20MB
   if (!hasLargeFile) {
@@ -482,7 +479,7 @@ async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, 
       });
 
       postedMsg = await galleryVideoChannel.send({
-        embeds: [infoEmbed],
+        content: contentHeader,
         files: files,
         components: row ? [row] : []
       });
@@ -499,8 +496,7 @@ async function publishGalleryVideoPost(guild, user, member, inputUrls, caption, 
       const linksText = targetUrls.join('\n');
 
       postedMsg = await galleryVideoChannel.send({
-        content: linksText,
-        embeds: [infoEmbed],
+        content: contentHeader + '\n' + linksText,
         components: row ? [row] : []
       });
       sendError = null;
