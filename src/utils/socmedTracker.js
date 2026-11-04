@@ -56,7 +56,7 @@ async function downloadVideoSnippet(url) {
   ];
 
   return new Promise((resolve) => {
-    execFile(YTDLP_PATH, args, { timeout: 25000 }, (error) => {
+    execFile(YTDLP_PATH, args, { timeout: 60000 }, (error) => {
       if (error) {
         console.warn(`[Socmed] Gagal mengunduh video via yt-dlp: ${error.message}`);
         if (fs.existsSync(tempFilePath)) fs.unlink(tempFilePath, () => {});
