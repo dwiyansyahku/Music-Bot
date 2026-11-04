@@ -13,6 +13,7 @@ if (dns.setDefaultResultOrder) {
 }
 const fs = require('fs');
 const path = require('path');
+const { isNetscapeCookiesFile } = require('./utils/cookies');
 
 // Set YTDLP_DIR to point to committed standalone binaries inside bin/
 process.env.YTDLP_DIR = path.join(process.cwd(), 'bin');
@@ -120,7 +121,7 @@ function startProxyServer() {
         : 'yt-dlp';
 
       const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-      const cookiesExist = fs.existsSync(cookiesTxtPath) && fs.statSync(cookiesTxtPath).size > 10;
+      const cookiesExist = isNetscapeCookiesFile(cookiesTxtPath);
       const cookiesEnabled = cookiesExist && (process.env.USE_YOUTUBE_COOKIES !== 'false');
       const cookiesArg = cookiesEnabled ? cookiesTxtPath.replace(/\\/g, '/') : null;
 
@@ -787,7 +788,7 @@ ytdlpPlugin.resolve = async function (url, options) {
     flags.jsRuntimes = 'node';
     flags.extractorArgs = 'youtube:player_client=android;youtube:player_skip=webpage,configs;youtubetab:skip=authcheck';
     const cookiesTxtPath = path.join(process.cwd(), 'cookies.txt');
-    const cookiesExist = fs.existsSync(cookiesTxtPath) && fs.statSync(cookiesTxtPath).size > 10;
+    const cookiesExist = isNetscapeCookiesFile(cookiesTxtPath);
     const cookiesEnabled = cookiesExist && (process.env.USE_YOUTUBE_COOKIES !== 'false');
     if (cookiesEnabled) {
       flags.cookies = cookiesTxtPath.replace(/\\/g, '/');

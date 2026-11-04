@@ -119,9 +119,16 @@ function parseAnyCookieFormat(rawInput) {
   if (!rawInput || typeof rawInput !== 'string') return null;
 
   let str = rawInput.trim();
+  // Strip UTF-8 BOM if present
+  if (str.charCodeAt(0) === 0xFEFF) {
+    str = str.slice(1).trim();
+  }
   // Strip outer quotes if any
   if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
     str = str.slice(1, -1).trim();
+  }
+  if (str.charCodeAt(0) === 0xFEFF) {
+    str = str.slice(1).trim();
   }
   if (str.startsWith('YT_COOKIES=')) {
     str = str.substring('YT_COOKIES='.length).trim();
@@ -134,9 +141,10 @@ function parseAnyCookieFormat(rawInput) {
   str = str.replace(/\\"/g, '"').replace(/\\n/g, '\n');
 
   // Format 1: JSON Array
-  if (str.startsWith('[') || str.startsWith('{')) {
+  const cleanJsonStr = str.replace(/^\uFEFF/, '').trim();
+  if (cleanJsonStr.startsWith('[') || cleanJsonStr.startsWith('{')) {
     try {
-      let parsed = JSON.parse(str);
+      let parsed = JSON.parse(cleanJsonStr);
       if (Array.isArray(parsed) && Array.isArray(parsed[0])) {
         parsed = parsed.flat();
       }
@@ -214,15 +222,22 @@ function setupCookies() {
   if (!netscapeText && fs.existsSync(cookiesTxtPath)) {
     try {
       const diskContent = fs.readFileSync(cookiesTxtPath, 'utf8').trim();
-      if (diskContent.startsWith('[') || diskContent.startsWith('{')) {
+      const cleanContent = diskContent.replace(/^\uFEFF/, '').trim();
+      if (cleanContent.startsWith('[') || cleanContent.startsWith('{')) {
         console.log('⚠️ [Cookies Helper] Existing cookies.txt is JSON formatted! Fixing to Netscape format...');
-        const result = parseAnyCookieFormat(diskContent);
+        const result = parseAnyCookieFormat(cleanContent);
         if (result && result.type === 'json') {
           parsedCookies = result.data;
           netscapeText = jsonToNetscape(parsedCookies);
+        } else {
+          console.warn('⚠️ [Cookies Helper] Existing cookies.txt is invalid JSON! Removing invalid file to prevent yt-dlp crash.');
+          try { fs.unlinkSync(cookiesTxtPath); } catch (_) {}
         }
+      } else if (cleanContent.includes('\t') || cleanContent.startsWith('#')) {
+        netscapeText = cleanContent;
       } else {
-        netscapeText = diskContent;
+        console.warn('⚠️ [Cookies Helper] Existing cookies.txt is not valid Netscape format! Removing to prevent yt-dlp crash.');
+        try { fs.unlinkSync(cookiesTxtPath); } catch (_) {}
       }
     } catch (_) {}
   }
@@ -267,4 +282,26 @@ function setupCookies() {
   return undefined;
 }
 
-module.exports = { setupCookies, getCookiesHealth };
+/**
+ * Memeriksa apakah file cookies berformat Netscape valid (bukan JSON atau kosong)
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function isNetscapeCookiesFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const stat = fs.statSync(filePath);
+    if (stat.size <= 10) return false;
+    const fd = fs.openSync(filePath, 'r');
+    const buf = Buffer.alloc(64);
+    fs.readSync(fd, buf, 0, 64, 0);
+    fs.closeSync(fd);
+    const head = buf.toString('utf8').replace(/^\uFEFF/, '').trimStart();
+    if (head.startsWith('[') || head.startsWith('{')) return false;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+module.exports = { setupCookies, getCookiesHealth, isNetscapeCookiesFile };

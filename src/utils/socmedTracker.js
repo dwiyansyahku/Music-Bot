@@ -44,6 +44,8 @@ async function downloadVideoSnippet(url) {
 
   const tempFilePath = path.join(os.tmpdir(), `socmed_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.mp4`);
   const args = [
+    '--no-config',
+    '--no-cookies',
     '-f', 'best[ext=mp4]/best',
     '--max-filesize', '25M',
     '--socket-timeout', '10',
@@ -282,6 +284,116 @@ async function pollTikTokLive(client, guildId, account, config) {
 }
 
 /**
+ * Mengambil metadata video terbaru dari profil TikTok menggunakan yt-dlp
+ * @param {string} username Username TikTok (tanpa @)
+ * @returns {Promise<Object|null>} Metadata video terbaru atau null jika gagal
+ */
+async function fetchLatestTikTokVideo(username) {
+  if (!fs.existsSync(YTDLP_PATH)) {
+    console.warn('[Socmed] yt-dlp binary tidak ditemukan untuk polling TikTok video.');
+    return null;
+  }
+
+  const args = [
+    '--no-config',
+    '--no-cookies',
+    '--flat-playlist',
+    '--playlist-end', '1',
+    '--dump-json',
+    '--no-warnings',
+    '--socket-timeout', '15',
+    `https://www.tiktok.com/@${username}`
+  ];
+
+  return new Promise((resolve) => {
+    execFile(YTDLP_PATH, args, { timeout: 30000, maxBuffer: 1024 * 512 }, (error, stdout) => {
+      if (error) {
+        // Non-intrusive: gagal fetch bukan hal kritis
+        return resolve(null);
+      }
+      try {
+        const data = JSON.parse(stdout.trim());
+        return resolve({
+          id: data.id,
+          title: data.title || data.description || '',
+          url: data.webpage_url || data.url || `https://www.tiktok.com/@${username}/video/${data.id}`,
+          author: data.channel || data.uploader || username,
+          thumbnail: data.thumbnails?.[0]?.url || null,
+          timestamp: data.timestamp || null,
+          viewCount: data.view_count || 0,
+          likeCount: data.like_count || 0
+        });
+      } catch (_) {
+        return resolve(null);
+      }
+    });
+  });
+}
+
+/**
+ * Pengecekan video baru TikTok otomatis untuk sebuah akun via yt-dlp
+ */
+async function pollTikTokVideo(client, guildId, account, config) {
+  const username = account.username.replace(/^@/, '').trim();
+  if (!username) return;
+
+  try {
+    const latest = await fetchLatestTikTokVideo(username);
+    if (!latest || !latest.id) return;
+
+    // Polling pertama kali: jika video diunggah dalam 48 jam terakhir, kirim notifikasi.
+    // Jika lebih lama dari itu, inisialisasi ID saja agar tidak spam.
+    if (!account.lastVideoId) {
+      console.log(`[Socmed Tracker] Inisialisasi video terakhir @${username}: ${latest.id}`);
+      const isRecent = latest.timestamp && (Math.floor(Date.now() / 1000) - latest.timestamp < 48 * 3600);
+
+      if (isRecent) {
+        console.log(`[Socmed Tracker] 🎬 Video baru terdeteksi dari @${username} (upload baru): ${latest.id}`);
+        await sendSocmedNotification(client, guildId, {
+          platform: 'tiktok',
+          type: 'video',
+          author: latest.author,
+          handle: `@${username}`,
+          authorUrl: `https://www.tiktok.com/@${username}`,
+          title: latest.title,
+          caption: latest.title || 'Video terbaru telah tayang! Tonton langsung di bawah.',
+          url: latest.url,
+          previewUrl: latest.thumbnail,
+          extraInfo: 'Video Baru • TikTok'
+        });
+      }
+
+      account.lastVideoId = latest.id;
+      saveSocmedConfig(guildId, config);
+      return;
+    }
+
+    // Jika video ID berubah (ada video baru)
+    if (account.lastVideoId !== latest.id) {
+      console.log(`[Socmed Tracker] 🎬 Video baru terdeteksi dari @${username}: ${latest.id}`);
+
+      await sendSocmedNotification(client, guildId, {
+        platform: 'tiktok',
+        type: 'video',
+        author: latest.author,
+        handle: `@${username}`,
+        authorUrl: `https://www.tiktok.com/@${username}`,
+        title: latest.title,
+        caption: latest.title || 'Video terbaru telah tayang! Tonton langsung di bawah.',
+        url: latest.url,
+        previewUrl: latest.thumbnail,
+        extraInfo: 'Video Baru • TikTok'
+      });
+
+      account.lastVideoId = latest.id;
+      saveSocmedConfig(guildId, config);
+    }
+  } catch (err) {
+    // Non-intrusive: jangan crash scheduler jika satu akun gagal
+  }
+}
+
+/**
  * Pengecekan RSS Feed (Instagram / TikTok) untuk postingan baru
  */
 async function pollFeed(client, guildId, feedItem, config) {
@@ -346,10 +458,11 @@ async function checkAllGuilds(client) {
     if (!config || !config.enabled) continue;
     if (!config.channelId && !config.tiktokChannelId && !config.instagramChannelId) continue;
 
-    // Cek TikTok Live
+    // Cek TikTok (Live & Video Upload)
     if (Array.isArray(config.tiktok)) {
       for (const account of config.tiktok) {
         await pollTikTokLive(client, guildId, account, config);
+        await pollTikTokVideo(client, guildId, account, config);
       }
     }
 

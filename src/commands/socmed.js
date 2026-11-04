@@ -68,15 +68,15 @@ const socmedCommand = {
     .addSubcommandGroup(group =>
       group
         .setName('tiktok')
-        .setDescription('Kelola akun TikTok yang dipantau status Live-nya')
+        .setDescription('Kelola akun TikTok yang dipantau (Live & Video Upload)')
         .addSubcommand(sub =>
           sub
             .setName('add')
-            .setDescription('Tambah akun TikTok untuk dipantau otomatis saat Live')
+            .setDescription('Tambah akun TikTok untuk dipantau otomatis saat Live & Video Upload')
             .addStringOption(opt =>
               opt
                 .setName('username')
-                .setDescription('Username TikTok (misal: dwiyansyahku tanpa @)')
+                .setDescription('Username TikTok (misal: qumpruy tanpa @)')
                 .setRequired(true)
             )
         )
@@ -310,7 +310,7 @@ const socmedCommand = {
       const statusText = config.enabled ? '🟢 Aktif' : '⚪ Nonaktif';
 
       const tiktokList = (config.tiktok && config.tiktok.length > 0)
-        ? config.tiktok.map((t, i) => `${i + 1}. \`@${t.username}\` ${t.lastLive ? '*(Sedang Live)*' : ''}`).join('\n')
+        ? config.tiktok.map((t, i) => `${i + 1}. \`@${t.username}\`${t.lastLive ? ' *(Sedang Live)*' : ''}${t.lastVideoId ? ` *(Video Terakhir: \`${t.lastVideoId}\`)*` : ''}`).join('\n')
         : '*Belum ada akun TikTok terdaftar*';
 
       const feedList = (config.feeds && config.feeds.length > 0)
@@ -326,7 +326,7 @@ const socmedCommand = {
           `• Channel Instagram: ${igText}\n` +
           `• Role Mention: ${roleText}\n` +
           `• Pemantau Otomatis: ${statusText}\n\n` +
-          `**Akun TikTok Dipantau (Live):**\n${tiktokList}\n\n` +
+          `**Akun TikTok Dipantau (Live & Video):**\n${tiktokList}\n\n` +
           `**Feed Postingan Dipantau (RSS / Bridge):**\n${feedList}`
         )
         .setFooter({ text: 'Qumpruy Broadcast Management' })
@@ -353,12 +353,13 @@ const socmedCommand = {
         config.tiktok.push({
           username: username,
           lastLive: false,
-          lastRoomId: null
+          lastRoomId: null,
+          lastVideoId: null
         });
         saveSocmedConfig(guildId, config);
 
         return interaction.reply({
-          content: `✅ Akun TikTok **@${username}** berhasil ditambahkan ke pemantau Live otomatis.`,
+          content: `✅ Akun TikTok **@${username}** berhasil ditambahkan ke pemantau Live & Video otomatis.`,
           flags: MessageFlags.Ephemeral
         });
       }
