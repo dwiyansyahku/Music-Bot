@@ -498,5 +498,7 @@ module.exports = {
   sendSocmedNotification,
   checkAllGuilds,
   initSocmedScheduler,
-  DEFAULT_ROLE_ID
+  DEFAULT_ROLE_ID,
+  downloadVideoSnippet,
+  fetchLatestTikTokVideo
 };
