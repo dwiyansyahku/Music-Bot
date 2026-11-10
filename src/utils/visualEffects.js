@@ -12,6 +12,7 @@ const GACHA_VISUALS = {
 
   // Animasi aura kilatan sebelum kartu terbuka berdasarkan tier
   TIER_AURA: {
+    TRANSCENDENT: 'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif', // Ledakan Dimensi Prismatik
     ANCIENT: 'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif', // Supernova Kosmik Multisemesta
     MYTHIC: 'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif',  // Ledakan Galaksi Merah-Ungu
     LEGENDARY: 'https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif', // Hujan Meteor Emas Bercahaya

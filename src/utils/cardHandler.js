@@ -660,6 +660,14 @@ async function handleCardModalSubmit(interaction, client) {
 
   storage.write('cards', cardsData);
 
+  // Jika member mengisi ulang tahun hari ini, picu ucapan selamat ulang tahun otomatis jika channel diatur
+  if (userCard.birthdate && userCard.birthdate.day && userCard.birthdate.month) {
+    try {
+      const { checkAndSendGuildBirthdays } = require('./birthdayHelper');
+      checkAndSendGuildBirthdays(interaction.client, guildId, false).catch(() => {});
+    } catch (_) {}
+  }
+
   await interaction.editReply({
     content: `**Profile saved!** Publishing your card to <#${targetChannelId}>...`
   });

@@ -567,6 +567,7 @@ module.exports = {
       storage.write('gacha_data', gachaData);
 
       const bonusMap = {
+        TRANSCENDENT: { dmg: 75, hp: 50 },
         ANCIENT: { dmg: 50, hp: 30 },
         MYTHIC: { dmg: 30, hp: 20 },
         LEGENDARY: { dmg: 20, hp: 10 },

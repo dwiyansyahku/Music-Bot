@@ -188,12 +188,12 @@ function parseBirthdate(input) {
   // Hitung umur saat ini jika ada tahun
   let age = null;
   if (year && year <= new Date().getFullYear()) {
-    const now = new Date();
-    const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-    const birthDateObj = new Date(year, month - 1, day);
-    let calculatedAge = wibNow.getFullYear() - year;
-    const currentMonthWib = wibNow.getMonth() + 1;
-    const currentDayWib = wibNow.getDate();
+    const nowUTC = new Date();
+    const wibNow = new Date(nowUTC.getTime() + 7 * 60 * 60 * 1000);
+    const currentYearWib = wibNow.getUTCFullYear();
+    const currentMonthWib = wibNow.getUTCMonth() + 1;
+    const currentDayWib = wibNow.getUTCDate();
+    let calculatedAge = currentYearWib - year;
 
     if (currentMonthWib < month || (currentMonthWib === month && currentDayWib < day)) {
       calculatedAge--;
@@ -221,29 +221,39 @@ function parseBirthdate(input) {
 }
 
 /**
- * Hitung sisa hari menuju ulang tahun berikutnya
+ * Hitung sisa hari menuju ulang tahun berikutnya (Akurat WIB UTC+7)
  */
 function getNextBirthdayCountdown(day, month) {
-  const now = new Date();
-  const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-  const currentYear = wibNow.getFullYear();
+  const d = parseInt(day, 10);
+  const m = parseInt(month, 10);
+  const nowUTC = new Date();
+  const wibNow = new Date(nowUTC.getTime() + 7 * 60 * 60 * 1000);
+  const currentYear = wibNow.getUTCFullYear();
+  const currentMonth = wibNow.getUTCMonth() + 1;
+  const currentDay = wibNow.getUTCDate();
 
-  let nextBday = new Date(currentYear, month - 1, day);
-  // Reset jam ke 00:00 untuk perbandingan hari yang akurat
-  nextBday.setHours(0, 0, 0, 0);
-  const todayZero = new Date(wibNow.getFullYear(), wibNow.getMonth(), wibNow.getDate(), 0, 0, 0, 0);
-
-  if (nextBday < todayZero) {
-    nextBday.setFullYear(currentYear + 1);
+  if (d === currentDay && m === currentMonth) {
+    return {
+      daysLeft: 0,
+      isToday: true,
+      nextDate: new Date(Date.UTC(currentYear, currentMonth - 1, currentDay))
+    };
   }
 
-  const diffMs = nextBday.getTime() - todayZero.getTime();
+  let nextYear = currentYear;
+  if (currentMonth > m || (currentMonth === m && currentDay > d)) {
+    nextYear = currentYear + 1;
+  }
+
+  const todayUtc = Date.UTC(currentYear, currentMonth - 1, currentDay);
+  const targetUtc = Date.UTC(nextYear, m - 1, d);
+  const diffMs = targetUtc - todayUtc;
   const daysLeft = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   return {
     daysLeft,
     isToday: daysLeft === 0,
-    nextDate: nextBday
+    nextDate: new Date(targetUtc)
   };
 }
 

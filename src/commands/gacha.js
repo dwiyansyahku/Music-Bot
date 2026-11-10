@@ -46,11 +46,52 @@ const RESULT_FEED_MAX_ENTRIES = 8;
  * Master Loot Table (32 Collectible Artifacts across 5 Tiers)
  */
 const GACHA_ITEMS = [
-  // ANCIENT (0.5% Drop Rate — 6 Stars — Kasta Tertinggi Semesta — Eksklusif 1 Relik per Server)
+  // TRANSCENDENT (0.1% Drop Rate — 7 Stars — Kasta Transenden Kosmik Tertinggi — Eksklusif 1 Relik per Server)
+  {
+    id: 'transcendent_blade',
+    tier: 'TRANSCENDENT',
+    rate: 0.1,
+    stars: '★★★★★★★',
+    tag: '✦',
+    color: 0x00FFFF,
+    name: 'Pedang Pemutus Realitas Genesis',
+    badge: 'Genesis Creator',
+    title: 'Omniverse Sovereign',
+    desc: 'Pedang transenden yang ditempa dari percikan ledakan Big Bang pertama. Mampu membelah realitas multisemesta.',
+    recycleStardust: 3500
+  },
+  {
+    id: 'transcendent_orb',
+    tier: 'TRANSCENDENT',
+    rate: 0.1,
+    stars: '★★★★★★★',
+    tag: '✦',
+    color: 0x00FFFF,
+    name: 'Bola Singularitas Tak Terhingga',
+    badge: 'Infinite Luminary',
+    title: 'Avatar of Creation',
+    desc: 'Bola gravitasi transenden bercahaya prismatik yang menampung inti triliunan galaksi di dalam genggaman.',
+    recycleStardust: 3500
+  },
+  {
+    id: 'transcendent_wings',
+    tier: 'TRANSCENDENT',
+    rate: 0.1,
+    stars: '★★★★★★★',
+    tag: '✦',
+    color: 0x00FFFF,
+    name: 'Sayap Cahaya Seraphim Astral',
+    badge: 'Seraph of Omnipresence',
+    title: 'Lord of Celestial Heavens',
+    desc: 'Sayap cahaya murni pelindung surga kosmik yang melipat dimensi ruang untuk berpindah seketika.',
+    recycleStardust: 3500
+  },
+
+  // ANCIENT (0.4% Drop Rate — 6 Stars — Kasta Primordial Semesta — Eksklusif 1 Relik per Server)
   {
     id: 'ancient_ring',
     tier: 'ANCIENT',
-    rate: 0.5,
+    rate: 0.4,
     stars: '★★★★★★',
     tag: '•',
     color: 0x9B59B6,
@@ -63,7 +104,7 @@ const GACHA_ITEMS = [
   {
     id: 'ancient_crown',
     tier: 'ANCIENT',
-    rate: 0.5,
+    rate: 0.4,
     stars: '★★★★★★',
     tag: '•',
     color: 0x9B59B6,
@@ -76,7 +117,7 @@ const GACHA_ITEMS = [
   {
     id: 'ancient_heart',
     tier: 'ANCIENT',
-    rate: 0.5,
+    rate: 0.4,
     stars: '★★★★★★',
     tag: '•',
     color: 0x9B59B6,
@@ -89,7 +130,7 @@ const GACHA_ITEMS = [
   {
     id: 'ancient_grimoire',
     tier: 'ANCIENT',
-    rate: 0.5,
+    rate: 0.4,
     stars: '★★★★★★',
     tag: '•',
     color: 0x9B59B6,
@@ -97,6 +138,58 @@ const GACHA_ITEMS = [
     badge: 'Keeper of Eternity',
     title: 'Fate Architect',
     desc: 'Naskah abadi yang mencatat takdir dan garis kehidupan setiap jiwa di alam eksistensi.',
+    recycleStardust: 1500
+  },
+  {
+    id: 'ancient_spear',
+    tier: 'ANCIENT',
+    rate: 0.4,
+    stars: '★★★★★★',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Tombak Kehancuran Dimensi',
+    badge: 'Dimension Sunderer',
+    title: 'The Void Piercer',
+    desc: 'Tombak primordial yang mampu menembus batas ruang dan merobek dimensi hampa mutlak.',
+    recycleStardust: 1500
+  },
+  {
+    id: 'ancient_hourglass',
+    tier: 'ANCIENT',
+    rate: 0.4,
+    stars: '★★★★★★',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Jam Pasir Waktu Kronos',
+    badge: 'Master of Timelines',
+    title: 'Eternity Weaver',
+    desc: 'Jam pasir purba berisi pasir nebula emas yang mengontrol perputaran roda masa lalu dan masa depan.',
+    recycleStardust: 1500
+  },
+  {
+    id: 'ancient_chalice',
+    tier: 'ANCIENT',
+    rate: 0.4,
+    stars: '★★★★★★',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Cawan Nebula Purba',
+    badge: 'Astral Nectar Keeper',
+    title: 'Font of Immortality',
+    desc: 'Cawan suci yang memuat sari pati bintang awal alam semesta pembawa berkah kehidupan abadi.',
+    recycleStardust: 1500
+  },
+  {
+    id: 'ancient_eye',
+    tier: 'ANCIENT',
+    rate: 0.4,
+    stars: '★★★★★★',
+    tag: '•',
+    color: 0x9B59B6,
+    name: 'Mata Kebenaran Kosmik',
+    badge: 'Omniscient Gaze',
+    title: 'The All-Seeing God',
+    desc: 'Mata pusaka purba yang menyaksikan kelahiran jutaan galaksi dan takdir seluruh eksistensi.',
     recycleStardust: 1500
   },
 
@@ -140,8 +233,47 @@ const GACHA_ITEMS = [
     desc: 'Piringan hitam mitos yang memutar melodi awal mula alam semesta.',
     recycleStardust: 500
   },
+  {
+    id: 'mythic_scythe',
+    tier: 'MYTHIC',
+    rate: 3,
+    stars: '★★★★★',
+    tag: '•',
+    color: 0xFF007F,
+    name: 'Sabit Kematian Gerhana Kosmik',
+    badge: 'Eclipse Reaper',
+    title: 'Harbinger of Eclipse',
+    desc: 'Sabit raksasa beraura gerhana bulan merah yang mampu memotong koneksi jiwa musuh.',
+    recycleStardust: 500
+  },
+  {
+    id: 'mythic_phoenix',
+    tier: 'MYTHIC',
+    rate: 3,
+    stars: '★★★★★',
+    tag: '•',
+    color: 0xFF007F,
+    name: 'Bulu Phoenix Abadi Surya',
+    badge: 'Solar Rebirth',
+    title: 'Immortal Phoenix',
+    desc: 'Bulu emas abadi yang bangkit dari kobaran api inti bintang surya terpanas.',
+    recycleStardust: 500
+  },
 
   // LEGENDARY (5.0% Drop Rate — 5 Stars — Tahta Sultan Server)
+  {
+    id: 'legendary_excalibur',
+    tier: 'LEGENDARY',
+    rate: 5,
+    stars: '★★★★★',
+    tag: '•',
+    color: 0xF1C40F,
+    name: 'Pedang Cahaya Bintang Excalibur',
+    badge: 'Radiant Champion',
+    title: 'Swordmaster of Stars',
+    desc: 'Pedang suci ksatria langit berbilah kristal fajar yang memancarkan kilau harapan abadi.',
+    recycleStardust: 300
+  },
   {
     id: 'leg_crown',
     tier: 'LEGENDARY',
@@ -967,7 +1099,8 @@ const TIER_RANK = {
   EPIC: 2,
   LEGENDARY: 3,
   MYTHIC: 4,
-  ANCIENT: 5
+  ANCIENT: 5,
+  TRANSCENDENT: 6
 };
 
 /**
@@ -3270,7 +3403,8 @@ function rollSingleGacha(userData, guildId = null, guild = null) {
   const pityEpic = userData.pityEpic || 0;
   const pityLeg = userData.pityLegendary || 0;
 
-  let ancientRate = 0.5;
+  let transRate = 0.1;
+  let ancientRate = 0.4;
   let mythicRate = 1.5;
   let legRate = 5.0;
   let epicRate = 18.0;
@@ -3283,7 +3417,8 @@ function rollSingleGacha(userData, guildId = null, guild = null) {
     const boost = settingsData[guildId]?.rateBoost;
     if (boost && boost.expiresAt > Date.now()) {
       const mult = boost.multiplier || 2;
-      if (boost.tier === 'ANCIENT') ancientRate = Math.min(ancientRate * mult, 10);
+      if (boost.tier === 'TRANSCENDENT') transRate = Math.min(transRate * mult, 5);
+      else if (boost.tier === 'ANCIENT') ancientRate = Math.min(ancientRate * mult, 10);
       else if (boost.tier === 'MYTHIC') mythicRate = Math.min(mythicRate * mult, 20);
       else if (boost.tier === 'LEGENDARY') legRate = Math.min(legRate * mult, 35);
       else if (boost.tier === 'EPIC') epicRate = Math.min(epicRate * mult, 50);
@@ -3305,24 +3440,28 @@ function rollSingleGacha(userData, guildId = null, guild = null) {
   // 1. HARD PITY TRIGGER (25 Pulls for Legendary+, 10 Pulls for Epic+)
   if (pityLeg >= 24) {
     const subRand = Math.random() * 100;
-    if (subRand < 5) targetTier = 'ANCIENT';        // 5% Ancient
-    else if (subRand < 25) targetTier = 'MYTHIC';   // 20% Mythic
-    else targetTier = 'LEGENDARY';                  // 75% Legendary
+    if (subRand < 1) targetTier = 'TRANSCENDENT';    // 1% Transcendent
+    else if (subRand < 6) targetTier = 'ANCIENT';   // 5% Ancient
+    else if (subRand < 26) targetTier = 'MYTHIC';   // 20% Mythic
+    else targetTier = 'LEGENDARY';                  // 74% Legendary
   } else if (pityEpic >= 9) {
     const subRand = Math.random() * 100;
-    if (subRand < 2) targetTier = 'ANCIENT';        // 2% Ancient
-    else if (subRand < 10) targetTier = 'MYTHIC';   // 8% Mythic
+    if (subRand < 0.5) targetTier = 'TRANSCENDENT'; // 0.5% Transcendent
+    else if (subRand < 2.5) targetTier = 'ANCIENT'; // 2% Ancient
+    else if (subRand < 10) targetTier = 'MYTHIC';   // 7.5% Mythic
     else if (subRand < 35) targetTier = 'LEGENDARY';// 25% Legendary
     else targetTier = 'EPIC';                       // 65% Epic
   } else {
     // Normal Probabilities dengan ambang batas kumulatif
-    const thAncient = ancientRate;
+    const thTrans = transRate;
+    const thAncient = thTrans + ancientRate;
     const thMythic = thAncient + mythicRate;
     const thLeg = thMythic + legRate;
     const thEpic = thLeg + epicRate;
     const thRare = thEpic + rareRate;
 
-    if (rand < thAncient) targetTier = 'ANCIENT';
+    if (rand < thTrans) targetTier = 'TRANSCENDENT';
+    else if (rand < thAncient) targetTier = 'ANCIENT';
     else if (rand < thMythic) targetTier = 'MYTHIC';
     else if (rand < thLeg) targetTier = 'LEGENDARY';
     else if (rand < thEpic) targetTier = 'EPIC';
@@ -3331,7 +3470,7 @@ function rollSingleGacha(userData, guildId = null, guild = null) {
   }
 
   // Update Pity Counters
-  if (targetTier === 'ANCIENT' || targetTier === 'MYTHIC' || targetTier === 'LEGENDARY') {
+  if (targetTier === 'TRANSCENDENT' || targetTier === 'ANCIENT' || targetTier === 'MYTHIC' || targetTier === 'LEGENDARY') {
     userData.pityLegendary = 0;
     userData.pityEpic = 0;
   } else if (targetTier === 'EPIC') {
@@ -3344,41 +3483,54 @@ function rollSingleGacha(userData, guildId = null, guild = null) {
 
   let candidates = GACHA_ITEMS.filter(item => item.tier === targetTier);
 
-  // Aturan Khusus Tier ANCIENT: 1 Orang 1 Relik per Server (Unique 1-of-1)
-  if (targetTier === 'ANCIENT') {
-    const ownedAncientNames = new Set();
-    if (guildId) {
-      const gachaData = storage.read('gacha_data') || {};
-      const guildUsers = gachaData[guildId] || {};
-      for (const [uId, uData] of Object.entries(guildUsers)) {
-        // Jika guild disediakan, verifikasi keberadaan member di server
-        if (guild && !guild.members.cache.has(uId)) {
-          // Pemilik sudah keluar server: relik Ancient-nya dilepas dan tersedia kembali!
-          continue;
-        }
-        for (const relicName of (uData.inventory || [])) {
-          const foundItem = GACHA_ITEMS.find(g => g.name === relicName);
-          if (foundItem && foundItem.tier === 'ANCIENT') {
-            ownedAncientNames.add(relicName);
+  // Aturan Khusus Tier TRANSCENDENT & ANCIENT: 1 Orang 1 Relik per Server (Unique 1-of-1)
+  if (targetTier === 'TRANSCENDENT' || targetTier === 'ANCIENT') {
+    const getOwnedInTier = (tierName) => {
+      const owned = new Set();
+      if (guildId) {
+        const gachaData = storage.read('gacha_data') || {};
+        const guildUsers = gachaData[guildId] || {};
+        for (const [uId, uData] of Object.entries(guildUsers)) {
+          if (guild && !guild.members.cache.has(uId)) continue;
+          for (const relicName of (uData.inventory || [])) {
+            const foundItem = GACHA_ITEMS.find(g => g.name === relicName);
+            if (foundItem && foundItem.tier === tierName) {
+              owned.add(relicName);
+            }
           }
         }
       }
-    }
-    if (userData?.inventory) {
-      for (const relicName of userData.inventory) {
-        const foundItem = GACHA_ITEMS.find(g => g.name === relicName);
-        if (foundItem && foundItem.tier === 'ANCIENT') {
-          ownedAncientNames.add(relicName);
+      if (userData?.inventory) {
+        for (const relicName of userData.inventory) {
+          const foundItem = GACHA_ITEMS.find(g => g.name === relicName);
+          if (foundItem && foundItem.tier === tierName) {
+            owned.add(relicName);
+          }
         }
+      }
+      return owned;
+    };
+
+    if (targetTier === 'TRANSCENDENT') {
+      const ownedTrans = getOwnedInTier('TRANSCENDENT');
+      const availTrans = candidates.filter(item => !ownedTrans.has(item.name));
+      if (availTrans.length > 0) {
+        candidates = availTrans;
+      } else {
+        targetTier = 'ANCIENT';
+        candidates = GACHA_ITEMS.filter(item => item.tier === 'ANCIENT');
       }
     }
 
-    candidates = candidates.filter(item => !ownedAncientNames.has(item.name));
-
-    // Jika seluruh relik ANCIENT di server sudah dimiliki pemain lain, turunkan ke MYTHIC
-    if (candidates.length === 0) {
-      targetTier = 'MYTHIC';
-      candidates = GACHA_ITEMS.filter(item => item.tier === 'MYTHIC');
+    if (targetTier === 'ANCIENT') {
+      const ownedAncient = getOwnedInTier('ANCIENT');
+      const availAncient = candidates.filter(item => !ownedAncient.has(item.name));
+      if (availAncient.length > 0) {
+        candidates = availAncient;
+      } else {
+        targetTier = 'MYTHIC';
+        candidates = GACHA_ITEMS.filter(item => item.tier === 'MYTHIC');
+      }
     }
   }
 
@@ -3508,7 +3660,8 @@ function createPullPanelPayload(guild) {
       `Selamat datang di saluran **Tarik Gacha** ${guild ? guild.name : ''}!\n\n` +
       `Gunakan tiket gacha kamu untuk membuka kotak misteri, mengumpulkan relik legenda, dan memperebutkan tahta server!\n\n` +
       `**Peluang Kelangkaan Relik:**\n` +
-      `• **ANCIENT (0.5%):** Kasta Tertinggi Semesta (Eksklusif 1 Relik per Server)\n` +
+      `• **TRANSCENDENT (0.1%):** Kasta Transenden Kosmik Tertinggi (7 Bintang • Eksklusif 1 Relik per Server)\n` +
+      `• **ANCIENT (0.4%):** Relik Primordial Semesta (6 Bintang • Eksklusif 1 Relik per Server)\n` +
       `• **MYTHIC (1.5%):** Tahta Dewa Kosmik (Maksimal 3 Kursi • Permanen)\n` +
       `• **LEGENDARY (5.0%):** Tahta Sultan Server (Maksimal 5 Kursi • Permanen)\n` +
       `• **EPIC (18.0%)** • **RARE (35.0%)** • **COMMON (40.0%)**\n\n` +
@@ -4122,7 +4275,8 @@ async function broadcastJackpot(guild, member, item, client, options = {}) {
     if (!channel || !channel.isTextBased()) return;
 
     let embedColor = 0xFEE75C;
-    if (item.tier === 'ANCIENT') embedColor = 0x9B59B6;
+    if (item.tier === 'TRANSCENDENT') embedColor = 0x00FFFF;
+    else if (item.tier === 'ANCIENT') embedColor = 0x9B59B6;
     else if (item.tier === 'MYTHIC') embedColor = 0xFF007F;
 
     const user = member?.user || member;
@@ -4852,7 +5006,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
     const challengeRows = (roleResult && roleResult.challengeRows) || [];
     storage.write('gacha_data', gachaData);
     triggerRealtimeSync(interaction.guild, client);
-    if (item.tier === 'ANCIENT' || item.tier === 'MYTHIC' || item.tier === 'LEGENDARY') {
+    if (item.tier === 'TRANSCENDENT' || item.tier === 'ANCIENT' || item.tier === 'MYTHIC' || item.tier === 'LEGENDARY') {
       broadcastJackpot(interaction.guild, member, item, client);
     }
 
@@ -4939,7 +5093,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
   const results = [];
   let totalStardustGained = 0;
   let highestItem = null;
-  const highestTierRank = { ANCIENT: 6, MYTHIC: 5, LEGENDARY: 4, EPIC: 3, RARE: 2, COMMON: 1 };
+  const highestTierRank = { TRANSCENDENT: 7, ANCIENT: 6, MYTHIC: 5, LEGENDARY: 4, EPIC: 3, RARE: 2, COMMON: 1 };
   let currentMaxRank = 0;
 
   for (let i = 0; i < amount; i++) {
@@ -4974,7 +5128,7 @@ async function executeGachaPull(interaction, client, amount = 1) {
   triggerRealtimeSync(interaction.guild, client);
 
   // Broadcast every jackpot item (Ancient, Mythic & Legendary) pulled
-  const jackpotPulls = results.filter(r => r.item.tier === 'ANCIENT' || r.item.tier === 'MYTHIC' || r.item.tier === 'LEGENDARY');
+  const jackpotPulls = results.filter(r => r.item.tier === 'TRANSCENDENT' || r.item.tier === 'ANCIENT' || r.item.tier === 'MYTHIC' || r.item.tier === 'LEGENDARY');
   for (const p of jackpotPulls) {
     broadcastJackpot(interaction.guild, member, p.item, client, { isMulti: true });
   }
@@ -5245,7 +5399,7 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
 
   // 1. Tentukan Tema Warna Berdasarkan Relik Kasta Tertinggi Pemain
   const inventory = targetData.inventory || [];
-  const tierRank = { ANCIENT: 6, MYTHIC: 5, LEGENDARY: 4, EPIC: 3, RARE: 2, COMMON: 1 };
+  const tierRank = { TRANSCENDENT: 7, ANCIENT: 6, MYTHIC: 5, LEGENDARY: 4, EPIC: 3, RARE: 2, COMMON: 1 };
   let highestTier = 'COMMON';
   for (const name of inventory) {
     const item = GACHA_ITEMS.find(g => g.name === name);
@@ -5255,6 +5409,7 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
   }
 
   const themeColors = {
+    TRANSCENDENT: 0x00FFFF, // Cyan Kosmik / Prismatik
     ANCIENT: 0x9B59B6,   // Royal Purple
     MYTHIC: 0xE74C3C,    // Sovereign Crimson
     LEGENDARY: 0xF1C40F, // Radiant Gold
@@ -5265,7 +5420,7 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
   const embedColor = themeColors[highestTier] || 0x5865F2;
 
   // 2. Hitung Distribusi Tier Relik
-  const tiersList = ['ANCIENT', 'MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
+  const tiersList = ['TRANSCENDENT', 'ANCIENT', 'MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
   const poolByTier = {};
   const userByTier = {};
   for (const t of tiersList) {
@@ -5296,6 +5451,7 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
     const eqItem = GACHA_ITEMS.find(g => g.name === targetData.equippedRelic || g.id === targetData.equippedRelic);
     const tier = eqItem ? eqItem.tier : 'COMMON';
     const bonusMap = {
+      TRANSCENDENT: { dmg: 75, hp: 50 },
       ANCIENT: { dmg: 50, hp: 30 },
       MYTHIC: { dmg: 30, hp: 20 },
       LEGENDARY: { dmg: 20, hp: 10 },
@@ -5356,7 +5512,7 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
 
   // 6. Highlight Relik Kasta Tinggi
   const highTierItems = [];
-  for (const t of ['ANCIENT', 'MYTHIC', 'LEGENDARY']) {
+  for (const t of ['TRANSCENDENT', 'ANCIENT', 'MYTHIC', 'LEGENDARY']) {
     for (const item of userByTier[t]) {
       highTierItems.push(`• **${item.name}** \`[${t}]\``);
     }
@@ -5400,8 +5556,9 @@ async function executeGachaInventory(interaction, targetUser, client = null) {
         name: `Koleksi Relik (${userCollected}/${totalPool} — ${percentage}%)`,
         value:
           `\`[${progressBar}]\` **${percentage}% Lengkap** (${uniqueCount} Unik)\n\n` +
-          `• Ancient: **${userByTier.ANCIENT.length}/${poolByTier.ANCIENT}**  •  Mythic: **${userByTier.MYTHIC.length}/${poolByTier.MYTHIC}**  •  Legendary: **${userByTier.LEGENDARY.length}/${poolByTier.LEGENDARY}**\n` +
-          `• Epic: **${userByTier.EPIC.length}/${poolByTier.EPIC}**  •  Rare: **${userByTier.RARE.length}/${poolByTier.RARE}**  •  Common: **${userByTier.COMMON.length}/${poolByTier.COMMON}**\n\n` +
+          `• Transcendent: **${userByTier.TRANSCENDENT.length}/${poolByTier.TRANSCENDENT}**  •  Ancient: **${userByTier.ANCIENT.length}/${poolByTier.ANCIENT}**  •  Mythic: **${userByTier.MYTHIC.length}/${poolByTier.MYTHIC}**\n` +
+          `• Legendary: **${userByTier.LEGENDARY.length}/${poolByTier.LEGENDARY}**  •  Epic: **${userByTier.EPIC.length}/${poolByTier.EPIC}**\n` +
+          `• Rare: **${userByTier.RARE.length}/${poolByTier.RARE}**  •  Common: **${userByTier.COMMON.length}/${poolByTier.COMMON}**\n\n` +
           `**Koleksi Kasta Tertinggi:**\n${highTierText}`,
         inline: false
       }
@@ -6084,7 +6241,8 @@ async function executeGachaRates(interaction) {
       `Sistem Gacha dilengkapi dengan **Kursi Tahta Terbatas, Reset Musiman & Clash of Thrones**.\n` +
       boostNotice +
       `\n**Drop Rate & Alokasi Tahta:**\n` +
-      `• **ANCIENT (0.5%):** Relik Purba Primordial • Kasta Tertinggi Semesta (Eksklusif 1 Relik per Server) • Daur ulang: +1,500 Dust\n` +
+      `• **TRANSCENDENT (0.1%):** Kasta Transenden Kosmik Tertinggi (7 Bintang • Eksklusif 1 Relik per Server) • Daur ulang: +3,500 Dust\n` +
+      `• **ANCIENT (0.4%):** Relik Purba Primordial (6 Bintang • Eksklusif 1 Relik per Server) • Daur ulang: +1,500 Dust\n` +
       `• **MYTHIC (1.5%):** Tahta **3 Kursi Maksimal** • Role Permanen • Daur ulang: +800 Dust\n` +
       `• **LEGENDARY (5.0%):** Tahta **5 Kursi Maksimal** • Role Permanen • Daur ulang: +300 Dust\n` +
       `• **EPIC (18%):** Relik Koleksi & Lencana • Daur ulang: +100 Dust\n` +
@@ -6298,9 +6456,10 @@ async function executeGachaAlbum(interaction) {
   const gachaData = storage.read('gacha_data');
   const userData = getOrInitUserData(gachaData, guildId, userId);
 
-  const tiers = ['ANCIENT', 'MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
+  const tiers = ['TRANSCENDENT', 'ANCIENT', 'MYTHIC', 'LEGENDARY', 'EPIC', 'RARE', 'COMMON'];
   const tierHeaders = {
-    ANCIENT: 'ANCIENT (0.5%)',
+    TRANSCENDENT: '✦ TRANSCENDENT (0.1%)',
+    ANCIENT: 'ANCIENT (0.4%)',
     MYTHIC: 'MYTHIC (1.5%)',
     LEGENDARY: 'LEGENDARY (5.0%)',
     EPIC: 'EPIC (18.0%)',
@@ -6338,9 +6497,44 @@ async function executeGachaAlbum(interaction) {
   return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
-const ANCIENT_RELIC_ASSETS = {
+const LIMITED_RELIC_REGISTRY = {
+  // === TIER TRANSCENDENT (7 Stars - Ultra Limited Kosmik) ===
+  trans_blade: {
+    key: 'trans_blade',
+    tier: 'TRANSCENDENT',
+    stars: '★★★★★★★',
+    name: 'Pedang Pemutus Realitas Genesis',
+    file: 'transcendent_blade.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80',
+    value: '3.500.000 Stardust',
+    desc: 'Pedang transenden yang ditempa dari percikan ledakan Big Bang pertama. Mampu membelah struktur dimensi multisemesta.'
+  },
+  trans_orb: {
+    key: 'trans_orb',
+    tier: 'TRANSCENDENT',
+    stars: '★★★★★★★',
+    name: 'Bola Singularitas Tak Terhingga',
+    file: 'transcendent_orb.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=800&q=80',
+    value: '3.500.000 Stardust',
+    desc: 'Bola gravitasi transenden bercahaya prismatik yang menampung inti triliunan galaksi di dalam genggaman.'
+  },
+  trans_wings: {
+    key: 'trans_wings',
+    tier: 'TRANSCENDENT',
+    stars: '★★★★★★★',
+    name: 'Sayap Cahaya Seraphim Astral',
+    file: 'transcendent_wings.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80',
+    value: '3.500.000 Stardust',
+    desc: 'Sayap cahaya murni pelindung surga kosmik yang melipat dimensi ruang untuk berpindah seketika.'
+  },
+
+  // === TIER ANCIENT (6 Stars - Primordial Limited) ===
   ring: {
     key: 'ring',
+    tier: 'ANCIENT',
+    stars: '★★★★★★',
     name: 'Cincin Keabadian Primordial',
     file: 'ancient_ring.jpg',
     value: '1.500.000 Stardust',
@@ -6348,6 +6542,8 @@ const ANCIENT_RELIC_ASSETS = {
   },
   crown: {
     key: 'crown',
+    tier: 'ANCIENT',
+    stars: '★★★★★★',
     name: 'Mahkota Dewa Semesta',
     file: 'ancient_crown.jpg',
     value: '1.500.000 Stardust',
@@ -6355,6 +6551,8 @@ const ANCIENT_RELIC_ASSETS = {
   },
   heart: {
     key: 'heart',
+    tier: 'ANCIENT',
+    stars: '★★★★★★',
     name: 'Jantung Supernova Gelap',
     file: 'ancient_heart.jpg',
     value: '1.500.000 Stardust',
@@ -6362,19 +6560,62 @@ const ANCIENT_RELIC_ASSETS = {
   },
   grimoire: {
     key: 'grimoire',
+    tier: 'ANCIENT',
+    stars: '★★★★★★',
     name: 'Kitab Takdir Akasik',
     file: 'ancient_grimoire.jpg',
     value: '1.500.000 Stardust',
     desc: 'Naskah abadi melayang yang mencatat garis hidup seluruh jiwa semesta.'
+  },
+  spear: {
+    key: 'spear',
+    tier: 'ANCIENT',
+    stars: '★★★★★★',
+    name: 'Tombak Kehancuran Dimensi',
+    file: 'ancient_spear.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',
+    value: '1.500.000 Stardust',
+    desc: 'Tombak primordial yang mampu menembus batas ruang dan merobek dimensi hampa mutlak.'
+  },
+  hourglass: {
+    key: 'hourglass',
+    tier: 'ANCIENT',
+    stars: '★★★★★★',
+    name: 'Jam Pasir Waktu Kronos',
+    file: 'ancient_hourglass.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=800&q=80',
+    value: '1.500.000 Stardust',
+    desc: 'Jam pasir purba berisi pasir nebula emas yang mengontrol perputaran roda masa lalu dan masa depan.'
+  },
+  chalice: {
+    key: 'chalice',
+    tier: 'ANCIENT',
+    stars: '★★★★★★',
+    name: 'Cawan Nebula Purba',
+    file: 'ancient_chalice.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=80',
+    value: '1.500.000 Stardust',
+    desc: 'Cawan suci yang memuat sari pati bintang awal alam semesta pembawa berkah kehidupan abadi.'
+  },
+  eye: {
+    key: 'eye',
+    tier: 'ANCIENT',
+    stars: '★★★★★★',
+    name: 'Mata Kebenaran Kosmik',
+    file: 'ancient_eye.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
+    value: '1.500.000 Stardust',
+    desc: 'Mata pusaka purba yang menyaksikan kelahiran jutaan galaksi dan takdir seluruh eksistensi.'
   }
 };
+const ANCIENT_RELIC_ASSETS = LIMITED_RELIC_REGISTRY;
 
-async function executeGachaLimiteds(interaction, client, relicKey = 'ring') {
+async function executeGachaLimiteds(interaction, client, relicKey = 'trans_blade') {
   const guildId = interaction.guildId;
   const gachaData = storage.read('gacha_data') || {};
   const guildUsers = gachaData[guildId] || {};
 
-  const info = ANCIENT_RELIC_ASSETS[relicKey] || ANCIENT_RELIC_ASSETS.ring;
+  const info = LIMITED_RELIC_REGISTRY[relicKey] || LIMITED_RELIC_REGISTRY.trans_blade;
 
   let ownerId = null;
   for (const [uId, uData] of Object.entries(guildUsers)) {
@@ -6388,16 +6629,21 @@ async function executeGachaLimiteds(interaction, client, relicKey = 'ring') {
     ? `Dimiliki oleh: <@${ownerId}> (Tercatat di Server)`
     : '*Tersedia di Kotak Gacha (Belum Ada Pemilik)*';
 
+  const embedColor = info.tier === 'TRANSCENDENT' ? 0x00FFFF : 0x9B59B6;
+  const bossBonusText = info.tier === 'TRANSCENDENT'
+    ? '+75% ATK Multiplier • +50 Max HP'
+    : '+50% ATK Multiplier • +30 Max HP';
+
   const embed = new EmbedBuilder()
-    .setColor(0x9B59B6)
+    .setColor(embedColor)
     .setAuthor({ name: 'Relic Registry • Limited Relics' })
-    .setTitle(`${info.name} [ANCIENT]`)
+    .setTitle(`${info.name} [${info.tier}]`)
     .setDescription(
       `*${info.desc}*\n\n` +
       `**Nilai Relik:**\n${info.value}\n\n` +
       `**Status Kepemilikan:**\n${ownerText}\n\n` +
-      `**Total Unit:**\n1 / 1 per Server (Eksklusif ANCIENT)\n\n` +
-      `**Bonus Raid Boss:**\n+50% ATK Multiplier • +30 Max HP`
+      `**Total Unit:**\n1 / 1 per Server (Eksklusif ${info.tier})\n\n` +
+      `**Bonus Raid Boss:**\n${bossBonusText}`
     )
     .setFooter({ text: "Rolimon's Format • Limited Relic Registry" })
     .setTimestamp();
@@ -6407,9 +6653,28 @@ async function executeGachaLimiteds(interaction, client, relicKey = 'ring') {
   if (fs.existsSync(imgPath)) {
     files.push(new AttachmentBuilder(imgPath, { name: info.file }));
     embed.setImage(`attachment://${info.file}`);
+  } else if (info.imageUrl) {
+    embed.setImage(info.imageUrl);
   }
 
-  const row = new ActionRowBuilder().addComponents(
+  // Row 1: TRANSCENDENT Tier (7 Stars)
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_lim:trans_blade')
+      .setLabel('✦ Pedang Genesis')
+      .setStyle(info.key === 'trans_blade' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_lim:trans_orb')
+      .setLabel('✦ Bola Singularitas')
+      .setStyle(info.key === 'trans_orb' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_lim:trans_wings')
+      .setLabel('✦ Sayap Astral')
+      .setStyle(info.key === 'trans_wings' ? ButtonStyle.Primary : ButtonStyle.Secondary)
+  );
+
+  // Row 2: ANCIENT Tier Part 1 (6 Stars)
+  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('gacha_btn_lim:ring')
       .setLabel('Cincin Primordial')
@@ -6428,10 +6693,32 @@ async function executeGachaLimiteds(interaction, client, relicKey = 'ring') {
       .setStyle(info.key === 'grimoire' ? ButtonStyle.Primary : ButtonStyle.Secondary)
   );
 
+  // Row 3: ANCIENT Tier Part 2 (6 Stars)
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_lim:spear')
+      .setLabel('Tombak Dimensi')
+      .setStyle(info.key === 'spear' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_lim:hourglass')
+      .setLabel('Jam Kronos')
+      .setStyle(info.key === 'hourglass' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_lim:chalice')
+      .setLabel('Cawan Nebula')
+      .setStyle(info.key === 'chalice' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('gacha_btn_lim:eye')
+      .setLabel('Mata Kosmik')
+      .setStyle(info.key === 'eye' ? ButtonStyle.Primary : ButtonStyle.Secondary)
+  );
+
+  const components = [row1, row2, row3];
+
   if (interaction.replied || interaction.deferred) {
-    return interaction.editReply({ embeds: [embed], components: [row], files });
+    return interaction.editReply({ embeds: [embed], components, files });
   }
-  return interaction.reply({ embeds: [embed], components: [row], files, flags: MessageFlags.Ephemeral });
+  return interaction.reply({ embeds: [embed], components, files, flags: MessageFlags.Ephemeral });
 }
 
 async function executeGachaEquipPrompt(interaction) {
@@ -6454,11 +6741,12 @@ async function executeGachaEquipPrompt(interaction) {
     return item || { name, tier: 'COMMON' };
   });
 
-  const tierRank = { ANCIENT: 6, MYTHIC: 5, LEGENDARY: 4, EPIC: 3, RARE: 2, COMMON: 1 };
+  const tierRank = { TRANSCENDENT: 7, ANCIENT: 6, MYTHIC: 5, LEGENDARY: 4, EPIC: 3, RARE: 2, COMMON: 1 };
   detailed.sort((a, b) => (tierRank[b.tier] || 1) - (tierRank[a.tier] || 1));
 
   const options = detailed.slice(0, 25).map(item => {
     const bonusMap = {
+      TRANSCENDENT: { dmg: 75, hp: 50 },
       ANCIENT: { dmg: 50, hp: 30 },
       MYTHIC: { dmg: 30, hp: 20 },
       LEGENDARY: { dmg: 20, hp: 10 },
@@ -6824,7 +7112,8 @@ module.exports = {
               { name: '3x RARE -> 1x EPIC', value: 'RARE' },
               { name: '3x EPIC -> 1x LEGENDARY', value: 'EPIC' },
               { name: '3x LEGENDARY -> 1x MYTHIC', value: 'LEGENDARY' },
-              { name: '3x MYTHIC -> 1x ANCIENT (Kasta Tertinggi Semesta)', value: 'MYTHIC' }
+              { name: '3x MYTHIC -> 1x ANCIENT (Relik Primordial)', value: 'MYTHIC' },
+              { name: '3x ANCIENT -> 1x TRANSCENDENT (Kasta Transenden Tertinggi)', value: 'ANCIENT' }
             )
         )
     )
@@ -7548,17 +7837,39 @@ module.exports = {
         ? `<@&${gachaRoles.LEGENDARY}>\n**Kursi (${legHolders.length}/5 Terisi):**\n${legHolders.length > 0 ? legHolders.map((h, i) => `${i + 1}. ${h}`).join('\n') : '_Kursi Tahta Kosong_'}`
         : '_Role belum diatur_';
 
-      // Cari pemilik relik ANCIENT aktif (1-of-1 server limit)
+      // Cari pemilik relik TRANSCENDENT & ANCIENT aktif (1-of-1 server limit)
+      const transHolders = [];
+      const transItems = GACHA_ITEMS.filter(i => i.tier === 'TRANSCENDENT');
+      const transItemMap = new Map(transItems.map(i => [i.name, null]));
+
       const ancientHolders = [];
       const ancientItems = GACHA_ITEMS.filter(i => i.tier === 'ANCIENT');
       const ancientItemMap = new Map(ancientItems.map(i => [i.name, null]));
+
       for (const [uId, uData] of Object.entries(guildUsers)) {
         for (const rName of (uData.inventory || [])) {
+          if (transItemMap.has(rName)) {
+            transItemMap.set(rName, uId);
+          }
           if (ancientItemMap.has(rName)) {
             ancientItemMap.set(rName, uId);
           }
         }
       }
+
+      for (const [rName, uId] of transItemMap.entries()) {
+        if (uId) {
+          const isMemberPresent = interaction.guild.members.cache.has(uId);
+          if (isMemberPresent) {
+            transHolders.push(`• **${rName}**: <@${uId}>`);
+          } else {
+            transHolders.push(`• **${rName}**: <@${uId}> _(Keluar Server - Tersedia Kembali)_`);
+          }
+        } else {
+          transHolders.push(`• **${rName}**: _Belum Terungkap_`);
+        }
+      }
+
       for (const [rName, uId] of ancientItemMap.entries()) {
         if (uId) {
           const isMemberPresent = interaction.guild.members.cache.has(uId);
@@ -7571,6 +7882,7 @@ module.exports = {
           ancientHolders.push(`• **${rName}**: _Belum Terungkap_`);
         }
       }
+      const transRelicsText = transHolders.join('\n');
       const ancientRelicsText = ancientHolders.join('\n');
 
       // Cek Role Juara Season & Juara Aktif
@@ -7645,6 +7957,7 @@ module.exports = {
         )
         .addFields(
           { name: 'Juara Musim (Top 1 Season Champion)', value: seasonText, inline: false },
+          { name: '✦ Relik TRANSCENDENT (Eksklusif 1 Relik per Server)', value: transRelicsText, inline: false },
           { name: 'Relik ANCIENT (Eksklusif 1 Relik per Server)', value: ancientRelicsText, inline: false },
           { name: 'Tahta MYTHIC (Maks 3 Kursi • Permanen)', value: mythicRoleText, inline: false },
           { name: 'Tahta LEGENDARY (Maks 5 Kursi • Permanen)', value: legRoleText, inline: false },
@@ -8120,7 +8433,8 @@ module.exports = {
         RARE: 'EPIC',
         EPIC: 'LEGENDARY',
         LEGENDARY: 'MYTHIC',
-        MYTHIC: 'ANCIENT'
+        MYTHIC: 'ANCIENT',
+        ANCIENT: 'TRANSCENDENT'
       };
       const targetTier = nextTierMap[sourceTier];
       if (!targetTier) {
@@ -8142,26 +8456,26 @@ module.exports = {
         });
       }
 
-      // Cek ketersediaan relik ANCIENT (Eksklusif 1 Relik per Server)
+      // Cek ketersediaan relik TRANSCENDENT & ANCIENT (Eksklusif 1 Relik per Server)
       let targetCandidates = GACHA_ITEMS.filter(g => g.tier === targetTier);
-      if (targetTier === 'ANCIENT') {
+      if (targetTier === 'TRANSCENDENT' || targetTier === 'ANCIENT') {
         const guildUsers = gachaData[guildId] || {};
-        const ownedAncientNames = new Set();
+        const ownedExclusiveNames = new Set();
         for (const [uId, uData] of Object.entries(guildUsers)) {
           if (interaction.guild && !interaction.guild.members.cache.has(uId)) {
             continue;
           }
           for (const relicName of (uData.inventory || [])) {
             const found = GACHA_ITEMS.find(g => g.name === relicName);
-            if (found && found.tier === 'ANCIENT') {
-              ownedAncientNames.add(relicName);
+            if (found && found.tier === targetTier) {
+              ownedExclusiveNames.add(relicName);
             }
           }
         }
-        targetCandidates = targetCandidates.filter(g => !ownedAncientNames.has(g.name));
+        targetCandidates = targetCandidates.filter(g => !ownedExclusiveNames.has(g.name));
         if (targetCandidates.length === 0) {
           return interaction.reply({
-            content: 'Seluruh Relik Kasta ANCIENT di server ini sudah dimiliki oleh pemain lain (1 Relik per Server). Alkimia menuju ANCIENT tidak dapat dilakukan hingga terjadi Reset Season!',
+            content: `Seluruh Relik Kasta ${targetTier} di server ini sudah dimiliki oleh pemain lain (1 Relik per Server). Alkimia menuju ${targetTier} tidak dapat dilakukan hingga terjadi Reset Season!`,
             flags: MessageFlags.Ephemeral
           });
         }
@@ -8197,8 +8511,8 @@ module.exports = {
       const roleResultText = await applySmartGachaRole(interaction.guild, interaction.member, forgedItem.tier, userData, gachaData, interaction.channel, client);
       storage.write('gacha_data', gachaData);
 
-      // Broadcast if Ancient, Mythic or Legendary
-      if (forgedItem.tier === 'ANCIENT' || forgedItem.tier === 'MYTHIC' || forgedItem.tier === 'LEGENDARY') {
+      // Broadcast if Transcendent, Ancient, Mythic or Legendary
+      if (forgedItem.tier === 'TRANSCENDENT' || forgedItem.tier === 'ANCIENT' || forgedItem.tier === 'MYTHIC' || forgedItem.tier === 'LEGENDARY') {
         broadcastJackpot(interaction.guild, interaction.member, forgedItem, client, { source: 'FUSION' });
       }
 
@@ -8411,16 +8725,16 @@ module.exports = {
         descHeader = 'Peringkat anggota dengan tarikan gacha terbanyak:';
         userEntries.sort((a, b) => (b[1].pulls || 0) - (a[1].pulls || 0));
       } else if (category === 'luck') {
-        title = 'Klasemen Relik Langka (Ancient, Mythic & Legendary)';
-        descHeader = 'Peringkat anggota pemilik relik Ancient, Mythic & Legendary terbanyak:';
+        title = 'Klasemen Relik Langka (Transcendent, Ancient, Mythic & Legendary)';
+        descHeader = 'Peringkat anggota pemilik relik Transcendent, Ancient, Mythic & Legendary terbanyak:';
         userEntries.sort((a, b) => {
           const countA = (a[1].inventory || []).filter(name => {
             const found = GACHA_ITEMS.find(g => g.name === name);
-            return found && (found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
+            return found && (found.tier === 'TRANSCENDENT' || found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
           }).length;
           const countB = (b[1].inventory || []).filter(name => {
             const found = GACHA_ITEMS.find(g => g.name === name);
-            return found && (found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
+            return found && (found.tier === 'TRANSCENDENT' || found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
           }).length;
           return countB - countA;
         });
@@ -8445,9 +8759,9 @@ module.exports = {
         } else {
           const legCount = (data.inventory || []).filter(name => {
             const found = GACHA_ITEMS.find(g => g.name === name);
-            return found && (found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
+            return found && (found.tier === 'TRANSCENDENT' || found.tier === 'ANCIENT' || found.tier === 'MYTHIC' || found.tier === 'LEGENDARY');
           }).length;
-          return `${rankNum} <@${uId}> — **${legCount} Relik Langka (Ancient/Mythic/Leg)** (${data.inventory?.length || 0} total item)`;
+          return `${rankNum} <@${uId}> — **${legCount} Relik Langka (Trans/Ancient/Mythic/Leg)** (${data.inventory?.length || 0} total item)`;
         }
       }).join('\n');
 

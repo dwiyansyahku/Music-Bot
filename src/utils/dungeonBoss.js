@@ -172,6 +172,7 @@ const MONTHLY_BOSS_POOL = [
  * Multiplier Relik yang di-equip pemain
  */
 const RELIC_STAT_BONUS = {
+  TRANSCENDENT: { dmgMultiplier: 0.75, hpBonus: 50 },
   ANCIENT: { dmgMultiplier: 0.50, hpBonus: 30 },
   MYTHIC: { dmgMultiplier: 0.30, hpBonus: 20 },
   LEGENDARY: { dmgMultiplier: 0.20, hpBonus: 10 },
@@ -1761,6 +1762,7 @@ module.exports = {
   WEEKLY_BOSS_POOL,
   MONTHLY_BOSS_POOL,
   STANCES,
+  RELIC_STAT_BONUS,
   getWIBDate,
   getWIBWeekKey,
   getNextBossSpawnTime,

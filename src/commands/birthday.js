@@ -26,6 +26,24 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('announce')
+        .setDescription('Umumkan ucapan selamat ulang tahun member ke channel resmi sekarang (Owner/Mod only)')
+        .addUserOption(opt => opt.setName('user').setDescription('Member yang berulang tahun').setRequired(true))
+        .addIntegerOption(opt => opt.setName('age').setDescription('Usia member (opsional, jika ingin menentukan secara manual)').setRequired(false))
+        .addStringOption(opt => opt.setName('custom_wish').setDescription('Pesan ucapan atau doa khusus (opsional)').setRequired(false))
+        .addChannelOption(opt => opt.setName('channel').setDescription('Channel pengumuman (opsional, default: channel resmi server)').addChannelTypes(ChannelType.GuildText).setRequired(false))
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('celebrate')
+        .setDescription('Alias untuk announce — umumkan ulang tahun member sekarang (Owner/Mod only)')
+        .addUserOption(opt => opt.setName('user').setDescription('Member yang berulang tahun').setRequired(true))
+        .addIntegerOption(opt => opt.setName('age').setDescription('Usia member (opsional)').setRequired(false))
+        .addStringOption(opt => opt.setName('custom_wish').setDescription('Pesan ucapan atau doa khusus (opsional)').setRequired(false))
+        .addChannelOption(opt => opt.setName('channel').setDescription('Channel pengumuman (opsional)').addChannelTypes(ChannelType.GuildText).setRequired(false))
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('setchannel')
         .setDescription('Atur channel khusus untuk pengumuman ucapan ulang tahun (Owner/Mod only)')
         .addChannelOption(opt =>
@@ -175,6 +193,102 @@ module.exports = {
       return interaction.reply({
         content: `Pesan simulasi ulang tahun berhasil dikirim ke <#${channelId}>.`,
         flags: MessageFlags.Ephemeral
+      });
+    }
+
+    // === 4.2. ANNOUNCE / CELEBRATE MEMBER BIRTHDAY ===
+    if (sub === 'announce' || sub === 'celebrate') {
+      if (!(await isOwnerOrMod(interaction, client))) {
+        return replyNoAccessMod(interaction);
+      }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const targetUser = interaction.options.getUser('user');
+      const manualAge = interaction.options.getInteger('age');
+      const customWish = interaction.options.getString('custom_wish');
+      const selectedChannel = interaction.options.getChannel('channel');
+
+      const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+      if (!targetMember) {
+        return interaction.editReply({ content: 'Member tidak ditemukan di server ini.' });
+      }
+
+      const settings = storage.read('settings') || {};
+      const guildSettings = settings[guildId] || {};
+      const configuredChannelId = guildSettings.birthday?.channelId;
+
+      let targetChannel = null;
+      if (selectedChannel) {
+        targetChannel = selectedChannel;
+      } else if (configuredChannelId) {
+        targetChannel = await interaction.guild.channels.fetch(configuredChannelId).catch(() => null);
+      }
+
+      if (!targetChannel) {
+        targetChannel = interaction.channel;
+      }
+
+      if (!targetChannel || !targetChannel.isTextBased()) {
+        return interaction.editReply({
+          content: 'Channel pengumuman tidak ditemukan atau bukan channel teks. Silakan tentukan opsi `channel` atau atur terlebih dahulu melalui `/birthday setchannel`.'
+        });
+      }
+
+      const cardsData = storage.read('cards') || {};
+      const userCard = cardsData[guildId]?.[targetUser.id] || {};
+
+      const nowUTC = new Date();
+      const nowWIB = new Date(nowUTC.getTime() + 7 * 60 * 60 * 1000);
+      const currentDay = nowWIB.getUTCDate();
+      const currentMonth = nowWIB.getUTCMonth() + 1;
+      const currentYear = nowWIB.getUTCFullYear();
+
+      let birthInfo = null;
+      if (userCard.birthdate && userCard.birthdate.day && userCard.birthdate.month) {
+        birthInfo = { ...userCard.birthdate };
+        if (manualAge !== null && manualAge !== undefined) {
+          birthInfo.age = manualAge;
+        } else if (!birthInfo.age && birthInfo.year) {
+          birthInfo.age = Math.max(0, currentYear - birthInfo.year);
+        }
+      } else {
+        const calculatedAge = manualAge !== null && manualAge !== undefined ? manualAge : null;
+        birthInfo = {
+          day: currentDay,
+          month: currentMonth,
+          year: calculatedAge ? currentYear - calculatedAge : null,
+          formatted: `${currentDay} ${MONTH_NAMES[currentMonth]}`,
+          shortFormatted: `${currentDay} ${MONTH_NAMES[currentMonth]}`,
+          age: calculatedAge
+        };
+      }
+
+      const { buildBirthdayAnnouncementPayload } = require('../utils/birthdayHelper');
+      const payload = await buildBirthdayAnnouncementPayload(targetMember, customWish, birthInfo, interaction.guild);
+
+      const sentMsg = await targetChannel.send(payload);
+
+      // Catat bahwa perayaan tahun ini sudah dilakukan untuk user ini
+      if (!guildSettings.birthday) guildSettings.birthday = {};
+      if (!guildSettings.birthday.celebrated) guildSettings.birthday.celebrated = {};
+      guildSettings.birthday.celebrated[targetUser.id] = currentYear;
+      settings[guildId] = guildSettings;
+      storage.write('settings', settings);
+
+      if (userCard.birthdate) {
+        userCard.birthdate.lastCelebratedYear = currentYear;
+        if (manualAge !== null && manualAge !== undefined) {
+          userCard.birthdate.age = manualAge;
+        }
+        if (!cardsData[guildId]) cardsData[guildId] = {};
+        cardsData[guildId][targetUser.id] = userCard;
+        storage.write('cards', cardsData);
+      }
+
+      const msgLink = `https://discord.com/channels/${guildId}/${targetChannel.id}/${sentMsg.id}`;
+      return interaction.editReply({
+        content: `🎉 **Perayaan Ulang Tahun Berhasil Diumumkan!**\nUcapan selamat ulang tahun untuk **${targetMember.displayName}** telah dikirimkan ke <#${targetChannel.id}>.\n[Lihat Pesan Perayaan Ulang Tahun ↗](${msgLink})`
       });
     }
 
