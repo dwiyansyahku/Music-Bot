@@ -1746,6 +1746,10 @@ async function checkAndDespawnBoss(client) {
         }
 
         await updateLiveLeaderboardChannel(guild, client).catch(() => {});
+        try {
+          const { updateHubPanelIfExists } = require('../commands/gacha');
+          if (updateHubPanelIfExists) await updateHubPanelIfExists(guild, client).catch(() => {});
+        } catch (_) {}
       }
     } catch (err) {
       console.warn(`[Boss Despawn Error] Guild ${guild.name}:`, err.message);
