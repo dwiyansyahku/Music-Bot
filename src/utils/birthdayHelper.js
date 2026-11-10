@@ -125,9 +125,14 @@ function parseBirthdate(input) {
       }
     }
   } else {
-    // 2. Coba format numerik: "DD-MM-YYYY", "DD-MM", "DD/MM/YYYY", "DD/MM", "DD.MM"
+    // 2. Coba format numerik: "YYYY-MM-DD", "DD-MM-YYYY", "DD-MM", "DD/MM/YYYY", "DD/MM", "DD.MM"
     const parts = clean.split(/[-/.\s]+/);
-    if (parts.length >= 2) {
+    if (parts.length >= 3 && parseInt(parts[0], 10) >= 1900 && parseInt(parts[0], 10) <= 2100) {
+      // Format ISO: YYYY-MM-DD
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10);
+      day = parseInt(parts[2], 10);
+    } else if (parts.length >= 2) {
       const p1 = parseInt(parts[0], 10);
       const p2 = parseInt(parts[1], 10);
 
@@ -234,31 +239,41 @@ const { generateBirthdayCardCanvas } = require('./birthdayCardCanvas');
 async function buildBirthdayAnnouncementPayload(member, customWish, birthInfo, guild) {
   const wishText = customWish || BIRTHDAY_WISHES[Math.floor(Math.random() * BIRTHDAY_WISHES.length)](member.displayName, birthInfo?.age);
 
-  const canvasBuffer = await generateBirthdayCardCanvas(guild, member, birthInfo, wishText);
-  const attachment = new AttachmentBuilder(canvasBuffer, { name: 'birthday-card.png' });
+  try {
+    const canvasBuffer = await generateBirthdayCardCanvas(guild, member, birthInfo, wishText);
+    const attachment = new AttachmentBuilder(canvasBuffer, { name: 'birthday-card.png' });
 
-  const embed = new EmbedBuilder()
-    .setColor(0xEAB308) // Festive Gold
-    .setTitle(`Perayaan Ulang Tahun — ${member.displayName}`)
-    .setDescription(
-      `Hari ini adalah momen spesial perayaan hari lahir **<@${member.id}>** di **${guild.name}**.\n` +
-      `Mari luangkan waktu untuk memberikan ucapan selamat serta doa terbaikmu di chat.`
-    )
-    .setImage('attachment://birthday-card.png')
-    .setFooter({
-      text: `${guild.name} • Official Birthday Celebration`,
-      iconURL: guild.iconURL({ dynamic: true }) || undefined
-    })
-    .setTimestamp();
+    const embed = new EmbedBuilder()
+      .setColor(0xEAB308) // Festive Gold
+      .setTitle(`Perayaan Ulang Tahun — ${member.displayName}`)
+      .setDescription(
+        `Hari ini adalah momen spesial perayaan hari lahir **<@${member.id}>** di **${guild.name}**.\n` +
+        `Mari luangkan waktu untuk memberikan ucapan selamat serta doa terbaikmu di chat.`
+      )
+      .setImage('attachment://birthday-card.png')
+      .setFooter({
+        text: `${guild.name} • Official Birthday Celebration`,
+        iconURL: guild.iconURL({ dynamic: true }) || undefined
+      })
+      .setTimestamp();
 
-  // Sambutan meriah di atas pesan tapi minim emoji (elegan, bersih & festive)
-  const content = `✦ **Hari Istimewa — Selamat Ulang Tahun, <@${member.id}>!**\nMari bersama-sama merayakan hari bahagia kawan kita hari ini. Semoga senantiasa diberikan kesehatan, kebahagiaan, dan kelancaran dalam setiap langkah perjalanan hidup.`;
+    // Sambutan meriah di atas pesan tapi minim emoji (elegan, bersih & festive)
+    const content = `✦ **Hari Istimewa — Selamat Ulang Tahun, <@${member.id}>!**\nMari bersama-sama merayakan hari bahagia kawan kita hari ini. Semoga senantiasa diberikan kesehatan, kebahagiaan, dan kelancaran dalam setiap langkah perjalanan hidup.`;
 
-  return {
-    content,
-    embeds: [embed],
-    files: [attachment]
-  };
+    return {
+      content,
+      embeds: [embed],
+      files: [attachment]
+    };
+  } catch (canvasErr) {
+    console.warn(`[BirthdayPayload] Canvas gagal digenerate (${canvasErr.message}), beralih ke fallback embed.`);
+    const fallbackEmbed = buildBirthdayAnnouncementEmbed(member, customWish, birthInfo, guild);
+    return {
+      content: `✦ **Hari Istimewa — Selamat Ulang Tahun, <@${member.id}>!**\nMari bersama-sama merayakan hari bahagia kawan kita hari ini. Semoga senantiasa diberikan kesehatan, kebahagiaan, dan kelancaran dalam setiap langkah perjalanan hidup.`,
+      embeds: [fallbackEmbed],
+      files: []
+    };
+  }
 }
 
 /**
@@ -301,6 +316,91 @@ function buildBirthdayAnnouncementEmbed(member, customWish, birthInfo, guild) {
   return embed;
 }
 
+/**
+ * Periksa dan kirim ucapan ulang tahun otomatis hari ini (WIB).
+ * Aman dipanggil berkala (misal tiap menit/jam atau saat bot restart).
+ * Melacak tahun ucapan di database agar tidak terjadi ucapan ganda.
+ */
+async function checkAndSendGuildBirthdays(client, targetGuildId = null, force = false) {
+  if (!client) return { checked: 0, sent: 0, celebratedUsers: [] };
+
+  const storage = require('./storage');
+  const nowUTC = new Date();
+  const wibOffset = 7 * 60;
+  const nowWIB = new Date(nowUTC.getTime() + wibOffset * 60 * 1000);
+  const currentDay = nowWIB.getUTCDate();
+  const currentMonth = nowWIB.getUTCMonth() + 1;
+  const currentYear = nowWIB.getUTCFullYear();
+
+  const settings = storage.read('settings') || {};
+  const cardsData = storage.read('cards') || {};
+  let totalSent = 0;
+  const celebratedList = [];
+  let settingsChanged = false;
+  let cardsChanged = false;
+
+  const targetGuildIds = targetGuildId ? [targetGuildId] : Object.keys(settings);
+
+  for (const guildId of targetGuildIds) {
+    const guildSettings = settings[guildId];
+    if (!guildSettings) continue;
+    const channelId = guildSettings?.birthday?.channelId;
+    const isEnabled = guildSettings?.birthday?.enabled !== false;
+    if (!channelId || !isEnabled) continue;
+
+    const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) continue;
+
+    const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
+    if (!channel || !channel.isTextBased()) continue;
+
+    if (!guildSettings.birthday.celebrated) {
+      guildSettings.birthday.celebrated = {};
+    }
+
+    const guildCards = cardsData[guildId] || {};
+    for (const [userId, card] of Object.entries(guildCards)) {
+      if (!card.birthdate || !card.birthdate.day || !card.birthdate.month) continue;
+
+      const isBirthdayToday = card.birthdate.day === currentDay && card.birthdate.month === currentMonth;
+      if (!isBirthdayToday && !force) continue;
+
+      const lastYearCelebrated = guildSettings.birthday.celebrated[userId] || card.birthdate.lastCelebratedYear;
+      if (!force && lastYearCelebrated === currentYear) {
+        continue;
+      }
+
+      try {
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (!member || member.user.bot) continue;
+
+        if (card.birthdate.year) {
+          card.birthdate.age = Math.max(0, currentYear - card.birthdate.year);
+        }
+
+        const payload = await buildBirthdayAnnouncementPayload(member, null, card.birthdate, guild);
+        await channel.send(payload);
+
+        guildSettings.birthday.celebrated[userId] = currentYear;
+        card.birthdate.lastCelebratedYear = currentYear;
+        settingsChanged = true;
+        cardsChanged = true;
+        totalSent++;
+        celebratedList.push({ userId, name: member.displayName, age: card.birthdate.age });
+
+        console.log(`🎂 [Birthday] Berhasil mengirim ucapan ulang tahun untuk ${member.user.tag} (${member.displayName}) di ${guild.name}`);
+      } catch (sendErr) {
+        console.error(`[Birthday] Gagal mengirim ucapan untuk member ${userId} di ${guild.name}:`, sendErr.message);
+      }
+    }
+  }
+
+  if (settingsChanged) storage.write('settings', settings);
+  if (cardsChanged) storage.write('cards', cardsData);
+
+  return { sent: totalSent, celebratedUsers: celebratedList };
+}
+
 module.exports = {
   MONTH_NAMES,
   MONTH_NAMES_SHORT,
@@ -309,6 +409,7 @@ module.exports = {
   parseBirthdate,
   getNextBirthdayCountdown,
   buildBirthdayAnnouncementEmbed,
-  buildBirthdayAnnouncementPayload
+  buildBirthdayAnnouncementPayload,
+  checkAndSendGuildBirthdays
 };
 

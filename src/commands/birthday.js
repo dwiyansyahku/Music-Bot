@@ -42,6 +42,11 @@ module.exports = {
         .addUserOption(opt => opt.setName('user').setDescription('Member yang dijadikan contoh (default: diri sendiri)').setRequired(false))
     )
     .addSubcommand(sub =>
+      sub
+        .setName('check')
+        .setDescription('Periksa dan kirim ucapan ulang tahun member hari ini jika ada yang terlewat (Owner/Mod only)')
+    )
+    .addSubcommand(sub =>
       sub.setName('status').setDescription('Lihat channel pengumuman ulang tahun & statistik saat ini')
     ),
 
@@ -171,6 +176,28 @@ module.exports = {
         content: `Pesan simulasi ulang tahun berhasil dikirim ke <#${channelId}>.`,
         flags: MessageFlags.Ephemeral
       });
+    }
+
+    // === 4.5. CHECK BIRTHDAY ANNOUNCEMENT TODAY ===
+    if (sub === 'check') {
+      if (!(await isOwnerOrMod(interaction, client))) {
+        return replyNoAccessMod(interaction);
+      }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const { checkAndSendGuildBirthdays } = require('../utils/birthdayHelper');
+      const res = await checkAndSendGuildBirthdays(client, guildId, false);
+
+      if (res.sent > 0) {
+        const names = res.celebratedUsers.map(u => `• <@${u.userId}> (${u.name}${u.age ? `, usia ${u.age} th` : ''})`).join('\n');
+        return interaction.editReply({
+          content: `✅ Berhasil mendeteksi dan mengirimkan ucapan ulang tahun hari ini untuk **${res.sent} member**:\n${names}`
+        });
+      } else {
+        return interaction.editReply({
+          content: `ℹ️ Tidak ada ucapan ulang tahun yang terlewat untuk hari ini (semua member yang berulang tahun hari ini sudah diberi ucapan atau belum ada member yang berulang tahun hari ini).`
+        });
+      }
     }
 
     // === 5. VIEW MEMBER BIRTHDAY ===

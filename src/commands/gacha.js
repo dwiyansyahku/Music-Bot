@@ -3569,31 +3569,45 @@ function createHubPanelPayload(guild) {
   const duelChId = settingsData[guildId]?.gachaChannels?.duel || settingsData[guildId]?.gachaChannels?.live_duel || settingsData[guildId]?.gachaChannels?.throne;
 
   let bossStatusLine = '• **Raid Boss:** _Belum ada boss aktif saat ini_';
+  let isRaidOpen = false;
+  let spawnMsgUrl = null;
   try {
-    const { getGuildBossState, getNextBossSpawnTime } = require('../utils/dungeonBoss');
+    const { getGuildBossState, getNextBossSpawnTime, isBossRaidOpen } = require('../utils/dungeonBoss');
     const { boss } = getGuildBossState(guildId);
     const nextSpawn = getNextBossSpawnTime();
+    isRaidOpen = isBossRaidOpen(guildId);
 
-    if (boss && boss.status === 'ACTIVE' && boss.currentHp > 0) {
+    if (boss?.spawnChannelId && boss?.spawnMessageId) {
+      spawnMsgUrl = `https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId}`;
+    } else if (duelChId) {
+      spawnMsgUrl = `https://discord.com/channels/${guildId}/${duelChId}`;
+    }
+
+    if (isRaidOpen && boss && boss.currentHp > 0) {
       const ratio = Math.max(0, Math.min(1, boss.currentHp / boss.maxHp));
       const filled = Math.round(ratio * 10);
       const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
       const pct = Math.round(ratio * 100);
 
       let spawnLinkText = '';
-      if (boss.spawnChannelId && boss.spawnMessageId) {
-        spawnLinkText = `\n  [Buka Pesan Spawn Boss di Arena Duel ↗](https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId})`;
+      if (spawnMsgUrl) {
+        spawnLinkText = `\n  ↳ [⚔️ Buka Pesan Spawn Boss di Arena Duel ↗](${spawnMsgUrl})`;
       } else if (duelChId) {
-        spawnLinkText = `\n  **Arena Duel:** <#${duelChId}>`;
+        spawnLinkText = `\n  ↳ **Arena Duel:** <#${duelChId}>`;
       }
 
       bossStatusLine = `• **World Boss Sedang Bangkit:** **${boss.name}** [Tier ${boss.tier}]\n` +
         `  ↳ **HP:** \`[${bar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${pct}%)` +
         spawnLinkText;
     } else if (boss && boss.status === 'DEFEATED') {
-      bossStatusLine = `• **Raid Boss Minggu Ini Telah Ditaklukkan!**\n  ↳ Bangkit kembali Sabtu depan pukul **19:00 WIB** (<t:${nextSpawn.unix}:R>).`;
+      bossStatusLine = `• **Raid Boss Minggu Ini Telah Ditaklukkan!**\n` +
+        `  ↳ Bangkit kembali Sabtu depan pukul **19:00 WIB** (<t:${nextSpawn.unix}:R>).\n` +
+        `  ↳ **Boss Terakhir:** **${boss.name}** [Tier ${boss.tier}]`;
     } else {
-      bossStatusLine = `• **Raid Boss:** Belum bangkit.\n  ↳ Jadwal spawn: Setiap Sabtu pukul **19:00 - 23:59 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
+      bossStatusLine = `• **Raid Boss (Istirahat):** Belum bangkit.\n` +
+        `  ↳ **Target Boss Berikutnya:** **${boss ? boss.name : 'World Boss'}** [Tier ${boss ? boss.tier : 'WEEKLY'}]\n` +
+        `  ↳ **Darah Boss:** **${(boss?.maxHp || 80000).toLocaleString('id-ID')} HP** (Reset penuh 100% setiap minggu)\n` +
+        `  ↳ **Jadwal Spawn:** Setiap Sabtu pukul **19:00 - 23:59 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
     }
   } catch (_) {}
 
@@ -3649,7 +3663,14 @@ function createHubPanelPayload(guild) {
       .setStyle(ButtonStyle.Danger)
   ];
 
-  if (duelChId) {
+  if (isRaidOpen && spawnMsgUrl) {
+    row3Buttons.push(
+      new ButtonBuilder()
+        .setLabel('⚔️ Buka Pesan Spawn Boss ↗')
+        .setStyle(ButtonStyle.Link)
+        .setURL(spawnMsgUrl)
+    );
+  } else if (duelChId) {
     row3Buttons.push(
       new ButtonBuilder()
         .setLabel('Buka Arena Duel ↗')

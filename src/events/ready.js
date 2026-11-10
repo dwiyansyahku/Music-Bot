@@ -255,7 +255,7 @@ module.exports = {
         }
       }
 
-      // ====== 2.8. WORLD BOSS DESPAWN (SABTU 23:59 WIB - AKHIR JENDELA RAID) ======
+      // ====== 2.8. WORLD BOSS DESPAWN (SABTU 23:59 WIB - AKHIR JENDELA RAID & AUTO CLEANUP) ======
       if (currentDayOfWeek === 6 && currentHour === 23 && currentMinute === 59 && lastBossDespawnCheck !== birthdayKey) {
         lastBossDespawnCheck = birthdayKey;
         try {
@@ -267,6 +267,12 @@ module.exports = {
         } catch (bossDespawnErr) {
           console.error('⚠️ [Boss Raid Despawn Error]:', bossDespawnErr.message);
         }
+      } else if (currentDayOfWeek !== 6 || currentHour < 19) {
+        // Auto-cleanup jika di luar jam raid tapi masih ada boss berstatus ACTIVE yang belum despawn
+        try {
+          const { checkAndDespawnBoss } = require('../utils/dungeonBoss');
+          if (checkAndDespawnBoss) await checkAndDespawnBoss(client);
+        } catch (_) {}
       }
 
       // ====== 3. ANNOUNCEMENT SCHEDULER ======
@@ -309,54 +315,14 @@ module.exports = {
         }
       }
 
-      // ====== 4. BIRTHDAY SCHEDULER (cek setiap hari jam 00:01 WIB) ======
-      if (currentHour === 0 && currentMinute === 1 && lastBirthdayCheck !== birthdayKey) {
-        lastBirthdayCheck = birthdayKey;
-
-        const { buildBirthdayAnnouncementEmbed, BIRTHDAY_WISHES } = require('../utils/birthdayHelper');
-        const settings = storage.read('settings');
-        const cardsData = storage.read('cards');
-
-        for (const [guildId, guildSettings] of Object.entries(settings)) {
-          const channelId = guildSettings?.birthday?.channelId;
-          const isEnabled = guildSettings?.birthday?.enabled !== false;
-          if (!channelId || !isEnabled) continue;
-
-          const guild = client.guilds.cache.get(guildId);
-          if (!guild) continue;
-
-          const channel = await guild.channels.fetch(channelId).catch(() => null);
-          if (!channel) continue;
-
-          const celebratedUsers = new Set();
-
-          try {
-            // CEK ULANG TAHUN ASLI MEMBER DARI DATA KARTU PROFIL
-            const guildCards = cardsData[guildId] || {};
-            for (const [userId, card] of Object.entries(guildCards)) {
-              if (!card.birthdate || !card.birthdate.day || !card.birthdate.month) continue;
-
-              if (card.birthdate.day === currentDay && card.birthdate.month === currentMonth) {
-                const member = await guild.members.fetch(userId).catch(() => null);
-                if (!member || member.user.bot) continue;
-
-                // Hitung ulang umur jika ada tahun lahir
-                if (card.birthdate.year) {
-                  card.birthdate.age = Math.max(0, currentYear - card.birthdate.year);
-                }
-
-                const { buildBirthdayAnnouncementPayload } = require('../utils/birthdayHelper');
-                const payload = await buildBirthdayAnnouncementPayload(member, null, card.birthdate, guild);
-
-                await channel.send(payload).catch(err => console.error(`[Birthday Scheduler] Gagal kirim ucapan ke ${guild.name}:`, err.message));
-
-                celebratedUsers.add(userId);
-                console.log(`🎂 [Birthday] Ucapan ulang tahun asli terkirim untuk ${member.user.tag} di ${guild.name}`);
-              }
-            }
-          } catch (fetchErr) {
-            console.error(`[Birthday Scheduler] Gagal proses guild ${guild.name}:`, fetchErr.message);
-          }
+      // ====== 4. BIRTHDAY SCHEDULER (cek berkala otomatis WIB) ======
+      // Cek otomatis setiap pergantian hari jam 00:01 WIB atau setiap jam jika ada member yang terlewat
+      if (currentMinute === 1) {
+        try {
+          const { checkAndSendGuildBirthdays } = require('../utils/birthdayHelper');
+          await checkAndSendGuildBirthdays(client);
+        } catch (bdayErr) {
+          console.error('[Birthday Scheduler Error]:', bdayErr.message);
         }
       }
 
@@ -505,9 +471,17 @@ module.exports = {
     console.log('✅ [Schedulers] Morning, Night, Announce, Birthday, Event, Time Capsule, Gacha Role Expiry schedulers aktif!');
 
     // =============================================
-    // INITIAL STARTUP PANELS REFRESH (1x on boot)
+    // INITIAL STARTUP PANELS REFRESH & BIRTHDAY CATCHUP (1x on boot)
     // =============================================
     setTimeout(async () => {
+      // Catch-up cek ucapan ulang tahun member saat bot baru online
+      try {
+        const { checkAndSendGuildBirthdays } = require('../utils/birthdayHelper');
+        await checkAndSendGuildBirthdays(client);
+      } catch (bdayStartErr) {
+        console.warn('[Birthday Startup Catchup Error]:', bdayStartErr.message);
+      }
+
       // AUTO-REFRESH ALL DISCORD PANELS ON STARTUP (Gacha Hub, Leaderboard, Arena Duel, Member Map)
       try {
         const { autoSyncAllGachaPanels } = require('../commands/gacha');

@@ -79,6 +79,96 @@ const BOSS_CONFIGS = {
 };
 
 /**
+ * Rotasi Pool World Boss Mingguan (WEEKLY) & Bulanan (MONTHLY)
+ * Setiap minggu darah, nama boss, dan tema akan di-reset otomatis.
+ */
+const WEEKLY_BOSS_POOL = [
+  {
+    name: 'Colossal Titan of Oblivion',
+    title: 'Raksasa Kehancuran Dimensi Purba',
+    color: 0xE67E22,
+    maxHp: 80000,
+    baseRewardDust: 750,
+    baseRewardTickets: 6,
+    basePlayerAtk: 2200,
+    bossCounterDmg: 40
+  },
+  {
+    name: 'Abyssal Leviathan of the Deep',
+    title: 'Penguasa Samudra Kegelapan Abadi',
+    color: 0x1ABC9C,
+    maxHp: 80000,
+    baseRewardDust: 750,
+    baseRewardTickets: 6,
+    basePlayerAtk: 2200,
+    bossCounterDmg: 40
+  },
+  {
+    name: 'Primordial Inferno Behemoth',
+    title: 'Monster Kobaran Api Pemusnah Semesta',
+    color: 0xE74C3C,
+    maxHp: 80000,
+    baseRewardDust: 750,
+    baseRewardTickets: 6,
+    basePlayerAtk: 2200,
+    bossCounterDmg: 40
+  },
+  {
+    name: 'Astral Eclipse Dragon',
+    title: 'Naga Pemakan Cahaya Bintang & Ruang Kosong',
+    color: 0x9B59B6,
+    maxHp: 80000,
+    baseRewardDust: 750,
+    baseRewardTickets: 6,
+    basePlayerAtk: 2200,
+    bossCounterDmg: 40
+  },
+  {
+    name: 'Celestial Arbiter of Ruin',
+    title: 'Hakim Penghancur Keseimbangan Galaksi',
+    color: 0xF39C12,
+    maxHp: 80000,
+    baseRewardDust: 750,
+    baseRewardTickets: 6,
+    basePlayerAtk: 2200,
+    bossCounterDmg: 40
+  },
+  {
+    name: 'Void Herald of Calamity',
+    title: 'Pemberita Petaka Ruang Kosong Astral',
+    color: 0x34495E,
+    maxHp: 80000,
+    baseRewardDust: 750,
+    baseRewardTickets: 6,
+    basePlayerAtk: 2200,
+    bossCounterDmg: 40
+  }
+];
+
+const MONTHLY_BOSS_POOL = [
+  {
+    name: 'Omnipresent Cosmic Sovereign',
+    title: 'Penguasa Takdir Semesta Purba',
+    color: 0xE91E63,
+    maxHp: 250000,
+    baseRewardDust: 2500,
+    baseRewardTickets: 15,
+    basePlayerAtk: 2800,
+    bossCounterDmg: 45
+  },
+  {
+    name: 'Chronos Emperor of Eternity',
+    title: 'Kaisar Abadi Penakluk Waktu & Garis Dimensi',
+    color: 0x8E44AD,
+    maxHp: 250000,
+    baseRewardDust: 2500,
+    baseRewardTickets: 15,
+    basePlayerAtk: 2800,
+    bossCounterDmg: 45
+  }
+];
+
+/**
  * Multiplier Relik yang di-equip pemain
  */
 const RELIC_STAT_BONUS = {
@@ -205,6 +295,73 @@ function toggleAdminForceBossRaid(guildId) {
 }
 
 /**
+ * Helper: Ambil kunci minggu WIB (YYYY-Wxx) untuk melacak rotasi mingguan
+ */
+function getWIBWeekKey(wibDate = null) {
+  const wib = wibDate || getWIBDate();
+  const d = new Date(Date.UTC(wib.getFullYear(), wib.getMonth(), wib.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+/**
+ * Reset Darah, Nama Boss, dan Timer Spawn untuk Siklus Mingguan Baru
+ * Memilih nama boss dari pool rotasi, mengembalikan HP 100%,
+ * mereset party dan combat state untuk sesi baru.
+ */
+function resetWeeklyBossState(guildId, forceTier = null, forceNewBoss = false) {
+  const allBoss = getBossStorage();
+  if (!allBoss[guildId]) allBoss[guildId] = {};
+
+  const currentWeekKey = getWIBWeekKey();
+  const scheduledTier = forceTier || getScheduledBossTier();
+  const pool = scheduledTier === 'MONTHLY' ? MONTHLY_BOSS_POOL : WEEKLY_BOSS_POOL;
+
+  const currentBoss = allBoss[guildId].activeBoss;
+  let availablePool = pool;
+  if (currentBoss && pool.length > 1) {
+    availablePool = pool.filter(b => b.name !== currentBoss.name);
+    if (availablePool.length === 0) availablePool = pool;
+  }
+  const chosenConfig = availablePool[Math.floor(Math.random() * availablePool.length)] || pool[0];
+
+  const wib = getWIBDate();
+  const isCurrentlyRaidOpen = (wib.getDay() === 6 && wib.getHours() >= 19 && wib.getHours() <= 23);
+
+  const newBoss = {
+    id: `boss_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    guildId,
+    tier: scheduledTier,
+    name: chosenConfig.name,
+    title: chosenConfig.title,
+    color: chosenConfig.color,
+    maxHp: chosenConfig.maxHp,
+    currentHp: chosenConfig.maxHp, // Darah di-reset 100% penuh!
+    status: isCurrentlyRaidOpen ? 'ACTIVE' : 'WAITING',
+    weekKey: currentWeekKey,
+    spawnedAt: isCurrentlyRaidOpen ? Date.now() : null,
+    defeatedAt: null,
+    fledAt: null,
+    forceSpawned: false,
+    parties: {},
+    createdPartiesBy: {},
+    partyHistory: [],
+    playerStats: {},
+    activeCombat: null,
+    history: currentBoss?.history ? currentBoss.history.slice(-10) : [],
+    spawnChannelId: null,
+    spawnMessageId: null
+  };
+
+  allBoss[guildId].activeBoss = newBoss;
+  saveBossStorage(allBoss);
+  return newBoss;
+}
+
+/**
  * Inisialisasi atau Ambil State Boss untuk Guild
  */
 function getGuildBossState(guildId, tier = 'DAILY') {
@@ -214,29 +371,16 @@ function getGuildBossState(guildId, tier = 'DAILY') {
   }
 
   let activeBoss = allBoss[guildId].activeBoss;
-  if (!activeBoss) {
-    const config = BOSS_CONFIGS[tier] || BOSS_CONFIGS.DAILY;
-    activeBoss = {
-      id: `boss_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      guildId,
-      tier: config.tier,
-      name: config.name,
-      title: config.title,
-      color: config.color,
-      maxHp: config.maxHp,
-      currentHp: config.maxHp, // Persistent!
-      status: 'ACTIVE',
-      spawnedAt: Date.now(),
-      defeatedAt: null,
-      forceSpawned: false,
-      parties: {}, // partyId -> PartyObject
-      createdPartiesBy: {}, // userId -> boolean (Limit 1x per sesi)
-      partyHistory: [], // Rekap seluruh party yang telah selesai bertarung
-      playerStats: {}, // userId -> PlayerStat
-      activeCombat: null, // Combat state
-      history: []
-    };
-    allBoss[guildId].activeBoss = activeBoss;
+  const currentWeekKey = getWIBWeekKey();
+  const isOpen = isBossRaidOpen(guildId);
+
+  // Jika belum ada boss, atau boss lama belum punya weekKey, atau minggu sudah berganti: reset siklus baru
+  if (!activeBoss || (!activeBoss.weekKey && !activeBoss.forceSpawned) || (activeBoss.weekKey && activeBoss.weekKey !== currentWeekKey && !activeBoss.forceSpawned)) {
+    activeBoss = resetWeeklyBossState(guildId);
+  } else if (!isOpen && activeBoss.status === 'ACTIVE' && !activeBoss.forceSpawned) {
+    // Di luar jadwal raid tapi status masih ACTIVE: ubah ke FLED/istirahat
+    activeBoss.status = activeBoss.currentHp <= 0 ? 'DEFEATED' : 'FLED';
+    activeBoss.fledAt = activeBoss.fledAt || Date.now();
     saveBossStorage(allBoss);
   }
 
@@ -1169,7 +1313,8 @@ function buildBossLobbyPayload(guildId, isOwnerOrAdmin = false) {
         `🌌 **Status:** Boss sedang bersemayam di alam bayangan.\n` +
         `Pintu Dungeon dan penyerangan baru dibuka pada hari **Sabtu** pukul **19:00 WIB**!\n\n` +
         `• **Waktu Kemunculan:** <t:${nextSpawn.unix}:F> (<t:${nextSpawn.unix}:R>)\n` +
-        `• **Darah Tersimpan (Persistent):** \`[${hpBar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${hpPercent}%)\n` +
+        `• **Total Darah Boss:** \`[${hpBar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${hpPercent}%)\n` +
+        `• **Siklus Mingguan:** Darah dan nama boss di-reset otomatis setiap minggu pada hari Sabtu pukul 19:00 WIB!\n` +
         `• **Jadwal Tempur:** Setiap **Sabtu** pukul **19:00 - 23:59 WIB**\n\n` +
         `💡 **Persiapan:** Pasang relik terbaikmu di \`/gacha inventory\` agar mendapat bonus ATK dan HP!`
       )
@@ -1187,7 +1332,7 @@ function buildBossLobbyPayload(guildId, isOwnerOrAdmin = false) {
         `**Aturan Tempur:**\n` +
         `• Dapat mulai langsung **Solo (1 orang)** atau bersama squad hingga **4 orang**.\n` +
         `• Setiap pemain memiliki **100 HP Dasar** (+Bonus HP dari relik yang di-equip).\n` +
-        `• Darah boss **tidak akan hilang/reset**. Damage setiap party tersimpan permanen!\n` +
+        `• Darah boss di-reset setiap minggu. Pertarungan berlangsung hingga Sabtu 23:59 WIB!\n` +
         `• Cek papan klasemen live real-time di channel **#papan-klasemen**.`
       )
       .setImage(BOSS_VISUALS.STANCE[boss.tier] || BOSS_VISUALS.STANCE.DAILY)
@@ -1221,6 +1366,27 @@ function buildBossLobbyPayload(guildId, isOwnerOrAdmin = false) {
   );
 
   const components = [buttonsRow1];
+
+  // Tombol pintasan langsung ke arena pesan spawn saat boss sedang aktif
+  if (isOpen) {
+    const settingsData = storage.read('settings') || {};
+    const gCh = settingsData[guildId]?.gachaChannels || {};
+    const duelChId = gCh.duel || gCh.live_duel || gCh.throne;
+
+    if (boss.spawnChannelId || duelChId) {
+      const targetUrl = (boss.spawnChannelId && boss.spawnMessageId)
+        ? `https://discord.com/channels/${guildId}/${boss.spawnChannelId}/${boss.spawnMessageId}`
+        : `https://discord.com/channels/${guildId}/${boss.spawnChannelId || duelChId}`;
+
+      const linkRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('⚔️ Lompat ke Pesan Spawn Boss ↗')
+          .setStyle(ButtonStyle.Link)
+          .setURL(targetUrl)
+      );
+      components.push(linkRow);
+    }
+  }
 
   // Tambahkan Tombol Bypass Khusus Admin/Owner jika memiliki hak akses
   if (isOwnerOrAdmin) {
@@ -1261,15 +1427,19 @@ function buildLiveLeaderboardEmbeds(guildId, guild = null) {
     spawnLinkText = `\n  **Arena Duel:** <#${duelChId}>`;
   }
 
-  if (boss.status === 'ACTIVE' && boss.currentHp > 0) {
+  const isOpen = isBossRaidOpen(guildId);
+
+  if (isOpen && boss.status === 'ACTIVE' && boss.currentHp > 0) {
     bossStatusLine = `**SEDANG BANGKIT & DISERANG**\n` +
       `• **Nama:** **${boss.name}** [Tier ${boss.tier}]\n` +
       `• **HP:** \`[${hpBar}]\` **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (${hpPercent}%)${spawnLinkText}`;
   } else if (boss.status === 'DEFEATED') {
     bossStatusLine = `**TELAH TERKALAHKAN PADA SESI INI**\n` +
-      `• Bangkit kembali hari **Sabtu pukul 19:00 WIB** (<t:${nextSpawn.unix}:R>).`;
+      `• Bangkit kembali hari **Sabtu pukul 19:00 WIB** (<t:${nextSpawn.unix}:R>).\n` +
+      `• **Boss Terakhir:** **${boss.name}** [Tier ${boss.tier}]`;
   } else {
     bossStatusLine = `**BELUM BANGKIT (ISTIRAHAT)**\n` +
+      `• **Target Boss:** **${boss.name}** [Tier ${boss.tier}] (Total: **${boss.maxHp.toLocaleString('id-ID')} HP**)\n` +
       `• Jadwal spawn: Setiap hari **Sabtu pukul 19:00 - 23:59 WIB** (<t:${nextSpawn.unix}:R>) di ${duelChId ? `<#${duelChId}>` : 'Arena Duel'}.`;
   }
 
@@ -1421,35 +1591,13 @@ async function checkAndBroadcastBossSpawn(client) {
   for (const guild of client.guilds.cache.values()) {
     try {
       if (!allBoss[guild.id]) allBoss[guild.id] = {};
-      let boss = allBoss[guild.id].activeBoss;
 
-      // Jika boss belum ada atau sudah kalah hari sebelumnya, ciptakan boss baru sesuai tier terjadwal
-      if (!boss || boss.status === 'DEFEATED') {
-        const config = BOSS_CONFIGS[scheduledTier] || BOSS_CONFIGS.DAILY;
-        boss = {
-          id: `boss_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          guildId: guild.id,
-          tier: config.tier,
-          name: config.name,
-          title: config.title,
-          color: config.color,
-          maxHp: config.maxHp,
-          currentHp: config.maxHp,
-          status: 'ACTIVE',
-          spawnedAt: Date.now(),
-          defeatedAt: null,
-          forceSpawned: false,
-          parties: {},
-          playerStats: {},
-          activeCombat: null,
-          history: []
-        };
-        allBoss[guild.id].activeBoss = boss;
-        saveBossStorage(allBoss);
-      } else {
-        boss.status = 'ACTIVE';
-        saveBossStorage(allBoss);
-      }
+      // Ciptakan/reset siklus mingguan baru: darah penuh 100%, rotasi nama boss, dan partylist bersih
+      const boss = resetWeeklyBossState(guild.id, scheduledTier, true);
+      boss.status = 'ACTIVE';
+      boss.spawnedAt = Date.now();
+      allBoss[guild.id].activeBoss = boss;
+      saveBossStorage(allBoss);
 
       // Ambil channel Arena Duel untuk spawn World Boss
       const settingsData = storage.read('settings') || {};
@@ -1470,7 +1618,7 @@ async function checkAndBroadcastBossSpawn(client) {
           `Gerbang dimensi telah terbuka! **${boss.name}** [${boss.tier} RAID] muncul di server!\n\n` +
           `> *“${boss.title}”*\n\n` +
           `• **Kasta Boss:** \`${boss.tier}\`\n` +
-          `• **Darah Boss:** **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP**\n` +
+          `• **Darah Boss:** **${boss.currentHp.toLocaleString('id-ID')} / ${boss.maxHp.toLocaleString('id-ID')} HP** (100%)\n` +
           `• **Waktu Tempur:** Pukul **19:00 WIB - 23:59 WIB**\n` +
           `• **Arena Pertarungan:** <#${targetChannel.id}>\n\n` +
           `⚔️ Segera bentuk partymu di ${loungeText} dan serang bersama seluruh squad server!`
@@ -1479,7 +1627,19 @@ async function checkAndBroadcastBossSpawn(client) {
         .setFooter({ text: `${guild.name} • World Boss Raid 19:00 WIB` })
         .setTimestamp();
 
-      const spawnMsg = await targetChannel.send({ embeds: [spawnEmbed] }).catch(() => null);
+      const spawnComponents = [];
+      if (loungeChId) {
+        spawnComponents.push(
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('🏰 Buka Lobi Party (Gacha Lounge) ↗')
+              .setStyle(ButtonStyle.Link)
+              .setURL(`https://discord.com/channels/${guild.id}/${loungeChId}`)
+          )
+        );
+      }
+
+      const spawnMsg = await targetChannel.send({ embeds: [spawnEmbed], components: spawnComponents }).catch(() => null);
       if (spawnMsg) {
         boss.spawnChannelId = targetChannel.id;
         boss.spawnMessageId = spawnMsg.id;
@@ -1598,11 +1758,15 @@ async function checkAndDespawnBoss(client) {
 
 module.exports = {
   BOSS_CONFIGS,
+  WEEKLY_BOSS_POOL,
+  MONTHLY_BOSS_POOL,
   STANCES,
   getWIBDate,
+  getWIBWeekKey,
   getNextBossSpawnTime,
   isBossRaidOpen,
   getScheduledBossTier,
+  resetWeeklyBossState,
   toggleAdminForceBossRaid,
   checkAndBroadcastBossSpawn,
   checkAndBroadcastBossWarning,
