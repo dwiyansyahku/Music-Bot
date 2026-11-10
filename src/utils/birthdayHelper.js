@@ -119,14 +119,31 @@ function parseBirthdate(input) {
 
     const numbers = clean.match(/\b\d+\b/g);
     if (numbers && numbers.length >= 1) {
-      day = parseInt(numbers[0], 10);
-      if (numbers.length >= 2 && numbers[1].length === 4) {
-        year = parseInt(numbers[1], 10);
+      if (numbers.length === 1) {
+        day = parseInt(numbers[0], 10);
+      } else if (numbers.length >= 2) {
+        const n0 = parseInt(numbers[0], 10);
+        const n1 = parseInt(numbers[1], 10);
+
+        if (n0 >= 1900 && n0 <= 2100) {
+          // Format ISO / tahun di depan: "2009 November 10"
+          year = n0;
+          day = n1;
+        } else {
+          // Format standar: "10 November 2009" atau "10 Nov 09"
+          day = n0;
+          if (numbers[1].length === 4 && n1 >= 1900 && n1 <= 2100) {
+            year = n1;
+          } else if (n1 >= 0 && n1 <= 99) {
+            // Tahun 2 digit (misal 09 -> 2009, 98 -> 1998)
+            year = n1 > 30 ? 1900 + n1 : 2000 + n1;
+          }
+        }
       }
     }
   } else {
     // 2. Coba format numerik: "YYYY-MM-DD", "DD-MM-YYYY", "DD-MM", "DD/MM/YYYY", "DD/MM", "DD.MM"
-    const parts = clean.split(/[-/.\s]+/);
+    const parts = clean.split(/[-/.\s,]+/);
     if (parts.length >= 3 && parseInt(parts[0], 10) >= 1900 && parseInt(parts[0], 10) <= 2100) {
       // Format ISO: YYYY-MM-DD
       year = parseInt(parts[0], 10);

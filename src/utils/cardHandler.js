@@ -406,9 +406,9 @@ async function handleCardButton(interaction, client) {
 
     const birthdayInput = new TextInputBuilder()
       .setCustomId('card_input_birthdate')
-      .setLabel('Tanggal Lahir (Zodiak Otomatis)')
+      .setLabel('Tanggal Lahir (Zodiak & Usia Otomatis)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Contoh: 16-10-2002 atau 16 Oktober')
+      .setPlaceholder('Contoh: 10 November 2009 atau 10-11-2009')
       .setValue((userCard.birthdateRaw || (userCard.birthdate?.formatted || '')).slice(0, 30))
       .setRequired(false)
       .setMaxLength(30);
