@@ -376,7 +376,7 @@ function getGuildBossState(guildId, tier = 'DAILY') {
   const isOpen = isBossRaidOpen(guildId);
 
   // Jika belum ada boss, atau boss lama belum punya weekKey, atau minggu sudah berganti: reset siklus baru
-  if (!activeBoss || (!activeBoss.weekKey && !activeBoss.forceSpawned) || (activeBoss.weekKey && activeBoss.weekKey !== currentWeekKey && !activeBoss.forceSpawned)) {
+  if (!activeBoss || !activeBoss.weekKey || activeBoss.weekKey !== currentWeekKey) {
     activeBoss = resetWeeklyBossState(guildId);
   } else if (!isOpen && activeBoss.status === 'ACTIVE' && !activeBoss.forceSpawned) {
     // Di luar jadwal raid tapi status masih ACTIVE: ubah ke FLED/istirahat

@@ -531,7 +531,7 @@ async function handleAdminButton(interaction, client) {
         }
         await checkAndBroadcastBossSpawn(interaction.guild, client);
       } else {
-        boss.status = 'INACTIVE';
+        boss.status = 'WAITING';
       }
 
       saveBossStorage(allData);
