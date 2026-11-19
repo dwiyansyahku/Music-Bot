@@ -201,7 +201,7 @@ async function updateJailVisibility(guild) {
 
   // Dapatkan channel text dan voice
   const textChannel = jailConfig.channelId ? await guild.channels.fetch(jailConfig.channelId).catch(() => null) : null;
-  const voiceChannel = jailConfig.voiceChannelId ? await guild.channels.fetch(voiceChannelId => {}).catch(() => null) || await guild.channels.fetch(jailConfig.voiceChannelId).catch(() => null) : null;
+  const voiceChannel = jailConfig.voiceChannelId ? await guild.channels.fetch(jailConfig.voiceChannelId).catch(() => null) : null;
 
   if (textChannel) {
     if (hasPrisoners) {
@@ -254,6 +254,103 @@ async function updateJailVisibility(guild) {
 }
 
 /**
+ * Membebaskan member dari penjara dan mengembalikan role/nickname/voice ke semula secara aman.
+ * @param {import('discord.js').Guild} guild
+ * @param {string} userId
+ * @param {import('discord.js').Client} client
+ * @param {boolean} isAuto
+ * @returns {Promise<boolean>}
+ */
+async function releaseFromJail(guild, userId, client, isAuto = true) {
+  if (!guild || !userId) return false;
+  const storage = require('./storage');
+  const { EmbedBuilder } = require('discord.js');
+
+  const currentJailData = storage.read('jail') || {};
+  const data = currentJailData[guild.id]?.[userId];
+  if (!data) return false; // Sudah dibebaskan atau tidak sedang dipenjara
+
+  // 1. Hapus dari database terlebih dahulu agar enforcer langsung mengenali dia bebas
+  delete currentJailData[guild.id][userId];
+  storage.write('jail', currentJailData);
+
+  // 2. Perbarui visibilitas channel jail
+  await updateJailVisibility(guild).catch(() => {});
+
+  const settings = storage.read('settings') || {};
+  const jailConfig = settings[guild.id]?.jail;
+
+  // 3. Ambil data member dan kembalikan role & nickname
+  const member = await guild.members.fetch(userId).catch(() => null);
+  if (member) {
+    // 3a. Selalu lepas role penjara secara eksplisit
+    if (jailConfig?.roleId && member.roles.cache.has(jailConfig.roleId)) {
+      await member.roles.remove(jailConfig.roleId).catch(err => {
+        console.warn(`[Jail Release] Gagal melepas role penjara untuk ${userId}:`, err.message);
+      });
+    }
+
+    // 3b. Kembalikan role asli yang valid & bisa dikelola bot
+    if (Array.isArray(data.originalRoles) && data.originalRoles.length > 0) {
+      const validRoles = data.originalRoles.filter(rId => {
+        const r = guild.roles.cache.get(rId);
+        return r && !r.managed && r.id !== guild.id;
+      });
+
+      if (validRoles.length > 0) {
+        await member.roles.add(validRoles).catch(async (err) => {
+          console.warn(`[Jail Release] Bulk role add gagal (${err.message}), mencoba restore satu per satu...`);
+          for (const rId of validRoles) {
+            await member.roles.add(rId).catch(() => {});
+          }
+        });
+      }
+    }
+
+    // 3c. Kembalikan nickname
+    await member.setNickname(data.originalNick || null).catch(err => {
+      console.warn(`[Jail Release] Gagal restore nickname ${userId}:`, err.message);
+    });
+
+    // 3d. Kembalikan ke voice channel asal jika sedang di voice channel penjara
+    if (jailConfig?.voiceChannelId && member.voice?.channelId === jailConfig.voiceChannelId) {
+      let movedBack = false;
+      if (data.originalVoiceChannelId) {
+        const origChannel = guild.channels.cache.get(data.originalVoiceChannelId);
+        if (origChannel) {
+          await member.voice.setChannel(origChannel)
+            .then(() => { movedBack = true; })
+            .catch(() => {});
+        }
+      }
+      if (!movedBack) {
+        await member.voice.disconnect('Bebas dari penjara!').catch(() => {});
+      }
+    }
+  }
+
+  // 4. Kirim embed pembebasan ke channel penjara jika tersedia
+  if (jailConfig?.channelId) {
+    const jailChannel = guild.channels.cache.get(jailConfig.channelId) || await guild.channels.fetch(jailConfig.channelId).catch(() => null);
+    if (jailChannel) {
+      const freeEmbed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setTitle(isAuto ? '🔓 NARAPIDANA DIBEBASKAN!' : '🔓 BAIL DIKABULKAN!')
+        .setDescription(isAuto 
+          ? `<@${userId}> telah menyelesaikan masa tahanannya dan resmi bebas! Semoga kapok ya~ 😄`
+          : `<@${userId}> berhasil dibebaskan dari penjara! 🍀`)
+        .setFooter({ text: '🏛️ Pengadilan Server' })
+        .setTimestamp();
+
+      await jailChannel.send({ content: `🎉 <@${userId}> kamu bebas!`, embeds: [freeEmbed] }).catch(() => {});
+    }
+  }
+
+  console.log(`🔓 [Jail Release] Berhasil membebaskan ${userId} di guild ${guild.name} (${isAuto ? 'Auto-Release' : 'Bail'})`);
+  return true;
+}
+
+/**
  * Bersihkan query musik:
  * - Hapus parameter YouTube Radio / Mix (list=RD..., list=RDMM..., start_radio=1, si=..., index=...)
  * - Mengembalikan URL video bersih agar tidak memicu error YouTube Mix non-ekstrak
@@ -288,5 +385,6 @@ module.exports = {
   replyNoAccessMod,
   replyNoAccessAdmin,
   updateJailVisibility,
+  releaseFromJail,
   cleanMusicQuery
 };

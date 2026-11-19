@@ -1167,11 +1167,11 @@ const GACHA_SHOP_ITEMS = [
     amount: 10
   },
   {
-    id: 'rain_stardust',
-    name: 'Hujan Stardust (Bagi Rezeki)',
+    id: 'dust_multiplier',
+    name: 'Stardust Multiplier (2x Dust 24 Jam)',
     cost: 500,
-    desc: 'Lepaskan hujan debu bintang di chat publik! 5 orang tercepat yang menekan tombol akan mendapat 50–100 Stardust.',
-    type: 'rain'
+    desc: 'Aktifkan buff 2x Stardust selama 24 jam! Semua sumber Dust (recycle duplikat, daily, dll.) berlipat ganda.',
+    type: 'dust_multiplier'
   },
   {
     id: 'throne_shield',
@@ -1251,6 +1251,16 @@ function formatTimeRemaining(ms) {
   if (days > 0) return `${days} hari ${hours} jam`;
   if (hours > 0) return `${hours} jam ${mins} mnt`;
   return `${mins} menit`;
+}
+
+/**
+ * Dapatkan pengali Stardust jika user memiliki buff aktif (Stardust Multiplier)
+ */
+function getStardustMultiplier(userData) {
+  if (userData && userData.dustMultiplierUntil && userData.dustMultiplierUntil > Date.now()) {
+    return 2;
+  }
+  return 1;
 }
 
 /**
@@ -3550,7 +3560,8 @@ function rollSingleGacha(userData, guildId = null, guild = null) {
 
   let stardustAwarded = 0;
   if (isDuplicate) {
-    stardustAwarded = chosen.recycleStardust || 10;
+    const mult = getStardustMultiplier(userData);
+    stardustAwarded = (chosen.recycleStardust || 10) * mult;
     userData.stardust += stardustAwarded;
   }
 
@@ -5325,6 +5336,11 @@ async function executeGachaDaily(interaction) {
       break;
   }
 
+  const dustMult = getStardustMultiplier(userData);
+  if (dustMult > 1) {
+    stardustAwarded *= dustMult;
+  }
+
   userData.tickets += ticketsAwarded;
   userData.stardust += stardustAwarded;
   if (bonusBadge && !userData.badges.includes(bonusBadge)) {
@@ -5798,20 +5814,7 @@ async function handleShopPurchase(interaction, client, itemId, targetUserId = nu
     }
   }
 
-  // 4. Validasi khusus rain
-  if (shopItem.type === 'rain') {
-    const rainStorage = storage.read('stardust_rain') || {};
-    const now = Date.now();
-    const existingRain = Object.values(rainStorage).find(
-      r => r.guildId === guildId && r.channelId === interaction.channelId && r.expiresAt > now && r.claimants.length < r.quota
-    );
-    if (existingRain) {
-      return interaction.reply({
-        content: 'Masih ada Hujan Stardust yang sedang berlangsung di channel ini! Tangkap bintang yang ada atau tunggu sampai selesai.',
-        flags: MessageFlags.Ephemeral
-      });
-    }
-  }
+  // 4. (Tidak ada validasi khusus untuk dust_multiplier)
 
   // 5. Pop-up Konfirmasi Khusus untuk Item Bernilai Tinggi (>= 1.000 Dust)
   if (shopItem.cost >= 1000 && !isConfirmed) {
@@ -5901,43 +5904,14 @@ async function handleShopPurchase(interaction, client, itemId, targetUserId = nu
   } else if (shopItem.type === 'custom_title_scroll') {
     userData.customTitleTokens = (userData.customTitleTokens || 0) + 1;
     rewardText = `• **Gulungan Gelar Kustom Diperoleh!**\nKamu kini memiliki **${userData.customTitleTokens}x Token Gelar Kustom**. Gunakan perintah \`/gacha customtitle [nama_gelar]\` untuk membuat gelar impianmu!`;
-  } else if (shopItem.type === 'rain') {
-    const rainStorage = storage.read('stardust_rain') || {};
-    const rainId = 'rain_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-    rainStorage[rainId] = {
-      id: rainId,
-      guildId,
-      channelId: interaction.channelId,
-      creatorId: userId,
-      creatorName: interaction.user.username,
-      quota: 5,
-      claimants: [],
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 10 * 60 * 1000
-    };
-    storage.write('stardust_rain', rainStorage);
-    storage.write('gacha_data', gachaData);
-
-    const rainEmbed = new EmbedBuilder()
-      .setColor(0xFEE75C)
-      .setTitle('Hujan Stardust Telah Turun!')
-      .setDescription(
-        `<@${userId}> menebarkan berkah **Hujan Stardust** ke seluruh channel!\n\n` +
-        `**5 orang tercepat** yang menekan tombol di bawah akan mendapatkan **50–100 Stardust** secara acak!\n\n` +
-        `Penerima Rezeki (0/5): *Belum ada yang menangkap bintang... Ayo rebutan!*`
-      )
-      .setFooter({ text: 'Rebutan Stardust • Terbuka untuk semua member' })
-      .setTimestamp();
-
-    const rainRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`stardust_rain:${rainId}`)
-        .setLabel('Tangkap Bintang! (0/5)')
-        .setStyle(ButtonStyle.Success)
-    );
-
-    await interaction.channel.send({ embeds: [rainEmbed], components: [rainRow] }).catch(() => {});
-    rewardText = '• **Hujan Stardust berhasil dilepaskan di channel ini!**';
+  } else if (shopItem.type === 'dust_multiplier') {
+    const now = Date.now();
+    const currentEnd = (userData.dustMultiplierUntil && userData.dustMultiplierUntil > now)
+      ? userData.dustMultiplierUntil
+      : now;
+    userData.dustMultiplierUntil = currentEnd + (24 * 60 * 60 * 1000); // +24 jam
+    const totalHours = ((userData.dustMultiplierUntil - now) / (60 * 60 * 1000)).toFixed(1);
+    rewardText = `• **Stardust Multiplier Aktif!**\nSemua pendapatan Stardust digandakan (2x) selama **24 jam** (Total durasi buff aktif: **${totalHours} Jam**).`;
   }
 
   storage.write('gacha_data', gachaData);
@@ -6176,11 +6150,15 @@ async function handleShopRecycleAction(interaction, client, relicNameOrAction, t
       });
     }
 
+    const mult = getStardustMultiplier(userData);
+    gainedDust *= mult;
+
     userData.inventory = remainingInventory;
     userData.stardust += gainedDust;
     storage.write('gacha_data', gachaData);
 
-    const replyText = `Berhasil melebur **${commonItems.length}x Relik Common**!\n• Kamu memperoleh: **+${gainedDust} Stardust**\n• Saldo Stardust Sekarang: **${userData.stardust} Dust**`;
+    const bonusNote = mult > 1 ? ` *(Termasuk Buff 2x Stardust Multiplier!)*` : '';
+    const replyText = `Berhasil melebur **${commonItems.length}x Relik Common**!\n• Kamu memperoleh: **+${gainedDust} Stardust**${bonusNote}\n• Saldo Stardust Sekarang: **${userData.stardust} Dust**`;
 
     if (interaction.isButton() || interaction.isStringSelectMenu()) {
       return interaction.update({ content: replyText, embeds: [], components: [] });
@@ -6199,13 +6177,16 @@ async function handleShopRecycleAction(interaction, client, relicNameOrAction, t
   }
 
   const relicObj = GACHA_ITEMS.find(g => g.name === relicName);
-  const gainedDust = relicObj ? (relicObj.recycleStardust || 25) : 25;
+  const baseDust = relicObj ? (relicObj.recycleStardust || 25) : 25;
+  const mult = getStardustMultiplier(userData);
+  const gainedDust = baseDust * mult;
 
   userData.inventory.splice(idx, 1);
   userData.stardust += gainedDust;
   storage.write('gacha_data', gachaData);
 
-  const replyText = `Berhasil mendaur ulang 1x **${relicName}** (${relicObj ? relicObj.tier : 'RELIC'})!\n• Kamu memperoleh: **+${gainedDust} Stardust**\n• Saldo Stardust Sekarang: **${userData.stardust} Dust**\n• Sisa Relik di Tas: **${userData.inventory.length} Item**`;
+  const bonusNote = mult > 1 ? ` *(Termasuk Buff 2x Stardust Multiplier!)*` : '';
+  const replyText = `Berhasil mendaur ulang 1x **${relicName}** (${relicObj ? relicObj.tier : 'RELIC'})!\n• Kamu memperoleh: **+${gainedDust} Stardust**${bonusNote}\n• Saldo Stardust Sekarang: **${userData.stardust} Dust**\n• Sisa Relik di Tas: **${userData.inventory.length} Item**`;
 
   if (interaction.isButton() || interaction.isStringSelectMenu()) {
     return interaction.update({ content: replyText, embeds: [], components: [] });
@@ -8503,7 +8484,8 @@ module.exports = {
 
       let extraDust = 0;
       if (isDuplicate) {
-        extraDust = forgedItem.recycleStardust || 25;
+        const mult = getStardustMultiplier(userData);
+        extraDust = (forgedItem.recycleStardust || 25) * mult;
         userData.stardust += extraDust;
       }
 

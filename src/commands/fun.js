@@ -2,7 +2,7 @@ const {
   SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder,
   MessageFlags, ChannelType,
 } = require('discord.js');
-const { isOwnerOrMod, isBotOwner, replyNoAccessMod, updateJailVisibility } = require('../utils/helpers');
+const { isOwnerOrMod, isBotOwner, replyNoAccessMod, updateJailVisibility, releaseFromJail } = require('../utils/helpers');
 const storage = require('../utils/storage');
 const { sendModLog } = require('../utils/modlog');
 
@@ -201,7 +201,7 @@ const fun = {
       settings[guildId].jail = { roleId: role.id, channelId: channel.id, voiceChannelId: voiceChannel.id };
       storage.write('settings', settings);
 
-      return interaction.reply({
+      await interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setColor(0x2B2D31)
@@ -232,6 +232,7 @@ const fun = {
         moderator: interaction.user,
         details: `Setup Konfigurasi Jail: Role <@&${role.id}>, Text <#${channel.id}>, Voice <#${voiceChannel.id}>`
       });
+      return;
     }
 
     // ─────────────────────────────────────
@@ -367,49 +368,16 @@ const fun = {
         details: `Durasi: ${durasi} menit • Bebas otomatis: <t:${Math.floor(releaseTime / 1000)}:R>`
       });
 
-       // Auto-release setelah durasi
+      // Auto-release setelah durasi
       setTimeout(async () => {
         try {
-          const currentJailData = storage.read('jail');
-          const data = currentJailData[guildId]?.[targetUser.id];
-          if (!data) return; // Sudah dibebaskan manual
-
-          // 1. Hapus dari database DULUAN agar Enforcer langsung tahu dia sudah bebas
-          delete currentJailData[guildId][targetUser.id];
-          storage.write('jail', currentJailData);
-          await updateJailVisibility(interaction.guild);
-
-          const memberToFree = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
-          if (memberToFree) {
-            await memberToFree.roles.set(data.originalRoles || []).catch(() => { });
-            await memberToFree.setNickname(data.originalNick || null).catch(() => { });
-            
-            // Kembalikan ke voice channel asal jika ada, jika tidak ada/tidak valid putuskan koneksi voice
-            const settings = storage.read('settings');
-            const jailConfig = settings[guildId]?.jail;
-            if (memberToFree.voice.channelId === jailConfig?.voiceChannelId) {
-              let movedBack = false;
-              if (data.originalVoiceChannelId) {
-                await memberToFree.voice.setChannel(data.originalVoiceChannelId)
-                  .then(() => { movedBack = true; })
-                  .catch(() => {});
-              }
-              if (!movedBack) {
-                await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => { });
-              }
-            }
+          console.log(`🔓 [Jail Auto-Release] Timer fired for ${targetUser.tag} in guild ${guildId}`);
+          const currentGuild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+          if (currentGuild) {
+            await releaseFromJail(currentGuild, targetUser.id, client, true);
           }
-
-          const freeEmbed = new EmbedBuilder()
-            .setColor(0x57F287)
-            .setTitle('🔓 NARAPIDANA DIBEBASKAN!')
-            .setDescription(`<@${targetUser.id}> telah menyelesaikan masa tahanannya dan resmi bebas! Semoga kapok ya~ 😄`)
-            .setFooter({ text: '🏛️ Pengadilan Server' })
-            .setTimestamp();
-
-          await jailChannel.send({ content: `🎉 <@${targetUser.id}> kamu bebas!`, embeds: [freeEmbed] });
         } catch (err) {
-          console.error('[Jail] Auto-release error:', err.message);
+          console.error('[Jail Auto-Release] Error:', err);
         }
       }, durasi * 60 * 1000);
 
@@ -427,45 +395,7 @@ const fun = {
         return interaction.reply({ content: `❌ <@${targetUser.id}> tidak sedang dipenjara!`, flags: MessageFlags.Ephemeral });
       }
 
-      const data = jailData[guildId][targetUser.id];
-      const settings = storage.read('settings');
-      const jailConfig = settings[guildId]?.jail;
-      const jailChannelId = jailConfig?.channelId;
-
-      // 1. Hapus dari database DULUAN agar Enforcer langsung tahu dia sudah bebas
-      delete jailData[guildId][targetUser.id];
-      storage.write('jail', jailData);
-      await updateJailVisibility(interaction.guild);
-
-      const memberToFree = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
-      if (memberToFree) {
-        await memberToFree.roles.set(data.originalRoles || []).catch(() => { });
-        await memberToFree.setNickname(data.originalNick || null).catch(() => { });
-
-        // Kembalikan ke voice channel asal jika ada, jika tidak ada/tidak valid putuskan koneksi voice
-        if (memberToFree.voice.channelId === jailConfig?.voiceChannelId) {
-          let movedBack = false;
-          if (data.originalVoiceChannelId) {
-            await memberToFree.voice.setChannel(data.originalVoiceChannelId)
-              .then(() => { movedBack = true; })
-              .catch(() => {});
-          }
-          if (!movedBack) {
-            await memberToFree.voice.disconnect('Bebas dari penjara!').catch(() => { });
-          }
-        }
-      }
-
-      const freeEmbed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('🔓 BAIL DIKABULKAN!')
-        .setDescription(`<@${targetUser.id}> dibebaskan lebih awal oleh **${interaction.user.tag}**! Beruntung banget nih~ 🍀`)
-        .setTimestamp();
-
-      if (jailChannelId) {
-        const jailChannel = interaction.guild.channels.cache.get(jailChannelId);
-        if (jailChannel) await jailChannel.send({ embeds: [freeEmbed] }).catch(() => { });
-      }
+      await releaseFromJail(interaction.guild, targetUser.id, client, false);
 
       await sendModLog(interaction.guild, client, {
         action: 'UNJAIL',

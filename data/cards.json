@@ -83,7 +83,10 @@
     "536558583316480011": {
       "bio": "idk",
       "asal": "Kuningan, Jawa Barat 🇮🇩",
-      "likes": [],
+      "mbti": "ISFP",
+      "likes": [
+        "1470018136655921326"
+      ],
       "zodiac": "♏ Scorpio",
       "asalRaw": "Kuningan",
       "location": {
@@ -97,16 +100,16 @@
       },
       "respects": [],
       "birthdate": {
-        "age": 5,
+        "age": 18,
         "day": 28,
-        "raw": "28 Oktober 2021",
-        "year": 2021,
+        "raw": "28 Oktober 2008",
+        "year": 2008,
         "month": 10,
-        "formatted": "28 Oktober 2021",
-        "shortFormatted": "28 Okt 2021"
+        "formatted": "28 Oktober 2008",
+        "shortFormatted": "28 Okt 2008"
       },
       "createdAt": "2026-09-19T09:09:10.012Z",
-      "birthdateRaw": "28 Oktober 2021",
+      "birthdateRaw": "28 Oktober 2008",
       "publishedMessageId": "1550795879269802035"
     },
     "567344718682259458": {
@@ -373,6 +376,32 @@
       "zodiacRaw": "♈ Aries",
       "publishedMessageId": "1555648645729099840"
     },
+    "857165874889097216": {
+      "asal": "Sulawesi 🇮🇩",
+      "mbti": "ESFJ",
+      "zodiac": "♉ Taurus",
+      "asalRaw": "sulawesi",
+      "location": {
+        "city": "Sulawesi",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Sulawesi 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Sulawesi",
+        "stateOrProvince": "Pulau Sulawesi"
+      },
+      "birthdate": {
+        "age": null,
+        "day": 15,
+        "raw": "15 mei",
+        "year": null,
+        "month": 5,
+        "formatted": "15 Mei",
+        "shortFormatted": "15 Mei"
+      },
+      "birthdateRaw": "15 mei",
+      "publishedMessageId": "1568031650393227295"
+    },
     "866326365141991424": {
       "bio": "part time story teller and roblox enjoyer",
       "asal": "Banjarmasin, Kalimantan Selatan 🇮🇩",
@@ -416,37 +445,6 @@
       "createdAt": "2026-08-30T10:29:56.774Z",
       "zodiacRaw": "♍ Virgo",
       "publishedMessageId": "1543568450750910467"
-    },
-    "943506386468343838": {
-      "bio": "Soft heart, quiet mind",
-      "asal": "Jawa 🇮🇩",
-      "mbti": "ENFJ",
-      "likes": [],
-      "zodiac": "♈ Aries",
-      "asalRaw": "Jawa Selatan",
-      "location": {
-        "city": "Jawa",
-        "flag": "🇮🇩",
-        "country": "Indonesia",
-        "display": "Jawa 🇮🇩",
-        "isAnomaly": false,
-        "searchKey": "Jawa",
-        "stateOrProvince": "Pulau Jawa"
-      },
-      "respects": [],
-      "birthdate": {
-        "age": 23,
-        "day": 23,
-        "raw": "23 maret 2003",
-        "year": 2003,
-        "month": 3,
-        "formatted": "23 Maret 2003",
-        "shortFormatted": "23 Mar 2003"
-      },
-      "createdAt": "2026-09-24T12:44:32.255Z",
-      "zodiacRaw": "♑ Capricorn",
-      "birthdateRaw": "23 maret 2003",
-      "publishedMessageId": "1552662018413174855"
     },
     "955309170658263050": {
       "bio": "Hallo aku Bebek yang bukan unggas",
@@ -603,12 +601,18 @@
     },
     "1240343583299469434": {
       "bio": "-",
-      "asal": "Bekasi, Jawa Barat",
+      "asal": "Bekasi, Jawa Barat 🇮🇩",
       "mbti": "INFJ",
       "likes": [],
       "asalRaw": "Bekasi, Jawa Barat 🇮🇩",
       "location": {
-        "display": "Bekasi, Jawa Barat 🇮🇩"
+        "city": "Bekasi",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Bekasi, Jawa Barat 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Bekasi",
+        "stateOrProvince": "Jawa Barat"
       },
       "respects": [],
       "createdAt": "2026-10-22T05:57:27.043Z",
@@ -711,7 +715,9 @@
       "location": {
         "display": "Kuching, Sarawak, Malaysia 🇲🇾"
       },
-      "respects": [],
+      "respects": [
+        "1396474476413325393"
+      ],
       "createdAt": "2026-09-24T12:41:07.940Z",
       "zodiacRaw": "♌ Leo",
       "publishedMessageId": "1552661161454084167"
@@ -778,6 +784,33 @@
       "zodiacRaw": "♉ Taurus",
       "publishedMessageId": "1537826887898890251"
     },
+    "1412788895992778852": {
+      "asal": "Palu, Sulawesi Tengah 🇮🇩",
+      "zodiac": "♋ Cancer",
+      "asalRaw": "Palu",
+      "linkUrl": "https://www.tiktok.com/@iniihiyyy?_r=1&_t=ZS-9B6Q9vlgqMT",
+      "location": {
+        "city": "Palu",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Palu, Sulawesi Tengah 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Palu",
+        "stateOrProvince": "Sulawesi Tengah"
+      },
+      "birthdate": {
+        "age": null,
+        "day": 21,
+        "raw": "21 juli",
+        "year": null,
+        "month": 7,
+        "formatted": "21 Juli",
+        "shortFormatted": "21 Jul"
+      },
+      "linkTitle": "TikTok",
+      "birthdateRaw": "21 juli",
+      "publishedMessageId": "1567235083482435695"
+    },
     "1413508694297280746": {
       "bio": "I'm a singer hihi, let's be fwrends 🫰🏻🤩",
       "asal": "Medan, Sumatera Utara 🇮🇩",
@@ -825,19 +858,6 @@
       },
       "publishedMessageId": "1543156818321084477"
     },
-    "1417178907899334696": {
-      "bio": "Idup pelenger dan kimpul",
-      "asal": "Kendari, Sulawesi Tenggara",
-      "likes": [],
-      "asalRaw": "Kendari, Sulawesi Tenggara 🇮🇩",
-      "location": {
-        "display": "Kendari, Sulawesi Tenggara 🇮🇩"
-      },
-      "respects": [],
-      "createdAt": "2026-10-06T06:09:02.270Z",
-      "zodiacRaw": "♎ Libra  ENTF",
-      "publishedMessageId": "1543969419871649794"
-    },
     "1418551454872113244": {
       "bio": "Ntah lah org plenger maybe / kadang² pendiam",
       "asal": "Aceh",
@@ -880,6 +900,10 @@
       "bio": "-1 Lovers",
       "asal": "Bangka Belitung 🇮🇩",
       "mbti": "ENFP",
+      "likes": [
+        "536558583316480011"
+      ],
+      "zodiac": "♓ Pisces",
       "asalRaw": "Bangka Belitung",
       "linkUrl": "https://www.instagram.com/_frtaa1?igsi=MThub3ppMGUwOWZ6Zg==",
       "location": {
@@ -891,8 +915,20 @@
         "searchKey": "Bangka Belitung",
         "stateOrProvince": "Kepulauan Bangka Belitung"
       },
-      "bannerUrl": "https://discord.com/channels/@me/1537869799374331935/1542811375791771688",
+      "respects": [
+        "536558583316480011"
+      ],
+      "birthdate": {
+        "age": 24,
+        "day": 19,
+        "raw": "19 maret 2002",
+        "year": 2002,
+        "month": 3,
+        "formatted": "19 Maret 2002",
+        "shortFormatted": "19 Mar 2002"
+      },
       "linkTitle": "Instagram",
+      "birthdateRaw": "19 maret 2002",
       "publishedMessageId": "1542829316172423239"
     },
     "1473440118470873118": {
@@ -919,15 +955,33 @@
     },
     "1481907391489380453": {
       "bio": "hidup harus gila",
-      "asal": "Kapuas, Kalimantan Tengah",
+      "asal": "Kapuas, Kalimantan Tengah 🇮🇩",
       "likes": [],
+      "zodiac": "♏ Scorpio",
       "asalRaw": "Kapuas, Kalimantan Tengah 🇮🇩",
       "location": {
-        "display": "Kapuas, Kalimantan Tengah 🇮🇩"
+        "city": "Kapuas",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Kapuas, Kalimantan Tengah 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Kapuas",
+        "stateOrProvince": "Kalimantan Tengah"
       },
       "respects": [],
+      "birthdate": {
+        "age": 17,
+        "day": 10,
+        "raw": "10 November 2009",
+        "year": 2009,
+        "month": 11,
+        "formatted": "10 November 2009",
+        "shortFormatted": "10 Nov 2009",
+        "lastCelebratedYear": 2026
+      },
       "createdAt": "2026-08-30T14:15:08.155Z",
       "zodiacRaw": "♏ Scorpio",
+      "birthdateRaw": "10 November 2009",
       "publishedMessageId": "1543625121590288385"
     },
     "1490439248124444823": {
@@ -1129,6 +1183,31 @@
       "createdAt": "2026-10-23T18:31:10.979Z",
       "zodiacRaw": "♉ Taurus",
       "publishedMessageId": "1563219036630945894"
+    },
+    "1566429402894569554": {
+      "asal": "Garut, Jawa Barat 🇮🇩",
+      "zodiac": "♋ Cancer",
+      "asalRaw": "Garut",
+      "location": {
+        "city": "Garut",
+        "flag": "🇮🇩",
+        "country": "Indonesia",
+        "display": "Garut, Jawa Barat 🇮🇩",
+        "isAnomaly": false,
+        "searchKey": "Garut",
+        "stateOrProvince": "Jawa Barat"
+      },
+      "birthdate": {
+        "age": 21,
+        "day": 5,
+        "raw": "05 juli 2005",
+        "year": 2005,
+        "month": 7,
+        "formatted": "5 Juli 2005",
+        "shortFormatted": "5 Jul 2005"
+      },
+      "birthdateRaw": "05 juli 2005",
+      "publishedMessageId": "1567874947005546546"
     }
   }
 }

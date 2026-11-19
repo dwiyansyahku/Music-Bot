@@ -466,6 +466,27 @@ module.exports = {
         console.error('[Live Panels Auto-Sync Error]:', liveSyncErr.message);
       }
 
+      // ====== 9. JAIL SENTENCE EXPIRY SCHEDULER ======
+      try {
+        const jailData = storage.read('jail');
+        const nowMs = Date.now();
+        const { releaseFromJail } = require('../utils/helpers');
+        for (const [guildId, guildJails] of Object.entries(jailData)) {
+          const guild = client.guilds.cache.get(guildId);
+          if (!guild) continue;
+          for (const [userId, data] of Object.entries(guildJails)) {
+            if (data.releaseTime && data.releaseTime <= nowMs) {
+              console.log(`🔓 [Jail Scheduler] Masa tahanan ${userId} habis di ${guild.name}. Membebaskan...`);
+              await releaseFromJail(guild, userId, client, true).catch(err => {
+                console.error(`[Jail Scheduler Error] Gagal membebaskan ${userId}:`, err.message);
+              });
+            }
+          }
+        }
+      } catch (jailSchedErr) {
+        console.error('[Jail Scheduler Error]:', jailSchedErr.message);
+      }
+
     }, 60 * 1000); // cek setiap 60 detik
 
     console.log('✅ [Schedulers] Morning, Night, Announce, Birthday, Event, Time Capsule, Gacha Role Expiry schedulers aktif!');
@@ -543,81 +564,33 @@ module.exports = {
     // =============================================
     try {
       const jailData = storage.read('jail');
-      const settings = storage.read('settings');
+      const { releaseFromJail, updateJailVisibility } = require('../utils/helpers');
       let jailCount = 0;
 
       for (const [guildId, guildJails] of Object.entries(jailData)) {
         const guild = client.guilds.cache.get(guildId);
         if (!guild) continue;
 
-        const jailChannelId = settings[guildId]?.jail?.channelId;
-        const jailChannel = jailChannelId ? await guild.channels.fetch(jailChannelId).catch(() => null) : null;
-
         for (const [userId, data] of Object.entries(guildJails)) {
           const timeLeft = data.releaseTime - Date.now();
           jailCount++;
 
-          const releaseUser = async () => {
-            try {
-              const currentJailData = storage.read('jail');
-              if (!currentJailData[guildId]?.[userId]) return; // Sudah dilepas manual
-
-              // 1. Hapus dari database DULUAN agar Enforcer langsung tahu dia sudah bebas
-              delete currentJailData[guildId][userId];
-              storage.write('jail', currentJailData);
-              const { updateJailVisibility } = require('../utils/helpers');
-              await updateJailVisibility(guild).catch(() => { });
-
-              const member = await guild.members.fetch(userId).catch(() => null);
-              if (member) {
-                await member.roles.set(data.originalRoles || []).catch(() => { });
-                await member.setNickname(data.originalNick || null).catch(() => { });
-
-                // Kembalikan ke voice channel asal jika ada, jika tidak ada/tidak valid putuskan koneksi voice
-                const jailConfig = settings[guildId]?.jail;
-                if (member.voice.channelId === jailConfig?.voiceChannelId) {
-                  let movedBack = false;
-                  if (data.originalVoiceChannelId) {
-                    await member.voice.setChannel(data.originalVoiceChannelId)
-                      .then(() => { movedBack = true; })
-                      .catch(() => { });
-                  }
-                  if (!movedBack) {
-                    await member.voice.disconnect('Bebas dari penjara!').catch(() => { });
-                  }
-                }
-              }
-
-              if (jailChannel) {
-                const { EmbedBuilder } = require('discord.js');
-                const freeEmbed = new EmbedBuilder()
-                  .setColor(0x57F287)
-                  .setTitle('Narapidana Dibebaskan')
-                  .setDescription(`<@${userId}> telah dibebaskan dari penjara (masa tahanan selesai).`)
-                  .setFooter({ text: 'Pengadilan Server' })
-                  .setTimestamp();
-
-                await jailChannel.send({ content: `<@${userId}> kamu telah bebas.`, embeds: [freeEmbed] }).catch(() => { });
-              }
-              console.log(`🔓 [Jail Startup] Berhasil membebaskan ${userId} di guild ${guild.name}`);
-            } catch (err) {
-              console.error(`[Jail Startup] Gagal membebaskan ${userId}:`, err.message);
-            }
-          };
-
           if (timeLeft <= 0) {
             // Waktu tahanan habis saat bot mati -> langsung bebaskan
             console.log(`🔓 [Jail Startup] Melepas ${userId} karena masa tahanan sudah habis saat offline.`);
-            await releaseUser();
+            await releaseFromJail(guild, userId, client, true);
           } else {
             // Masih ada sisa waktu -> jadwalkan pelepasan
             console.log(`🔒 [Jail Startup] Menjadwalkan pelepasan ${userId} dalam ${Math.round(timeLeft / 1000 / 60)} menit.`);
-            setTimeout(releaseUser, timeLeft);
+            setTimeout(() => {
+              releaseFromJail(guild, userId, client, true).catch(err => {
+                console.error(`[Jail Startup Timeout Error] Gagal melepas ${userId}:`, err.message);
+              });
+            }, timeLeft);
           }
         }
 
         // Set visibilitas awal pada boot
-        const { updateJailVisibility } = require('../utils/helpers');
         await updateJailVisibility(guild).catch(() => { });
       }
       if (jailCount > 0) {

@@ -19,6 +19,10 @@ const userCooldowns = new Map();
 // Tracking cooldown per channel: key = `${guildId}_${channelId}` -> timestamp
 const channelDebounce = new Map();
 
+// Queue sapaan per channel agar semua member yang join bisa disambut berurutan
+const pendingGreetings = new Map(); // key = `${guildId}_${channelId}` -> array of { member, channel, client }
+const activeGreetings = new Map(); // key = `${guildId}_${channelId}` -> boolean (sedang memutar sapaan)
+
 // Tracking spam keluar-masuk voice: key = `${guildId}_${userId}` -> array of timestamps
 const voiceFloodTracker = new Map();
 
@@ -41,6 +45,10 @@ const cleanupInterval = setInterval(() => {
     const recent = timestamps.filter(t => now - t <= 10000);
     if (recent.length === 0) voiceFloodTracker.delete(key);
     else voiceFloodTracker.set(key, recent);
+  }
+  // Cleanup antrian sapaan yang mungkin stale
+  for (const [key] of pendingGreetings.entries()) {
+    if (!activeGreetings.has(key)) pendingGreetings.delete(key);
   }
 }, 30 * 60 * 1000);
 cleanupInterval.unref();
@@ -93,6 +101,7 @@ function getCleanMemberName(member) {
     .trim();
 
   // 4. Deteksi nama dengan spasi antar huruf (misal: 'A n d i' atau 'S a r a h')
+  clean = clean.replace(/\b([a-zA-Z])\s+(?=[a-zA-Z]\b)/g, '$1');
   const rawWords = clean.split(/\s+/).filter(Boolean);
   if (rawWords.length >= 2 && rawWords.every(w => w.length === 1 && /[a-zA-Z]/.test(w))) {
     clean = rawWords.join('');
@@ -299,11 +308,25 @@ async function playVoiceAudio(channel, text, client) {
   player.play(resource);
 
   return new Promise((resolve, reject) => {
+    // Safety fallback timeout agar antrian tidak macet jika terjadi packet loss di voice gateway
+    const safetyTimer = setTimeout(() => {
+      try {
+        player.stop(true);
+        if (subscription) subscription.unsubscribe();
+        const activeDisTubeVoice = client.distube?.voices?.get(guildId);
+        if (activeDisTubeVoice?.audioPlayer && connection && connection.state.status === VoiceConnectionStatus.Ready) {
+          connection.subscribe(activeDisTubeVoice.audioPlayer);
+        }
+      } catch (_) { }
+      resolve();
+    }, 10000);
+
     player.on(AudioPlayerStatus.Playing, () => {
       console.log(`[Voice Welcome AI] Sapaan suara sedang diputar di "${channel.name}"...`);
     });
 
     player.on(AudioPlayerStatus.Idle, () => {
+      clearTimeout(safetyTimer);
       try {
         player.stop(true);
         if (subscription) subscription.unsubscribe();
@@ -318,6 +341,7 @@ async function playVoiceAudio(channel, text, client) {
     });
 
     player.on('error', (err) => {
+      clearTimeout(safetyTimer);
       try {
         player.stop(true);
         if (subscription) subscription.unsubscribe();
@@ -420,13 +444,8 @@ async function handleVoiceWelcome(oldState, newState, client) {
     return;
   }
 
-  // ─── 4. DEBOUNCE CHANNEL (Mencegah tabrakan audio jika beberapa orang masuk barengan) ───
+  // ─── 4. QUEUE SYSTEM (Antrian sapaan agar semua member disambut bergantian) ───
   const chKey = `${guildId}_${channelId}`;
-  const lastChannelGreeted = channelDebounce.get(chKey) || 0;
-  if (now - lastChannelGreeted < CHANNEL_DEBOUNCE_MS) {
-    // Channel baru saja memutar sapaan < 15 detik lalu -> abaikan agar tidak bising
-    return;
-  }
 
   // ─── 5. ATURAN ANTI-PINDAH & HARMONISASI DENGAN MUSIK / QUIZ ───
   const botCurrentVoiceChannelId = guild.members.me?.voice?.channelId;
@@ -438,33 +457,94 @@ async function handleVoiceWelcome(oldState, newState, client) {
     return;
   }
 
-  // 3. Jangan ganggu jika sedang ada Music Quiz yang berjalan di server ini
+  // Jangan ganggu jika sedang ada Music Quiz yang berjalan di server ini
   if (client.activeQuiz?.has(guildId)) {
     return;
   }
 
-  // 4. Harmonisasi dengan DisTube Musik:
+  // Harmonisasi dengan DisTube Musik:
   // Jika bot sedang memutar musik atau ada antrean lagu aktif, JANGAN tiban dengan suara bicara!
   const queue = client.distube?.getQueue(guildId);
   if (queue && (queue.playing || queue.isQuiz || (queue.songs && queue.songs.length > 0))) {
     return;
   }
 
-  // ─── 6. EKSEKUSI SAPAAN SUARA AI PEREMPUAN ───
+  // Tambahkan ke antrian (cegah duplikasi member yang sama di antrian)
+  if (!pendingGreetings.has(chKey)) pendingGreetings.set(chKey, []);
+  const chQueue = pendingGreetings.get(chKey);
+  if (!chQueue.some(item => item.member.id === newState.member.id)) {
+    chQueue.push({ member: newState.member, channel: newState.channel, client });
+  }
+
+  // Tandai cooldown user segera agar tidak ter-trigger ganda
+  userCooldowns.set(userKey, now);
+
+  // Jika sedang ada sapaan yang diputar di channel ini, biarkan antrian diproses nanti
+  if (activeGreetings.get(chKey)) {
+    console.log(`🎙️ [Voice Welcome AI] ${newState.member.user.tag} ditambahkan ke antrian sapaan di "${newState.channel?.name}".`);
+    return;
+  }
+
+  // Mulai proses antrian
+  processGreetingQueue(chKey).catch(err => {
+    console.error('[Voice Welcome Queue Error]:', err.message);
+  });
+}
+
+/**
+ * Proses antrian sapaan voice secara berurutan per channel
+ * Memastikan setiap member yang join disambut satu per satu tanpa tabrakan audio
+ *
+ * @param {string} chKey - Key channel (format: `${guildId}_${channelId}`)
+ */
+async function processGreetingQueue(chKey) {
+  if (activeGreetings.get(chKey)) return; // Sudah ada yang memproses
+  activeGreetings.set(chKey, true);
+
   try {
-    const cleanName = getCleanMemberName(newState.member);
-    const greetingText = getRandomVoiceGreeting(cleanName);
-    console.log(`🎙️ [Voice Welcome AI] Menyiapkan sapaan untuk ${cleanName} di "${newState.channel?.name}": "${greetingText}"`);
+    while (true) {
+      const queue = pendingGreetings.get(chKey);
+      if (!queue || queue.length === 0) break;
 
-    // Tandai cooldown segera agar tidak ter-trigger ganda
-    userCooldowns.set(userKey, now);
-    channelDebounce.set(chKey, now);
+      const { member, channel, client } = queue.shift();
 
-    // Putar audio sapaan ke voice channel
-    await playVoiceAudio(newState.channel, greetingText, client);
+      // Pastikan member masih ada di voice channel yang sama
+      const freshMember = await channel.guild.members.fetch(member.id).catch(() => null);
+      if (!freshMember || !freshMember.voice.channelId || freshMember.voice.channelId !== channel.id) {
+        console.log(`🎙️ [Voice Welcome AI] ${member.user.tag} sudah tidak di channel, skip sapaan.`);
+        continue;
+      }
 
-  } catch (err) {
-    console.error('[Voice Welcome Execution Error]:', err.message);
+      // Pastikan bot masih berada di channel yang sama
+      const botCurrentVoiceChannelId = channel.guild.members.me?.voice?.channelId;
+      if (!botCurrentVoiceChannelId || botCurrentVoiceChannelId !== channel.id) {
+        console.log(`🎙️ [Voice Welcome AI] Bot tidak lagi di channel "${channel.name}", skip sisa antrian.`);
+        break;
+      }
+
+      // Pastikan tidak sedang ada musik/quiz
+      if (client.activeQuiz?.has(channel.guild.id)) break;
+      const guildQueue = client.distube?.getQueue(channel.guild.id);
+      if (guildQueue && (guildQueue.playing || guildQueue.isQuiz || (guildQueue.songs && guildQueue.songs.length > 0))) break;
+
+      try {
+        const cleanName = getCleanMemberName(freshMember);
+        const greetingText = getRandomVoiceGreeting(cleanName);
+        console.log(`🎙️ [Voice Welcome AI] Menyapa ${cleanName} di "${channel.name}": "${greetingText}"`);
+
+        await playVoiceAudio(channel, greetingText, client);
+
+        // Jeda 1.5 detik antar sapaan agar natural dan tidak terlalu cepat
+        await new Promise(r => setTimeout(r, 1500));
+      } catch (err) {
+        console.error(`[Voice Welcome Queue] Gagal menyapa ${member.user.tag}:`, err.message);
+      }
+    }
+  } finally {
+    activeGreetings.delete(chKey);
+    // Bersihkan antrian kosong
+    const remaining = pendingGreetings.get(chKey);
+    if (!remaining || remaining.length === 0) pendingGreetings.delete(chKey);
   }
 }
 
