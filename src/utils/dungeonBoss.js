@@ -1010,6 +1010,10 @@ async function resolveCombatRound(guildId, partyId, client) {
   const roundLogLines = [];
   let allLivingWon = livingMembers.length > 0;
 
+  // Baca database gacha_data untuk akumulasi damage realtime ke database
+  const gachaData = storage.read('gacha_data') || {};
+  if (!gachaData[guildId]) gachaData[guildId] = {};
+
   for (const userId of livingMembers) {
     const pStance = combat.playerStances[userId] || 'attack';
     const pStat = boss.playerStats[userId];
@@ -1049,8 +1053,19 @@ async function resolveCombatRound(guildId, partyId, client) {
     pStat.totalDamage = (pStat.totalDamage || 0) + dmgDealt;
     totalRoundDmg += dmgDealt;
 
+    // Simpan akumulasi damage user ke database gacha_data secara realtime (Season & Lifetime)
+    if (!gachaData[guildId][userId]) {
+      gachaData[guildId][userId] = { inventory: [], tickets: 0, stardust: 0 };
+    }
+    const uData = gachaData[guildId][userId];
+    uData.bossDamageSeason = (uData.bossDamageSeason || 0) + dmgDealt;
+    uData.bossDamageLifetime = (uData.bossDamageLifetime || 0) + dmgDealt;
+
     roundLogLines.push(`• <@${userId}> [${STANCES[pStance].label} vs ${STANCES[bossStance].label}]: ${outcomeText}`);
   }
+
+  // Simpan data gacha_data secara permanen ke storage
+  storage.write('gacha_data', gachaData);
 
   // Bonus Party Combo jika ada 4 orang dan semua menang
   let comboBonusText = '';
@@ -1257,8 +1272,7 @@ function distributeRaidRewards(guildId, boss) {
       guildUsers[userId].stardust = (guildUsers[userId].stardust || 0) + config.baseRewardDust;
       guildUsers[userId].tickets = (guildUsers[userId].tickets || 0) + config.baseRewardTickets;
 
-      // Bonus Top Damager
-      guildUsers[userId].bossDamageLifetime = (guildUsers[userId].bossDamageLifetime || 0) + pStat.totalDamage;
+      // Akumulasi damage boss sudah tersimpan secara realtime per ronde di resolveCombatRound
     }
   }
 
@@ -1452,7 +1466,7 @@ function buildLiveLeaderboardEmbeds(guildId, guild = null) {
 
   for (const [uId, uData] of guildUsers) {
     const relicCount = (uData.inventory || []).length;
-    const bossDamage = boss.playerStats?.[uId]?.totalDamage || (uData.bossDamageLifetime || 0);
+    const bossDamage = Math.max(uData.bossDamageSeason || 0, boss.playerStats?.[uId]?.totalDamage || 0);
 
     if (relicCount > 0 || bossDamage > 0) {
       candidateUsers.push({
@@ -1463,8 +1477,13 @@ function buildLiveLeaderboardEmbeds(guildId, guild = null) {
     }
   }
 
-  // Urutkan berdasarkan Relik terbanyak, jika sama urutkan berdasarkan Damage Boss tertinggi
-  candidateUsers.sort((a, b) => b.relicCount - a.relicCount || b.bossDamage - a.bossDamage);
+  // Urutkan berdasarkan Relik terbanyak, jika sama diadu berdasarkan Damage Boss tertinggi
+  candidateUsers.sort((a, b) => {
+    if (b.relicCount !== a.relicCount) {
+      return b.relicCount - a.relicCount;
+    }
+    return b.bossDamage - a.bossDamage;
+  });
 
   const top1 = candidateUsers.length > 0 ? candidateUsers[0] : null;
 

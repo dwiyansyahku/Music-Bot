@@ -6772,11 +6772,11 @@ async function executeGachaEquipPrompt(interaction) {
 function calculateSeasonScore(userData, userId = null, guildId = null) {
   if (!userData) return { relicCount: 0, bossDamage: 0 };
   const relicCount = (userData.inventory || []).length;
-  let bossDamage = userData.bossDamageLifetime || 0;
+  let bossDamage = userData.bossDamageSeason || 0;
   if (guildId && userId) {
     try {
-      const bossData = storage.read('boss_state') || {};
-      const guildBoss = bossData[guildId]?.boss;
+      const bossData = storage.read('boss_data') || {};
+      const guildBoss = bossData[guildId]?.activeBoss || bossData[guildId]?.boss;
       if (guildBoss?.playerStats?.[userId]?.totalDamage) {
         bossDamage = Math.max(bossDamage, guildBoss.playerStats[userId].totalDamage);
       }
@@ -6814,14 +6814,14 @@ async function executeSeasonReset(guild, client, options = {}) {
   const prevSeasonNum = seasonData[guildId].currentSeason || 1;
   const nextSeasonNum = prevSeasonNum + 1;
 
-  // 1. Tentukan Top 1 Champion: member dengan relik terbanyak dan damage boss tertinggi
+  // 1. Tentukan Top 1 Champion: member dengan relik terbanyak dan damage boss season tertinggi
   const userRankings = [];
   for (const [uId, uData] of Object.entries(guildUsers)) {
     const relicCount = (uData.inventory || []).length;
-    let bossDamage = uData.bossDamageLifetime || 0;
+    let bossDamage = uData.bossDamageSeason || 0;
     try {
-      const bossData = storage.read('boss_state') || {};
-      const guildBoss = bossData[guildId]?.boss;
+      const bossData = storage.read('boss_data') || {};
+      const guildBoss = bossData[guildId]?.activeBoss || bossData[guildId]?.boss;
       if (guildBoss?.playerStats?.[uId]?.totalDamage) {
         bossDamage = Math.max(bossDamage, guildBoss.playerStats[uId].totalDamage);
       }
@@ -6837,8 +6837,13 @@ async function executeSeasonReset(guild, client, options = {}) {
     }
   }
 
-  // Pengurutan: Relik Terbanyak, lalu Damage Boss tertinggi (persis sama dengan Top Leaderboard)
-  userRankings.sort((a, b) => b.relicCount - a.relicCount || b.bossDamage - a.bossDamage);
+  // Pengurutan: Relik Terbanyak, jika sama diadu dengan Damage Boss tertinggi
+  userRankings.sort((a, b) => {
+    if (b.relicCount !== a.relicCount) {
+      return b.relicCount - a.relicCount;
+    }
+    return b.bossDamage - a.bossDamage;
+  });
 
   const championUser = userRankings.length > 0 ? userRankings[0] : null;
   const prevChampionId = seasonData[guildId]?.currentChampionId || seasonData[guildId]?.lastChampionId || null;
@@ -6914,6 +6919,7 @@ async function executeSeasonReset(guild, client, options = {}) {
     uData.tickets = 0;
     uData.stardust = 0;
     uData.inventory = [];
+    uData.bossDamageSeason = 0; // Reset akumulasi damage boss season baru ke 0
     uData.equippedRelic = null;
     uData.badges = [];
     uData.titles = [];
@@ -6934,6 +6940,20 @@ async function executeSeasonReset(guild, client, options = {}) {
   }
   storage.write('gacha_data', gachaData);
 
+  // Reset playerStats pada database boss_data untuk guild ini
+  try {
+    const allBoss = storage.read('boss_data') || {};
+    if (allBoss[guildId]) {
+      if (allBoss[guildId].activeBoss && allBoss[guildId].activeBoss.playerStats) {
+        allBoss[guildId].activeBoss.playerStats = {};
+      }
+      if (allBoss[guildId].boss && allBoss[guildId].boss.playerStats) {
+        allBoss[guildId].boss.playerStats = {};
+      }
+      storage.write('boss_data', allBoss);
+    }
+  } catch (_) {}
+
   // 4. Reset Tahta & Antrean Duel
   const throneData = storage.read('throne_duels') || {};
   if (throneData[guildId]) {
@@ -6942,8 +6962,14 @@ async function executeSeasonReset(guild, client, options = {}) {
     storage.write('throne_duels', throneData);
   }
 
-  // Auto-refresh panel arena duel
+  // Auto-refresh panel arena duel & papan klasemen realtime
   await updateDuelPanelIfExists(guild, client).catch(() => {});
+  try {
+    const { updateLiveLeaderboardChannel } = require('../utils/dungeonBoss');
+    if (updateLiveLeaderboardChannel) {
+      await updateLiveLeaderboardChannel(guild, client).catch(() => {});
+    }
+  } catch (_) {}
 
   // 5. Catat riwayat season
   seasonData[guildId].currentSeason = nextSeasonNum;
@@ -6964,8 +6990,8 @@ async function executeSeasonReset(guild, client, options = {}) {
   // 6. Buat pengumuman Season Reset
   const champText = championUser
     ? `🏆 **Juara Musim (Top 1 Koleksi Season ${prevSeasonNum}):** <@${championUser.userId}>\n` +
-      `• **Koleksi:** **${championUser.relicCount} Relik** & **${championUser.titleCount} Gelar**\n` +
-      `• **Skor Akhir:** **${championUser.score.toLocaleString()} Poin**\n` +
+      `• **Koleksi:** **${championUser.relicCount} Relik**\n` +
+      `• **Damage Boss Season:** **${(championUser.bossDamage || 0).toLocaleString()} DMG**\n` +
       `• **Hadiah Role:** ${roleTransferStatus}`
     : '_Tidak ada catatan juara pada musim lalu_';
 
@@ -6977,11 +7003,12 @@ async function executeSeasonReset(guild, client, options = {}) {
       `${champText}\n\n` +
       `**Pembersihan Musim Baru (Full Reset Ke 0):**\n` +
       `• **Relik Koleksi:** Direset menjadi **0** (${totalWipedRelics.toLocaleString()} relik dibersihkan)\n` +
+      `• **Damage World Boss:** Direset kembali ke **0 DMG** untuk musim baru\n` +
       `• **Role Tahta Discord:** Seluruh tahta kasta (<@&${gachaRoles.MYTHIC || ''}> & <@&${gachaRoles.LEGENDARY || ''}>) dicabut & tahta dikosongkan\n` +
       `• **Saldo Stardust:** Direset menjadi **0 Dust**\n` +
       `• **Saldo Tiket Gacha:** Direset menjadi **0 Tiket**\n` +
       `• **Pity Rate, Gelar, & Rekor Duel:** Direset kembali ke 0\n\n` +
-      `*Seluruh member memulai musim baru dari garis start yang sama (0 Relik, 0 Tiket, 0 Dust, 0 Tahta). Klaim hadiah harian di channel lounge untuk mengumpulkan kembali tiketmu dan rebut tahta di Season ${nextSeasonNum}!*`
+      `*Seluruh member memulai musim baru dari garis start yang sama (0 Relik, 0 Tiket, 0 Dust, 0 Tahta, 0 Damage Boss). Klaim hadiah harian di channel lounge untuk mengumpulkan kembali tiketmu dan rebut tahta di Season ${nextSeasonNum}!*`
     )
     .setFooter({ text: `${guild.name} • Season ${nextSeasonNum} Kickoff (WIB)` })
     .setTimestamp();
