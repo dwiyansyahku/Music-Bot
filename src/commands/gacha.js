@@ -1587,12 +1587,12 @@ async function applySmartGachaRole(guild, member, itemTier, userData, gachaData,
  * Hukuman Kekalahan Duel Tahta:
  * 1. Jika pihak yang kalah menduduki tahta (defender maupun challenger dengan role tahta aktif),
  *    maka role Discord dicopot dan activeRole dikosongkan (rolenya terhapus).
- * 2. Relik kartu terkait di inventaris dihapus (hangus), sehingga pemain wajib melakukan
- *    /gacha pull terlebih dahulu untuk memperoleh relik agar dapat duel kembali.
+ * 2. Tepat 1 (SATU) relik kartu terkait di inventaris dihapus (hangus), BUKAN seluruh relik.
+ *    Sisa koleksi relik tier tersebut tetap aman di tas pemain.
  * 3. Mengembalikan kursi yang dikosongkan (vacatedTier) agar antrean tahta terkait dapat diproses.
  */
 async function penalizeDuelLoser(guild, loserId, loserData, duelTier, client) {
-  if (!loserData) return { lostRole: false, lostRoleTier: null, lostRoleId: null, vacatedTier: null };
+  if (!loserData) return { lostRole: false, lostRoleTier: null, lostRoleId: null, vacatedTier: null, removedRelic: null };
 
   let vacatedTier = null;
   let lostRoleId = null;
@@ -1613,25 +1613,59 @@ async function penalizeDuelLoser(guild, loserId, loserData, duelTier, client) {
     }
 
     loserData.activeRole = null;
+  }
 
-    // Hapus seluruh relik tier tahta yang dicopot serta relik tier duel dari inventaris
-    loserData.inventory = (loserData.inventory || []).filter(name => {
-      const g = GACHA_ITEMS.find(it => it.name === name);
-      return !g || (g.tier !== lostRoleTier && g.tier !== duelTier);
-    });
-  } else {
-    // Penantang tidak memegang tahta (penantang murni tanpa kursi), hapus relik tier duel yang digunakan
-    loserData.inventory = (loserData.inventory || []).filter(name => {
-      const g = GACHA_ITEMS.find(it => it.name === name);
-      return !g || g.tier !== duelTier;
-    });
+  // Hapus HANYA 1 (SATU) relik tier terkait dari inventaris (bukan semua relik)
+  const targetTier = duelTier || lostRoleTier;
+  const inventory = Array.isArray(loserData.inventory) ? loserData.inventory : [];
+  let removedRelic = null;
+
+  if (targetTier) {
+    let targetIdx = -1;
+
+    // A. Prioritaskan relik yang sedang dipasang (equippedRelic) jika tier-nya cocok
+    if (loserData.equippedRelic) {
+      const eqItem = GACHA_ITEMS.find(g => g.name === loserData.equippedRelic || g.id === loserData.equippedRelic);
+      if (eqItem && (eqItem.tier === targetTier || (lostRoleTier && eqItem.tier === lostRoleTier))) {
+        targetIdx = inventory.indexOf(loserData.equippedRelic);
+      }
+    }
+
+    // B. Jika tidak ada yang dipasang atau tier berbeda, cari 1 relik pertama yang sesuai tier
+    if (targetIdx === -1) {
+      targetIdx = inventory.findIndex(name => {
+        const g = GACHA_ITEMS.find(it => it.name === name || it.id === name);
+        return g && g.tier === targetTier;
+      });
+    }
+
+    // C. Fallback: jika relik targetTier tidak ditemukan tapi ada relik lostRoleTier
+    if (targetIdx === -1 && lostRoleTier && lostRoleTier !== targetTier) {
+      targetIdx = inventory.findIndex(name => {
+        const g = GACHA_ITEMS.find(it => it.name === name || it.id === name);
+        return g && g.tier === lostRoleTier;
+      });
+    }
+
+    // D. Hapus TEPAT 1 (SATU) relik saja menggunakan splice agar sisa koleksi tetap aman
+    if (targetIdx !== -1) {
+      removedRelic = inventory[targetIdx];
+      inventory.splice(targetIdx, 1);
+      loserData.inventory = inventory;
+
+      // Jika relik yang terhapus kebetulan sedang dipasang, copot pemasangannya
+      if (loserData.equippedRelic === removedRelic) {
+        loserData.equippedRelic = null;
+      }
+    }
   }
 
   return {
     lostRole: !!lostRoleTier,
     lostRoleTier,
     lostRoleId,
-    vacatedTier
+    vacatedTier,
+    removedRelic
   };
 }
 
@@ -1992,7 +2026,7 @@ async function executeInstantClash(duelId, client) {
 
   if (challengerWins) {
     // Winner: Challenger, Loser: Defender
-    await penalizeDuelLoser(guild, duel.defenderId, defenderData, duel.itemTier, client);
+    const penalty = await penalizeDuelLoser(guild, duel.defenderId, defenderData, duel.itemTier, client);
     defenderData.stardust = (defenderData.stardust || 0) + 250;
     defenderData.duelDefenseStreak = 0;
 
@@ -2035,7 +2069,7 @@ async function executeInstantClash(duelId, client) {
     resultDesc = (
       `<@${duel.challengerId}> berhasil mengungguli <@${duel.defenderId}> dalam duel strategi.\n\n` +
       `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name} — Permanen)\n` +
-      `• Mantan Tahta: **<@${duel.defenderId}>** (Role dicopot, relik ${duel.itemTier} hangus, +250 Stardust)` +
+      `• Mantan Tahta: **<@${duel.defenderId}>** (Role dicopot, 1 relik ${penalty.removedRelic ? `**${penalty.removedRelic}**` : `**${duel.itemTier}**`} hangus, +250 Stardust)` +
       (previousChallengerRoleTier ? `\n• Kursi Lama: Kursi Tahta **${previousChallengerRoleTier}** milik <@${duel.challengerId}> kini kosong dan terbuka diperebutkan!` : '')
     );
   } else {
@@ -2064,9 +2098,9 @@ async function executeInstantClash(duelId, client) {
     resultTitle = `Tahta ${duel.itemTier} Berhasil Dipertahankan`;
     let challengerConsequence = '';
     if (penalty.lostRole) {
-      challengerConsequence = `\n• Penantang: <@${duel.challengerId}> kalah! Role Tahta <@&${penalty.lostRoleId}> (**${penalty.lostRoleTier}**) telah **dicopot** dan relik hangus. Tarik gacha kembali untuk mendapatkan relik baru agar dapat bertarung lagi!`;
+      challengerConsequence = `\n• Penantang: <@${duel.challengerId}> kalah! Role Tahta <@&${penalty.lostRoleId}> (**${penalty.lostRoleTier}**) telah **dicopot** dan 1 relik ${penalty.removedRelic ? `**${penalty.removedRelic}**` : `**${penalty.lostRoleTier || duel.itemTier}**`} hangus. Tarik gacha kembali untuk mendapatkan relik baru agar dapat bertarung lagi!`;
     } else {
-      challengerConsequence = `\n• Penantang: Relik **${duel.itemTier}** milik <@${duel.challengerId}> **hangus** akibat kekalahan. Tarik gacha kembali untuk mendapatkan relik baru agar dapat menantang lagi.`;
+      challengerConsequence = `\n• Penantang: 1 Relik ${penalty.removedRelic ? `**${penalty.removedRelic}**` : `**${duel.itemTier}**`} milik <@${duel.challengerId}> **hangus** akibat kekalahan. Tarik gacha kembali untuk mendapatkan relik baru agar dapat menantang lagi.`;
     }
 
     resultDesc = (
@@ -2655,7 +2689,7 @@ async function handleDuelForfeit(interaction, client, duelId) {
     challengerData.duelWins = (challengerData.duelWins || 0) + 1;
     defenderData.duelLosses = (defenderData.duelLosses || 0) + 1;
 
-    await penalizeDuelLoser(guild, duel.defenderId, defenderData, duel.itemTier, client);
+    const penalty = await penalizeDuelLoser(guild, duel.defenderId, defenderData, duel.itemTier, client);
     defenderData.stardust = (defenderData.stardust || 0) + 100;
     defenderData.duelDefenseStreak = 0;
 
@@ -2697,7 +2731,7 @@ async function handleDuelForfeit(interaction, client, duelId) {
     resultDesc = (
       `<@${duel.defenderId}> memutuskan untuk menyerah dalam duel tahta.\n\n` +
       `• Pemegang Tahta Baru: **<@${duel.challengerId}>** (${config.name} — Permanen)\n` +
-      `• Mantan Tahta: **<@${duel.defenderId}>** (Role dicopot, relik ${duel.itemTier} hangus, +100 Stardust)` +
+      `• Mantan Tahta: **<@${duel.defenderId}>** (Role dicopot, 1 relik ${penalty.removedRelic ? `**${penalty.removedRelic}**` : `**${duel.itemTier}**`} hangus, +100 Stardust)` +
       (previousChallengerRoleTier ? `\n• Kursi Lama: Kursi Tahta **${previousChallengerRoleTier}** milik <@${duel.challengerId}> kini kosong dan terbuka diperebutkan!` : '')
     );
   } else {
@@ -2718,9 +2752,9 @@ async function handleDuelForfeit(interaction, client, duelId) {
     resultTitle = `Tahta ${duel.itemTier} Dipertahankan (Penantang Menyerah)`;
     let challengerConsequence = '';
     if (penalty.lostRole) {
-      challengerConsequence = `\n• Penantang: <@${duel.challengerId}> menyerah! Role Tahta <@&${penalty.lostRoleId}> (**${penalty.lostRoleTier}**) telah **dicopot** dan relik hangus.`;
+      challengerConsequence = `\n• Penantang: <@${duel.challengerId}> menyerah! Role Tahta <@&${penalty.lostRoleId}> (**${penalty.lostRoleTier}**) telah **dicopot** dan 1 relik ${penalty.removedRelic ? `**${penalty.removedRelic}**` : `**${penalty.lostRoleTier || duel.itemTier}**`} hangus.`;
     } else {
-      challengerConsequence = `\n• Penantang: Relik **${duel.itemTier}** milik <@${duel.challengerId}> **hangus** akibat menyerah dari duel.`;
+      challengerConsequence = `\n• Penantang: 1 Relik ${penalty.removedRelic ? `**${penalty.removedRelic}**` : `**${duel.itemTier}**`} milik <@${duel.challengerId}> **hangus** akibat menyerah dari duel.`;
     }
 
     resultDesc = (
@@ -7443,6 +7477,24 @@ module.exports = {
         .addBooleanOption(opt =>
           opt.setName('force').setDescription('Paksa reset sekarang meskipun belum tanggal 1').setRequired(false)
         )
+    )
+    // Subcommand: giverelic (Admin Berikan / Pulihkan Relik Spesifik ke Member)
+    .addSubcommand(sub =>
+      sub
+        .setName('giverelic')
+        .setDescription('Berikan atau pulihkan relik spesifik ke inventaris member (Admin Only)')
+        .addUserOption(opt =>
+          opt
+            .setName('user')
+            .setDescription('Member target yang ingin diberikan/dipulihkan reliknya')
+            .setRequired(true)
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('relic')
+            .setDescription('Nama relik (misal: Cosmic Aegis of Infinity / Aura of the Celestial Dragon)')
+            .setRequired(true)
+        )
     ),
 
   // Export internal helpers for interactionCreate and ready.js
@@ -8209,6 +8261,88 @@ module.exports = {
           (stardustToAdd > 0 ? `• Stardust: +${stardustToAdd}\n` : '') +
           `• Alasan: ${reason}`
       });
+
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    // === SUBCOMMAND: GIVERELIC (Admin Berikan / Pulihkan Relik Spesifik ke Member) ===
+    if (sub === 'giverelic') {
+      const isAuthorized = await isOwnerOrMod(interaction, client);
+      if (!isAuthorized) {
+        return interaction.reply({
+          content: 'Perintah ini hanya bisa digunakan oleh **Owner Bot** atau **Moderator/Admin**.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const targetUser = interaction.options.getUser('user');
+      const relicInput = (interaction.options.getString('relic') || '').trim();
+
+      const relicObj = GACHA_ITEMS.find(g =>
+        g.name.toLowerCase() === relicInput.toLowerCase() ||
+        (g.id && g.id.toLowerCase() === relicInput.toLowerCase()) ||
+        g.name.toLowerCase().includes(relicInput.toLowerCase())
+      );
+
+      if (!relicObj) {
+        return interaction.reply({
+          content: `Relik \`${relicInput}\` tidak ditemukan dalam katalog relik server.\nContoh relik Mythic: \`Cosmic Aegis of Infinity\`, \`Aura of the Celestial Dragon\`, \`Genesis Vinyl of Eternity\`, \`Sabit Kematian Gerhana Kosmik\`, \`Bulu Phoenix Abadi Surya\`.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const gachaData = storage.read('gacha_data');
+      const userData = getOrInitUserData(gachaData, guildId, targetUser.id);
+
+      if (!Array.isArray(userData.inventory)) userData.inventory = [];
+      const alreadyHas = userData.inventory.includes(relicObj.name);
+
+      if (alreadyHas) {
+        return interaction.reply({
+          content: `<@${targetUser.id}> sudah memiliki relik **${relicObj.name}** di inventarisnya.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      userData.inventory.push(relicObj.name);
+
+      // Buka badge & title jika ada
+      if (relicObj.badge && !userData.badges.includes(relicObj.badge)) {
+        userData.badges.push(relicObj.badge);
+      }
+      if (relicObj.title && !userData.titles.includes(relicObj.title)) {
+        userData.titles.push(relicObj.title);
+      }
+
+      storage.write('gacha_data', gachaData);
+
+      // Auto-update live leaderboard jika ada perubahan relik
+      try {
+        const { updateLiveLeaderboardChannel } = require('../utils/dungeonBoss');
+        if (updateLiveLeaderboardChannel) {
+          await updateLiveLeaderboardChannel(interaction.guild, client).catch(() => {});
+        }
+      } catch (_) {}
+
+      // Log ke Mod Log
+      await sendModLog(interaction.guild, client, {
+        action: 'GACHA_GIVERELIC',
+        moderator: interaction.user,
+        details: `Admin memberikan/memulihkan relik ke <@${targetUser.id}>: **${relicObj.name}** [Tier ${relicObj.tier}]`
+      });
+
+      const embed = new EmbedBuilder()
+        .setColor(relicObj.tier === 'MYTHIC' ? 0xFF007F : relicObj.tier === 'LEGENDARY' ? 0xFEE75C : 0x57F287)
+        .setTitle('Relik Berhasil Diberikan / Dipulihkan')
+        .setDescription(
+          `Admin <@${interaction.user.id}> telah berhasil menambahkan relik ke inventaris <@${targetUser.id}>!\n\n` +
+          `• **Nama Relik:** **${relicObj.name}** \`[Tier ${relicObj.tier}]\`\n` +
+          (relicObj.title ? `• **Gelar Dibuka:** \`${relicObj.title}\`\n` : '') +
+          (relicObj.badge ? `• **Lencana Dibuka:** \`${relicObj.badge}\`\n` : '') +
+          `\n**Total Relik di Inventaris <@${targetUser.id}>:** **${userData.inventory.length} Item**`
+        )
+        .setFooter({ text: `${interaction.guild.name} • Admin Item Management` })
+        .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });
     }
