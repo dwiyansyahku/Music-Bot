@@ -441,6 +441,7 @@ async function handleMessageStreak(message, client = null) {
 
   const authorId = message.author.id;
   const streaks = getAllStreaks();
+  let ignitedCount = 0;
 
   for (const [mentionedId, targetUser] of message.mentions.users.entries()) {
     if (mentionedId === authorId || targetUser.bot) continue;
@@ -523,10 +524,10 @@ async function handleMessageStreak(message, client = null) {
       console.warn('[Streak] Gagal mengirim banner:', err.message);
     });
 
-    return { success: true, streak };
+    ignitedCount++;
   }
 
-  return null;
+  return ignitedCount > 0 ? { success: true } : null;
 }
 
 /**
