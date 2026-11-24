@@ -279,13 +279,13 @@ function buildStreakLeaderboardEmbed(guildId) {
   });
 
   const tzInfo = getTimezoneInfo();
-  const top15 = allStreaks.slice(0, 15);
+  const top10 = allStreaks.slice(0, 10);
 
   let listText = '';
-  if (top15.length === 0) {
+  if (top10.length === 0) {
     listText = '*Belum ada pasangan streak terdaftar di server ini. Ketik `/streak ajak @partner` untuk memulai!*';
   } else {
-    listText = top15.map((s, idx) => {
+    listText = top10.map((s, idx) => {
       const days = s.status === 'active' ? (s.streakCount || 0) : (s.previousStreakCount || s.streakCount || 0);
       const tier = getStreakTier(days);
       const isLitToday = s.lastLitDate === tzInfo.todayStr;
@@ -314,7 +314,7 @@ function buildStreakLeaderboardEmbed(guildId) {
     .setColor('#F59E0B')
     .setTitle('✦ PAPAN KLASEMEN FLAME STREAK ✦')
     .setDescription(
-      `🏆 **KONEKSI STREAK TERTINGGI SERVER**\n` +
+      `🏆 **TOP 10 KONEKSI STREAK TERTINGGI SERVER**\n` +
       `*Nyalakan api setiap hari dengan saling chat & balas di channel teks server!*\n\n` +
       `${listText}\n\n` +
       `────────────────────────────────\n` +
