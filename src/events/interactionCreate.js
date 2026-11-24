@@ -1110,5 +1110,87 @@ module.exports = {
       }
       return;
     }
+
+    // ====== Streak Partner Invitation Buttons ======
+    if (interaction.isButton() && (interaction.customId.startsWith('streak_accept_') || interaction.customId.startsWith('streak_decline_'))) {
+      const { acceptInvite, declineInvite, getStreak } = require('../utils/streakHelper');
+      const isAccept = interaction.customId.startsWith('streak_accept_');
+      const pairKey = interaction.customId.replace(isAccept ? 'streak_accept_' : 'streak_decline_', '');
+
+      if (isAccept) {
+        const res = acceptInvite(pairKey, interaction.user.id);
+        if (!res.success) {
+          if (res.reason === 'CANNOT_ACCEPT_OWN') {
+            return interaction.reply({ content: 'Kamu tidak bisa menerima undangan yang kamu buat sendiri.', flags: MessageFlags.Ephemeral });
+          }
+          if (res.reason === 'ALREADY_ACTIVE') {
+            return interaction.reply({ content: 'Streak ini sudah aktif.', flags: MessageFlags.Ephemeral });
+          }
+          return interaction.reply({ content: 'Undangan streak sudah tidak valid atau kedaluwarsa.', flags: MessageFlags.Ephemeral });
+        }
+
+        const streak = res.streak;
+        return interaction.update({
+          content: `<@${streak.user1Id}> <@${streak.user2Id}>`,
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#10B981')
+              .setDescription(
+                `✦ **Koneksi Streak Resmi Dimulai**\n` +
+                `<@${interaction.user.id}> telah menerima undangan streak dari <@${streak.invitedBy}>!\n\n` +
+                `> Zona Waktu: **${streak.timezone || 'WIB'}**\n` +
+                `> Cara Menyalakan: Kirim pesan di channel teks dengan menge-tag partner kamu setiap hari sebelum pukul 00:00.`
+              )
+          ],
+          components: []
+        });
+      } else {
+        declineInvite(pairKey);
+        return interaction.update({
+          content: 'Undangan streak telah ditolak atau dibatalkan.',
+          embeds: [],
+          components: []
+        });
+      }
+    }
+
+    // ====== Streak Revive Button ======
+    if (interaction.isButton() && interaction.customId.startsWith('streak_revive_')) {
+      const { reviveStreak } = require('../utils/streakHelper');
+      const { AttachmentBuilder } = require('discord.js');
+      const pairKey = interaction.customId.replace('streak_revive_', '');
+
+      await interaction.deferUpdate();
+
+      const res = await reviveStreak(pairKey, interaction.user.id, interaction.guild, client);
+      if (!res.success) {
+        if (res.reason === 'NOT_PARTNER') {
+          return interaction.followUp({ content: 'Hanya pasangan streak yang bersangkutan yang dapat memulihkan streak ini.', flags: MessageFlags.Ephemeral });
+        }
+        if (res.reason === 'NO_REVIVES_LEFT') {
+          return interaction.followUp({ content: 'Kuota pemulihan bulan ini sudah habis (0/5).', flags: MessageFlags.Ephemeral });
+        }
+        return interaction.followUp({ content: 'Gagal memulihkan streak atau streak sudah aktif kembali.', flags: MessageFlags.Ephemeral });
+      }
+
+      const attachment = new AttachmentBuilder(res.bannerBuffer, { name: `streak_revived.png` });
+      return interaction.editReply({
+        content: `<@${res.streak.user1Id}> <@${res.streak.user2Id}>`,
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#10B981')
+            .setDescription(
+              `✦ **Api Streak Berhasil Dihidupkan Kembali!**\n` +
+              `<@${interaction.user.id}> telah memulihkan streak ini menggunakan 1 kuota pemulihan bulanan.\n\n` +
+              `> Dikembalikan ke: **Hari ke-${res.restoredDays}**\n` +
+              `> Sisa Kuota Bulan Ini: **${res.revivesLeft}/5 Kali**\n` +
+              `> 🎁 Reward: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha**!`
+            )
+            .setImage(`attachment://streak_revived.png`)
+        ],
+        files: [attachment],
+        components: []
+      });
+    }
   },
 };

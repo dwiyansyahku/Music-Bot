@@ -92,6 +92,14 @@ module.exports = {
       }
     }
 
+    // ====== TIKTOK FLAME STREAK SYSTEM — Text Channel Tag Ignition ======
+    try {
+      const { handleMessageStreak } = require('../utils/streakHelper');
+      await handleMessageStreak(message, client);
+    } catch (streakErr) {
+      console.warn('[Streak Message] Error:', streakErr.message);
+    }
+
     // ====== CURATED GALLERY SYSTEM: MULTI-SALURAN (INPUT 1 CHANNEL: FOTO & VIDEO, OUTPUT TERPISAH) ======
     try {
       const gallerySettings = storage.read('settings') || {};

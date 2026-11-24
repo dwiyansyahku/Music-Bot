@@ -48,6 +48,16 @@ module.exports = {
     }
 
     // =============================================
+    // TIKTOK FLAME STREAK LEADERBOARD CHANNEL INIT
+    // =============================================
+    try {
+      const { updateLiveStreakLeaderboard } = require('../utils/streakHelper');
+      updateLiveStreakLeaderboard(client).catch(() => {});
+    } catch (stkErr) {
+      console.warn('⚠️ [Streak Leaderboard Startup] Gagal inisialisasi:', stkErr.message);
+    }
+
+    // =============================================
     // AUTO-RECONNECT 24/7 VOICE CHANNELS
     // =============================================
     try {
@@ -150,6 +160,14 @@ module.exports = {
       // Key menyertakan tanggal agar setiap hari dianggap unik (bukan hanya jam:menit)
       const currentTimeKey = `${currentYear}-${currentMonth}-${currentDay} ${currentHour}:${String(currentMinute).padStart(2, '0')}`;
       const birthdayKey = `${currentDay}-${currentMonth}`;
+
+      // ====== TIKTOK FLAME STREAK SCHEDULER (22:00 Reminder & 00:00 Rollover) ======
+      try {
+        const { checkStreakScheduler } = require('../utils/streakHelper');
+        await checkStreakScheduler(client);
+      } catch (stErr) {
+        console.warn('[ready] Gagal memeriksa scheduler streak:', stErr.message);
+      }
 
       // ====== 1. MORNING SCHEDULER ======
       for (const [guildId, config] of client.morningSettings.entries()) {
