@@ -336,7 +336,7 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   ctx.fillText(`@${displayTag}`, textX, y + 52);
 
   // Chat Count Badge (Berapa kali sudah chat di discord)
-  const chatPillW = 135;
+  const chatPillW = 130;
   const chatPillH = 22;
   drawRoundedRect(ctx, textX, y + 62, chatPillW, chatPillH, 11);
   ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
@@ -345,10 +345,10 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.font = '700 10px "Segoe UI", sans-serif';
+  ctx.font = '700 11px "Segoe UI", sans-serif';
   ctx.fillStyle = '#60A5FA';
   const chatCount = user.chatCount !== undefined ? user.chatCount : 0;
-  ctx.fillText(`💬 ${chatCount.toLocaleString('id-ID')} Chat di Server`, textX + 12, y + 77);
+  ctx.fillText(`${chatCount.toLocaleString('id-ID')} Chat di Server`, textX + 14, y + 77);
 
   ctx.restore();
 }
@@ -534,7 +534,7 @@ async function generateStreakBanner({
     ctx.textAlign = 'center';
     ctx.font = '800 12px "Segoe UI", sans-serif';
     ctx.fillStyle = '#FDE68A';
-    ctx.fillText(`★ MILESTONE SPESIAL: RESMI MENCAPAI ${days} HARI STREAK ★`, width / 2, mbY + 21);
+    ctx.fillText(`MILESTONE SPESIAL: RESMI MENCAPAI ${days} HARI STREAK`, width / 2, mbY + 21);
     ctx.restore();
   }
 
