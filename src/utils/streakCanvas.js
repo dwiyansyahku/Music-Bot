@@ -1,8 +1,46 @@
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
+const fs = require('fs');
+
+// Daftarkan font sistem Windows untuk mendukung semua jenis font, simbol, dan unicode
+if (typeof GlobalFonts !== 'undefined' && GlobalFonts.registerFromPath) {
+  const systemFonts = [
+    'C:\\Windows\\Fonts\\seguisym.ttf', // Segoe UI Symbol (Simbol, Karakter Unik, Dingbats)
+    'C:\\Windows\\Fonts\\seguiemj.ttf', // Segoe UI Emoji (Emoji)
+    'C:\\Windows\\Fonts\\seguihis.ttf', // Segoe UI Historic
+    'C:\\Windows\\Fonts\\cambria.ttc',  // Cambria Math (Simbol Matematika)
+    'C:\\Windows\\Fonts\\arial.ttf',    // Arial
+    'C:\\Windows\\Fonts\\msyh.ttc',     // Microsoft YaHei (Asia Timur / CJK)
+    'C:\\Windows\\Fonts\\malgun.ttf'    // Malgun Gothic (Korea)
+  ];
+  for (const fp of systemFonts) {
+    if (fs.existsSync(fp)) {
+      try {
+        GlobalFonts.registerFromPath(fp);
+      } catch (_) {}
+    }
+  }
+}
+
+// Rantai font fallback lengkap agar support semua teks, simbol, dan font estetik
+const FONT_FALLBACK = '"Segoe UI", "Segoe UI Symbol", "Segoe UI Emoji", "Segoe UI Historic", "Cambria Math", "Microsoft YaHei", "Arial", sans-serif';
+
+/**
+ * Normalisasi nama pengguna agar font estetik / fancy text generator (seperti font gothic, cursive,
+ * bold math symbols) dapat ter-render 100% sempurna tanpa kotak tofu (0000 00...).
+ */
+function formatDisplayName(name, maxLen = 18) {
+  if (!name) return 'Partner';
+  // Decompose unicode mathematical symbols & decorative scripts ke huruf alfabet aslinya
+  let cleaned = name.normalize('NFKD');
+  cleaned = cleaned.replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim();
+  if (!cleaned) return 'Partner';
+  // Gunakan Array.from agar pemotongan string aman untuk surrogate pairs & unicode graphemes
+  const chars = Array.from(cleaned);
+  return chars.length > maxLen ? chars.slice(0, maxLen - 1).join('') + '…' : cleaned;
+}
 
 /**
  * 7 Tingkatan (Tiers) Evolusi Api Streak
- * Dirancang elegan dengan palet warna mewah, bukan warna mencolok/norak.
  */
 const STREAK_TIERS = [
   {
@@ -311,9 +349,11 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   if (!avatarLoaded) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '700 32px "Segoe UI", sans-serif';
+    ctx.font = `700 32px ${FONT_FALLBACK}`;
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText((user.name || 'U').charAt(0).toUpperCase(), avatarCenter.x, avatarCenter.y);
+    const cleanName = formatDisplayName(user.name || 'U', 30);
+    const initChar = (cleanName || 'U').charAt(0).toUpperCase();
+    ctx.fillText(initChar, avatarCenter.x, avatarCenter.y);
   }
 
   // Nama User & Username Tag
@@ -321,21 +361,19 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 
-  // Display Name
-  ctx.font = '700 20px "Segoe UI", sans-serif';
+  // Display Name (Dengan font fallback + normalisasi fancy font)
+  ctx.font = `700 20px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#F0F6FC';
-  const rawName = user.name || 'Partner';
-  const displayName = rawName.length > 14 ? rawName.slice(0, 13) + '…' : rawName;
+  const displayName = formatDisplayName(user.name || 'Partner', 18);
   ctx.fillText(displayName, textX, y + 32);
 
   // Username Tag
-  ctx.font = '500 13px "Segoe UI", sans-serif';
+  ctx.font = `500 13px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#8B949E';
-  const rawTag = user.tag || 'user';
-  const displayTag = rawTag.length > 15 ? rawTag.slice(0, 14) + '…' : rawTag;
+  const displayTag = formatDisplayName(user.tag || 'user', 18);
   ctx.fillText(`@${displayTag}`, textX, y + 52);
 
-  // Chat Count Badge (Berapa kali sudah chat di discord)
+  // Chat Count Badge
   const chatPillW = 130;
   const chatPillH = 22;
   drawRoundedRect(ctx, textX, y + 62, chatPillW, chatPillH, 11);
@@ -345,7 +383,7 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.font = '700 11px "Segoe UI", sans-serif';
+  ctx.font = `700 11px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#60A5FA';
   const chatCount = user.chatCount !== undefined ? user.chatCount : 0;
   ctx.fillText(`${chatCount.toLocaleString('id-ID')} Chat di Server`, textX + 14, y + 77);
@@ -355,16 +393,6 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
 
 /**
  * Generator Utama: Render Banner Streak Lebar Maksimal Resolusi Discord (1280 x 520 px)
- *
- * @param {Object} options
- * @param {number} options.days - Jumlah hari streak aktif
- * @param {Object} options.user1 - Data user 1 { name, tag, avatarUrl, chatCount }
- * @param {Object} options.user2 - Data user 2 { name, tag, avatarUrl, chatCount }
- * @param {number} options.totalPairChats - Total pesan obrolan bersama di server
- * @param {string} options.timezone - WIB
- * @param {string} options.statusText - Label status di kanan bawah
- * @param {boolean} options.isMilestone - Apakah mencapai milestone spesial
- * @returns {Promise<Buffer>} PNG Buffer
  */
 async function generateStreakBanner({
   days = 1,
@@ -375,7 +403,6 @@ async function generateStreakBanner({
   statusText = 'AKTIF • HARI INI MENYALA',
   isMilestone = false
 } = {}) {
-  // Ukuran lebar & tinggi maksimal tampilan banner chat Discord
   const width = 1280;
   const height = 520;
   const canvas = createCanvas(width, height);
@@ -435,7 +462,7 @@ async function generateStreakBanner({
   ctx.save();
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8B949E';
-  ctx.font = '700 12px "Segoe UI", sans-serif';
+  ctx.font = `700 12px ${FONT_FALLBACK}`;
   ctx.fillText('FLAME STREAK SYSTEM  •  KONEKSI HARIAN RESMI', width / 2, margin + 34);
   ctx.restore();
 
@@ -447,7 +474,7 @@ async function generateStreakBanner({
   ctx.textAlign = 'center';
 
   // Day count number (Besar & Tebal 58px)
-  ctx.font = '800 58px "Segoe UI", sans-serif';
+  ctx.font = `800 58px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#FFFFFF';
   ctx.shadowColor = tier.color;
   ctx.shadowBlur = 16;
@@ -455,7 +482,7 @@ async function generateStreakBanner({
   ctx.shadowBlur = 0;
 
   // "HARI BERTURUT-TURUT" Label
-  ctx.font = '700 12px "Segoe UI", sans-serif';
+  ctx.font = `700 12px ${FONT_FALLBACK}`;
   ctx.fillStyle = tier.color;
   ctx.fillText('HARI BERTURUT-TURUT', width / 2, height / 2 + 75);
 
@@ -473,7 +500,7 @@ async function generateStreakBanner({
   ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  ctx.font = '700 12px "Segoe UI", sans-serif';
+  ctx.font = `700 12px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#FFFFFF';
   ctx.fillText(`${tier.tierLabel} • ${tier.name}`, width / 2, pillY + 20);
   ctx.restore();
@@ -502,11 +529,11 @@ async function generateStreakBanner({
       ctx.fill();
     }
 
-    ctx.font = '500 11px "Segoe UI", sans-serif';
+    ctx.font = `500 11px ${FONT_FALLBACK}`;
     ctx.fillStyle = '#8B949E';
     ctx.fillText(`${days}/${targetDays} Hari menuju Tier Berikutnya`, width / 2, progY + 20);
   } else {
-    ctx.font = '500 11px "Segoe UI", sans-serif';
+    ctx.font = `500 11px ${FONT_FALLBACK}`;
     ctx.fillStyle = tier.color;
     ctx.fillText('TINGKAT MAKSIMAL TERCAPAI', width / 2, pillY + 45);
   }
@@ -532,7 +559,7 @@ async function generateStreakBanner({
     ctx.stroke();
 
     ctx.textAlign = 'center';
-    ctx.font = '800 12px "Segoe UI", sans-serif';
+    ctx.font = `800 12px ${FONT_FALLBACK}`;
     ctx.fillStyle = '#FDE68A';
     ctx.fillText(`MILESTONE SPESIAL: RESMI MENCAPAI ${days} HARI STREAK`, width / 2, mbY + 21);
     ctx.restore();
@@ -573,7 +600,7 @@ async function generateStreakBanner({
   // 11. Bottom Information Bar
   const bottomY = height - margin - 22;
   ctx.save();
-  ctx.font = '600 12px "Segoe UI", sans-serif';
+  ctx.font = `600 12px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#8B949E';
 
   // Left: Total Obrolan di Discord
@@ -593,6 +620,8 @@ async function generateStreakBanner({
 module.exports = {
   STREAK_TIERS,
   STREAK_MILESTONES,
+  FONT_FALLBACK,
+  formatDisplayName,
   isMilestoneDay,
   getStreakTier,
   generateStreakBanner

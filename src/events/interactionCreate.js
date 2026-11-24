@@ -1113,41 +1113,67 @@ module.exports = {
 
     // ====== Streak Partner Invitation Buttons ======
     if (interaction.isButton() && (interaction.customId.startsWith('streak_accept_') || interaction.customId.startsWith('streak_decline_'))) {
-      const { acceptInvite, declineInvite, getStreak } = require('../utils/streakHelper');
+      const { acceptInvite, declineInvite, getAllStreaks } = require('../utils/streakHelper');
       const isAccept = interaction.customId.startsWith('streak_accept_');
       const pairKey = interaction.customId.replace(isAccept ? 'streak_accept_' : 'streak_decline_', '');
 
+      const streaks = getAllStreaks();
+      const streak = streaks[pairKey];
+
+      if (!streak || streak.status !== 'pending') {
+        return interaction.reply({
+          content: '❌ Undangan streak sudah tidak valid atau kedaluwarsa.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const targetUserId = streak.targetUserId || (streak.invitedBy === streak.user1Id ? streak.user2Id : streak.user1Id);
+
       if (isAccept) {
+        // Tombol Terima: HANYA orang yang diajak / diundang yang dapat mengakses
+        if (interaction.user.id !== targetUserId) {
+          if (interaction.user.id === streak.invitedBy) {
+            return interaction.reply({
+              content: '❌ Kamu tidak bisa menerima undangan yang kamu buat sendiri. Tunggu partner kamu merespons.',
+              flags: MessageFlags.Ephemeral
+            });
+          }
+          return interaction.reply({
+            content: `❌ Tombol ini hanya bisa diakses oleh orang yang diajak/diundang (<@${targetUserId}>).`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
         const res = acceptInvite(pairKey, interaction.user.id);
         if (!res.success) {
-          if (res.reason === 'CANNOT_ACCEPT_OWN') {
-            return interaction.reply({ content: 'Kamu tidak bisa menerima undangan yang kamu buat sendiri.', flags: MessageFlags.Ephemeral });
-          }
           if (res.reason === 'ALREADY_ACTIVE') {
             return interaction.reply({ content: 'Streak ini sudah aktif.', flags: MessageFlags.Ephemeral });
           }
           return interaction.reply({ content: 'Undangan streak sudah tidak valid atau kedaluwarsa.', flags: MessageFlags.Ephemeral });
         }
 
-        const streak = res.streak;
         return interaction.update({
-          content: `<@${streak.user1Id}> <@${streak.user2Id}>`,
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#10B981')
-              .setDescription(
-                `✦ **Koneksi Streak Resmi Dimulai**\n` +
-                `<@${interaction.user.id}> telah menerima undangan streak dari <@${streak.invitedBy}>!\n\n` +
-                `> Zona Waktu: **${streak.timezone || 'WIB'}**\n` +
-                `> Cara Menyalakan: Kirim pesan di channel teks dengan menge-tag partner kamu setiap hari sebelum pukul 00:00.`
-              )
-          ],
+          content:
+            `✦ **Koneksi Streak Resmi Dimulai!**\n` +
+            `<@${interaction.user.id}> telah menerima undangan streak dari <@${streak.invitedBy}>!\n\n` +
+            `> Waktu Reset: Pukul **00:00 WIB**\n` +
+            `> Cara Menyalakan: Kirim pesan di channel teks dengan menge-tag / me-reply partner kamu setiap hari!`,
+          embeds: [],
           components: []
         });
       } else {
-        declineInvite(pairKey);
+        // Tombol Tolak: Hanya bisa diakses oleh target user atau pengundang yang ingin membatalkan
+        if (interaction.user.id !== targetUserId && interaction.user.id !== streak.invitedBy) {
+          return interaction.reply({
+            content: `❌ Tombol ini hanya bisa diakses oleh <@${targetUserId}> atau pengundang.`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        declineInvite(pairKey, interaction.user.id);
+        const actionLabel = interaction.user.id === streak.invitedBy ? 'dibatalkan oleh pengundang' : 'ditolak';
         return interaction.update({
-          content: 'Undangan streak telah ditolak atau dibatalkan.',
+          content: `Undangan streak telah ${actionLabel}.`,
           embeds: [],
           components: []
         });
@@ -1174,21 +1200,18 @@ module.exports = {
       }
 
       const attachment = new AttachmentBuilder(res.bannerBuffer, { name: `streak_revived.png` });
+      const reviveContent =
+        `<@${res.streak.user1Id}> <@${res.streak.user2Id}>\n\n` +
+        `✦ **Api Streak Berhasil Dihidupkan Kembali!**\n` +
+        `<@${interaction.user.id}> telah memulihkan streak ini menggunakan 1 kuota pemulihan bulanan.\n\n` +
+        `> Dikembalikan ke: **Hari ke-${res.restoredDays}**\n` +
+        `> Sisa Kuota Bulan Ini: **${res.revivesLeft}/5 Kali**\n` +
+        `> 🎁 Reward: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha**!`;
+
       return interaction.editReply({
-        content: `<@${res.streak.user1Id}> <@${res.streak.user2Id}>`,
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#10B981')
-            .setDescription(
-              `✦ **Api Streak Berhasil Dihidupkan Kembali!**\n` +
-              `<@${interaction.user.id}> telah memulihkan streak ini menggunakan 1 kuota pemulihan bulanan.\n\n` +
-              `> Dikembalikan ke: **Hari ke-${res.restoredDays}**\n` +
-              `> Sisa Kuota Bulan Ini: **${res.revivesLeft}/5 Kali**\n` +
-              `> 🎁 Reward: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha**!`
-            )
-            .setImage(`attachment://streak_revived.png`)
-        ],
+        content: reviveContent,
         files: [attachment],
+        embeds: [],
         components: []
       });
     }

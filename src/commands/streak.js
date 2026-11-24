@@ -209,23 +209,20 @@ module.exports = {
 
       const totalChats = (streak.totalPairMessages || 0).toLocaleString('id-ID');
 
-      const embed = new EmbedBuilder()
-        .setColor(streak.status === 'broken' ? '#EF4444' : tier.color)
-        .setDescription(
-          `✦ **Kartu Status Streak**\n` +
-          `Pasangan: <@${streak.user1Id}> & <@${streak.user2Id}>\n` +
-          `Status Api: **${streak.status === 'broken' ? 'Padam (Dapat Dipulihkan)' : isLitToday ? 'Menyala Hari Ini' : streak.todayInitiatorId ? 'Menunggu Balasan Partner' : 'Belum Menyala Hari Ini'}**\n` +
-          `Tingkatan: **${tier.tierLabel} • ${tier.name}** (${currentDisplayDays} Hari)\n` +
-          `Rekor Tertinggi: **${streak.highestStreak || currentDisplayDays} Hari**\n` +
-          `Total Obrolan: **${totalChats} Pesan di Discord**\n` +
-          `Kuota Pemulihan Bulan Ini: **${revivesLeft}/5 Kali**\n` +
-          `Waktu Reset: Pukul **00:00 WIB**`
-        )
-        .setImage(`attachment://streak_card.png`);
+      const statusContent =
+        `✦ **Kartu Status Streak**\n` +
+        `Pasangan: <@${streak.user1Id}> & <@${streak.user2Id}>\n` +
+        `Status Api: **${streak.status === 'broken' ? 'Padam (Dapat Dipulihkan)' : isLitToday ? 'Menyala Hari Ini' : streak.todayInitiatorId ? 'Menunggu Balasan Partner' : 'Belum Menyala Hari Ini'}**\n` +
+        `Tingkatan: **${tier.tierLabel} • ${tier.name}** (${currentDisplayDays} Hari)\n` +
+        `Rekor Tertinggi: **${streak.highestStreak || currentDisplayDays} Hari**\n` +
+        `Total Obrolan: **${totalChats} Pesan di Discord**\n` +
+        `Kuota Pemulihan Bulan Ini: **${revivesLeft}/5 Kali**\n` +
+        `Waktu Reset: Pukul **00:00 WIB**`;
 
       return interaction.editReply({
-        embeds: [embed],
-        files: [attachment]
+        content: statusContent,
+        files: [attachment],
+        embeds: []
       });
     }
 
@@ -269,21 +266,18 @@ module.exports = {
       const tier = getStreakTier(res.restoredDays);
       const attachment = new AttachmentBuilder(res.bannerBuffer, { name: `streak_restored.png` });
 
-      const embed = new EmbedBuilder()
-        .setColor(tier.color)
-        .setDescription(
-          `✦ **Api Streak Berhasil Dihidupkan Kembali!**\n` +
-          `<@${inviter.id}> telah memulihkan streak bersama <@${streak.user1Id === inviter.id ? streak.user2Id : streak.user1Id}>!\n\n` +
-          `> Streak Dikembalikan: **Hari ke-${res.restoredDays}**\n` +
-          `> Tingkatan: **${tier.tierLabel} • ${tier.name}**\n` +
-          `> Sisa Kuota Pemulihan Bulan Ini: **${res.revivesLeft}/5 Kali**\n` +
-          `> 🎁 Reward Pemulihan: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha** untuk kamu!`
-        )
-        .setImage(`attachment://streak_restored.png`);
+      const restoreContent =
+        `✦ **Api Streak Berhasil Dihidupkan Kembali!**\n` +
+        `<@${inviter.id}> telah memulihkan streak bersama <@${streak.user1Id === inviter.id ? streak.user2Id : streak.user1Id}>!\n\n` +
+        `> Streak Dikembalikan: **Hari ke-${res.restoredDays}**\n` +
+        `> Tingkatan: **${tier.tierLabel} • ${tier.name}**\n` +
+        `> Sisa Kuota Pemulihan Bulan Ini: **${res.revivesLeft}/5 Kali**\n` +
+        `> 🎁 Reward Pemulihan: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha** untuk kamu!`;
 
       return interaction.editReply({
-        embeds: [embed],
-        files: [attachment]
+        content: restoreContent,
+        files: [attachment],
+        embeds: []
       });
     }
 

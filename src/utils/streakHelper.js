@@ -167,6 +167,7 @@ function createInvite({ guildId, inviterId, targetId, channelId = null }) {
     guildId,
     user1Id: inviterId,
     user2Id: targetId,
+    targetUserId: targetId,
     timezone: 'WIB',
     streakCount: 0,
     previousStreakCount: 0,
@@ -201,8 +202,14 @@ function acceptInvite(pairKey, acceptingUserId) {
   if (!streak) return { success: false, reason: 'NOT_FOUND' };
   if (streak.status === 'active') return { success: false, reason: 'ALREADY_ACTIVE' };
 
-  if (streak.invitedBy === acceptingUserId) {
-    return { success: false, reason: 'CANNOT_ACCEPT_OWN' };
+  const targetUserId = streak.targetUserId || (streak.invitedBy === streak.user1Id ? streak.user2Id : streak.user1Id);
+
+  // Verifikasi hanya orang yang diajak / diundang yang boleh menerima
+  if (acceptingUserId !== targetUserId) {
+    if (streak.invitedBy === acceptingUserId) {
+      return { success: false, reason: 'CANNOT_ACCEPT_OWN', targetUserId };
+    }
+    return { success: false, reason: 'NOT_INVITED_USER', targetUserId };
   }
 
   const tzInfo = getTimezoneInfo();
@@ -228,14 +235,19 @@ function acceptInvite(pairKey, acceptingUserId) {
 /**
  * Tolak atau batalkan undangan streak
  */
-function declineInvite(pairKey) {
+function declineInvite(pairKey, userId = null) {
   const streaks = getAllStreaks();
-  if (streaks[pairKey] && streaks[pairKey].status === 'pending') {
-    delete streaks[pairKey];
-    saveAllStreaks(streaks);
-    return { success: true };
+  const streak = streaks[pairKey];
+  if (!streak || streak.status !== 'pending') return { success: false, reason: 'NOT_FOUND' };
+
+  const targetUserId = streak.targetUserId || (streak.invitedBy === streak.user1Id ? streak.user2Id : streak.user1Id);
+  if (userId && userId !== targetUserId && userId !== streak.invitedBy) {
+    return { success: false, reason: 'UNAUTHORIZED', targetUserId };
   }
-  return { success: false };
+
+  delete streaks[pairKey];
+  saveAllStreaks(streaks);
+  return { success: true, targetUserId, invitedBy: streak.invitedBy };
 }
 
 /**
@@ -591,43 +603,35 @@ async function handleMessageStreak(message, client = null) {
       const attachment = new AttachmentBuilder(bannerBuffer, { name: `streak_${streak.streakCount}d.png` });
 
       // ============================================================
-      // CELEBRATION EMBED & MILESTONE ROLE MENTION
+      // CELEBRATION & MILESTONE ROLE MENTION (Tanpa Embed untuk Tampilan Penuh)
       // ============================================================
       if (isMilestone) {
-        // PENGUMUMAN MILESTONE SPESIAL DENGAN MENTION ROLE
-        const milestoneEmbed = new EmbedBuilder()
-          .setColor('#FBBF24')
-          .setTitle(`🎉 MILESTONE CELEBRATION! • ${streak.streakCount} HARI STREAK 🎉`)
-          .setDescription(
-            `Luar biasa! Koneksi antara <@${streak.user1Id}> dan <@${streak.user2Id}> resmi mencapai rekor **${streak.streakCount} HARI STREAK** berturut-turut!\n\n` +
-            `> Tingkatan Api: **${tier.tierLabel} • ${tier.name}**\n` +
-            `> Total Obrolan: **${(streak.totalPairMessages || 0).toLocaleString('id-ID')} Pesan di Discord**\n` +
-            `> 🎁 **Hadiah Spesial Jackpot:** **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk mereka berdua!\n\n` +
-            `*Beri selamat kepada mereka berdua di channel teks ini!*`
-          )
-          .setImage(`attachment://streak_${streak.streakCount}d.png`);
+        // PENGUMUMAN MILESTONE SPESIAL DENGAN MENTION ROLE (Full-width attachment)
+        const milestoneContent =
+          `<@&${STREAK_MILESTONE_ROLE_ID}>\n\n` +
+          `🎉 **MILESTONE CELEBRATION! • ${streak.streakCount} HARI STREAK** 🎉\n` +
+          `Luar biasa! Koneksi antara <@${streak.user1Id}> dan <@${streak.user2Id}> resmi mencapai rekor **${streak.streakCount} HARI STREAK** berturut-turut!\n\n` +
+          `> Tingkatan Api: **${tier.tierLabel} • ${tier.name}**\n` +
+          `> Total Obrolan: **${(streak.totalPairMessages || 0).toLocaleString('id-ID')} Pesan di Discord**\n` +
+          `> 🎁 **Hadiah Spesial Jackpot:** **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk mereka berdua!\n\n` +
+          `*Beri selamat kepada mereka berdua di channel teks ini!*`;
 
         await message.channel.send({
-          content: `<@&${STREAK_MILESTONE_ROLE_ID}>`,
-          embeds: [milestoneEmbed],
+          content: milestoneContent,
           files: [attachment],
           allowedMentions: { roles: [STREAK_MILESTONE_ROLE_ID] }
         }).catch(err => console.warn('[Streak Milestone] Gagal kirim:', err.message));
       } else {
-        // PENYALAAN NORMAL HARIAN
-        const embed = new EmbedBuilder()
-          .setColor(tier.color)
-          .setDescription(
-            `✦ **Api Streak Resmi Menyala!**\n` +
-            `<@${authorId}> telah membalas sapaan dari <@${targetId}>! Koneksi berhasil diperbarui untuk hari ini (**Hari ke-${streak.streakCount}**).\n\n` +
-            `> Tingkatan: **${tier.tierLabel} • ${tier.name}**\n` +
-            `> Total Obrolan: **${(streak.totalPairMessages || 0).toLocaleString('id-ID')} Pesan Bersama**\n` +
-            `> 🎁 Reward Harian: **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk kalian berdua!`
-          )
-          .setImage(`attachment://streak_${streak.streakCount}d.png`);
+        // PENYALAAN NORMAL HARIAN (Full-width attachment tanpa batas embed)
+        const streakContent =
+          `✦ **Api Streak Resmi Menyala!**\n` +
+          `<@${authorId}> telah membalas sapaan dari <@${targetId}>! Koneksi berhasil diperbarui untuk hari ini (**Hari ke-${streak.streakCount}**).\n\n` +
+          `> Tingkatan: **${tier.tierLabel} • ${tier.name}**\n` +
+          `> Total Obrolan: **${(streak.totalPairMessages || 0).toLocaleString('id-ID')} Pesan Bersama**\n` +
+          `> 🎁 Reward Harian: **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk kalian berdua!`;
 
         await message.reply({
-          embeds: [embed],
+          content: streakContent,
           files: [attachment]
         }).catch(err => console.warn('[Streak] Gagal kirim banner:', err.message));
       }
