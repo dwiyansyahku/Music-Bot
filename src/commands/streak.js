@@ -5,7 +5,8 @@ const {
   ButtonBuilder,
   ButtonStyle,
   MessageFlags,
-  AttachmentBuilder
+  AttachmentBuilder,
+  ChannelType
 } = require('discord.js');
 const {
   createInvite,
@@ -86,6 +87,19 @@ module.exports = {
     // 1. SUBCOMMAND: AJAK (OTOMATIS WIB)
     // ==========================================
     if (subcommand === 'ajak') {
+      const isVoiceChannel = interaction.channel?.isVoiceBased?.() ||
+        interaction.channel?.type === ChannelType?.GuildVoice ||
+        interaction.channel?.type === ChannelType?.GuildStageVoice ||
+        interaction.channel?.type === 2 ||
+        interaction.channel?.type === 13;
+
+      if (isVoiceChannel) {
+        return interaction.reply({
+          content: '❌ Ajakan streak tidak diperbolehkan di chat voice channel. Silakan gunakan channel teks biasa agar server tetap ramai!',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
       const targetUser = interaction.options.getUser('partner');
 
       if (targetUser.id === inviter.id) {
