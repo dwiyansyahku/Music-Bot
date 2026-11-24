@@ -98,6 +98,15 @@ const STREAK_TIERS = [
   }
 ];
 
+const STREAK_MILESTONES = [7, 14, 30, 50, 100, 200, 300, 365];
+
+function isMilestoneDay(days) {
+  const d = parseInt(days, 10) || 0;
+  if (d <= 0) return false;
+  if (STREAK_MILESTONES.includes(d)) return true;
+  return d > 365 && d % 100 === 0;
+}
+
 /**
  * Dapatkan objek tier berdasarkan jumlah hari streak
  */
@@ -156,58 +165,60 @@ function drawVectorFlame(ctx, cx, cy, scale, tier) {
   ctx.scale(scale, scale);
 
   // 1. Ambient Glow di belakang api
-  const radialGlow = ctx.createRadialGradient(0, -30, 10, 0, -30, 95);
+  const radialGlow = ctx.createRadialGradient(0, -35, 10, 0, -35, 110);
   radialGlow.addColorStop(0, tier.glowColor);
   radialGlow.addColorStop(0.7, 'rgba(0, 0, 0, 0.15)');
   radialGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = radialGlow;
   ctx.beginPath();
-  ctx.arc(0, -30, 95, 0, Math.PI * 2);
+  ctx.arc(0, -35, 110, 0, Math.PI * 2);
   ctx.fill();
 
-  // Tier 7: Halo / Orbital Rings
-  if (tier.id === 7) {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.lineWidth = 1.5;
+  // Tier 5 ke atas: Halo / Orbital Rings
+  if (tier.id >= 5) {
+    ctx.strokeStyle = tier.color;
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.ellipse(0, -30, 80, 26, -Math.PI / 8, 0, Math.PI * 2);
+    ctx.ellipse(0, -35, 95, 30, -Math.PI / 8, 0, Math.PI * 2);
     ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
-    ctx.beginPath();
-    ctx.ellipse(0, -30, 80, 26, Math.PI / 8, 0, Math.PI * 2);
-    ctx.stroke();
+    if (tier.id === 7) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.beginPath();
+      ctx.ellipse(0, -35, 95, 30, Math.PI / 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   // 2. Layer Luar Api (Outer Silhouette)
   ctx.beginPath();
-  ctx.moveTo(0, -92);
-  ctx.bezierCurveTo(26, -62, 50, -42, 50, -10);
-  ctx.bezierCurveTo(50, 26, 26, 46, 0, 46);
-  ctx.bezierCurveTo(-26, 46, -50, 26, -50, -10);
-  ctx.bezierCurveTo(-50, -42, -26, -62, 0, -92);
+  ctx.moveTo(0, -100);
+  ctx.bezierCurveTo(28, -68, 55, -45, 55, -10);
+  ctx.bezierCurveTo(55, 30, 28, 50, 0, 50);
+  ctx.bezierCurveTo(-28, 50, -55, 30, -55, -10);
+  ctx.bezierCurveTo(-55, -45, -28, -68, 0, -100);
   ctx.closePath();
 
-  const outerGrad = ctx.createLinearGradient(0, -92, 0, 46);
+  const outerGrad = ctx.createLinearGradient(0, -100, 0, 50);
   outerGrad.addColorStop(0, tier.color);
   outerGrad.addColorStop(0.7, tier.secondaryColor);
-  outerGrad.addColorStop(1, '#0b0d14');
+  outerGrad.addColorStop(1, '#090b10');
   ctx.fillStyle = outerGrad;
   ctx.shadowColor = tier.color;
-  ctx.shadowBlur = 24;
+  ctx.shadowBlur = 28;
   ctx.fill();
   ctx.shadowBlur = 0;
 
   // 3. Layer Tengah Api (Mid Flame)
   ctx.beginPath();
-  ctx.moveTo(0, -68);
-  ctx.bezierCurveTo(19, -42, 33, -26, 33, -6);
-  ctx.bezierCurveTo(33, 21, 19, 36, 0, 36);
-  ctx.bezierCurveTo(-19, 36, -33, 21, -33, -6);
-  ctx.bezierCurveTo(-33, -26, -19, -42, 0, -68);
+  ctx.moveTo(0, -75);
+  ctx.bezierCurveTo(22, -45, 38, -28, 38, -6);
+  ctx.bezierCurveTo(38, 24, 22, 40, 0, 40);
+  ctx.bezierCurveTo(-22, 40, -38, 24, -38, -6);
+  ctx.bezierCurveTo(-38, -28, -22, -45, 0, -75);
   ctx.closePath();
 
-  const midGrad = ctx.createLinearGradient(0, -68, 0, 36);
+  const midGrad = ctx.createLinearGradient(0, -75, 0, 40);
   midGrad.addColorStop(0, tier.coreColor);
   midGrad.addColorStop(0.5, tier.color);
   midGrad.addColorStop(1, tier.secondaryColor);
@@ -216,14 +227,14 @@ function drawVectorFlame(ctx, cx, cy, scale, tier) {
 
   // 4. Inti Putih Terang Api (Inner Hot Core)
   ctx.beginPath();
-  ctx.moveTo(0, -36);
-  ctx.bezierCurveTo(11, -21, 19, -11, 19, 4);
-  ctx.bezierCurveTo(19, 21, 11, 29, 0, 29);
-  ctx.bezierCurveTo(-11, 29, -19, 21, -19, 4);
-  ctx.bezierCurveTo(-19, -11, -11, -21, 0, -36);
+  ctx.moveTo(0, -42);
+  ctx.bezierCurveTo(13, -24, 22, -12, 22, 4);
+  ctx.bezierCurveTo(22, 24, 13, 32, 0, 32);
+  ctx.bezierCurveTo(-13, 32, -22, 24, -22, 4);
+  ctx.bezierCurveTo(-22, -12, -13, -24, 0, -42);
   ctx.closePath();
 
-  const innerGrad = ctx.createLinearGradient(0, -36, 0, 29);
+  const innerGrad = ctx.createLinearGradient(0, -42, 0, 32);
   innerGrad.addColorStop(0, '#FFFFFF');
   innerGrad.addColorStop(0.65, tier.coreColor);
   innerGrad.addColorStop(1, tier.color);
@@ -232,13 +243,13 @@ function drawVectorFlame(ctx, cx, cy, scale, tier) {
 
   // 5. Partikel Bara / Percikan Api (Spark Embers)
   const particles = [
-    { x: -36, y: -52, r: 2.2, a: 0.8 },
-    { x: 39, y: -46, r: 2.5, a: 0.85 },
-    { x: -19, y: -82, r: 1.8, a: 0.75 },
-    { x: 21, y: -88, r: 2.0, a: 0.85 },
-    { x: 0, y: -108, r: 2.6, a: 0.95 },
-    { x: -46, y: -16, r: 1.6, a: 0.6 },
-    { x: 44, y: -12, r: 1.7, a: 0.6 }
+    { x: -40, y: -60, r: 2.5, a: 0.8 },
+    { x: 44, y: -52, r: 2.8, a: 0.85 },
+    { x: -22, y: -92, r: 2.0, a: 0.75 },
+    { x: 24, y: -98, r: 2.2, a: 0.85 },
+    { x: 0, y: -118, r: 2.8, a: 0.95 },
+    { x: -50, y: -18, r: 1.8, a: 0.6 },
+    { x: 48, y: -14, r: 1.9, a: 0.6 }
   ];
 
   for (const p of particles) {
@@ -249,26 +260,25 @@ function drawVectorFlame(ctx, cx, cy, scale, tier) {
     ctx.fill();
   }
   ctx.globalAlpha = 1.0;
-
   ctx.restore();
 }
 
 /**
- * Render Kartu User (Avatar bundar + glow + nama + status)
+ * Render Kartu User (Avatar bundar + glow + nama + jumlah chat)
  */
 async function drawUserBlock(ctx, { x, y, user, tierColor }) {
-  const avatarCenter = { x: x + 44, y: y + 44 };
-  const avatarRadius = 42;
+  const avatarCenter = { x: x + 48, y: y + 48 };
+  const avatarRadius = 46;
 
   ctx.save();
 
   // Avatar Glowing Ring
   ctx.beginPath();
-  ctx.arc(avatarCenter.x, avatarCenter.y, avatarRadius + 3, 0, Math.PI * 2);
+  ctx.arc(avatarCenter.x, avatarCenter.y, avatarRadius + 4, 0, Math.PI * 2);
   ctx.strokeStyle = tierColor;
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 3;
   ctx.shadowColor = tierColor;
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = 14;
   ctx.stroke();
   ctx.shadowBlur = 0;
 
@@ -301,21 +311,21 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   if (!avatarLoaded) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '700 28px "Segoe UI", sans-serif';
+    ctx.font = '700 32px "Segoe UI", sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText((user.name || 'U').charAt(0).toUpperCase(), avatarCenter.x, avatarCenter.y);
   }
 
   // Nama User & Username Tag
-  const textX = x + 102;
+  const textX = x + 112;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 
   // Display Name
-  ctx.font = '700 18px "Segoe UI", sans-serif';
+  ctx.font = '700 20px "Segoe UI", sans-serif';
   ctx.fillStyle = '#F0F6FC';
   const rawName = user.name || 'Partner';
-  const displayName = rawName.length > 13 ? rawName.slice(0, 12) + '…' : rawName;
+  const displayName = rawName.length > 14 ? rawName.slice(0, 13) + '…' : rawName;
   ctx.fillText(displayName, textX, y + 32);
 
   // Username Tag
@@ -323,90 +333,91 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   ctx.fillStyle = '#8B949E';
   const rawTag = user.tag || 'user';
   const displayTag = rawTag.length > 15 ? rawTag.slice(0, 14) + '…' : rawTag;
-  ctx.fillText(`@${displayTag}`, textX, y + 51);
+  ctx.fillText(`@${displayTag}`, textX, y + 52);
 
-  // Status Badge Pill
-  const statusPillW = 88;
-  const statusPillH = 20;
-  drawRoundedRect(ctx, textX, y + 59, statusPillW, statusPillH, 10);
-  ctx.fillStyle = 'rgba(34, 197, 94, 0.15)';
+  // Chat Count Badge (Berapa kali sudah chat di discord)
+  const chatPillW = 135;
+  const chatPillH = 22;
+  drawRoundedRect(ctx, textX, y + 62, chatPillW, chatPillH, 11);
+  ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
   ctx.fill();
-  ctx.strokeStyle = '#22C55E';
+  ctx.strokeStyle = '#3B82F6';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.font = '700 9px "Segoe UI", sans-serif';
-  ctx.fillStyle = '#4ADE80';
-  ctx.fillText('MENYALA', textX + 18, y + 72);
+  ctx.font = '700 10px "Segoe UI", sans-serif';
+  ctx.fillStyle = '#60A5FA';
+  const chatCount = user.chatCount !== undefined ? user.chatCount : 0;
+  ctx.fillText(`💬 ${chatCount.toLocaleString('id-ID')} Chat di Server`, textX + 12, y + 77);
 
   ctx.restore();
 }
 
 /**
- * Generator Utama: Render Banner Streak Lebar & Elegan (1080 x 400 px)
+ * Generator Utama: Render Banner Streak Lebar Maksimal Resolusi Discord (1280 x 520 px)
  *
  * @param {Object} options
  * @param {number} options.days - Jumlah hari streak aktif
- * @param {Object} options.user1 - Data user 1 { name, tag, avatarUrl }
- * @param {Object} options.user2 - Data user 2 { name, tag, avatarUrl }
- * @param {string} options.timezone - WIB | WITA | WIT
+ * @param {Object} options.user1 - Data user 1 { name, tag, avatarUrl, chatCount }
+ * @param {Object} options.user2 - Data user 2 { name, tag, avatarUrl, chatCount }
+ * @param {number} options.totalPairChats - Total pesan obrolan bersama di server
+ * @param {string} options.timezone - WIB
  * @param {string} options.statusText - Label status di kanan bawah
+ * @param {boolean} options.isMilestone - Apakah mencapai milestone spesial
  * @returns {Promise<Buffer>} PNG Buffer
  */
 async function generateStreakBanner({
   days = 1,
-  user1 = { name: 'User 1', tag: 'user1', avatarUrl: null },
-  user2 = { name: 'User 2', tag: 'user2', avatarUrl: null },
+  user1 = { name: 'User 1', tag: 'user1', avatarUrl: null, chatCount: 0 },
+  user2 = { name: 'User 2', tag: 'user2', avatarUrl: null, chatCount: 0 },
+  totalPairChats = 0,
   timezone = 'WIB',
-  statusText = 'AKTIF • HARI INI MENYALA'
-}) {
-  const width = 1080;
-  const height = 400;
+  statusText = 'AKTIF • HARI INI MENYALA',
+  isMilestone = false
+} = {}) {
+  // Ukuran lebar & tinggi maksimal tampilan banner chat Discord
+  const width = 1280;
+  const height = 520;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
   const tier = getStreakTier(days);
+  const milestoneActive = isMilestone || isMilestoneDay(days);
 
   // 1. Base Obsidian Background
-  ctx.fillStyle = '#090B10';
+  ctx.fillStyle = '#080A10';
   ctx.fillRect(0, 0, width, height);
 
   // 2. Subtle Tech Grid Pattern
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.022)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
   ctx.lineWidth = 1;
-  const gridSize = 36;
+  const gridSize = 40;
   for (let x = 0; x < width; x += gridSize) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
   }
   for (let y = 0; y < height; y += gridSize) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
   }
 
   // 3. Ambient Tier Radial Lights (Pusat Api)
-  const centerGlow = ctx.createRadialGradient(width / 2, height / 2 - 20, 20, width / 2, height / 2 - 20, 290);
+  const centerGlow = ctx.createRadialGradient(width / 2, height / 2 - 30, 20, width / 2, height / 2 - 30, 360);
   centerGlow.addColorStop(0, tier.glowColor);
-  centerGlow.addColorStop(0.55, 'rgba(0, 0, 0, 0.45)');
+  centerGlow.addColorStop(0.6, 'rgba(0, 0, 0, 0.5)');
   centerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = centerGlow;
   ctx.fillRect(0, 0, width, height);
 
   // 4. Main Glassmorphism Container Card
-  const margin = 20;
+  const margin = 22;
   const cardW = width - margin * 2;
   const cardH = height - margin * 2;
 
   ctx.save();
-  drawRoundedRect(ctx, margin, margin, cardW, cardH, 24);
+  drawRoundedRect(ctx, margin, margin, cardW, cardH, 28);
   const cardGrad = ctx.createLinearGradient(margin, margin, margin + cardW, margin + cardH);
-  cardGrad.addColorStop(0, 'rgba(23, 27, 42, 0.88)');
-  cardGrad.addColorStop(0.5, 'rgba(15, 17, 26, 0.92)');
-  cardGrad.addColorStop(1, 'rgba(10, 12, 19, 0.96)');
+  cardGrad.addColorStop(0, 'rgba(20, 24, 38, 0.90)');
+  cardGrad.addColorStop(0.5, 'rgba(13, 16, 26, 0.94)');
+  cardGrad.addColorStop(1, 'rgba(8, 10, 18, 0.98)');
   ctx.fillStyle = cardGrad;
   ctx.fill();
 
@@ -416,7 +427,7 @@ async function generateStreakBanner({
   borderGrad.addColorStop(0.5, tier.color);
   borderGrad.addColorStop(1, 'rgba(255, 255, 255, 0.12)');
   ctx.strokeStyle = borderGrad;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.restore();
 
@@ -424,47 +435,47 @@ async function generateStreakBanner({
   ctx.save();
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8B949E';
-  ctx.font = '600 11px "Segoe UI", sans-serif';
-  ctx.fillText('FLAME STREAK SYSTEM  •  KONEKSI HARIAN', width / 2, margin + 28);
+  ctx.font = '700 12px "Segoe UI", sans-serif';
+  ctx.fillText('FLAME STREAK SYSTEM  •  KONEKSI HARIAN RESMI', width / 2, margin + 34);
   ctx.restore();
 
-  // 6. Draw Center Vector Flame
-  drawVectorFlame(ctx, width / 2, height / 2 - 35, 0.85, tier);
+  // 6. Draw Center Vector Flame (Skala 1.0)
+  drawVectorFlame(ctx, width / 2, height / 2 - 45, 1.0, tier);
 
   // 7. Center Counter & Tier Badge
   ctx.save();
   ctx.textAlign = 'center';
 
-  // Day count number
-  ctx.font = '800 48px "Segoe UI", sans-serif';
+  // Day count number (Besar & Tebal 58px)
+  ctx.font = '800 58px "Segoe UI", sans-serif';
   ctx.fillStyle = '#FFFFFF';
   ctx.shadowColor = tier.color;
-  ctx.shadowBlur = 12;
-  ctx.fillText(String(days), width / 2, height / 2 + 50);
+  ctx.shadowBlur = 16;
+  ctx.fillText(String(days), width / 2, height / 2 + 55);
   ctx.shadowBlur = 0;
 
   // "HARI BERTURUT-TURUT" Label
-  ctx.font = '700 11px "Segoe UI", sans-serif';
+  ctx.font = '700 12px "Segoe UI", sans-serif';
   ctx.fillStyle = tier.color;
-  ctx.fillText('HARI BERTURUT-TURUT', width / 2, height / 2 + 66);
+  ctx.fillText('HARI BERTURUT-TURUT', width / 2, height / 2 + 75);
 
   // Tier Pill Badge
-  const pillW = 200;
-  const pillH = 26;
+  const pillW = 240;
+  const pillH = 30;
   const pillX = (width - pillW) / 2;
-  const pillY = height / 2 + 78;
+  const pillY = height / 2 + 90;
 
   ctx.save();
-  drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 13);
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 15);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
   ctx.fill();
   ctx.strokeStyle = tier.color;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  ctx.font = '700 11px "Segoe UI", sans-serif';
+  ctx.font = '700 12px "Segoe UI", sans-serif';
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(`${tier.tierLabel} • ${tier.name}`, width / 2, pillY + 17);
+  ctx.fillText(`${tier.tierLabel} • ${tier.name}`, width / 2, pillY + 20);
   ctx.restore();
 
   // Progress Bar to Next Tier
@@ -473,19 +484,17 @@ async function generateStreakBanner({
     const targetDays = tier.nextTierDays;
     const progress = Math.min(1, Math.max(0, (days - prevDays) / (targetDays - prevDays)));
 
-    const progW = 220;
-    const progH = 5;
+    const progW = 260;
+    const progH = 6;
     const progX = (width - progW) / 2;
-    const progY = pillY + 34;
+    const progY = pillY + 40;
 
-    // Track
-    drawRoundedRect(ctx, progX, progY, progW, progH, 2.5);
+    drawRoundedRect(ctx, progX, progY, progW, progH, 3);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.fill();
 
-    // Fill
     if (progress > 0) {
-      drawRoundedRect(ctx, progX, progY, Math.max(progW * progress, 5), progH, 2.5);
+      drawRoundedRect(ctx, progX, progY, Math.max(progW * progress, 6), progH, 3);
       const progGrad = ctx.createLinearGradient(progX, 0, progX + progW, 0);
       progGrad.addColorStop(0, tier.secondaryColor);
       progGrad.addColorStop(1, tier.color);
@@ -493,60 +502,84 @@ async function generateStreakBanner({
       ctx.fill();
     }
 
-    ctx.font = '500 10px "Segoe UI", sans-serif';
-    ctx.fillStyle = '#6E7681';
-    ctx.fillText(`${days}/${targetDays} Hari menuju Tier Berikutnya`, width / 2, progY + 16);
+    ctx.font = '500 11px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#8B949E';
+    ctx.fillText(`${days}/${targetDays} Hari menuju Tier Berikutnya`, width / 2, progY + 20);
   } else {
-    ctx.font = '500 10px "Segoe UI", sans-serif';
+    ctx.font = '500 11px "Segoe UI", sans-serif';
     ctx.fillStyle = tier.color;
     ctx.fillText('TINGKAT MAKSIMAL TERCAPAI', width / 2, pillY + 45);
   }
   ctx.restore();
 
-  // 8. User 1 Card (Left Side) & User 2 Card (Right Side)
+  // 8. Milestone Special Seal Banner jika mencapai milestone
+  if (milestoneActive) {
+    ctx.save();
+    const mbW = 560;
+    const mbH = 32;
+    const mbX = (width - mbW) / 2;
+    const mbY = height - margin - 65;
+
+    drawRoundedRect(ctx, mbX, mbY, mbW, mbH, 16);
+    const mbGrad = ctx.createLinearGradient(mbX, 0, mbX + mbW, 0);
+    mbGrad.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
+    mbGrad.addColorStop(0.5, 'rgba(251, 191, 36, 0.40)');
+    mbGrad.addColorStop(1, 'rgba(245, 158, 11, 0.25)');
+    ctx.fillStyle = mbGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#FBBF24';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.font = '800 12px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#FDE68A';
+    ctx.fillText(`★ MILESTONE SPESIAL: RESMI MENCAPAI ${days} HARI STREAK ★`, width / 2, mbY + 21);
+    ctx.restore();
+  }
+
+  // 9. User 1 Card (Left Side) & User 2 Card (Right Side)
   await drawUserBlock(ctx, {
-    x: margin + 45,
-    y: height / 2 - 80,
+    x: margin + 50,
+    y: height / 2 - 95,
     user: user1,
     tierColor: tier.color
   });
 
   await drawUserBlock(ctx, {
-    x: width - margin - 45 - 200,
-    y: height / 2 - 80,
+    x: width - margin - 50 - 245,
+    y: height / 2 - 95,
     user: user2,
     tierColor: tier.color
   });
 
-  // 9. Connecting Dashed Lines between Users & Center
+  // 10. Connecting Dashed Lines between Users & Center
   ctx.save();
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 6]);
 
-  // Left line
   ctx.beginPath();
-  ctx.moveTo(margin + 265, height / 2 - 20);
-  ctx.lineTo(width / 2 - 120, height / 2 - 20);
+  ctx.moveTo(margin + 310, height / 2 - 20);
+  ctx.lineTo(width / 2 - 145, height / 2 - 20);
   ctx.stroke();
 
-  // Right line
   ctx.beginPath();
-  ctx.moveTo(width / 2 + 120, height / 2 - 20);
-  ctx.lineTo(width - margin - 265, height / 2 - 20);
+  ctx.moveTo(width / 2 + 145, height / 2 - 20);
+  ctx.lineTo(width - margin - 310, height / 2 - 20);
   ctx.stroke();
   ctx.restore();
 
-  // 10. Bottom Information Bar
-  const bottomY = height - margin - 28;
+  // 11. Bottom Information Bar
+  const bottomY = height - margin - 22;
   ctx.save();
-  ctx.font = '600 11px "Segoe UI", sans-serif';
+  ctx.font = '600 12px "Segoe UI", sans-serif';
   ctx.fillStyle = '#8B949E';
 
-  // Left: Zona Waktu & Reset
+  // Left: Total Obrolan di Discord
   ctx.textAlign = 'left';
-  const tzOffset = timezone === 'WIB' ? '7' : timezone === 'WITA' ? '8' : '9';
-  ctx.fillText(`ZONA WAKTU: ${timezone} (UTC+${tzOffset})   |   RESET: 00:00 ${timezone}`, margin + 35, bottomY);
+  const totalDisplay = (totalPairChats || 0).toLocaleString('id-ID');
+  ctx.fillText(`TOTAL OBROLAN BERSAMA: ${totalDisplay} PESAN DI DISCORD`, margin + 35, bottomY);
 
   // Right: Status Streak
   ctx.textAlign = 'right';
@@ -559,6 +592,8 @@ async function generateStreakBanner({
 
 module.exports = {
   STREAK_TIERS,
+  STREAK_MILESTONES,
+  isMilestoneDay,
   getStreakTier,
   generateStreakBanner
 };

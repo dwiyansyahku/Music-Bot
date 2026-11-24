@@ -191,27 +191,33 @@ module.exports = {
 
       const bannerBuffer = await generateStreakBanner({
         days: currentDisplayDays,
-        user1: { name: u1Name, tag: u1Tag, avatarUrl: u1Avatar },
-        user2: { name: u2Name, tag: u2Tag, avatarUrl: u2Avatar },
+        user1: { name: u1Name, tag: u1Tag, avatarUrl: u1Avatar, chatCount: streak.user1Chats || 0 },
+        user2: { name: u2Name, tag: u2Tag, avatarUrl: u2Avatar, chatCount: streak.user2Chats || 0 },
+        totalPairChats: streak.totalPairMessages || 0,
         timezone: 'WIB',
         statusText: streak.status === 'broken'
           ? `PADAM (HARI KE-${streak.previousStreakCount}) • BISA DIPULIHKAN`
           : isLitToday
             ? `HARI INI MENYALA • RESET 00:00 WIB`
-            : `BELUM MENYALA HARI INI`
+            : streak.todayInitiatorId
+              ? `MENUNGGU BALASAN PARTNER`
+              : `BELUM MENYALA HARI INI`
       });
 
       const tier = getStreakTier(currentDisplayDays);
       const attachment = new AttachmentBuilder(bannerBuffer, { name: `streak_card.png` });
+
+      const totalChats = (streak.totalPairMessages || 0).toLocaleString('id-ID');
 
       const embed = new EmbedBuilder()
         .setColor(streak.status === 'broken' ? '#EF4444' : tier.color)
         .setDescription(
           `✦ **Kartu Status Streak**\n` +
           `Pasangan: <@${streak.user1Id}> & <@${streak.user2Id}>\n` +
-          `Status Api: **${streak.status === 'broken' ? 'Padam (Dapat Dipulihkan)' : isLitToday ? 'Menyala Hari Ini' : 'Belum Menyala Hari Ini'}**\n` +
+          `Status Api: **${streak.status === 'broken' ? 'Padam (Dapat Dipulihkan)' : isLitToday ? 'Menyala Hari Ini' : streak.todayInitiatorId ? 'Menunggu Balasan Partner' : 'Belum Menyala Hari Ini'}**\n` +
           `Tingkatan: **${tier.tierLabel} • ${tier.name}** (${currentDisplayDays} Hari)\n` +
           `Rekor Tertinggi: **${streak.highestStreak || currentDisplayDays} Hari**\n` +
+          `Total Obrolan: **${totalChats} Pesan di Discord**\n` +
           `Kuota Pemulihan Bulan Ini: **${revivesLeft}/5 Kali**\n` +
           `Waktu Reset: Pukul **00:00 WIB**`
         )
