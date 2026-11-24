@@ -606,15 +606,11 @@ async function handleMessageStreak(message, client = null) {
       // CELEBRATION & MILESTONE ROLE MENTION (Tanpa Embed untuk Tampilan Penuh)
       // ============================================================
       if (isMilestone) {
-        // PENGUMUMAN MILESTONE SPESIAL DENGAN MENTION ROLE (Full-width attachment)
+        // PENGUMUMAN MILESTONE SPESIAL DENGAN MENTION ROLE (teks ringkas)
         const milestoneContent =
           `<@&${STREAK_MILESTONE_ROLE_ID}>\n\n` +
-          `🎉 **MILESTONE CELEBRATION! • ${streak.streakCount} HARI STREAK** 🎉\n` +
-          `Luar biasa! Koneksi antara <@${streak.user1Id}> dan <@${streak.user2Id}> resmi mencapai rekor **${streak.streakCount} HARI STREAK** berturut-turut!\n\n` +
-          `> Tingkatan Api: **${tier.tierLabel} • ${tier.name}**\n` +
-          `> Total Obrolan: **${(streak.totalPairMessages || 0).toLocaleString('id-ID')} Pesan di Discord**\n` +
-          `> 🎁 **Hadiah Spesial Jackpot:** **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk mereka berdua!\n\n` +
-          `*Beri selamat kepada mereka berdua di channel teks ini!*`;
+          `🎉 **MILESTONE! ${streak.streakCount} HARI STREAK** — <@${streak.user1Id}> & <@${streak.user2Id}> · **${tier.tierLabel} • ${tier.name}**\n` +
+          `> 🎁 Jackpot: **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk mereka berdua!`;
 
         await message.channel.send({
           content: milestoneContent,
@@ -622,13 +618,10 @@ async function handleMessageStreak(message, client = null) {
           allowedMentions: { roles: [STREAK_MILESTONE_ROLE_ID] }
         }).catch(err => console.warn('[Streak Milestone] Gagal kirim:', err.message));
       } else {
-        // PENYALAAN NORMAL HARIAN (Full-width attachment tanpa batas embed)
+        // PENYALAAN NORMAL HARIAN (Full-width attachment, teks ringkas)
         const streakContent =
-          `✦ **Api Streak Resmi Menyala!**\n` +
-          `<@${authorId}> telah membalas sapaan dari <@${targetId}>! Koneksi berhasil diperbarui untuk hari ini (**Hari ke-${streak.streakCount}**).\n\n` +
-          `> Tingkatan: **${tier.tierLabel} • ${tier.name}**\n` +
-          `> Total Obrolan: **${(streak.totalPairMessages || 0).toLocaleString('id-ID')} Pesan Bersama**\n` +
-          `> 🎁 Reward Harian: **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk kalian berdua!`;
+          `✦ **Api Streak Resmi Menyala!** · <@${authorId}> & <@${targetId}> — **Hari ke-${streak.streakCount}** · **${tier.tierLabel} • ${tier.name}**\n` +
+          `> 🎁 **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk kalian berdua!`;
 
         await message.reply({
           content: streakContent,

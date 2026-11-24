@@ -1201,12 +1201,8 @@ module.exports = {
 
       const attachment = new AttachmentBuilder(res.bannerBuffer, { name: `streak_revived.png` });
       const reviveContent =
-        `<@${res.streak.user1Id}> <@${res.streak.user2Id}>\n\n` +
-        `✦ **Api Streak Berhasil Dihidupkan Kembali!**\n` +
-        `<@${interaction.user.id}> telah memulihkan streak ini menggunakan 1 kuota pemulihan bulanan.\n\n` +
-        `> Dikembalikan ke: **Hari ke-${res.restoredDays}**\n` +
-        `> Sisa Kuota Bulan Ini: **${res.revivesLeft}/5 Kali**\n` +
-        `> 🎁 Reward: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha**!`;
+        `✦ **Streak Dipulihkan!** <@${res.streak.user1Id}> & <@${res.streak.user2Id}> — **Hari ke-${res.restoredDays}** · Kuota: **${res.revivesLeft}/5**\n` +
+        `> 🎁 **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha** untuk kalian berdua!`;
 
       return interaction.editReply({
         content: reviveContent,

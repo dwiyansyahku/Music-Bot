@@ -28,7 +28,7 @@ const FONT_FALLBACK = '"Segoe UI", "Segoe UI Symbol", "Segoe UI Emoji", "Segoe U
  * Normalisasi nama pengguna agar font estetik / fancy text generator (seperti font gothic, cursive,
  * bold math symbols) dapat ter-render 100% sempurna tanpa kotak tofu (0000 00...).
  */
-function formatDisplayName(name, maxLen = 18) {
+function formatDisplayName(name, maxLen = 32) {
   if (!name) return 'Partner';
   // Decompose unicode mathematical symbols & decorative scripts ke huruf alfabet aslinya
   let cleaned = name.normalize('NFKD');
@@ -37,6 +37,29 @@ function formatDisplayName(name, maxLen = 18) {
   // Gunakan Array.from agar pemotongan string aman untuk surrogate pairs & unicode graphemes
   const chars = Array.from(cleaned);
   return chars.length > maxLen ? chars.slice(0, maxLen - 1).join('') + '…' : cleaned;
+}
+
+/**
+ * Pecah teks ke beberapa baris agar tidak melebihi maxWidth pixel pada canvas.
+ * Mengembalikan array string per baris.
+ */
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines.length > 0 ? lines : [text];
 }
 
 /**
@@ -302,9 +325,10 @@ function drawVectorFlame(ctx, cx, cy, scale, tier) {
 }
 
 /**
- * Render Kartu User (Avatar bundar + glow + nama + jumlah chat)
+ * Render Kartu User (Avatar bundar + glow + nama multi-baris + jumlah chat)
+ * maxTextWidth menentukan batas lebar piksel sebelum nama di-wrap ke baris baru.
  */
-async function drawUserBlock(ctx, { x, y, user, tierColor }) {
+async function drawUserBlock(ctx, { x, y, user, tierColor, maxTextWidth = 220 }) {
   const avatarCenter = { x: x + 48, y: y + 48 };
   const avatarRadius = 46;
 
@@ -361,22 +385,37 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 
-  // Display Name (Dengan font fallback + normalisasi fancy font)
+  // Display Name (Dengan font fallback + normalisasi fancy font + word-wrap)
   ctx.font = `700 20px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#F0F6FC';
-  const displayName = formatDisplayName(user.name || 'Partner', 18);
-  ctx.fillText(displayName, textX, y + 32);
+  const displayName = formatDisplayName(user.name || 'Partner', 40);
+  const nameLines = wrapText(ctx, displayName, maxTextWidth);
+  // Render maksimal 2 baris: baris ke-2 font lebih kecil
+  const lineHeight = 22;
+  for (let i = 0; i < Math.min(nameLines.length, 2); i++) {
+    if (i === 1) {
+      ctx.font = `600 16px ${FONT_FALLBACK}`;
+      ctx.fillStyle = '#C9D1D9';
+    }
+    let lineText = nameLines[i];
+    if (i === 1 && nameLines.length > 2) {
+      lineText = lineText + '…';
+    }
+    ctx.fillText(lineText, textX, y + 32 + i * lineHeight);
+  }
+  const nameBottomY = y + 32 + (Math.min(nameLines.length, 2) - 1) * lineHeight;
 
   // Username Tag
   ctx.font = `500 13px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#8B949E';
-  const displayTag = formatDisplayName(user.tag || 'user', 18);
-  ctx.fillText(`@${displayTag}`, textX, y + 52);
+  const displayTag = formatDisplayName(user.tag || 'user', 24);
+  ctx.fillText(`@${displayTag}`, textX, nameBottomY + 20);
 
   // Chat Count Badge
-  const chatPillW = 130;
+  const chatPillW = 140;
   const chatPillH = 22;
-  drawRoundedRect(ctx, textX, y + 62, chatPillW, chatPillH, 11);
+  const chatPillY = nameBottomY + 30;
+  drawRoundedRect(ctx, textX, chatPillY, chatPillW, chatPillH, 11);
   ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
   ctx.fill();
   ctx.strokeStyle = '#3B82F6';
@@ -386,13 +425,13 @@ async function drawUserBlock(ctx, { x, y, user, tierColor }) {
   ctx.font = `700 11px ${FONT_FALLBACK}`;
   ctx.fillStyle = '#60A5FA';
   const chatCount = user.chatCount !== undefined ? user.chatCount : 0;
-  ctx.fillText(`${chatCount.toLocaleString('id-ID')} Chat di Server`, textX + 14, y + 77);
+  ctx.fillText(`${chatCount.toLocaleString('id-ID')} Chat di Server`, textX + 14, chatPillY + 15);
 
   ctx.restore();
 }
 
 /**
- * Generator Utama: Render Banner Streak Lebar Maksimal Resolusi Discord (1280 x 520 px)
+ * Generator Utama: Render Banner Streak Ultra-Wide (1440 x 600 px)
  */
 async function generateStreakBanner({
   days = 1,
@@ -403,8 +442,8 @@ async function generateStreakBanner({
   statusText = 'AKTIF • HARI INI MENYALA',
   isMilestone = false
 } = {}) {
-  const width = 1280;
-  const height = 520;
+  const width = 1440;
+  const height = 600;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
@@ -566,18 +605,21 @@ async function generateStreakBanner({
   }
 
   // 9. User 1 Card (Left Side) & User 2 Card (Right Side)
+  const userBlockMaxTextW = 250;
   await drawUserBlock(ctx, {
-    x: margin + 50,
+    x: margin + 40,
     y: height / 2 - 95,
     user: user1,
-    tierColor: tier.color
+    tierColor: tier.color,
+    maxTextWidth: userBlockMaxTextW
   });
 
   await drawUserBlock(ctx, {
-    x: width - margin - 50 - 245,
+    x: width - margin - 40 - 280,
     y: height / 2 - 95,
     user: user2,
-    tierColor: tier.color
+    tierColor: tier.color,
+    maxTextWidth: userBlockMaxTextW
   });
 
   // 10. Connecting Dashed Lines between Users & Center
@@ -587,13 +629,13 @@ async function generateStreakBanner({
   ctx.setLineDash([4, 6]);
 
   ctx.beginPath();
-  ctx.moveTo(margin + 310, height / 2 - 20);
-  ctx.lineTo(width / 2 - 145, height / 2 - 20);
+  ctx.moveTo(margin + 350, height / 2 - 20);
+  ctx.lineTo(width / 2 - 155, height / 2 - 20);
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(width / 2 + 145, height / 2 - 20);
-  ctx.lineTo(width - margin - 310, height / 2 - 20);
+  ctx.moveTo(width / 2 + 155, height / 2 - 20);
+  ctx.lineTo(width - margin - 350, height / 2 - 20);
   ctx.stroke();
   ctx.restore();
 
@@ -622,6 +664,7 @@ module.exports = {
   STREAK_MILESTONES,
   FONT_FALLBACK,
   formatDisplayName,
+  wrapText,
   isMilestoneDay,
   getStreakTier,
   generateStreakBanner
