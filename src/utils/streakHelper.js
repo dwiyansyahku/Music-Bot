@@ -1,6 +1,6 @@
 const storage = require('./storage');
 const { generateStreakBanner, getStreakTier, isMilestoneDay } = require('./streakCanvas');
-const { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 // Dedicated Leaderboard Channel & Milestone Role Configuration
 const STREAK_LEADERBOARD_GUILD_ID = '1396245234693963878';
@@ -332,40 +332,40 @@ function buildStreakLeaderboardEmbed(guildId) {
       const tier = getStreakTier(days);
       const isLitToday = s.lastLitDate === tzInfo.todayStr;
 
-      let medal = `\`${String(idx + 1).padStart(2, '0')}.\``;
-      if (idx === 0) medal = '🥇 **1.**';
-      if (idx === 1) medal = '🥈 **2.**';
-      if (idx === 2) medal = '🥉 **3.**';
+      let medal = `[${String(idx + 1).padStart(2, '0')}]`;
+      if (idx === 0) medal = '[#1]';
+      if (idx === 1) medal = '[#2]';
+      if (idx === 2) medal = '[#3]';
 
       const statusBadge = s.status === 'broken'
-        ? '🥀 *Padam (Bisa Dipulihkan)*'
+        ? '[!] Padam (Bisa Dipulihkan)'
         : isLitToday
-          ? '✦ *Menyala Hari Ini*'
+          ? '[✓] Menyala Hari Ini'
           : s.todayInitiatorId
-            ? '⏳ *Menunggu Balasan Partner*'
-            : '⏳ *Menunggu Chat Teks*';
+            ? '[•] Menunggu Balasan Partner'
+            : '[-] Belum Menyala Hari Ini';
 
       const totalChats = (s.totalPairMessages || 0).toLocaleString('id-ID');
 
       return `${medal} <@${s.user1Id}> & <@${s.user2Id}> — **${days} Hari**\n` +
-             `    ┗ **${tier.tierLabel} • ${tier.name}**  ·  💬 ${totalChats} Chat  ·  ${statusBadge}`;
+             `    ┗ **${tier.tierLabel} • ${tier.name}**  ·  ${totalChats} Pesan  ·  ${statusBadge}`;
     }).join('\n\n');
   }
 
   const embed = new EmbedBuilder()
     .setColor('#F59E0B')
-    .setTitle('✦ PAPAN KLASEMEN FLAME STREAK ✦')
+    .setTitle('◈ PAPAN KLASEMEN FLAME STREAK ◈')
     .setDescription(
-      `🏆 **TOP 10 KONEKSI STREAK TERTINGGI SERVER**\n` +
-      `*Nyalakan api setiap hari dengan saling chat & balas di channel teks server!*\n\n` +
+      `─── **TOP 10 KONEKSI STREAK TERTINGGI SERVER** ───\n` +
+      `*Nyalakan api setiap hari dengan saling chat & balas di channel teks server.*\n\n` +
       `${listText}\n\n` +
       `────────────────────────────────\n` +
-      `✦ **Panduan & Informasi Sistem:**\n` +
+      `◈ **Panduan & Informasi Sistem:**\n` +
       `• **Mulai Streak:** Gunakan perintah \`/streak ajak @partner\`\n` +
-      `• **Menyalakan Api (2 Arah):** Chat saling tag / reply satu sama lain setiap hari\n` +
-      `• **Waktu Reset:** Pukul **00:00 WIB** (Pengingat otomatis pukul **21:00 WIB**)\n` +
-      `• **Kuota Pemulihan:** **5x per bulan** jika streak padam (angka kembali utuh)\n` +
-      `• **Hadiah Milestone:** Mention role perayaan + Jackpot Stardust & Tiket!`
+      `• **Menyalakan Api (2 Arah):** Saling chat & reply satu sama lain di channel teks server setiap hari\n` +
+      `• **Waktu Reset:** Pukul **00:00 WIB** (Pengingat harian otomatis via DM pukul **21:00 WIB**)\n` +
+      `• **Kuota Pemulihan:** **5x per bulan** jika streak padam (angka hari kembali utuh)\n` +
+      `• **Hadiah Milestone:** Pengumuman pencapaian hari + Bonus Stardust & Tiket!`
     )
     .setFooter({ text: 'Otomatis diperbarui secara realtime • Waktu Indonesia Barat (WIB)' })
     .setTimestamp();
@@ -566,15 +566,12 @@ async function handleMessageStreak(message, client = null) {
       const nextDayPreview = streak.lastLitDate === tzInfo.yesterdayStr ? (streak.streakCount || 0) + 1 : 1;
 
       // Kirim pesan pemicu agar partner datang ke channel teks dan membalas
-      const waitEmbed = new EmbedBuilder()
-        .setColor('#F59E0B')
-        .setDescription(
-          `💬 **Langkah 1 Selesai: Sapaan Dikirim!**\n` +
-          `<@${authorId}> telah menyapa <@${targetId}> di channel ini!\n\n` +
-          `> ⏳ Tinggal 1 langkah lagi: <@${targetId}> wajib **membalas / me-reply** chat ini untuk menyalakan api (**Hari ke-${nextDayPreview}**) sebelum 00:00 WIB.`
-        );
+      const waitContent =
+        `◈ **Sapaan Streak Terkirim** [Langkah 1/2]\n` +
+        `<@${authorId}> telah menyapa <@${targetId}> di channel ini.\n\n` +
+        `> [!] **Giliran <@${targetId}>:** Balas / reply pesan ini sebelum pukul **00:00 WIB** agar api (**Hari ke-${nextDayPreview}**) menyala.`;
 
-      await message.reply({ embeds: [waitEmbed] }).catch(() => {});
+      await message.reply({ content: waitContent }).catch(() => {});
       processedCount++;
       continue;
     }
@@ -630,7 +627,7 @@ async function handleMessageStreak(message, client = null) {
       const u2Tag = member2?.user?.username || 'user2';
       const u2Avatar = member2?.user?.displayAvatarURL({ extension: 'png', size: 128 });
 
-      // Render Canvas Ultra-Wide Resolusi Penuh Discord (1280 x 520 px)
+      // Render Canvas Ultra-Wide Resolusi Penuh Discord (1440 x 600 px)
       const bannerBuffer = await generateStreakBanner({
         days: streak.streakCount,
         user1: { name: u1Name, tag: u1Tag, avatarUrl: u1Avatar, chatCount: streak.user1Chats || 0 },
@@ -648,11 +645,11 @@ async function handleMessageStreak(message, client = null) {
       // CELEBRATION & MILESTONE ROLE MENTION (Tanpa Embed untuk Tampilan Penuh)
       // ============================================================
       if (isMilestone) {
-        // PENGUMUMAN MILESTONE SPESIAL DENGAN MENTION ROLE (teks ringkas)
+        // PENGUMUMAN MILESTONE SPESIAL DENGAN MENTION ROLE (teks ringkas tanpa emoji)
         const milestoneContent =
           `<@&${STREAK_MILESTONE_ROLE_ID}>\n\n` +
-          `🎉 **MILESTONE! ${streak.streakCount} HARI STREAK** — <@${streak.user1Id}> & <@${streak.user2Id}> · **${tier.tierLabel} • ${tier.name}**\n` +
-          `> 🎁 Jackpot: **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk mereka berdua!`;
+          `◈ **MILESTONE ${streak.streakCount} HARI STREAK** — <@${streak.user1Id}> & <@${streak.user2Id}> · **${tier.tierLabel} • ${tier.name}**\n` +
+          `> [+] **Jackpot:** **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk mereka berdua.`;
 
         await message.channel.send({
           content: milestoneContent,
@@ -660,10 +657,10 @@ async function handleMessageStreak(message, client = null) {
           allowedMentions: { roles: [STREAK_MILESTONE_ROLE_ID] }
         }).catch(err => console.warn('[Streak Milestone] Gagal kirim:', err.message));
       } else {
-        // PENYALAAN NORMAL HARIAN (Full-width attachment, teks ringkas)
+        // PENYALAAN NORMAL HARIAN (Full-width attachment, teks ringkas tanpa emoji)
         const streakContent =
-          `✦ **Api Streak Resmi Menyala!** · <@${authorId}> & <@${targetId}> — **Hari ke-${streak.streakCount}** · **${tier.tierLabel} • ${tier.name}**\n` +
-          `> 🎁 **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk kalian berdua!`;
+          `◈ **Api Streak Resmi Menyala** · <@${authorId}> & <@${targetId}> — **Hari ke-${streak.streakCount}** · **${tier.tierLabel} • ${tier.name}**\n` +
+          `> [+] **Reward:** **+${authorReward.dust} Stardust** & **+${authorReward.tickets} Tiket Gacha** untuk kalian berdua.`;
 
         await message.reply({
           content: streakContent,
@@ -701,13 +698,13 @@ function buildUserStreakList(userId) {
       let statusToday = '';
 
       if (isLitToday) {
-        statusToday = '🔥 **Sudah Menyala** (Aman sampai reset 00:00 WIB)';
+        statusToday = '[✓] Sudah Menyala (Aman sampai reset 00:00 WIB)';
       } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === userId) {
-        statusToday = `⏳ **Menunggu balasan partner** (Kamu sudah chat, <@${partnerId}> belum membalas)`;
+        statusToday = `[•] Menunggu Balasan Partner: Kamu sudah menyapa di server, <@${partnerId}> belum membalas!`;
       } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === partnerId) {
-        statusToday = `⚠️ **Menunggu balasanmu!** (<@${partnerId}> sudah chat, balas sebelum 00:00 WIB!)`;
+        statusToday = `[!] Giliran Kamu Membalas: <@${partnerId}> sudah menyapa di server, kamu belum membalas sebelum 00:00 WIB!`;
       } else {
-        statusToday = '⏳ **Belum Menyala!** (Kalian berdua belum saling chat hari ini)';
+        statusToday = `[-] Belum Menyala: Kamu dan <@${partnerId}> belum ada yang menyapa di server hari ini!`;
       }
 
       active.push({
@@ -778,19 +775,19 @@ function formatUserStreakListEmbed(userId) {
 
   const embed = new EmbedBuilder()
     .setColor(totalActive > 0 && totalLit === totalActive ? '#10B981' : '#F59E0B')
-    .setTitle('✦ DAFTAR PARTNER FLAME STREAK KAMU ✦')
+    .setTitle('◈ DAFTAR PARTNER FLAME STREAK ◈')
     .setDescription(
-      `👤 **Status Streak untuk:** <@${userId}>\n` +
-      `> 📊 Total Pasangan Aktif: **${totalActive} Partner**\n` +
-      `> 🔥 Status Hari Ini: **${totalLit}/${totalActive} Menyala**\n` +
-      `> ⏰ Waktu Reset: Pukul **00:00 WIB** (Pengingat harian otomatis via DM)\n\n` +
+      `◈ **Status Pengguna:** <@${userId}>\n` +
+      `> ◈ Total Partner Aktif: **${totalActive} Pasangan**\n` +
+      `> ◈ Status Hari Ini: **${totalLit}/${totalActive} Menyala**\n` +
+      `> ◈ Waktu Reset: Pukul **00:00 WIB** (Pengingat harian otomatis via DM)\n\n` +
       `───────────────────────────────\n` +
-      `**DAFTAR PARTNER AKTIF:**\n` +
+      `◈ **DAFTAR PARTNER AKTIF:**\n` +
       `${activeText}\n\n` +
-      (brokenText ? `───────────────────────────────\n🥀 **STREAK PADAM (DAPAT DIPULIHKAN):**\n${brokenText}\n\n` : '') +
-      (pendingText ? `───────────────────────────────\n📩 **UNDANGAN STREAK MENUNGGU:**\n${pendingText}\n\n` : '') +
+      (brokenText ? `───────────────────────────────\n◈ **STREAK PADAM (DAPAT DIPULIHKAN):**\n${brokenText}\n\n` : '') +
+      (pendingText ? `───────────────────────────────\n◈ **UNDANGAN STREAK MENUNGGU:**\n${pendingText}\n\n` : '') +
       `───────────────────────────────\n` +
-      `💡 *Cara menyalakan api: Cukup saling chat & reply partner kamu di channel teks server setiap hari!*`
+      `*Catatan: Saling chat & reply partner kamu di channel teks server setiap hari agar api tetap menyala.*`
     )
     .setFooter({ text: 'Realtime Status • Zona Waktu Indonesia Barat (WIB)' })
     .setTimestamp();
@@ -801,7 +798,8 @@ function formatUserStreakListEmbed(userId) {
 /**
  * Mengirimkan reminder pribadi (DM) harian setiap pukul 21:00 WIB
  * ke setiap user yang memiliki streak yang BELUM menyala hari ini.
- * Ditandai secara jelas mana yang sudah nyala dan mana yang belum.
+ * Ditandai secara jelas mana yang sudah nyala dan mana yang belum,
+ * serta menyebutkan siapa yang belum menyalakan api.
  */
 async function sendDailyPersonalStreakReminders(client) {
   if (!client) return;
@@ -828,29 +826,30 @@ async function sendDailyPersonalStreakReminders(client) {
       continue;
     }
 
-    // Bangun daftar status per partner
+    // Bangun daftar status per partner dengan keterangan aktor yang jelas
     const items = userStreaks.map(s => {
       const partnerId = s.user1Id === userId ? s.user2Id : s.user1Id;
       const isLit = s.lastLitDate === tzInfo.todayStr;
       const tier = getStreakTier(s.streakCount || 1);
 
       if (isLit) {
-        return `• <@${partnerId}>: ✅ **Sudah Menyala** (${s.streakCount} Hari • ${tier.name})`;
+        return `• <@${partnerId}> — **${s.streakCount} Hari** (${tier.name})\n  ┗ [✓] **Sudah Menyala:** Aman sampai reset 00:00 WIB.`;
       } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === partnerId) {
-        return `• <@${partnerId}>: ⚠️ **Menunggu Balasanmu!** (<@${partnerId}> sudah menyapa di server, segera balas!)`;
+        return `• <@${partnerId}> — **${s.streakCount} Hari** (${tier.name})\n  ┗ [!] **Giliran Kamu Membalas:** <@${partnerId}> sudah menyapa di server, kamu belum membalas sebelum 00:00 WIB!`;
       } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === userId) {
-        return `• <@${partnerId}>: ⏳ **Menunggu Balasan Partner** (Kamu sudah menyapa, ingatkan <@${partnerId}>!)`;
+        return `• <@${partnerId}> — **${s.streakCount} Hari** (${tier.name})\n  ┗ [•] **Menunggu Balasan Partner:** Kamu sudah menyapa di server, <@${partnerId}> belum membalas!`;
       } else {
-        return `• <@${partnerId}>: 🔥 **Belum Menyala!** (${s.streakCount} Hari — Segera saling chat di channel teks!)`;
+        return `• <@${partnerId}> — **${s.streakCount} Hari** (${tier.name})\n  ┗ [-] **Belum Menyala:** Kamu dan <@${partnerId}> belum ada yang menyapa di server hari ini!`;
       }
     });
 
     const dmContent =
-      `🔔 **PENGINGAT FLAME STREAK HARIAN (Pukul 21:00 WIB)**\n` +
-      `Halo <@${userId}>! Sisa waktu **~3 jam lagi** sebelum api streak direset pada pukul **00:00 WIB**.\n\n` +
-      `📊 **Status Seluruh Partner Streak Kamu Hari Ini:**\n` +
-      items.join('\n') + `\n\n` +
-      `⚠️ *Jangan biarkan api streak kalian padam! Segera buka server dan saling chat/reply di channel teks sebelum tengah malam!*\n` +
+      `◈ **PENGINGAT FLAME STREAK HARIAN** (Pukul 21:00 WIB)\n` +
+      `Halo <@${userId}>, sisa waktu **~3 jam lagi** sebelum api streak direset pada pukul **00:00 WIB**.\n\n` +
+      `◈ **Status Partner Streak Kamu Hari Ini:**\n` +
+      items.join('\n\n') + `\n\n` +
+      `───────────────────────────────\n` +
+      `*Segera buka server dan saling chat/reply di channel teks sebelum tengah malam.*\n` +
       `*(Ketik \`/streak list\` di server untuk memantau status realtime kapan saja)*`;
 
     try {
@@ -870,7 +869,7 @@ async function broadcastStreakUpdate(client) {
   if (!client) return;
 
   const settings = storage.read('settings') || {};
-  if (settings.streakUpdateNotified_v3) return; // Sudah dikirim sebelumnya
+  if (settings.streakUpdateNotified_v4) return; // Sudah dikirim sebelumnya
 
   const streaks = getAllStreaks();
   const tzInfo = getTimezoneInfo();
@@ -884,7 +883,7 @@ async function broadcastStreakUpdate(client) {
   }
 
   if (userMap.size === 0) {
-    settings.streakUpdateNotified_v3 = true;
+    settings.streakUpdateNotified_v4 = true;
     storage.write('settings', settings);
     return;
   }
@@ -897,23 +896,35 @@ async function broadcastStreakUpdate(client) {
       const isLit = s.lastLitDate === tzInfo.todayStr;
       const days = s.status === 'active' ? s.streakCount : (s.previousStreakCount || 1);
       const tier = getStreakTier(days);
-      const statusIcon = s.status === 'broken' ? '🥀 Padam' : isLit ? '✅ Sudah Menyala' : '⏳ Belum Menyala';
+      let statusDetail = '';
+      if (s.status === 'broken') {
+        statusDetail = '[!] Padam';
+      } else if (isLit) {
+        statusDetail = '[✓] Sudah Menyala';
+      } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === partnerId) {
+        statusDetail = `[!] Giliran Kamu Membalas <@${partnerId}>`;
+      } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === userId) {
+        statusDetail = `[•] Menunggu Balasan <@${partnerId}>`;
+      } else {
+        statusDetail = `[-] Belum Menyala (Kamu dan <@${partnerId}> belum chat)`;
+      }
 
-      return `• <@${partnerId}>: ${statusIcon} (${days} Hari • ${tier.name})`;
+      return `• <@${partnerId}> — **${days} Hari** (${tier.name})\n  ┗ Status: ${statusDetail}`;
     });
 
     const updateMessage =
-      `✨ **PEMBARUAN SISTEM FLAME STREAK DISCORD!**\n` +
-      `Halo <@${userId}>! Sistem Streak server telah diperbarui dengan fitur baru yang jauh lebih mudah:\n\n` +
-      `🔥 **1. Terima Undangan = Api Langsung Menyala!**\n` +
-      `Saat kamu atau partner menerima ajakan streak, api **Hari ke-1 langsung resmi menyala** dan reward harian (+30 Stardust & +1 Tiket Gacha) langsung masuk, tanpa perlu bingung chat lagi di hari pertama!\n\n` +
-      `📋 **2. Perintah Baru \`/streak list\`**\n` +
+      `◈ **PEMBARUAN SISTEM FLAME STREAK** ◈\n` +
+      `Halo <@${userId}>, sistem Streak server telah diperbarui dengan fitur baru:\n\n` +
+      `◈ **1. Terima Undangan Langsung Menyala**\n` +
+      `Saat kamu atau partner menerima ajakan streak, api **Hari ke-1 langsung resmi menyala** dan reward harian (+30 Stardust & +1 Tiket Gacha) langsung diberikan tanpa perlu chat lagi di hari pertama.\n\n` +
+      `◈ **2. Perintah Baru \`/streak list\`**\n` +
       `Gunakan perintah \`/streak list\` di server untuk memantau seluruh partner kamu beserta status apinya hari ini secara realtime.\n\n` +
-      `🔔 **3. Pengingat Harian Otomatis via DM**\n` +
-      `Setiap malam pukul 21:00 WIB, bot akan otomatis mengirimkan pengingat ke DM kamu jika ada streak yang belum dinyalakan.\n\n` +
-      `📊 **Status Streak Kamu Saat Ini:**\n` +
-      items.join('\n') + `\n\n` +
-      `*Selamat melanjutkan petualangan streak bersama partnermu! 🔥*`;
+      `◈ **3. Pengingat Harian via DM (Pukul 21:00 WIB)**\n` +
+      `Setiap malam pukul 21:00 WIB, bot akan otomatis mengirimkan pengingat ke DM jika ada streak yang belum dinyalakan.\n\n` +
+      `───────────────────────────────\n` +
+      `◈ **Status Streak Kamu Saat Ini:**\n` +
+      items.join('\n\n') + `\n\n` +
+      `*Selamat melanjutkan koneksi streak bersama partnermu.*`;
 
     try {
       const user = client.users.cache.get(userId) || await client.users.fetch(userId).catch(() => null);
@@ -923,7 +934,7 @@ async function broadcastStreakUpdate(client) {
     } catch (_) {}
   }
 
-  settings.streakUpdateNotified_v3 = true;
+  settings.streakUpdateNotified_v4 = true;
   storage.write('settings', settings);
   console.log('[Streak Update Broadcast] Berhasil diselesaikan.');
 }
@@ -983,7 +994,7 @@ async function checkStreakScheduler(client) {
               const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                   .setCustomId(`streak_revive_${streak.pairKey}`)
-                  .setLabel(`✦ Pulihkan Streak (${revivesLeft}/5 Tersedia)`)
+                  .setLabel(`[+] Pulihkan Streak (${revivesLeft}/5 Tersedia)`)
                   .setStyle(ButtonStyle.Success)
               );
 
@@ -993,10 +1004,10 @@ async function checkStreakScheduler(client) {
                   new EmbedBuilder()
                     .setColor('#EF4444')
                     .setDescription(
-                      `🥀 **Api Streak Padam**\n` +
+                      `[!] **Api Streak Padam**\n` +
                       `Streak antara <@${streak.user1Id}> dan <@${streak.user2Id}> padam pada **Hari ke-${streak.previousStreakCount}** karena tidak saling berbalas sebelum 00:00 WIB.\n\n` +
                       `> Kuota Pemulihan Bulan Ini: **${revivesLeft}/5 Kali**\n` +
-                      `Cukup **salah satu dari kalian** klik tombol di bawah untuk menghidupkan kembali streak dari **Hari ke-${streak.previousStreakCount}** dan mendapatkan bonus Stardust & Tiket!`
+                      `Cukup **salah satu dari kalian** klik tombol di bawah untuk menghidupkan kembali streak dari **Hari ke-${streak.previousStreakCount}** dan mendapatkan bonus Stardust & Tiket.`
                     ),
                 ],
                 components: revivesLeft > 0 ? [row] : []

@@ -6,7 +6,8 @@ const {
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle
+  TextInputStyle,
+  AttachmentBuilder
 } = require('discord.js');
 const { handleCardButton, handleCardModalSubmit } = require('../utils/cardHandler');
 const { createMusicControlRows } = require('../utils/musicButtons');
@@ -1122,7 +1123,7 @@ module.exports = {
 
       if (!streak || streak.status !== 'pending') {
         return interaction.reply({
-          content: '❌ Undangan streak sudah tidak valid atau kedaluwarsa.',
+          content: '[!] Undangan streak sudah tidak valid atau kedaluwarsa.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -1134,12 +1135,12 @@ module.exports = {
         if (interaction.user.id !== targetUserId) {
           if (interaction.user.id === streak.invitedBy) {
             return interaction.reply({
-              content: '❌ Kamu tidak bisa menerima undangan yang kamu buat sendiri. Tunggu partner kamu merespons.',
+              content: '[!] Kamu tidak bisa menerima undangan yang kamu buat sendiri. Tunggu partner kamu merespons.',
               flags: MessageFlags.Ephemeral
             });
           }
           return interaction.reply({
-            content: `❌ Tombol ini hanya bisa diakses oleh orang yang diajak/diundang (<@${targetUserId}>).`,
+            content: `[!] Tombol ini hanya bisa diakses oleh orang yang diajak/diundang (<@${targetUserId}>).`,
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1148,12 +1149,11 @@ module.exports = {
         const res = await acceptInvite(pairKey, interaction.user.id, interaction.guild, client);
         if (!res.success) {
           if (res.reason === 'ALREADY_ACTIVE') {
-            return interaction.followUp({ content: 'Streak ini sudah aktif.', flags: MessageFlags.Ephemeral });
+            return interaction.followUp({ content: '[!] Streak ini sudah aktif.', flags: MessageFlags.Ephemeral });
           }
-          return interaction.followUp({ content: 'Undangan streak sudah tidak valid atau kedaluwarsa.', flags: MessageFlags.Ephemeral });
+          return interaction.followUp({ content: '[!] Undangan streak sudah tidak valid atau kedaluwarsa.', flags: MessageFlags.Ephemeral });
         }
 
-        const { AttachmentBuilder } = require('discord.js');
         const files = [];
         if (res.bannerBuffer) {
           files.push(new AttachmentBuilder(res.bannerBuffer, { name: 'streak_day1.png' }));
@@ -1161,11 +1161,11 @@ module.exports = {
 
         return interaction.editReply({
           content:
-            `✦ **Koneksi Streak Resmi Dimulai & Api Menyala!**\n` +
-            `<@${interaction.user.id}> telah menerima ajakan streak dari <@${streak.invitedBy}>! Api Hari ke-1 resmi menyala 🔥\n\n` +
-            `> Tingkatan: **TIER I • EMBER** (1 Hari)\n` +
-            `> 🎁 Reward Hari ke-1: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha** untuk kalian berdua!\n` +
-            `> *Mulai besok, saling chat & balas di channel teks sebelum pukul 00:00 WIB untuk lanjut ke Hari ke-2!*`,
+            `◈ **Koneksi Streak Resmi Dimulai & Api Menyala** ◈\n` +
+            `<@${interaction.user.id}> telah menerima ajakan streak dari <@${streak.invitedBy}>! Api Hari ke-1 resmi menyala.\n\n` +
+            `• Tingkatan: **TIER I • EMBER** (1 Hari)\n` +
+            `• Reward Hari ke-1: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha** untuk kalian berdua.\n` +
+            `• *Mulai besok, saling sapa & balas di channel teks sebelum pukul 00:00 WIB untuk lanjut ke Hari ke-2!*`,
           files,
           embeds: [],
           components: []
@@ -1174,7 +1174,7 @@ module.exports = {
         // Tombol Tolak: Hanya bisa diakses oleh target user atau pengundang yang ingin membatalkan
         if (interaction.user.id !== targetUserId && interaction.user.id !== streak.invitedBy) {
           return interaction.reply({
-            content: `❌ Tombol ini hanya bisa diakses oleh <@${targetUserId}> atau pengundang.`,
+            content: `[!] Tombol ini hanya bisa diakses oleh <@${targetUserId}> atau pengundang.`,
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1192,7 +1192,6 @@ module.exports = {
     // ====== Streak Revive Button ======
     if (interaction.isButton() && interaction.customId.startsWith('streak_revive_')) {
       const { reviveStreak } = require('../utils/streakHelper');
-      const { AttachmentBuilder } = require('discord.js');
       const pairKey = interaction.customId.replace('streak_revive_', '');
 
       await interaction.deferUpdate();
@@ -1200,18 +1199,19 @@ module.exports = {
       const res = await reviveStreak(pairKey, interaction.user.id, interaction.guild, client);
       if (!res.success) {
         if (res.reason === 'NOT_PARTNER') {
-          return interaction.followUp({ content: 'Hanya pasangan streak yang bersangkutan yang dapat memulihkan streak ini.', flags: MessageFlags.Ephemeral });
+          return interaction.followUp({ content: '[!] Hanya pasangan streak yang bersangkutan yang dapat memulihkan streak ini.', flags: MessageFlags.Ephemeral });
         }
         if (res.reason === 'NO_REVIVES_LEFT') {
-          return interaction.followUp({ content: 'Kuota pemulihan bulan ini sudah habis (0/5).', flags: MessageFlags.Ephemeral });
+          return interaction.followUp({ content: '[!] Kuota pemulihan bulan ini sudah habis (0/5).', flags: MessageFlags.Ephemeral });
         }
-        return interaction.followUp({ content: 'Gagal memulihkan streak atau streak sudah aktif kembali.', flags: MessageFlags.Ephemeral });
+        return interaction.followUp({ content: '[!] Gagal memulihkan streak atau streak sudah aktif kembali.', flags: MessageFlags.Ephemeral });
       }
 
       const attachment = new AttachmentBuilder(res.bannerBuffer, { name: `streak_revived.png` });
       const reviveContent =
-        `✦ **Streak Dipulihkan!** <@${res.streak.user1Id}> & <@${res.streak.user2Id}> — **Hari ke-${res.restoredDays}** · Kuota: **${res.revivesLeft}/5**\n` +
-        `> 🎁 **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha** untuk kalian berdua!`;
+        `◈ **Streak Berhasil Dipulihkan** ◈\n` +
+        `<@${res.streak.user1Id}> & <@${res.streak.user2Id}> — **Hari ke-${res.restoredDays}** · Kuota: **${res.revivesLeft}/5**\n` +
+        `[+] **Reward:** +${res.reward.dust} Stardust & +${res.reward.tickets} Tiket Gacha untuk kalian berdua!`;
 
       return interaction.editReply({
         content: reviveContent,

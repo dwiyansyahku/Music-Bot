@@ -12,7 +12,6 @@ const {
   createInvite,
   getStreak,
   getUserStreaks,
-  getAllStreaks,
   endStreak,
   reviveStreak,
   getMonthlyRevives,
@@ -101,7 +100,7 @@ module.exports = {
 
       if (isVoiceChannel) {
         return interaction.reply({
-          content: '❌ Ajakan streak tidak diperbolehkan di chat voice channel. Silakan gunakan channel teks biasa agar server tetap ramai!',
+          content: '[!] Ajakan streak tidak diperbolehkan di chat voice channel. Silakan gunakan channel teks biasa.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -150,12 +149,12 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor('#F59E0B')
-        .setTitle('✦ Undangan Koneksi Streak')
+        .setTitle('◈ Undangan Koneksi Streak ◈')
         .setDescription(
           `<@${inviter.id}> mengundang <@${targetUser.id}> untuk membangun **Flame Streak** harian bersama.\n\n` +
-          `> Waktu Reset: **Pukul 00:00 WIB** (Pengingat otomatis pukul **21:00 WIB** / 22:00 WITA / 23:00 WIT)\n` +
-          `> Kuota Pemulihan: **5x per bulan** jika streak terlewat/padam\n` +
-          `> Reward: Bonus **Stardust & Tiket Gacha** setiap hari!\n\n` +
+          `• Waktu Reset: **Pukul 00:00 WIB** (Pengingat harian otomatis via DM)\n` +
+          `• Kuota Pemulihan: **5x per bulan** jika streak terlewat/padam\n` +
+          `• Reward: Bonus **Stardust & Tiket Gacha** setiap hari.\n\n` +
           `Silakan <@${targetUser.id}> klik tombol di bawah untuk menerima atau menolak.`
         );
 
@@ -238,10 +237,32 @@ module.exports = {
       const tier = getStreakTier(currentDisplayDays);
       const attachment = new AttachmentBuilder(bannerBuffer, { name: `streak_card.png` });
 
-      const statusLabel = streak.status === 'broken' ? 'Padam' : isLitToday ? 'Menyala' : streak.todayInitiatorId ? 'Menunggu' : 'Belum Menyala';
+      const partnerId = streak.user1Id === inviter.id ? streak.user2Id : streak.user1Id;
+      const partnerMember = await interaction.guild.members.fetch(partnerId).catch(() => null);
+      const partnerName = partnerMember?.displayName || partnerMember?.user?.username || 'Partner';
+
+      let statusDesc = '';
+      if (streak.status === 'broken') {
+        statusDesc = `[!] Api Padam (Bisa Dipulihkan — Sisa Kuota: ${revivesLeft}/5)`;
+      } else if (isLitToday) {
+        statusDesc = `[✓] Api Sudah Menyala Hari Ini (Aman sampai reset 00:00 WIB)`;
+      } else if (streak.todayInitiatedDate === tzInfo.todayStr && streak.todayInitiatorId === partnerId) {
+        statusDesc = `[!] Giliran Kamu Membalas: <@${partnerId}> (${partnerName}) sudah menyapa di server, kamu belum membalas!`;
+      } else if (streak.todayInitiatedDate === tzInfo.todayStr && streak.todayInitiatorId === inviter.id) {
+        statusDesc = `[•] Menunggu Balasan Partner: Kamu sudah menyapa hari ini, menunggu balasan dari <@${partnerId}> (${partnerName})!`;
+      } else {
+        statusDesc = `[-] Api Belum Menyala: Kamu dan <@${partnerId}> (${partnerName}) belum ada yang menyapa di server hari ini!`;
+      }
 
       const statusContent =
-        `✦ **Streak** <@${streak.user1Id}> & <@${streak.user2Id}> — **${tier.tierLabel} • ${tier.name}** (${currentDisplayDays} Hari) · ${statusLabel}`;
+        `◈ **Kartu Status Flame Streak** ◈\n` +
+        `• Pasangan: <@${streak.user1Id}> & <@${streak.user2Id}>\n` +
+        `• Status Api: **${statusDesc}**\n` +
+        `• Tingkatan: **${tier.tierLabel} • ${tier.name}** (${currentDisplayDays} Hari)\n` +
+        `• Rekor Tertinggi: **${streak.highestStreak || currentDisplayDays} Hari**\n` +
+        `• Total Obrolan: **${(streak.totalPairMessages || 0).toLocaleString('id-ID')} Pesan di Discord**\n` +
+        `• Kuota Pemulihan: **${revivesLeft}/5 Kali** (Bulan ${tzInfo.yearMonth})\n` +
+        `• Waktu Reset: Pukul **00:00 WIB**`;
 
       return interaction.editReply({
         content: statusContent,
@@ -268,7 +289,7 @@ module.exports = {
       }
 
       if (!streak) {
-        return interaction.editReply({ content: 'Tidak ditemukan streak yang dapat dipulihkan.' });
+        return interaction.editReply({ content: '[!] Tidak ditemukan streak yang dapat dipulihkan.' });
       }
 
       if (streak.status === 'active') {
@@ -281,18 +302,21 @@ module.exports = {
       if (!res.success) {
         if (res.reason === 'NO_REVIVES_LEFT') {
           return interaction.editReply({
-            content: '❌ Kuota pemulihan bulan ini sudah habis (0/5). Kuota akan direset kembali menjadi 5x pada awal bulan depan.'
+            content: '[!] Kuota pemulihan bulan ini sudah habis (0/5). Kuota akan direset kembali menjadi 5x pada awal bulan depan.'
           });
         }
-        return interaction.editReply({ content: 'Gagal memulihkan streak.' });
+        return interaction.editReply({ content: '[!] Gagal memulihkan streak.' });
       }
 
       const tier = getStreakTier(res.restoredDays);
       const attachment = new AttachmentBuilder(res.bannerBuffer, { name: `streak_restored.png` });
 
       const restoreContent =
-        `✦ **Streak Dipulihkan!** <@${inviter.id}> & <@${streak.user1Id === inviter.id ? streak.user2Id : streak.user1Id}> — **Hari ke-${res.restoredDays}** · Kuota: **${res.revivesLeft}/5**\n` +
-        `> 🎁 **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha**`;
+        `◈ **Api Streak Berhasil Dipulihkan** ◈\n` +
+        `<@${inviter.id}> telah memulihkan streak bersama <@${streak.user1Id === inviter.id ? streak.user2Id : streak.user1Id}>!\n\n` +
+        `• Status: **Hari ke-${res.restoredDays}** (${tier.tierLabel} • ${tier.name})\n` +
+        `• Kuota Pemulihan Bulan Ini: **${res.revivesLeft}/5 Kali**\n` +
+        `[+] **Reward:** +${res.reward.dust} Stardust & +${res.reward.tickets} Tiket Gacha untuk kalian berdua!`;
 
       return interaction.editReply({
         content: restoreContent,
