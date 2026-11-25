@@ -748,6 +748,7 @@ function getGuildAutomodSettings(guildId) {
 
   return {
     enabled: guildSettings.automodEnabled !== false, // default: true
+    antiRaid: guildSettings.antiRaid !== false, // default: true (Pemeriksaan umur akun baru < 24 jam)
     antiPhishing: guildSettings.antiPhishing !== false, // default: true
     badWords: guildSettings.badWords !== false, // default: true
     antiSpam: guildSettings.antiSpam !== false, // default: true

@@ -26,12 +26,12 @@ module.exports = {
       try {
         if (interaction.replied || interaction.deferred) {
           await interaction.editReply({ content: errContent, embeds: [], files: [] }).catch(async () => {
-            await interaction.followUp({ content: errContent, flags: MessageFlags.Ephemeral }).catch(() => {});
+            await interaction.followUp({ content: errContent, flags: MessageFlags.Ephemeral }).catch(() => { });
           });
         } else {
-          await interaction.reply({ content: errContent, flags: MessageFlags.Ephemeral }).catch(() => {});
+          await interaction.reply({ content: errContent, flags: MessageFlags.Ephemeral }).catch(() => { });
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // ====== Slash Commands ======
@@ -95,14 +95,14 @@ module.exports = {
               await queue.resume();
               const rows = createMusicControlRows(queue);
               const embed = nowPlayingEmbed(queue.songs[0], queue);
-              await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
-              return interaction.followUp({ content: '▶️ **Musik dilanjutkan.**', flags: MessageFlags.Ephemeral }).catch(() => {});
+              await interaction.update({ embeds: [embed], components: rows }).catch(() => { });
+              return interaction.followUp({ content: '▶️ **Musik dilanjutkan.**', flags: MessageFlags.Ephemeral }).catch(() => { });
             } else {
               await queue.pause();
               const rows = createMusicControlRows(queue);
               const embed = nowPlayingEmbed(queue.songs[0], queue);
-              await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
-              return interaction.followUp({ content: '⏸️ **Musik di-pause.**', flags: MessageFlags.Ephemeral }).catch(() => {});
+              await interaction.update({ embeds: [embed], components: rows }).catch(() => { });
+              return interaction.followUp({ content: '⏸️ **Musik di-pause.**', flags: MessageFlags.Ephemeral }).catch(() => { });
             }
           }
 
@@ -116,7 +116,7 @@ module.exports = {
 
           case 'stop': {
             queue._stoppedByCmd = true;
-            await queue.stop().catch(() => {});
+            await queue.stop().catch(() => { });
             return interaction.reply({ content: '⏹️ **Musik dihentikan dan antrian dibersihkan.**', flags: MessageFlags.Ephemeral });
           }
 
@@ -134,9 +134,9 @@ module.exports = {
             queue.setRepeatMode(nextMode);
             const rows = createMusicControlRows(queue);
             const embed = nowPlayingEmbed(queue.songs[0], queue);
-            await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
+            await interaction.update({ embeds: [embed], components: rows }).catch(() => { });
             const modeNames = ['Off', 'Lagu (Single)', 'Seluruh Antrian (Queue)'];
-            return interaction.followUp({ content: `🔁 Mode Loop diubah ke: **${modeNames[nextMode]}**`, flags: MessageFlags.Ephemeral }).catch(() => {});
+            return interaction.followUp({ content: `🔁 Mode Loop diubah ke: **${modeNames[nextMode]}**`, flags: MessageFlags.Ephemeral }).catch(() => { });
           }
 
           case 'autoplay': {
@@ -146,11 +146,11 @@ module.exports = {
             }
             const rows = createMusicControlRows(queue);
             const embed = nowPlayingEmbed(queue.songs[0], queue);
-            await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
+            await interaction.update({ embeds: [embed], components: rows }).catch(() => { });
             return interaction.followUp({
               content: queue.autoplay ? '🔄 **Autoplay diaktifkan!** Bot otomatis cari lagu serupa saat antrian habis.' : '🚫 **Autoplay dimatikan.**',
               flags: MessageFlags.Ephemeral
-            }).catch(() => {});
+            }).catch(() => { });
           }
 
           case 'lyrics': {
@@ -612,7 +612,7 @@ module.exports = {
           }
           const lobbyPayload = buildBossLobbyPayload(guildId);
           if (interaction.message?.editable) {
-            await interaction.message.edit(lobbyPayload).catch(() => {});
+            await interaction.message.edit(lobbyPayload).catch(() => { });
           }
           return await interaction.reply({
             content: `✅ Party berhasil dibuat: **${res.party.name}**! Kamu dapat langsung menekan **[Mulai Raid]** secara solo (1 orang) atau menunggu rekan squad bergabung.`,
@@ -627,7 +627,7 @@ module.exports = {
           }
           const lobbyPayload = buildBossLobbyPayload(guildId);
           if (interaction.message?.editable) {
-            await interaction.message.edit(lobbyPayload).catch(() => {});
+            await interaction.message.edit(lobbyPayload).catch(() => { });
           }
           return await interaction.reply({
             content: `✅ Kamu berhasil bergabung ke **${res.party.name}**! Bersiaplah menghadapi Boss Raid.`,
@@ -642,7 +642,7 @@ module.exports = {
           }
           const lobbyPayload = buildBossLobbyPayload(guildId);
           if (interaction.message?.editable) {
-            await interaction.message.edit(lobbyPayload).catch(() => {});
+            await interaction.message.edit(lobbyPayload).catch(() => { });
           }
           return await interaction.reply({
             content: `✅ Kamu telah keluar dari party raid.`,
@@ -693,7 +693,7 @@ module.exports = {
           const res = toggleAdminForceBossRaid(guildId);
           const lobbyPayload = buildBossLobbyPayload(guildId, true);
           if (interaction.message?.editable) {
-            await interaction.message.edit(lobbyPayload).catch(() => {});
+            await interaction.message.edit(lobbyPayload).catch(() => { });
           }
           return await interaction.reply({
             content: res.isOpen ? '⚡ **[Admin] Boss Raid berhasil dibuka secara paksa!** Sekarang pemain dapat membuat party dan bertarung.' : '🔒 **[Admin] Boss Raid telah dikunci kembali.**',
@@ -868,8 +868,8 @@ module.exports = {
                 storage.write('settings', settings);
               }
               // Sinkronisasi otomatis pesan publik jika masih versi teks lama
-              interaction.message.edit(createHelpGuidePanelPayload(interaction.guild)).catch(() => {});
-            } catch (_) {}
+              interaction.message.edit(createHelpGuidePanelPayload(interaction.guild)).catch(() => { });
+            } catch (_) { }
           }
 
           return await interaction.reply({

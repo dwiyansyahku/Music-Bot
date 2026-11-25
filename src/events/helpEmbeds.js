@@ -265,11 +265,11 @@ function buildHelpEmbed(category, client, guild = null) {
           `• \`/clear [jumlah]\` atau \`/qclear\` — Hapus pesan chat dalam jumlah banyak secara instan.\n\n` +
           `◈ **Sistem Keamanan & Auto-Moderation (Guardian Layer):**\n` +
           `• \`/automod status\` — Pantau konfigurasi Anti-Phishing, Anti-Malware Arsip (.zip/.rar), Anti-Invite, Auto-Kick, & Anti-Spam.\n` +
-          `• \`/automod toggle\` — Ubah modul keamanan (\`phishing\`, \`malware\`, \`invite\`, \`kick\`, \`spam\`, \`badwords\`).\n` +
+          `• \`/automod toggle\` — Ubah modul keamanan (\`antiraid\`, \`phishing\`, \`malware\`, \`invite\`, \`kick\`, \`spam\`, \`badwords\`).\n` +
           `• \`/mod setlogchannel [channel]\` — Saluran Mod Log audit terpusat (Auto-Kick, Ban, Jail, Voice Disconnect, Server Mute/Deafen, Anti-Nuke, Anti-Raid, Webhook, & Ghost Ping).\n\n` +
           `◈ **Perlindungan Otomatis Tanpa Perintah (Passive Security):**\n` +
           `• **🚨 Proteksi Anti-Nuke:** Memantau aksi beruntun moderator (channel/role delete, mass ban/kick). Jika melampaui batas wajar (15s), role izin berbahaya langsung dicabut & akun di-timeout 24 jam.\n` +
-          `• **🚪 Anti-Raid Join Gate:** Otomatis menolak & meng-kick akun kloningan/bot yang berusia **kurang dari 1 hari** serta mendeteksi lonjakan mass-join (> 5 akun dalam 10s).\n` +
+          `• **🚪 Anti-Raid Join Gate:** Otomatis menolak & meng-kick akun kloningan/bot yang berusia **kurang dari 1 hari** serta mendeteksi lonjakan mass-join (> 5 akun dalam 10s) (Bisa diatur via \`/automod toggle fitur:antiraid\`).\n` +
           `• **🔗 Proteksi Webhook Liar:** Menghapus seketika webhook tidak berwenang yang dibuat di channel server untuk mencegah broadcast scam.\n` +
           `• **👻 Anti-Ghost Ping & Edit Monitor:** Melacak pesan mention yang sengaja dihapus cepat serta memindai pesan yang diedit menjadi link phising.\n` +
           `• **🔒 Karantina Media Member Baru:** Member yang baru bergabung < 24 jam dibatasi mengirim file lampiran/media di chatroom umum.\n` +

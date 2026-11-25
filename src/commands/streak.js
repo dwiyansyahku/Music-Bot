@@ -338,7 +338,7 @@ module.exports = {
       );
 
       // Trigger update di channel khusus di background
-      updateLiveStreakLeaderboard(client, guildId).catch(() => {});
+      updateLiveStreakLeaderboard(client, guildId).catch(() => { });
 
       return interaction.reply({
         embeds: [embed],
@@ -362,7 +362,7 @@ module.exports = {
       }
 
       endStreak(pairKey);
-      updateLiveStreakLeaderboard(client, guildId).catch(() => {});
+      updateLiveStreakLeaderboard(client, guildId).catch(() => { });
 
       return interaction.reply({
         content: `Koneksi streak antara <@${inviter.id}> dan <@${targetUser.id}> telah diakhiri.`

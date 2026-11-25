@@ -240,7 +240,7 @@ async function acceptInvite(pairKey, acceptingUserId, guild = null, client = nul
 
   // Perbarui leaderboard jika client tersedia
   if (client) {
-    updateLiveStreakLeaderboard(client, streak.guildId).catch(() => {});
+    updateLiveStreakLeaderboard(client, streak.guildId).catch(() => { });
   }
 
   // Render canvas banner Hari ke-1 jika guild tersedia
@@ -311,7 +311,7 @@ function endStreak(pairKey) {
 function buildStreakLeaderboardEmbed(guildId) {
   const allStreaks = Object.values(getAllStreaks()).filter(
     s => (s.guildId === guildId || !guildId || s.guildId === STREAK_LEADERBOARD_GUILD_ID) &&
-         (s.status === 'active' || s.status === 'broken')
+      (s.status === 'active' || s.status === 'broken')
   );
 
   allStreaks.sort((a, b) => {
@@ -348,7 +348,7 @@ function buildStreakLeaderboardEmbed(guildId) {
       const totalChats = (s.totalPairMessages || 0).toLocaleString('id-ID');
 
       return `${medal} <@${s.user1Id}> & <@${s.user2Id}> — **${days} Hari**\n` +
-             `    ┗ **${tier.tierLabel} • ${tier.name}**  ·  ${totalChats} Pesan  ·  ${statusBadge}`;
+        `    ┗ **${tier.tierLabel} • ${tier.name}**  ·  ${totalChats} Pesan  ·  ${statusBadge}`;
     }).join('\n\n');
   }
 
@@ -408,7 +408,7 @@ async function updateLiveStreakLeaderboard(client, targetGuildId = STREAK_LEADER
     }
 
     if (targetMsg) {
-      await targetMsg.edit({ embeds: [embed] }).catch(() => {});
+      await targetMsg.edit({ embeds: [embed] }).catch(() => { });
       if (!settings[targetGuildId]) settings[targetGuildId] = {};
       settings[targetGuildId].streakLeaderboardMsgId = targetMsg.id;
       settings[targetGuildId].streakLeaderboardChannel = channelId;
@@ -464,7 +464,7 @@ async function reviveStreak(pairKey, reviverUserId, guild, client = null) {
   awardStreakRewards(guild.id, otherUserId, restoredDays, false);
 
   if (client) {
-    updateLiveStreakLeaderboard(client, guild.id).catch(() => {});
+    updateLiveStreakLeaderboard(client, guild.id).catch(() => { });
   }
 
   const member1 = await guild.members.fetch(streak.user1Id).catch(() => null);
@@ -524,7 +524,7 @@ async function handleMessageStreak(message, client = null) {
       if (refMsg && refMsg.author && !refMsg.author.bot && refMsg.author.id !== authorId) {
         targetUserIds.add(refMsg.author.id);
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   if (targetUserIds.size === 0) return null;
@@ -571,7 +571,7 @@ async function handleMessageStreak(message, client = null) {
         `<@${authorId}> telah menyapa <@${targetId}> di channel ini.\n\n` +
         `> [!] **Giliran <@${targetId}>:** Balas / reply pesan ini sebelum pukul **00:00 WIB** agar api (**Hari ke-${nextDayPreview}**) menyala.`;
 
-      await message.reply({ content: waitContent }).catch(() => {});
+      await message.reply({ content: waitContent }).catch(() => { });
       processedCount++;
       continue;
     }
@@ -612,7 +612,7 @@ async function handleMessageStreak(message, client = null) {
       // Update Papan Klasemen Realtime
       const botClient = client || message.client;
       if (botClient) {
-        updateLiveStreakLeaderboard(botClient, message.guild.id).catch(() => {});
+        updateLiveStreakLeaderboard(botClient, message.guild.id).catch(() => { });
       }
 
       // Ambil data avatar kedua user
@@ -855,9 +855,9 @@ async function sendDailyPersonalStreakReminders(client) {
     try {
       const user = client.users.cache.get(userId) || await client.users.fetch(userId).catch(() => null);
       if (user) {
-        await user.send({ content: dmContent }).catch(() => {});
+        await user.send({ content: dmContent }).catch(() => { });
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 }
 
@@ -929,9 +929,9 @@ async function broadcastStreakUpdate(client) {
     try {
       const user = client.users.cache.get(userId) || await client.users.fetch(userId).catch(() => null);
       if (user) {
-        await user.send({ content: updateMessage }).catch(() => {});
+        await user.send({ content: updateMessage }).catch(() => { });
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   settings.streakUpdateNotified_v4 = true;
@@ -959,7 +959,7 @@ async function checkStreakScheduler(client) {
       }
     }
     if (shouldSendDM) {
-      await sendDailyPersonalStreakReminders(client).catch(() => {});
+      await sendDailyPersonalStreakReminders(client).catch(() => { });
     }
   }
 
@@ -1011,17 +1011,17 @@ async function checkStreakScheduler(client) {
                     ),
                 ],
                 components: revivesLeft > 0 ? [row] : []
-              }).catch(() => {});
+              }).catch(() => { });
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       }
     }
   }
 
   if (changed) {
     saveAllStreaks(streaks);
-    updateLiveStreakLeaderboard(client).catch(() => {});
+    updateLiveStreakLeaderboard(client).catch(() => { });
   }
 }
 

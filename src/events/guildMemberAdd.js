@@ -32,10 +32,12 @@ module.exports = {
     }
 
     // ─── 1. ANTI-RAID: PEMERIKSAAN UMUR AKUN MINIMAL (MIN 1 HARI / 24 JAM) ───
+    const { getGuildAutomodSettings } = require('../utils/automod');
+    const automodConfig = getGuildAutomodSettings(guild.id);
     const accountAgeMs = now - member.user.createdTimestamp;
     const minAgeMs = 1 * 24 * 60 * 60 * 1000; // 1 hari (24 jam)
 
-    if (accountAgeMs < minAgeMs && !member.user.bot) {
+    if (automodConfig.enabled && automodConfig.antiRaid && accountAgeMs < minAgeMs && !member.user.bot) {
       const ageHours = Math.max(1, Math.floor(accountAgeMs / (1000 * 60 * 60)));
       const ageDays = (accountAgeMs / (1000 * 60 * 60 * 24)).toFixed(1);
 
@@ -92,7 +94,7 @@ module.exports = {
     joinTimestamps.push(now);
     joinSpikeTracker.set(guild.id, joinTimestamps);
 
-    if (joinTimestamps.length >= 5) {
+    if (automodConfig.enabled && automodConfig.antiRaid && joinTimestamps.length >= 5) {
       console.warn(`🚨 [Anti-Raid Spike] Terdeteksi ${joinTimestamps.length} member bergabung dalam 10 detik di ${guild.name}!`);
       const { sendModLog } = require('../utils/modlog');
       await sendModLog(guild, client, {

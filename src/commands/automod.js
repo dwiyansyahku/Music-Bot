@@ -23,6 +23,7 @@ module.exports = {
             .setRequired(true)
             .addChoices(
               { name: 'Semua Fitur Auto-Mod', value: 'all' },
+              { name: 'Anti-Bot / Anti-Raid Akun Baru (< 24 Jam)', value: 'antiraid' },
               { name: 'Anti-Phishing & Scam Links', value: 'phishing' },
               { name: 'Anti-Spam & Message Flood', value: 'spam' },
               { name: 'Anti-Malware & File Berbahaya', value: 'malware' },
@@ -118,6 +119,7 @@ module.exports = {
         .setTitle('Konfigurasi Keamanan Server')
         .setDescription(
           `• **Sistem Auto-Mod:** \`${config.enabled ? 'AKTIF' : 'NONAKTIF'}\`\n` +
+          `• **Anti-Bot / Anti-Raid Akun Baru (< 24 Jam):** \`${config.antiRaid ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Proteksi Anti-Phishing & Scam:** \`${config.antiPhishing ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Proteksi Anti-Spam (Flood/Duplikasi/Caps):** \`${config.antiSpam ? 'AKTIF' : 'NONAKTIF'}\`\n` +
           `• **Proteksi Anti-Malware / Trojan & Arsip:** \`${config.antiMalware ? 'AKTIF' : 'NONAKTIF'}\`\n` +
@@ -144,7 +146,11 @@ module.exports = {
       const feature = interaction.options.getString('fitur');
       const status = interaction.options.getBoolean('status');
 
-      if (feature === 'all') allSettings[guildId].automodEnabled = status;
+      if (feature === 'all') {
+        allSettings[guildId].automodEnabled = status;
+        allSettings[guildId].antiRaid = status;
+      }
+      if (feature === 'antiraid') allSettings[guildId].antiRaid = status;
       if (feature === 'phishing') allSettings[guildId].antiPhishing = status;
       if (feature === 'badwords') allSettings[guildId].badWords = status;
       if (feature === 'spam') allSettings[guildId].antiSpam = status;
