@@ -20,6 +20,7 @@ const {
   getTimezoneInfo,
   buildStreakLeaderboardEmbed,
   updateLiveStreakLeaderboard,
+  formatUserStreakListEmbed,
   STREAK_LEADERBOARD_CHANNEL_ID
 } = require('../utils/streakHelper');
 const { generateStreakBanner, getStreakTier } = require('../utils/streakCanvas');
@@ -38,6 +39,11 @@ module.exports = {
             .setDescription('Pilih partner streak kamu')
             .setRequired(true)
         )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('list')
+        .setDescription('Daftar seluruh partner streak kamu beserta status apinya hari ini secara realtime')
     )
     .addSubcommand(sub =>
       sub
@@ -161,7 +167,18 @@ module.exports = {
     }
 
     // ==========================================
-    // 2. SUBCOMMAND: STATUS
+    // 2. SUBCOMMAND: LIST (REALTIME SEMUA PARTNER)
+    // ==========================================
+    if (subcommand === 'list') {
+      const embed = formatUserStreakListEmbed(inviter.id);
+      return interaction.reply({
+        embeds: [embed],
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    // ==========================================
+    // 3. SUBCOMMAND: STATUS
     // ==========================================
     if (subcommand === 'status') {
       await interaction.deferReply();

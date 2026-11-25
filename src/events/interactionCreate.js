@@ -1144,20 +1144,29 @@ module.exports = {
           });
         }
 
-        const res = acceptInvite(pairKey, interaction.user.id);
+        await interaction.deferUpdate();
+        const res = await acceptInvite(pairKey, interaction.user.id, interaction.guild, client);
         if (!res.success) {
           if (res.reason === 'ALREADY_ACTIVE') {
-            return interaction.reply({ content: 'Streak ini sudah aktif.', flags: MessageFlags.Ephemeral });
+            return interaction.followUp({ content: 'Streak ini sudah aktif.', flags: MessageFlags.Ephemeral });
           }
-          return interaction.reply({ content: 'Undangan streak sudah tidak valid atau kedaluwarsa.', flags: MessageFlags.Ephemeral });
+          return interaction.followUp({ content: 'Undangan streak sudah tidak valid atau kedaluwarsa.', flags: MessageFlags.Ephemeral });
         }
 
-        return interaction.update({
+        const { AttachmentBuilder } = require('discord.js');
+        const files = [];
+        if (res.bannerBuffer) {
+          files.push(new AttachmentBuilder(res.bannerBuffer, { name: 'streak_day1.png' }));
+        }
+
+        return interaction.editReply({
           content:
-            `✦ **Koneksi Streak Resmi Dimulai!**\n` +
-            `<@${interaction.user.id}> telah menerima undangan streak dari <@${streak.invitedBy}>!\n\n` +
-            `> Waktu Reset: Pukul **00:00 WIB**\n` +
-            `> Cara Menyalakan: Kirim pesan di channel teks dengan menge-tag / me-reply partner kamu setiap hari!`,
+            `✦ **Koneksi Streak Resmi Dimulai & Api Menyala!**\n` +
+            `<@${interaction.user.id}> telah menerima ajakan streak dari <@${streak.invitedBy}>! Api Hari ke-1 resmi menyala 🔥\n\n` +
+            `> Tingkatan: **TIER I • EMBER** (1 Hari)\n` +
+            `> 🎁 Reward Hari ke-1: **+${res.reward.dust} Stardust** & **+${res.reward.tickets} Tiket Gacha** untuk kalian berdua!\n` +
+            `> *Mulai besok, saling chat & balas di channel teks sebelum pukul 00:00 WIB untuk lanjut ke Hari ke-2!*`,
+          files,
           embeds: [],
           components: []
         });

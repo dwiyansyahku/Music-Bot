@@ -193,9 +193,11 @@ function createInvite({ guildId, inviterId, targetId, channelId = null }) {
 }
 
 /**
- * Konfirmasi penerimaan undangan streak
+ * Konfirmasi penerimaan undangan streak.
+ * Saat diterima, api langsung RESMI MENYALA di Hari ke-1 (tanpa perlu chat lagi hari ini),
+ * reward harian langsung diberikan, dan banner Hari ke-1 langsung dirender.
  */
-function acceptInvite(pairKey, acceptingUserId) {
+async function acceptInvite(pairKey, acceptingUserId, guild = null, client = null) {
   const streaks = getAllStreaks();
   const streak = streaks[pairKey];
 
@@ -216,9 +218,11 @@ function acceptInvite(pairKey, acceptingUserId) {
 
   streak.status = 'active';
   streak.startDate = Date.now();
-  streak.streakCount = 0;
+  streak.streakCount = 1; // Langsung Hari ke-1!
+  streak.highestStreak = Math.max(streak.highestStreak || 0, 1);
   streak.previousStreakCount = 0;
-  streak.lastLitDate = null;
+  streak.lastLitDate = tzInfo.todayStr; // Langsung menyala hari ini!
+  streak.lastLitTime = Date.now();
   streak.todayInitiatorId = null;
   streak.todayInitiatedDate = null;
   streak.remindedToday = false;
@@ -228,8 +232,46 @@ function acceptInvite(pairKey, acceptingUserId) {
   streak.user2Chats = streak.user2Chats || 0;
   streak.totalPairMessages = streak.totalPairMessages || 0;
 
+  // Berikan reward harian awal untuk kedua belah pihak
+  const reward1 = awardStreakRewards(streak.guildId, streak.user1Id, 1, false, false);
+  const reward2 = awardStreakRewards(streak.guildId, streak.user2Id, 1, false, false);
+
   saveAllStreaks(streaks);
-  return { success: true, streak };
+
+  // Perbarui leaderboard jika client tersedia
+  if (client) {
+    updateLiveStreakLeaderboard(client, streak.guildId).catch(() => {});
+  }
+
+  // Render canvas banner Hari ke-1 jika guild tersedia
+  let bannerBuffer = null;
+  if (guild) {
+    try {
+      const member1 = await guild.members.fetch(streak.user1Id).catch(() => null);
+      const member2 = await guild.members.fetch(streak.user2Id).catch(() => null);
+
+      const u1Name = member1?.displayName || member1?.user?.username || 'User 1';
+      const u1Tag = member1?.user?.username || 'user1';
+      const u1Avatar = member1?.user?.displayAvatarURL({ extension: 'png', size: 128 });
+
+      const u2Name = member2?.displayName || member2?.user?.username || 'User 2';
+      const u2Tag = member2?.user?.username || 'user2';
+      const u2Avatar = member2?.user?.displayAvatarURL({ extension: 'png', size: 128 });
+
+      bannerBuffer = await generateStreakBanner({
+        days: 1,
+        user1: { name: u1Name, tag: u1Tag, avatarUrl: u1Avatar, chatCount: streak.user1Chats || 0 },
+        user2: { name: u2Name, tag: u2Tag, avatarUrl: u2Avatar, chatCount: streak.user2Chats || 0 },
+        totalPairChats: streak.totalPairMessages || 0,
+        timezone: 'WIB',
+        statusText: 'HARI INI RESMI MENYALA • RESET 00:00 WIB'
+      });
+    } catch (bErr) {
+      console.warn('[Streak Banner Day 1] Gagal generate:', bErr.message);
+    }
+  }
+
+  return { success: true, streak, reward: reward1, bannerBuffer };
 }
 
 /**
@@ -637,66 +679,281 @@ async function handleMessageStreak(message, client = null) {
 }
 
 /**
- * Pengecekan Pengingat 3 Jam Sebelum Reset (Jam 21:00 WIB) & Rollover 00:00 WIB
+ * Bangun data daftar seluruh streak yang melibatkan seorang user (aktif, padam, maupun pending).
+ */
+function buildUserStreakList(userId) {
+  const streaks = getAllStreaks();
+  const tzInfo = getTimezoneInfo();
+
+  const active = [];
+  const broken = [];
+  const pendingSent = [];
+  const pendingReceived = [];
+
+  for (const s of Object.values(streaks)) {
+    if (s.user1Id !== userId && s.user2Id !== userId) continue;
+
+    const partnerId = s.user1Id === userId ? s.user2Id : s.user1Id;
+
+    if (s.status === 'active') {
+      const isLitToday = s.lastLitDate === tzInfo.todayStr;
+      const tier = getStreakTier(s.streakCount || 1);
+      let statusToday = '';
+
+      if (isLitToday) {
+        statusToday = '🔥 **Sudah Menyala** (Aman sampai reset 00:00 WIB)';
+      } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === userId) {
+        statusToday = `⏳ **Menunggu balasan partner** (Kamu sudah chat, <@${partnerId}> belum membalas)`;
+      } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === partnerId) {
+        statusToday = `⚠️ **Menunggu balasanmu!** (<@${partnerId}> sudah chat, balas sebelum 00:00 WIB!)`;
+      } else {
+        statusToday = '⏳ **Belum Menyala!** (Kalian berdua belum saling chat hari ini)';
+      }
+
+      active.push({
+        partnerId,
+        days: s.streakCount || 1,
+        tier,
+        isLitToday,
+        statusToday,
+        totalChats: s.totalPairMessages || 0
+      });
+    } else if (s.status === 'broken') {
+      const revivesLeft = getMonthlyRevives(s, tzInfo.yearMonth);
+      broken.push({
+        partnerId,
+        days: s.previousStreakCount || 1,
+        revivesLeft
+      });
+    } else if (s.status === 'pending') {
+      if (s.invitedBy === userId) {
+        pendingSent.push({ partnerId });
+      } else {
+        pendingReceived.push({ partnerId });
+      }
+    }
+  }
+
+  return {
+    userId,
+    active,
+    broken,
+    pendingSent,
+    pendingReceived,
+    tzInfo
+  };
+}
+
+/**
+ * Format embed tampilan daftar partner streak realtime untuk slash command /streak list
+ */
+function formatUserStreakListEmbed(userId) {
+  const data = buildUserStreakList(userId);
+  const totalActive = data.active.length;
+  const totalLit = data.active.filter(a => a.isLitToday).length;
+
+  let activeText = '';
+  if (totalActive === 0) {
+    activeText = '*Kamu belum memiliki partner streak yang aktif.*\n*Gunakan `/streak ajak @partner` untuk memulai!*';
+  } else {
+    activeText = data.active.map(a => {
+      return `• <@${a.partnerId}> — **${a.days} Hari** (${a.tier.tierLabel} • ${a.tier.name})\n  ┗ Status: ${a.statusToday}`;
+    }).join('\n\n');
+  }
+
+  let brokenText = '';
+  if (data.broken.length > 0) {
+    brokenText = data.broken.map(b => {
+      return `• <@${b.partnerId}> — **Padam di Hari ke-${b.days}** (Sisa Kuota: **${b.revivesLeft}/5**)\n  ┗ *Gunakan \`/streak pulihkan\` untuk menghidupkan kembali!*`;
+    }).join('\n');
+  }
+
+  let pendingText = '';
+  if (data.pendingSent.length > 0) {
+    pendingText += data.pendingSent.map(p => `• Menunggu konfirmasi dari <@${p.partnerId}>`).join('\n') + '\n';
+  }
+  if (data.pendingReceived.length > 0) {
+    pendingText += data.pendingReceived.map(p => `• Undangan masuk dari <@${p.partnerId}> — *Cek chat server untuk menerima!*`).join('\n');
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(totalActive > 0 && totalLit === totalActive ? '#10B981' : '#F59E0B')
+    .setTitle('✦ DAFTAR PARTNER FLAME STREAK KAMU ✦')
+    .setDescription(
+      `👤 **Status Streak untuk:** <@${userId}>\n` +
+      `> 📊 Total Pasangan Aktif: **${totalActive} Partner**\n` +
+      `> 🔥 Status Hari Ini: **${totalLit}/${totalActive} Menyala**\n` +
+      `> ⏰ Waktu Reset: Pukul **00:00 WIB** (Pengingat harian otomatis via DM)\n\n` +
+      `───────────────────────────────\n` +
+      `**DAFTAR PARTNER AKTIF:**\n` +
+      `${activeText}\n\n` +
+      (brokenText ? `───────────────────────────────\n🥀 **STREAK PADAM (DAPAT DIPULIHKAN):**\n${brokenText}\n\n` : '') +
+      (pendingText ? `───────────────────────────────\n📩 **UNDANGAN STREAK MENUNGGU:**\n${pendingText}\n\n` : '') +
+      `───────────────────────────────\n` +
+      `💡 *Cara menyalakan api: Cukup saling chat & reply partner kamu di channel teks server setiap hari!*`
+    )
+    .setFooter({ text: 'Realtime Status • Zona Waktu Indonesia Barat (WIB)' })
+    .setTimestamp();
+
+  return embed;
+}
+
+/**
+ * Mengirimkan reminder pribadi (DM) harian setiap pukul 21:00 WIB
+ * ke setiap user yang memiliki streak yang BELUM menyala hari ini.
+ * Ditandai secara jelas mana yang sudah nyala dan mana yang belum.
+ */
+async function sendDailyPersonalStreakReminders(client) {
+  if (!client) return;
+  const streaks = getAllStreaks();
+  const tzInfo = getTimezoneInfo();
+
+  // Kumpulkan semua user unik yang memiliki streak aktif
+  const userMap = new Map();
+
+  for (const s of Object.values(streaks)) {
+    if (s.status !== 'active') continue;
+    if (!userMap.has(s.user1Id)) userMap.set(s.user1Id, []);
+    if (!userMap.has(s.user2Id)) userMap.set(s.user2Id, []);
+
+    userMap.get(s.user1Id).push(s);
+    userMap.get(s.user2Id).push(s);
+  }
+
+  for (const [userId, userStreaks] of userMap.entries()) {
+    // Cek apakah ada streak yang belum menyala hari ini
+    const unlitStreaks = userStreaks.filter(s => s.lastLitDate !== tzInfo.todayStr);
+    if (unlitStreaks.length === 0) {
+      // Semua streak user ini sudah menyala hari ini
+      continue;
+    }
+
+    // Bangun daftar status per partner
+    const items = userStreaks.map(s => {
+      const partnerId = s.user1Id === userId ? s.user2Id : s.user1Id;
+      const isLit = s.lastLitDate === tzInfo.todayStr;
+      const tier = getStreakTier(s.streakCount || 1);
+
+      if (isLit) {
+        return `• <@${partnerId}>: ✅ **Sudah Menyala** (${s.streakCount} Hari • ${tier.name})`;
+      } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === partnerId) {
+        return `• <@${partnerId}>: ⚠️ **Menunggu Balasanmu!** (<@${partnerId}> sudah menyapa di server, segera balas!)`;
+      } else if (s.todayInitiatedDate === tzInfo.todayStr && s.todayInitiatorId === userId) {
+        return `• <@${partnerId}>: ⏳ **Menunggu Balasan Partner** (Kamu sudah menyapa, ingatkan <@${partnerId}>!)`;
+      } else {
+        return `• <@${partnerId}>: 🔥 **Belum Menyala!** (${s.streakCount} Hari — Segera saling chat di channel teks!)`;
+      }
+    });
+
+    const dmContent =
+      `🔔 **PENGINGAT FLAME STREAK HARIAN (Pukul 21:00 WIB)**\n` +
+      `Halo <@${userId}>! Sisa waktu **~3 jam lagi** sebelum api streak direset pada pukul **00:00 WIB**.\n\n` +
+      `📊 **Status Seluruh Partner Streak Kamu Hari Ini:**\n` +
+      items.join('\n') + `\n\n` +
+      `⚠️ *Jangan biarkan api streak kalian padam! Segera buka server dan saling chat/reply di channel teks sebelum tengah malam!*\n` +
+      `*(Ketik \`/streak list\` di server untuk memantau status realtime kapan saja)*`;
+
+    try {
+      const user = client.users.cache.get(userId) || await client.users.fetch(userId).catch(() => null);
+      if (user) {
+        await user.send({ content: dmContent }).catch(() => {});
+      }
+    } catch (_) {}
+  }
+}
+
+/**
+ * Kirimkan pesan pemberitahuan satu kali ke DM seluruh member yang memiliki streak aktif/terdaftar
+ * setelah bot di-update dengan fitur baru.
+ */
+async function broadcastStreakUpdate(client) {
+  if (!client) return;
+
+  const settings = storage.read('settings') || {};
+  if (settings.streakUpdateNotified_v3) return; // Sudah dikirim sebelumnya
+
+  const streaks = getAllStreaks();
+  const tzInfo = getTimezoneInfo();
+
+  const userMap = new Map();
+  for (const s of Object.values(streaks)) {
+    if (!userMap.has(s.user1Id)) userMap.set(s.user1Id, []);
+    if (!userMap.has(s.user2Id)) userMap.set(s.user2Id, []);
+    userMap.get(s.user1Id).push(s);
+    userMap.get(s.user2Id).push(s);
+  }
+
+  if (userMap.size === 0) {
+    settings.streakUpdateNotified_v3 = true;
+    storage.write('settings', settings);
+    return;
+  }
+
+  console.log(`[Streak Update Broadcast] Mengirim pesan pembaruan ke ${userMap.size} user streak...`);
+
+  for (const [userId, userStreaks] of userMap.entries()) {
+    const items = userStreaks.map(s => {
+      const partnerId = s.user1Id === userId ? s.user2Id : s.user1Id;
+      const isLit = s.lastLitDate === tzInfo.todayStr;
+      const days = s.status === 'active' ? s.streakCount : (s.previousStreakCount || 1);
+      const tier = getStreakTier(days);
+      const statusIcon = s.status === 'broken' ? '🥀 Padam' : isLit ? '✅ Sudah Menyala' : '⏳ Belum Menyala';
+
+      return `• <@${partnerId}>: ${statusIcon} (${days} Hari • ${tier.name})`;
+    });
+
+    const updateMessage =
+      `✨ **PEMBARUAN SISTEM FLAME STREAK DISCORD!**\n` +
+      `Halo <@${userId}>! Sistem Streak server telah diperbarui dengan fitur baru yang jauh lebih mudah:\n\n` +
+      `🔥 **1. Terima Undangan = Api Langsung Menyala!**\n` +
+      `Saat kamu atau partner menerima ajakan streak, api **Hari ke-1 langsung resmi menyala** dan reward harian (+30 Stardust & +1 Tiket Gacha) langsung masuk, tanpa perlu bingung chat lagi di hari pertama!\n\n` +
+      `📋 **2. Perintah Baru \`/streak list\`**\n` +
+      `Gunakan perintah \`/streak list\` di server untuk memantau seluruh partner kamu beserta status apinya hari ini secara realtime.\n\n` +
+      `🔔 **3. Pengingat Harian Otomatis via DM**\n` +
+      `Setiap malam pukul 21:00 WIB, bot akan otomatis mengirimkan pengingat ke DM kamu jika ada streak yang belum dinyalakan.\n\n` +
+      `📊 **Status Streak Kamu Saat Ini:**\n` +
+      items.join('\n') + `\n\n` +
+      `*Selamat melanjutkan petualangan streak bersama partnermu! 🔥*`;
+
+    try {
+      const user = client.users.cache.get(userId) || await client.users.fetch(userId).catch(() => null);
+      if (user) {
+        await user.send({ content: updateMessage }).catch(() => {});
+      }
+    } catch (_) {}
+  }
+
+  settings.streakUpdateNotified_v3 = true;
+  storage.write('settings', settings);
+  console.log('[Streak Update Broadcast] Berhasil diselesaikan.');
+}
+
+/**
+ * Pengecekan Pengingat 3 Jam Sebelum Reset (Jam 21:00 WIB via DM) & Rollover 00:00 WIB
  */
 async function checkStreakScheduler(client) {
   const streaks = getAllStreaks();
   let changed = false;
   const tzInfo = getTimezoneInfo();
 
-  for (const streak of Object.values(streaks)) {
-    if (streak.status !== 'active') continue;
-
-    // 1. Pengingat Jam 21:00 WIB
-    if (tzInfo.hour === 21 && tzInfo.minute === 0) {
-      if (streak.lastLitDate !== tzInfo.todayStr && !streak.remindedToday) {
+  // 1. Pengingat Jam 21:00 WIB via Pesan Pribadi (DM)
+  if (tzInfo.hour === 21 && tzInfo.minute === 0) {
+    let shouldSendDM = false;
+    for (const streak of Object.values(streaks)) {
+      if (streak.status !== 'active') continue;
+      if (!streak.remindedToday) {
         streak.remindedToday = true;
         changed = true;
-
-        try {
-          const guild = client.guilds.cache.get(streak.guildId);
-          if (guild) {
-            let targetChannel = null;
-            if (streak.lastChannelId) {
-              targetChannel = guild.channels.cache.get(streak.lastChannelId) || await guild.channels.fetch(streak.lastChannelId).catch(() => null);
-            }
-            if (!targetChannel) targetChannel = guild.systemChannel;
-
-            if (targetChannel && targetChannel.isTextBased()) {
-              const tier = getStreakTier(streak.streakCount || 1);
-              let reminderText = '';
-
-              // Jika orang pertama sudah sapa tapi partnernya belum balas:
-              if (streak.todayInitiatedDate === tzInfo.todayStr && streak.todayInitiatorId) {
-                const pendingPartnerId = streak.todayInitiatorId === streak.user1Id ? streak.user2Id : streak.user1Id;
-                const initiatorId = streak.todayInitiatorId;
-                reminderText =
-                  `⏳ **Peringatan Streak: Menunggu Balasan!**\n` +
-                  `<@${pendingPartnerId}>, partner kamu <@${initiatorId}> sudah menyapa hari ini, tapi kamu belum membalas!\n\n` +
-                  `Balas chatnya di channel teks ini sebelum pukul **00:00 WIB** agar api streak kalian tidak padam.`;
-              } else {
-                // Keduanya belum chat sama sekali
-                reminderText =
-                  `⏳ **Peringatan Streak Harian**\n` +
-                  `Sisa waktu sebelum api streak antara <@${streak.user1Id}> dan <@${streak.user2Id}> padam pada pukul **00:00 WIB**.\n\n` +
-                  `Kalian berdua wajib saling chat & balas di channel teks sebelum tengah malam untuk menyalakan api hari ini!`;
-              }
-
-              const reminderEmbed = new EmbedBuilder()
-                .setColor(tier.color)
-                .setDescription(reminderText);
-
-              await targetChannel.send({
-                content: `<@${streak.user1Id}> <@${streak.user2Id}>`,
-                embeds: [reminderEmbed]
-              }).catch(() => {});
-            }
-          }
-        } catch (remErr) {
-          console.warn('[Streak Reminder] Error:', remErr.message);
-        }
+        shouldSendDM = true;
       }
     }
+    if (shouldSendDM) {
+      await sendDailyPersonalStreakReminders(client).catch(() => {});
+    }
+  }
+
+  for (const streak of Object.values(streaks)) {
+    if (streak.status !== 'active') continue;
 
     // 2. Rollover Jam 00:00 WIB (Pergantian Hari)
     if (tzInfo.hour === 0 && tzInfo.minute === 0) {
@@ -777,5 +1034,9 @@ module.exports = {
   handleMessageStreak,
   checkStreakScheduler,
   buildStreakLeaderboardEmbed,
-  updateLiveStreakLeaderboard
+  updateLiveStreakLeaderboard,
+  buildUserStreakList,
+  formatUserStreakListEmbed,
+  sendDailyPersonalStreakReminders,
+  broadcastStreakUpdate
 };

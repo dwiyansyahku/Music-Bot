@@ -48,11 +48,12 @@ module.exports = {
     }
 
     // =============================================
-    // TIKTOK FLAME STREAK LEADERBOARD CHANNEL INIT
+    // TIKTOK FLAME STREAK LEADERBOARD & UPDATE BROADCAST
     // =============================================
     try {
-      const { updateLiveStreakLeaderboard } = require('../utils/streakHelper');
+      const { updateLiveStreakLeaderboard, broadcastStreakUpdate } = require('../utils/streakHelper');
       updateLiveStreakLeaderboard(client).catch(() => {});
+      broadcastStreakUpdate(client).catch(() => {});
     } catch (stkErr) {
       console.warn('⚠️ [Streak Leaderboard Startup] Gagal inisialisasi:', stkErr.message);
     }
